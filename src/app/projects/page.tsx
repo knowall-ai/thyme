@@ -3,7 +3,6 @@
 import { AuthenticatedTemplate, UnauthenticatedTemplate } from '@/services/auth';
 import { Layout } from '@/components/layout';
 import { ProjectList } from '@/components/projects/ProjectList';
-import { redirect } from 'next/navigation';
 
 function ProjectsContent() {
   return (
