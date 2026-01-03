@@ -46,8 +46,10 @@ export const bcScopes: string[] = [
 ];
 
 // Login request configuration
+// Note: .default scope cannot be combined with other scopes
+// We use BC scopes for login, and acquire Graph tokens separately if needed
 export const loginRequest: PopupRequest = {
-  scopes: [...graphScopes, ...bcScopes],
+  scopes: bcScopes,
 };
 
 // Silent token request for BC API
