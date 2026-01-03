@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   ClockIcon,
   FolderIcon,
+  UserGroupIcon,
   ChartBarIcon,
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
@@ -15,6 +16,7 @@ import { cn } from '@/utils';
 const navigation = [
   { name: 'Time', href: '/', icon: ClockIcon },
   { name: 'Projects', href: '/projects', icon: FolderIcon },
+  { name: 'Team', href: '/team', icon: UserGroupIcon },
   { name: 'Reports', href: '/reports', icon: ChartBarIcon },
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
 ];
