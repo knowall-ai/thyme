@@ -1,0 +1,182 @@
+= Thyme Troubleshooting Guide
+:toc:
+
+== Common Issues
+
+|===
+| Problem | Cause | Solution
+
+| Auth redirect fails
+| Incorrect reply URL in Entra ID
+| Verify redirect URI in App Registration matches NEXT_PUBLIC_AZURE_REDIRECT_URI
+
+| "AADSTS50011" error
+| Reply URL not registered
+| Add the exact URL (including trailing slash if present) to App Registration
+
+| BC API returns 401
+| Token scope mismatch or expired
+| Verify BC API permissions are granted; check token expiry
+
+| BC API returns 403
+| User lacks BC permissions
+| Grant user appropriate BC license and permissions
+
+| Projects not loading
+| Invalid BC_COMPANY_ID
+| Verify company GUID in Business Central admin center
+
+| Timer not persisting
+| localStorage blocked
+| Check browser privacy settings; localStorage required for timer state
+
+| Sync fails silently
+| Network error or BC offline
+| Check browser console; verify BC API endpoint is accessible
+
+| Slow performance
+| Too many BC API calls
+| Enable caching in project service; batch requests where possible
+
+| Mobile display issues
+| Viewport not responsive
+| Ensure meta viewport tag is present; test on actual devices
+
+| Dark mode not working
+| Tailwind dark class missing
+| Verify `dark` class on HTML element; check tailwind.config.js
+|===
+
+== Authentication Issues
+
+=== Token Refresh Failing
+
+**Symptoms**: User suddenly logged out, 401 errors
+
+**Solutions**:
+1. Clear browser cache and cookies
+2. Sign out and sign back in
+3. Check MSAL configuration:
+
+[source,typescript]
+----
+// Ensure cache location is set
+cache: {
+  cacheLocation: 'localStorage',
+  storeAuthStateInCookie: false,
+}
+----
+
+=== Multi-Account Confusion
+
+**Symptoms**: Wrong account active, unexpected user info
+
+**Solutions**:
+1. Use `instance.setActiveAccount()` after login
+2. Clear all accounts: `instance.getAllAccounts().forEach(a => instance.logout(a))`
+
+== Business Central API Issues
+
+=== Invalid Company ID
+
+**Symptoms**: 404 errors, "company not found"
+
+**Debug**:
+[source,bash]
+----
+# Get list of companies via API
+curl -H "Authorization: Bearer $TOKEN" \
+  "https://api.businesscentral.dynamics.com/v2.0/$TENANT/production/api/v2.0/companies"
+----
+
+=== Missing Jobs/Tasks
+
+**Symptoms**: Empty project list despite BC having data
+
+**Check**:
+1. Job status is "Open" (completed jobs are filtered)
+2. Job Task type is "Posting" (only posting tasks shown)
+3. User has permission to view jobs in BC
+
+=== Journal Line Creation Fails
+
+**Symptoms**: Time entries don't sync, error in console
+
+**Common Causes**:
+- Invalid resource number (check user mapping)
+- Invalid job/task combination
+- Required fields missing
+
+== Performance Issues
+
+=== Slow Initial Load
+
+**Solutions**:
+1. Enable Next.js ISR for static pages
+2. Prefetch projects on dashboard load
+3. Use React Query for caching
+
+=== Timer Lag
+
+**Solutions**:
+1. Ensure timer runs in dedicated interval
+2. Don't re-render entire component on tick
+3. Use `requestAnimationFrame` for smooth display
+
+== Development Issues
+
+=== TypeScript Errors
+
+**Common Fix**: Update types after BC API changes
+
+[source,bash]
+----
+npm run typecheck
+----
+
+=== Tailwind Classes Not Working
+
+**Check**:
+1. File is in `content` array in tailwind.config.js
+2. Class names are complete (no string interpolation)
+3. Run `npm run build` to regenerate CSS
+
+== Debugging Tips
+
+=== Enable MSAL Logging
+
+[source,typescript]
+----
+system: {
+  loggerOptions: {
+    loggerCallback: (level, message) => console.log(message),
+    logLevel: LogLevel.Verbose,
+  }
+}
+----
+
+=== Check BC API Directly
+
+[source,bash]
+----
+# Get token from browser Network tab, then:
+curl -H "Authorization: Bearer $TOKEN" \
+  "$BC_BASE_URL/$TENANT/$ENV/api/v2.0/companies($COMPANY_ID)/jobs"
+----
+
+=== React DevTools
+
+1. Install React DevTools browser extension
+2. Check component state in Components tab
+3. Profile renders to find performance issues
+
+== Getting Help
+
+1. Check browser console for errors
+2. Review Network tab for failed requests
+3. Search existing GitHub issues
+4. Create new issue with:
+   - Steps to reproduce
+   - Expected vs actual behavior
+   - Browser/OS version
+   - Console errors (sanitized)
