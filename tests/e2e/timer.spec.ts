@@ -17,6 +17,8 @@ test.describe('Timer Functionality', () => {
     });
 
     // Initially null or default state
-    expect(timerState === null || JSON.parse(timerState || '{}').state?.isRunning === false).toBeTruthy();
+    expect(
+      timerState === null || JSON.parse(timerState || '{}').state?.isRunning === false
+    ).toBeTruthy();
   });
 });

@@ -15,18 +15,12 @@ interface TimeEntryModalProps {
   entry: TimeEntry | null;
 }
 
-export function TimeEntryModal({
-  isOpen,
-  onClose,
-  date,
-  entry,
-}: TimeEntryModalProps) {
+export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalProps) {
   const { account } = useAuth();
   const userId = account?.localAccountId || '';
 
   const { addEntry, updateEntry, deleteEntry } = useTimeEntriesStore();
-  const { projects, selectedProject, selectedTask, selectProject, selectTask } =
-    useProjectsStore();
+  const { projects, selectedProject, selectedTask, selectProject, selectTask } = useProjectsStore();
 
   const [projectId, setProjectId] = useState('');
   const [taskId, setTaskId] = useState('');
@@ -197,10 +191,7 @@ export function TimeEntryModal({
 
         {/* Notes */}
         <div>
-          <label
-            htmlFor="notes"
-            className="block text-sm font-medium text-dark-200 mb-1"
-          >
+          <label htmlFor="notes" className="mb-1 block text-sm font-medium text-dark-200">
             Notes (optional)
           </label>
           <textarea
@@ -208,13 +199,13 @@ export function TimeEntryModal({
             rows={3}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="flex w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-100 placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-thyme-500 focus:border-transparent"
+            className="flex w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-100 placeholder:text-dark-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-thyme-500"
             placeholder="What did you work on?"
           />
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-between pt-4 border-t border-dark-700">
+        <div className="flex items-center justify-between border-t border-dark-700 pt-4">
           <div>
             {entry && (
               <Button
@@ -222,9 +213,9 @@ export function TimeEntryModal({
                 variant="ghost"
                 onClick={handleDelete}
                 disabled={isSubmitting}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                className="text-red-600 hover:bg-red-50 hover:text-red-700"
               >
-                <TrashIcon className="w-4 h-4 mr-2" />
+                <TrashIcon className="mr-2 h-4 w-4" />
                 Delete
               </Button>
             )}

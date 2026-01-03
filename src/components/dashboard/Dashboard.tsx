@@ -19,7 +19,7 @@ export function Dashboard() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-white">Timesheet</h1>
-            <p className="text-dark-400 mt-1">Track your time and sync to Business Central</p>
+            <p className="mt-1 text-dark-400">Track your time and sync to Business Central</p>
           </div>
 
           {/* Timer */}
@@ -31,10 +31,7 @@ export function Dashboard() {
       </div>
 
       {/* Start Timer Modal */}
-      <StartTimerModal
-        isOpen={isTimerModalOpen}
-        onClose={() => setIsTimerModalOpen(false)}
-      />
+      <StartTimerModal isOpen={isTimerModalOpen} onClose={() => setIsTimerModalOpen(false)} />
     </Layout>
   );
 }

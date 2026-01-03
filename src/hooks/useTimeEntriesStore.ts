@@ -10,7 +10,9 @@ interface TimeEntriesStore {
   error: string | null;
 
   fetchWeekEntries: (userId: string, weekStart?: Date) => Promise<void>;
-  addEntry: (entry: Omit<TimeEntry, 'id' | 'createdAt' | 'updatedAt' | 'syncStatus'>) => Promise<TimeEntry>;
+  addEntry: (
+    entry: Omit<TimeEntry, 'id' | 'createdAt' | 'updatedAt' | 'syncStatus'>
+  ) => Promise<TimeEntry>;
   updateEntry: (entryId: string, updates: Partial<TimeEntry>) => Promise<void>;
   deleteEntry: (entryId: string) => Promise<void>;
   copyPreviousWeek: (userId: string) => Promise<void>;
@@ -109,9 +111,7 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
   navigateToWeek: (direction: 'prev' | 'next') => {
     set((state) => {
       const newWeekStart = new Date(state.currentWeekStart);
-      newWeekStart.setDate(
-        newWeekStart.getDate() + (direction === 'next' ? 7 : -7)
-      );
+      newWeekStart.setDate(newWeekStart.getDate() + (direction === 'next' ? 7 : -7));
       return { currentWeekStart: newWeekStart };
     });
   },

@@ -85,13 +85,8 @@ export function WeeklyTimesheet() {
         />
 
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleCopyPreviousWeek}
-            disabled={isLoading}
-          >
-            <DocumentDuplicateIcon className="w-4 h-4 mr-2" />
+          <Button variant="outline" size="sm" onClick={handleCopyPreviousWeek} disabled={isLoading}>
+            <DocumentDuplicateIcon className="mr-2 h-4 w-4" />
             Copy previous week
           </Button>
         </div>
@@ -100,10 +95,7 @@ export function WeeklyTimesheet() {
       {/* Week Summary */}
       <div className="flex items-center gap-6">
         <div className="text-sm text-dark-400">
-          Week total:{' '}
-          <span className="font-semibold text-white">
-            {formatTime(totalHours)}
-          </span>
+          Week total: <span className="font-semibold text-white">{formatTime(totalHours)}</span>
         </div>
         {entries.length > 0 && (
           <div className="text-sm text-dark-400">
@@ -115,19 +107,17 @@ export function WeeklyTimesheet() {
       {/* Timesheet Grid */}
       <Card variant="bordered" className="overflow-hidden">
         {/* Day Headers */}
-        <div className="grid grid-cols-7 bg-dark-900 border-b border-dark-700">
+        <div className="grid grid-cols-7 border-b border-dark-700 bg-dark-900">
           {weekDays.map((day) => {
             const isToday = isDayToday(day);
             return (
               <div
                 key={day.toISOString()}
-                className={`p-3 text-center border-r border-dark-700 last:border-r-0 ${
+                className={`border-r border-dark-700 p-3 text-center last:border-r-0 ${
                   isToday ? 'bg-knowall-green/10' : ''
                 }`}
               >
-                <p className="text-xs font-medium text-dark-400 uppercase">
-                  {format(day, 'EEE')}
-                </p>
+                <p className="text-xs font-medium uppercase text-dark-400">{format(day, 'EEE')}</p>
                 <p
                   className={`text-lg font-semibold ${
                     isToday ? 'text-knowall-green' : 'text-white'
@@ -142,8 +132,8 @@ export function WeeklyTimesheet() {
 
         {/* Entries Grid */}
         {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-knowall-green"></div>
+          <div className="flex h-64 items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-knowall-green"></div>
           </div>
         ) : (
           <div className="grid grid-cols-7">
@@ -170,7 +160,7 @@ export function WeeklyTimesheet() {
         {/* Empty State */}
         {!isLoading && entries.length === 0 && (
           <div className="py-12 text-center">
-            <p className="text-dark-300 mb-4">
+            <p className="mb-4 text-dark-300">
               &quot;This is not a moment, it&apos;s the movement.&quot;
             </p>
             <p className="text-sm text-dark-500">- Lin-Manuel Miranda</p>

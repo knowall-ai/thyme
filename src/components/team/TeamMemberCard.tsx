@@ -23,14 +23,14 @@ export function TeamMemberCard({ member }: TeamMemberCardProps) {
 
   const statusColors = {
     'on-track': 'bg-thyme-500',
-    'behind': 'bg-amber-500',
-    'ahead': 'bg-blue-500',
+    behind: 'bg-amber-500',
+    ahead: 'bg-blue-500',
   };
 
   const statusLabels = {
     'on-track': 'On Track',
-    'behind': 'Behind',
-    'ahead': 'Ahead',
+    behind: 'Behind',
+    ahead: 'Ahead',
   };
 
   return (
@@ -39,39 +39,41 @@ export function TeamMemberCard({ member }: TeamMemberCardProps) {
         {/* Avatar */}
         <div className="flex-shrink-0">
           {member.avatar ? (
-            <img
-              src={member.avatar}
-              alt={member.name}
-              className="w-12 h-12 rounded-full"
-            />
+            <img src={member.avatar} alt={member.name} className="h-12 w-12 rounded-full" />
           ) : (
-            <div className="w-12 h-12 rounded-full bg-dark-600 flex items-center justify-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-dark-600">
               <span className="text-lg font-medium text-dark-200">
-                {member.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                {member.name
+                  .split(' ')
+                  .map((n) => n[0])
+                  .join('')
+                  .slice(0, 2)}
               </span>
             </div>
           )}
         </div>
 
         {/* Info */}
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="font-medium text-dark-100 truncate">{member.name}</h3>
-            <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[member.status]} text-white`}>
+            <h3 className="truncate font-medium text-dark-100">{member.name}</h3>
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs ${statusColors[member.status]} text-white`}
+            >
               {statusLabels[member.status]}
             </span>
           </div>
-          <p className="text-sm text-dark-400 truncate">{member.role}</p>
+          <p className="truncate text-sm text-dark-400">{member.role}</p>
 
           {/* Progress */}
           <div className="mt-3">
-            <div className="flex items-center justify-between text-sm mb-1">
+            <div className="mb-1 flex items-center justify-between text-sm">
               <span className="text-dark-400">This week</span>
               <span className="text-dark-200">
                 {formatTime(member.hoursThisWeek)} / {formatTime(member.hoursTarget)}
               </span>
             </div>
-            <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
+            <div className="h-2 overflow-hidden rounded-full bg-dark-700">
               <div
                 className={`h-full ${statusColors[member.status]} transition-all duration-300`}
                 style={{ width: `${progressPercent}%` }}

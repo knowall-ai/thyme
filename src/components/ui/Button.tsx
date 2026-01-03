@@ -26,9 +26,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       'inline-flex items-center justify-center font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-knowall-green focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900 disabled:pointer-events-none disabled:opacity-50 rounded-lg';
 
     const variants = {
-      primary: 'bg-knowall-green text-dark-950 hover:bg-knowall-green-light active:bg-knowall-green-dark shadow-lg shadow-knowall-green/20 hover:shadow-knowall-green/40',
+      primary:
+        'bg-knowall-green text-dark-950 hover:bg-knowall-green-light active:bg-knowall-green-dark shadow-lg shadow-knowall-green/20 hover:shadow-knowall-green/40',
       secondary: 'bg-dark-700 text-white hover:bg-dark-600 active:bg-dark-800',
-      outline: 'border border-dark-600 bg-transparent text-dark-200 hover:bg-dark-800 hover:text-white active:bg-dark-700',
+      outline:
+        'border border-dark-600 bg-transparent text-dark-200 hover:bg-dark-800 hover:text-white active:bg-dark-700',
       ghost: 'text-dark-300 hover:bg-dark-800 hover:text-white active:bg-dark-700',
       danger: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800',
     };
@@ -49,11 +51,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       >
         {isLoading ? (
           <>
-            <svg
-              className="mr-2 h-4 w-4 animate-spin"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
+            <svg className="mr-2 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle
                 className="opacity-25"
                 cx="12"

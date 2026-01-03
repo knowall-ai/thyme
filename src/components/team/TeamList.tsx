@@ -60,24 +60,24 @@ export function TeamList() {
 
   const totalHours = members.reduce((sum, m) => sum + m.hoursThisWeek, 0);
   const totalTarget = members.reduce((sum, m) => sum + m.hoursTarget, 0);
-  const behindCount = members.filter(m => m.status === 'behind').length;
+  const behindCount = members.filter((m) => m.status === 'behind').length;
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-thyme-600"></div>
+      <div className="flex h-64 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-thyme-600"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex h-64 items-center justify-center">
         <div className="text-center">
-          <p className="text-red-500 mb-2">{error}</p>
+          <p className="mb-2 text-red-500">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="text-thyme-500 hover:text-thyme-400 underline"
+            className="text-thyme-500 underline hover:text-thyme-400"
           >
             Try again
           </button>
@@ -89,25 +89,25 @@ export function TeamList() {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card variant="bordered" className="p-4">
           <p className="text-sm text-dark-400">Team Members</p>
-          <p className="text-2xl font-bold text-dark-100 mt-1">{members.length}</p>
+          <p className="mt-1 text-2xl font-bold text-dark-100">{members.length}</p>
         </Card>
         <Card variant="bordered" className="p-4">
           <p className="text-sm text-dark-400">Total Hours This Week</p>
-          <p className="text-2xl font-bold text-dark-100 mt-1">
+          <p className="mt-1 text-2xl font-bold text-dark-100">
             {totalHours} / {totalTarget}
           </p>
         </Card>
         <Card variant="bordered" className="p-4">
           <p className="text-sm text-dark-400">Need Attention</p>
-          <p className="text-2xl font-bold text-amber-500 mt-1">{behindCount}</p>
+          <p className="mt-1 text-2xl font-bold text-amber-500">{behindCount}</p>
         </Card>
       </div>
 
       {/* Team Members */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {members.map((member) => (
           <TeamMemberCard key={member.id} member={member} />
         ))}

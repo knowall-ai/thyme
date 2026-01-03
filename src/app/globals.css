@@ -40,7 +40,7 @@ body {
   }
 
   .gradient-text {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-knowall-green to-thyme-300;
+    @apply bg-gradient-to-r from-knowall-green to-thyme-300 bg-clip-text text-transparent;
   }
 }
 

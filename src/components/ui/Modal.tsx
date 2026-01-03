@@ -12,13 +12,7 @@ export interface ModalProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
 }
 
-export function Modal({
-  isOpen,
-  onClose,
-  title,
-  children,
-  size = 'md',
-}: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Close on escape key
@@ -74,16 +68,13 @@ export function Modal({
           aria-labelledby="modal-title"
           tabIndex={-1}
           className={cn(
-            'relative w-full transform rounded-xl bg-dark-800 border border-dark-700 shadow-2xl transition-all',
+            'relative w-full transform rounded-xl border border-dark-700 bg-dark-800 shadow-2xl transition-all',
             sizes[size]
           )}
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-dark-700 px-6 py-4">
-            <h2
-              id="modal-title"
-              className="text-lg font-semibold text-white"
-            >
+            <h2 id="modal-title" className="text-lg font-semibold text-white">
               {title}
             </h2>
             <button

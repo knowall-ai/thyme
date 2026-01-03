@@ -59,9 +59,7 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
   toggleFavorite: (projectId: string) => {
     const isFavorite = projectService.toggleFavorite(projectId);
     set((state) => ({
-      projects: state.projects.map((p) =>
-        p.id === projectId ? { ...p, isFavorite } : p
-      ),
+      projects: state.projects.map((p) => (p.id === projectId ? { ...p, isFavorite } : p)),
     }));
   },
 

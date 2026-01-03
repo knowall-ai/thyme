@@ -16,8 +16,7 @@ export function StartTimerModal({ isOpen, onClose }: StartTimerModalProps) {
   const userId = account?.localAccountId || '';
 
   const timer = useTimer(userId);
-  const { projects, selectedProject, selectProject, selectTask } =
-    useProjectsStore();
+  const { projects, selectedProject, selectProject, selectTask } = useProjectsStore();
 
   const [projectId, setProjectId] = useState('');
   const [taskId, setTaskId] = useState('');
@@ -89,10 +88,7 @@ export function StartTimerModal({ isOpen, onClose }: StartTimerModalProps) {
 
         {/* Notes */}
         <div>
-          <label
-            htmlFor="timer-notes"
-            className="block text-sm font-medium text-dark-200 mb-1"
-          >
+          <label htmlFor="timer-notes" className="mb-1 block text-sm font-medium text-dark-200">
             Notes (optional)
           </label>
           <textarea
@@ -100,13 +96,13 @@ export function StartTimerModal({ isOpen, onClose }: StartTimerModalProps) {
             rows={2}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="flex w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-100 placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-thyme-500 focus:border-transparent"
+            className="flex w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-100 placeholder:text-dark-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-thyme-500"
             placeholder="What are you working on?"
           />
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-2 pt-4 border-t border-dark-700">
+        <div className="flex justify-end gap-2 border-t border-dark-700 pt-4">
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>

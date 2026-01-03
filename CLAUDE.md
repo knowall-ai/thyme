@@ -35,6 +35,7 @@ npm run check
 ```
 
 This validates:
+
 - Prettier formatting (`npm run format:check`)
 - ESLint rules (`npm run lint`)
 - TypeScript types (`npm run typecheck`)
@@ -58,6 +59,7 @@ The troubleshooting doc uses a simple 2-column table format:
 ### When to Add Entries
 
 Add troubleshooting entries when:
+
 - Fixing a bug that users might encounter
 - Resolving configuration issues
 - Debugging authentication or API problems
@@ -80,6 +82,7 @@ Keep entries concise but complete enough for someone unfamiliar with the codebas
 ## Authentication
 
 Uses MSAL with redirect flow (not popup). Key files:
+
 - `src/services/auth/AuthProvider.tsx` - MSAL setup and hooks
 - `src/services/auth/msalConfig.ts` - Configuration
 - `src/services/auth/tokenService.ts` - Token acquisition

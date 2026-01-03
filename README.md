@@ -13,15 +13,15 @@ A modern time tracking web application that integrates with Microsoft Dynamics 3
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | React 18, Next.js 14 |
-| Styling | Tailwind CSS |
-| State | Zustand |
-| Auth | MSAL.js (Microsoft Entra ID) |
-| Data | Business Central OData API |
-| Testing | Playwright, Vitest |
-| Hosting | Azure App Service |
+| Layer    | Technology                   |
+| -------- | ---------------------------- |
+| Frontend | React 18, Next.js 14         |
+| Styling  | Tailwind CSS                 |
+| State    | Zustand                      |
+| Auth     | MSAL.js (Microsoft Entra ID) |
+| Data     | Business Central OData API   |
+| Testing  | Playwright, Vitest           |
+| Hosting  | Azure App Service            |
 
 ## Getting Started
 
@@ -88,6 +88,7 @@ npm run check
 ```
 
 This runs:
+
 1. **Format check** - Prettier formatting validation
 2. **Lint** - ESLint code quality rules
 3. **Type check** - TypeScript type validation

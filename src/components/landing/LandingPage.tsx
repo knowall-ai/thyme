@@ -14,12 +14,14 @@ const features = [
   {
     icon: ClockIcon,
     title: 'Effortless Time Tracking',
-    description: 'Track your time with an intuitive weekly timesheet view or real-time timer. Log hours quickly and accurately.',
+    description:
+      'Track your time with an intuitive weekly timesheet view or real-time timer. Log hours quickly and accurately.',
   },
   {
     icon: ArrowPathIcon,
     title: 'Business Central Sync',
-    description: 'Automatically sync time entries to Microsoft Dynamics 365 Business Central Jobs and Job Journal Lines.',
+    description:
+      'Automatically sync time entries to Microsoft Dynamics 365 Business Central Jobs and Job Journal Lines.',
   },
   {
     icon: ChartBarIcon,
@@ -48,21 +50,21 @@ export function LandingPage() {
   return (
     <div className="min-h-screen bg-dark-950">
       {/* Background effects */}
-      <div className="fixed inset-0 bg-grid-pattern bg-grid opacity-20 pointer-events-none" />
-      <div className="fixed inset-0 bg-gradient-radial from-knowall-green/5 via-transparent to-transparent pointer-events-none" />
+      <div className="pointer-events-none fixed inset-0 bg-grid-pattern bg-grid opacity-20" />
+      <div className="pointer-events-none fixed inset-0 bg-gradient-radial from-knowall-green/5 via-transparent to-transparent" />
 
       {/* Header */}
       <header className="relative z-10 border-b border-dark-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-knowall-green rounded-lg flex items-center justify-center shadow-lg shadow-knowall-green/20">
-                <ClockIcon className="w-6 h-6 text-dark-950" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-knowall-green shadow-lg shadow-knowall-green/20">
+                <ClockIcon className="h-6 w-6 text-dark-950" />
               </div>
               <div>
                 <span className="text-xl font-bold text-white">Thyme</span>
-                <span className="hidden sm:inline text-dark-400 text-sm ml-2">by KnowAll.ai</span>
+                <span className="ml-2 hidden text-sm text-dark-400 sm:inline">by KnowAll.ai</span>
               </div>
             </div>
 
@@ -70,20 +72,20 @@ export function LandingPage() {
             <button
               onClick={login}
               disabled={isLoading}
-              className="px-5 py-2.5 bg-knowall-green text-dark-950 font-semibold rounded-lg hover:bg-knowall-green-light transition-all duration-200 shadow-lg shadow-knowall-green/20 hover:shadow-knowall-green/40 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="flex items-center gap-2 rounded-lg bg-knowall-green px-5 py-2.5 font-semibold text-dark-950 shadow-lg shadow-knowall-green/20 transition-all duration-200 hover:bg-knowall-green-light hover:shadow-knowall-green/40 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isLoading ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-dark-950/30 border-t-dark-950 rounded-full animate-spin" />
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-dark-950/30 border-t-dark-950" />
                   Signing in...
                 </>
               ) : (
                 <>
-                  <svg className="w-5 h-5" viewBox="0 0 21 21" fill="none">
-                    <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
-                    <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
-                    <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
-                    <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+                  <svg className="h-5 w-5" viewBox="0 0 21 21" fill="none">
+                    <rect x="1" y="1" width="9" height="9" fill="#F25022" />
+                    <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
+                    <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
+                    <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
                   </svg>
                   Sign in with Microsoft
                 </>
@@ -95,39 +97,39 @@ export function LandingPage() {
 
       {/* Hero Section */}
       <section className="relative z-10 py-20 sm:py-32">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-dark-800 border border-dark-700 text-sm text-dark-300 mb-6">
-              <span className="w-2 h-2 rounded-full bg-knowall-green animate-pulse" />
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl text-center">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-dark-700 bg-dark-800 px-3 py-1 text-sm text-dark-300">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-knowall-green" />
               Powered by Microsoft Dynamics 365 Business Central
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+            <h1 className="mb-6 text-4xl font-bold leading-tight text-white sm:text-5xl lg:text-6xl">
               Time Tracking,
               <br />
               <span className="text-knowall-green">Perfectly Synced</span>
             </h1>
 
-            <p className="text-lg sm:text-xl text-dark-300 mb-10 max-w-2xl mx-auto">
-              Thyme is a modern time tracking application that integrates seamlessly with
-              Microsoft Dynamics 365 Business Central. Track time, manage projects, and
-              keep your data in sync.
+            <p className="mx-auto mb-10 max-w-2xl text-lg text-dark-300 sm:text-xl">
+              Thyme is a modern time tracking application that integrates seamlessly with Microsoft
+              Dynamics 365 Business Central. Track time, manage projects, and keep your data in
+              sync.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col justify-center gap-4 sm:flex-row">
               <button
                 onClick={login}
                 disabled={isLoading}
-                className="group px-8 py-4 bg-knowall-green text-dark-950 font-semibold rounded-xl hover:bg-knowall-green-light transition-all duration-200 shadow-xl shadow-knowall-green/20 hover:shadow-knowall-green/40 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="group flex items-center justify-center gap-2 rounded-xl bg-knowall-green px-8 py-4 font-semibold text-dark-950 shadow-xl shadow-knowall-green/20 transition-all duration-200 hover:bg-knowall-green-light hover:shadow-knowall-green/40 disabled:opacity-50"
               >
                 Get Started
-                <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                <ArrowRightIcon className="h-5 w-5 transition-transform group-hover:translate-x-1" />
               </button>
               <a
                 href="https://knowall.ai"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-8 py-4 bg-dark-800 text-white font-semibold rounded-xl hover:bg-dark-700 transition-colors border border-dark-700"
+                className="rounded-xl border border-dark-700 bg-dark-800 px-8 py-4 font-semibold text-white transition-colors hover:bg-dark-700"
               >
                 Learn About KnowAll.ai
               </a>
@@ -135,20 +137,20 @@ export function LandingPage() {
           </div>
 
           {/* Hero illustration */}
-          <div className="mt-16 relative">
-            <div className="absolute inset-0 bg-gradient-to-t from-dark-950 via-transparent to-transparent z-10 pointer-events-none" />
-            <div className="bg-dark-900 rounded-2xl border border-dark-700 shadow-2xl overflow-hidden">
-              <div className="bg-dark-800 px-4 py-3 border-b border-dark-700 flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-red-500/80" />
-                <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
-                <div className="w-3 h-3 rounded-full bg-green-500/80" />
+          <div className="relative mt-16">
+            <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-dark-950 via-transparent to-transparent" />
+            <div className="overflow-hidden rounded-2xl border border-dark-700 bg-dark-900 shadow-2xl">
+              <div className="flex items-center gap-2 border-b border-dark-700 bg-dark-800 px-4 py-3">
+                <div className="h-3 w-3 rounded-full bg-red-500/80" />
+                <div className="h-3 w-3 rounded-full bg-yellow-500/80" />
+                <div className="h-3 w-3 rounded-full bg-green-500/80" />
                 <span className="ml-3 text-sm text-dark-400">thyme.knowall.ai</span>
               </div>
               <div className="p-6">
                 {/* Mock timesheet */}
-                <div className="grid grid-cols-7 gap-2 mb-4">
+                <div className="mb-4 grid grid-cols-7 gap-2">
                   {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-                    <div key={day} className="text-center text-xs text-dark-400 font-medium py-2">
+                    <div key={day} className="py-2 text-center text-xs font-medium text-dark-400">
                       {day}
                     </div>
                   ))}
@@ -157,17 +159,19 @@ export function LandingPage() {
                   {[8, 7.5, 8, 6, 8, 0, 0].map((hours, i) => (
                     <div
                       key={i}
-                      className={`p-3 rounded-lg ${
-                        hours > 0 ? 'bg-knowall-green/10 border border-knowall-green/30' : 'bg-dark-800'
+                      className={`rounded-lg p-3 ${
+                        hours > 0
+                          ? 'border border-knowall-green/30 bg-knowall-green/10'
+                          : 'bg-dark-800'
                       }`}
                     >
                       {hours > 0 && (
-                        <div className="text-sm font-mono text-knowall-green">{hours}h</div>
+                        <div className="font-mono text-sm text-knowall-green">{hours}h</div>
                       )}
                     </div>
                   ))}
                 </div>
-                <div className="mt-4 flex justify-between items-center">
+                <div className="mt-4 flex items-center justify-between">
                   <div className="text-sm text-dark-400">Week total</div>
                   <div className="text-lg font-bold text-white">37.5 hours</div>
                 </div>
@@ -178,30 +182,30 @@ export function LandingPage() {
       </section>
 
       {/* Features Section */}
-      <section className="relative z-10 py-20 bg-dark-900/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+      <section className="relative z-10 bg-dark-900/50 py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-16 text-center">
+            <h2 className="mb-4 text-3xl font-bold text-white sm:text-4xl">
               Everything You Need for Time Tracking
             </h2>
-            <p className="text-dark-400 text-lg max-w-2xl mx-auto">
-              Built specifically for Business Central users who need a modern,
-              efficient way to track and sync their time.
+            <p className="mx-auto max-w-2xl text-lg text-dark-400">
+              Built specifically for Business Central users who need a modern, efficient way to
+              track and sync their time.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
             {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
                 <div
                   key={index}
-                  className="p-6 bg-dark-800/50 rounded-xl border border-dark-700 hover:border-knowall-green/50 transition-colors group"
+                  className="group rounded-xl border border-dark-700 bg-dark-800/50 p-6 transition-colors hover:border-knowall-green/50"
                 >
-                  <div className="w-12 h-12 bg-knowall-green/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-knowall-green/20 transition-colors">
-                    <Icon className="w-6 h-6 text-knowall-green" />
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-knowall-green/10 transition-colors group-hover:bg-knowall-green/20">
+                    <Icon className="h-6 w-6 text-knowall-green" />
                   </div>
-                  <h3 className="text-xl font-semibold text-white mb-2">{feature.title}</h3>
+                  <h3 className="mb-2 text-xl font-semibold text-white">{feature.title}</h3>
                   <p className="text-dark-400">{feature.description}</p>
                 </div>
               );
@@ -212,47 +216,45 @@ export function LandingPage() {
 
       {/* Benefits Section */}
       <section className="relative z-10 py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
             <div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-6">
+              <h2 className="mb-6 text-3xl font-bold text-white sm:text-4xl">
                 Built for <span className="text-knowall-green">KnowAll.ai</span> Teams
               </h2>
-              <p className="text-dark-400 text-lg mb-8">
-                Thyme is designed exclusively for KnowAll.ai users, providing a seamless
-                experience for tracking time against Business Central projects.
+              <p className="mb-8 text-lg text-dark-400">
+                Thyme is designed exclusively for KnowAll.ai users, providing a seamless experience
+                for tracking time against Business Central projects.
               </p>
 
               <ul className="space-y-4">
                 {benefits.map((benefit, index) => (
                   <li key={index} className="flex items-center gap-3">
-                    <CheckCircleIcon className="w-5 h-5 text-knowall-green shrink-0" />
+                    <CheckCircleIcon className="h-5 w-5 shrink-0 text-knowall-green" />
                     <span className="text-dark-200">{benefit}</span>
                   </li>
                 ))}
               </ul>
             </div>
 
-            <div className="bg-dark-800 rounded-2xl p-8 border border-dark-700">
+            <div className="rounded-2xl border border-dark-700 bg-dark-800 p-8">
               <div className="text-center">
-                <div className="w-20 h-20 bg-knowall-green/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <svg className="w-10 h-10" viewBox="0 0 21 21" fill="none">
-                    <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
-                    <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
-                    <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
-                    <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+                <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-knowall-green/10">
+                  <svg className="h-10 w-10" viewBox="0 0 21 21" fill="none">
+                    <rect x="1" y="1" width="9" height="9" fill="#F25022" />
+                    <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
+                    <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
+                    <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-3">
-                  Sign in with Microsoft
-                </h3>
-                <p className="text-dark-400 mb-6">
+                <h3 className="mb-3 text-xl font-semibold text-white">Sign in with Microsoft</h3>
+                <p className="mb-6 text-dark-400">
                   Use your KnowAll.ai Microsoft account to access Thyme securely.
                 </p>
                 <button
                   onClick={login}
                   disabled={isLoading}
-                  className="w-full px-6 py-3 bg-knowall-green text-dark-950 font-semibold rounded-lg hover:bg-knowall-green-light transition-colors disabled:opacity-50"
+                  className="w-full rounded-lg bg-knowall-green px-6 py-3 font-semibold text-dark-950 transition-colors hover:bg-knowall-green-light disabled:opacity-50"
                 >
                   Sign in to Get Started
                 </button>
@@ -263,27 +265,25 @@ export function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 py-8 border-t border-dark-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+      <footer className="relative z-10 border-t border-dark-800 py-8">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-knowall-green rounded-lg flex items-center justify-center">
-                <ClockIcon className="w-5 h-5 text-dark-950" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-knowall-green">
+                <ClockIcon className="h-5 w-5 text-dark-950" />
               </div>
-              <span className="text-white font-semibold">Thyme</span>
+              <span className="font-semibold text-white">Thyme</span>
               <span className="text-dark-500">by</span>
               <a
                 href="https://knowall.ai"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-knowall-green hover:text-knowall-green-light transition-colors"
+                className="text-knowall-green transition-colors hover:text-knowall-green-light"
               >
                 KnowAll.ai
               </a>
             </div>
-            <p className="text-dark-500 text-sm">
-              Time Tracking for Business Central
-            </p>
+            <p className="text-sm text-dark-500">Time Tracking for Business Central</p>
           </div>
         </div>
       </footer>

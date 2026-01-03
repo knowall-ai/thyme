@@ -31,16 +31,16 @@ export function Header() {
   };
 
   return (
-    <header className="bg-dark-900 border-b border-dark-700">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
+    <header className="border-b border-dark-700 bg-dark-900">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 justify-between">
           {/* Logo and Navigation */}
           <div className="flex">
             {/* Logo */}
-            <Link href="/" className="flex items-center shrink-0">
+            <Link href="/" className="flex shrink-0 items-center">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-knowall-green rounded-lg flex items-center justify-center shadow-lg shadow-knowall-green/20">
-                  <ClockIcon className="w-5 h-5 text-dark-950" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-knowall-green shadow-lg shadow-knowall-green/20">
+                  <ClockIcon className="h-5 w-5 text-dark-950" />
                 </div>
                 <span className="text-xl font-bold text-white">Thyme</span>
               </div>
@@ -56,13 +56,13 @@ export function Header() {
                     key={item.name}
                     href={item.href}
                     className={cn(
-                      'inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors',
+                      'inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors',
                       active
                         ? 'bg-knowall-green/10 text-knowall-green'
                         : 'text-dark-400 hover:bg-dark-800 hover:text-white'
                     )}
                   >
-                    <Icon className="w-5 h-5" />
+                    <Icon className="h-5 w-5" />
                     {item.name}
                   </Link>
                 );
@@ -74,13 +74,11 @@ export function Header() {
           <div className="flex items-center gap-4">
             {account && (
               <div className="flex items-center gap-3">
-                <div className="hidden sm:block text-right">
-                  <p className="text-sm font-medium text-white">
-                    {account.name}
-                  </p>
+                <div className="hidden text-right sm:block">
+                  <p className="text-sm font-medium text-white">{account.name}</p>
                   <p className="text-xs text-dark-400">{account.username}</p>
                 </div>
-                <div className="w-10 h-10 bg-knowall-green/20 rounded-full flex items-center justify-center border border-knowall-green/30">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-knowall-green/30 bg-knowall-green/20">
                   <span className="text-sm font-medium text-knowall-green">
                     {account.name
                       ?.split(' ')
@@ -92,10 +90,10 @@ export function Header() {
                 </div>
                 <button
                   onClick={logout}
-                  className="p-2 text-dark-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors"
+                  className="rounded-lg p-2 text-dark-400 transition-colors hover:bg-dark-800 hover:text-white"
                   title="Sign out"
                 >
-                  <ArrowRightOnRectangleIcon className="w-5 h-5" />
+                  <ArrowRightOnRectangleIcon className="h-5 w-5" />
                 </button>
               </div>
             )}
@@ -104,7 +102,7 @@ export function Header() {
       </div>
 
       {/* Mobile Navigation */}
-      <nav className="sm:hidden border-t border-dark-700">
+      <nav className="border-t border-dark-700 sm:hidden">
         <div className="flex justify-around">
           {navigation.map((item) => {
             const Icon = item.icon;
@@ -114,11 +112,11 @@ export function Header() {
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  'flex flex-col items-center gap-1 py-3 px-4 text-xs font-medium transition-colors',
+                  'flex flex-col items-center gap-1 px-4 py-3 text-xs font-medium transition-colors',
                   active ? 'text-knowall-green' : 'text-dark-400 hover:text-white'
                 )}
               >
-                <Icon className="w-5 h-5" />
+                <Icon className="h-5 w-5" />
                 {item.name}
               </Link>
             );

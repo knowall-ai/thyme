@@ -47,8 +47,8 @@ export function SettingsPanel() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-thyme-600"></div>
+      <div className="flex h-64 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-thyme-600"></div>
       </div>
     );
   }
@@ -57,11 +57,11 @@ export function SettingsPanel() {
     <div className="space-y-6">
       {/* User Information */}
       <Card variant="bordered" className="p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <UserCircleIcon className="w-6 h-6 text-thyme-500" />
+        <div className="mb-4 flex items-center gap-3">
+          <UserCircleIcon className="h-6 w-6 text-thyme-500" />
           <h2 className="text-lg font-semibold text-white">Your Account</h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <p className="text-sm text-dark-400">Name</p>
             <p className="text-dark-100">{account?.name || 'Not available'}</p>
@@ -75,14 +75,14 @@ export function SettingsPanel() {
 
       {/* Company Information */}
       <Card variant="bordered" className="p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <BuildingOffice2Icon className="w-6 h-6 text-thyme-500" />
+        <div className="mb-4 flex items-center gap-3">
+          <BuildingOffice2Icon className="h-6 w-6 text-thyme-500" />
           <h2 className="text-lg font-semibold text-white">Business Central Company</h2>
         </div>
         {error ? (
           <p className="text-red-500">{error}</p>
         ) : companyInfo ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <p className="text-sm text-dark-400">Company Name</p>
               <p className="text-dark-100">{companyInfo.displayName}</p>
@@ -99,21 +99,21 @@ export function SettingsPanel() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <EnvelopeIcon className="w-4 h-4 text-dark-400" />
+              <EnvelopeIcon className="h-4 w-4 text-dark-400" />
               <div>
                 <p className="text-sm text-dark-400">Email</p>
                 <p className="text-dark-100">{companyInfo.email || 'Not set'}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <GlobeAltIcon className="w-4 h-4 text-dark-400" />
+              <GlobeAltIcon className="h-4 w-4 text-dark-400" />
               <div>
                 <p className="text-sm text-dark-400">Website</p>
                 <p className="text-dark-100">{companyInfo.website || 'Not set'}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <CurrencyPoundIcon className="w-4 h-4 text-dark-400" />
+              <CurrencyPoundIcon className="h-4 w-4 text-dark-400" />
               <div>
                 <p className="text-sm text-dark-400">Currency</p>
                 <p className="text-dark-100">{companyInfo.currencyCode}</p>
@@ -127,7 +127,7 @@ export function SettingsPanel() {
 
       {/* App Settings */}
       <Card variant="bordered" className="p-6">
-        <h2 className="text-lg font-semibold text-white mb-4">App Preferences</h2>
+        <h2 className="mb-4 text-lg font-semibold text-white">App Preferences</h2>
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -137,7 +137,7 @@ export function SettingsPanel() {
             <input
               type="number"
               defaultValue={40}
-              className="w-20 px-3 py-2 bg-dark-800 border border-dark-600 rounded-lg text-dark-100 focus:outline-none focus:ring-2 focus:ring-thyme-500"
+              className="w-20 rounded-lg border border-dark-600 bg-dark-800 px-3 py-2 text-dark-100 focus:outline-none focus:ring-2 focus:ring-thyme-500"
             />
           </div>
           <div className="flex items-center justify-between">
@@ -145,9 +145,9 @@ export function SettingsPanel() {
               <p className="text-dark-100">Timesheet Reminders</p>
               <p className="text-sm text-dark-400">Get reminded to fill in your timesheet</p>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" defaultChecked className="sr-only peer" />
-              <div className="w-11 h-6 bg-dark-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-thyme-500 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-thyme-600"></div>
+            <label className="relative inline-flex cursor-pointer items-center">
+              <input type="checkbox" defaultChecked className="peer sr-only" />
+              <div className="peer h-6 w-11 rounded-full bg-dark-600 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-thyme-600 peer-checked:after:translate-x-full peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-thyme-500"></div>
             </label>
           </div>
         </div>
@@ -155,12 +155,12 @@ export function SettingsPanel() {
 
       {/* Connection Status */}
       <Card variant="bordered" className="p-6">
-        <h2 className="text-lg font-semibold text-white mb-4">Connection Status</h2>
+        <h2 className="mb-4 text-lg font-semibold text-white">Connection Status</h2>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-green-500"></div>
+          <div className="h-3 w-3 rounded-full bg-green-500"></div>
           <p className="text-dark-100">Connected to Business Central</p>
         </div>
-        <p className="text-sm text-dark-400 mt-2">
+        <p className="mt-2 text-sm text-dark-400">
           Environment: {process.env.BC_ENVIRONMENT || 'Production'}
         </p>
       </Card>

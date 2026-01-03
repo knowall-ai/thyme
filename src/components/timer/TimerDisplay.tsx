@@ -32,22 +32,22 @@ export function TimerDisplay({ onStartTimer }: TimerDisplayProps) {
       <Button
         onClick={onStartTimer}
         size="lg"
-        className="w-14 h-14 rounded-full shadow-lg shadow-knowall-green/30 hover:shadow-knowall-green/50 transition-shadow animate-glow"
+        className="h-14 w-14 animate-glow rounded-full shadow-lg shadow-knowall-green/30 transition-shadow hover:shadow-knowall-green/50"
       >
-        <PlayIcon className="w-6 h-6" />
+        <PlayIcon className="h-6 w-6" />
         <span className="sr-only">Start timer</span>
       </Button>
     );
   }
 
   return (
-    <div className="flex items-center gap-4 bg-dark-800 rounded-xl shadow-lg p-4 border border-dark-700">
+    <div className="flex items-center gap-4 rounded-xl border border-dark-700 bg-dark-800 p-4 shadow-lg">
       {/* Timer Info */}
       <div className="flex-1">
-        <div className="flex items-center gap-2 mb-1">
+        <div className="mb-1 flex items-center gap-2">
           {currentProject && (
             <div
-              className="w-3 h-3 rounded-full"
+              className="h-3 w-3 rounded-full"
               style={{ backgroundColor: currentProject.color }}
             />
           )}
@@ -55,27 +55,18 @@ export function TimerDisplay({ onStartTimer }: TimerDisplayProps) {
             {currentProject?.name || 'Unknown Project'}
           </span>
         </div>
-        <p className="text-sm text-dark-400">
-          {currentTask?.name || 'Unknown Task'}
-        </p>
-        {timer.notes && (
-          <p className="text-sm text-dark-500 truncate">{timer.notes}</p>
-        )}
+        <p className="text-sm text-dark-400">{currentTask?.name || 'Unknown Task'}</p>
+        {timer.notes && <p className="truncate text-sm text-dark-500">{timer.notes}</p>}
       </div>
 
       {/* Timer Display */}
-      <div className="text-2xl font-mono font-bold text-knowall-green tabular-nums">
+      <div className="font-mono text-2xl font-bold tabular-nums text-knowall-green">
         {formatDuration(timer.elapsedSeconds)}
       </div>
 
       {/* Stop Button */}
-      <Button
-        onClick={handleStop}
-        variant="danger"
-        size="icon"
-        className="rounded-full"
-      >
-        <StopIcon className="w-5 h-5" />
+      <Button onClick={handleStop} variant="danger" size="icon" className="rounded-full">
+        <StopIcon className="h-5 w-5" />
         <span className="sr-only">Stop timer</span>
       </Button>
     </div>

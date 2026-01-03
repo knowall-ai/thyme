@@ -52,25 +52,19 @@ export function TimeEntryCell({
           <button
             key={entry.id}
             onClick={() => onEditEntry(entry)}
-            className="w-full text-left p-2 rounded-md hover:bg-dark-600/50 transition-colors group"
+            className="group w-full rounded-md p-2 text-left transition-colors hover:bg-dark-600/50"
             style={{
               backgroundColor: `${getProjectColor(entry.projectId)}20`,
               borderLeft: `3px solid ${getProjectColor(entry.projectId)}`,
             }}
           >
             <div className="flex items-start justify-between gap-1">
-              <span className="text-xs font-medium text-dark-200 truncate">
+              <span className="truncate text-xs font-medium text-dark-200">
                 {getProjectName(entry.projectId)}
               </span>
-              <span className="text-xs text-dark-400 shrink-0">
-                {formatTime(entry.hours)}
-              </span>
+              <span className="shrink-0 text-xs text-dark-400">{formatTime(entry.hours)}</span>
             </div>
-            {entry.notes && (
-              <p className="text-xs text-dark-400 truncate mt-0.5">
-                {entry.notes}
-              </p>
-            )}
+            {entry.notes && <p className="mt-0.5 truncate text-xs text-dark-400">{entry.notes}</p>}
           </button>
         ))}
       </div>
@@ -80,22 +74,20 @@ export function TimeEntryCell({
         <button
           onClick={() => onAddEntry(date)}
           className={cn(
-            'w-full mt-2 p-2 rounded-md border-2 border-dashed border-dark-600 text-dark-500',
-            'hover:border-knowall-green hover:text-knowall-green hover:bg-knowall-green/10 transition-colors',
+            'mt-2 w-full rounded-md border-2 border-dashed border-dark-600 p-2 text-dark-500',
+            'transition-colors hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green',
             'flex items-center justify-center gap-1 text-xs'
           )}
         >
-          <PlusIcon className="w-4 h-4" />
+          <PlusIcon className="h-4 w-4" />
           <span>Add</span>
         </button>
       )}
 
       {/* Day total */}
       {totalHours > 0 && (
-        <div className="mt-2 pt-2 border-t border-dark-700">
-          <p className="text-xs font-medium text-dark-300 text-right">
-            {formatTime(totalHours)}
-          </p>
+        <div className="mt-2 border-t border-dark-700 pt-2">
+          <p className="text-right text-xs font-medium text-dark-300">{formatTime(totalHours)}</p>
         </div>
       )}
     </div>

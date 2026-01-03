@@ -16,14 +16,7 @@ import { useTimeEntriesStore, useProjectsStore } from '@/hooks';
 import { getWeekDays, formatDate, formatTime } from '@/utils';
 import { format } from 'date-fns';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export function WeeklySummaryChart() {
   const { entries, currentWeekStart } = useTimeEntriesStore();
@@ -111,20 +104,18 @@ export function WeeklySummaryChart() {
   const totalHours = entries.reduce((sum, e) => sum + e.hours, 0);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {/* Chart */}
       <Card variant="bordered" className="lg:col-span-2">
         <CardHeader>
-          <h3 className="text-lg font-semibold text-dark-100">
-            Hours by Day
-          </h3>
+          <h3 className="text-lg font-semibold text-dark-100">Hours by Day</h3>
         </CardHeader>
         <CardContent>
           <div className="h-64">
             {entries.length > 0 ? (
               <Bar data={chartData} options={options as never} />
             ) : (
-              <div className="flex items-center justify-center h-full text-dark-400">
+              <div className="flex h-full items-center justify-center text-dark-400">
                 No data for this week
               </div>
             )}
@@ -140,33 +131,24 @@ export function WeeklySummaryChart() {
         <CardContent>
           <div className="space-y-4">
             {/* Total */}
-            <div className="pb-4 border-b border-dark-700">
+            <div className="border-b border-dark-700 pb-4">
               <p className="text-sm text-dark-400">Total Hours</p>
-              <p className="text-3xl font-bold text-dark-100">
-                {formatTime(totalHours)}
-              </p>
+              <p className="text-3xl font-bold text-dark-100">{formatTime(totalHours)}</p>
             </div>
 
             {/* By project */}
             <div className="space-y-3">
               <p className="text-sm font-medium text-dark-200">By Project</p>
               {projectTotals.map(({ project, hours }) => (
-                <div
-                  key={project?.id}
-                  className="flex items-center justify-between"
-                >
+                <div key={project?.id} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div
-                      className="w-3 h-3 rounded-full"
+                      className="h-3 w-3 rounded-full"
                       style={{ backgroundColor: project?.color }}
                     />
-                    <span className="text-sm text-dark-200 truncate">
-                      {project?.name}
-                    </span>
+                    <span className="truncate text-sm text-dark-200">{project?.name}</span>
                   </div>
-                  <span className="text-sm font-medium text-dark-100">
-                    {formatTime(hours)}
-                  </span>
+                  <span className="text-sm font-medium text-dark-100">{formatTime(hours)}</span>
                 </div>
               ))}
 
