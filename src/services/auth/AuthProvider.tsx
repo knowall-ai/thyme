@@ -21,11 +21,18 @@ const msalInstance = new PublicClientApplication(msalConfig);
 
 // Set up event callbacks for MSAL
 msalInstance.initialize().then(() => {
-  // Account selection logic
-  const accounts = msalInstance.getAllAccounts();
-  if (accounts.length > 0) {
-    msalInstance.setActiveAccount(accounts[0]);
-  }
+  // Handle redirect response
+  msalInstance.handleRedirectPromise().then((response) => {
+    if (response) {
+      msalInstance.setActiveAccount(response.account);
+    } else {
+      // Account selection logic
+      const accounts = msalInstance.getAllAccounts();
+      if (accounts.length > 0) {
+        msalInstance.setActiveAccount(accounts[0]);
+      }
+    }
+  });
 
   // Listen for sign-in events
   msalInstance.addEventCallback((event) => {
@@ -70,7 +77,7 @@ export function useAuth() {
 
   const login = async () => {
     try {
-      await instance.loginPopup(loginRequest);
+      await instance.loginRedirect(loginRequest);
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
@@ -79,7 +86,7 @@ export function useAuth() {
 
   const logout = async () => {
     try {
-      await instance.logoutPopup({
+      await instance.logoutRedirect({
         postLogoutRedirectUri: '/',
       });
     } catch (error) {

@@ -33,13 +33,14 @@ export async function getAccessToken(
   } catch (error) {
     console.error('Failed to acquire token silently:', error);
 
-    // If silent acquisition fails, try popup
+    // If silent acquisition fails, redirect to login
     try {
       const instance = await getMsalInstance();
-      const response = await instance.acquireTokenPopup({ scopes });
-      return response.accessToken;
-    } catch (popupError) {
-      console.error('Failed to acquire token via popup:', popupError);
+      await instance.acquireTokenRedirect({ scopes });
+      // This won't return - browser will redirect
+      return null;
+    } catch (redirectError) {
+      console.error('Failed to acquire token via redirect:', redirectError);
       return null;
     }
   }
