@@ -1,6 +1,8 @@
 import { getBCAccessToken } from '../auth';
 import type {
   BCJob,
+  BCProject,
+  BCEmployee,
   BCJobTask,
   BCJobJournalLine,
   BCResource,
@@ -49,7 +51,35 @@ class BusinessCentralClient {
     return response.json();
   }
 
-  // Jobs (Projects)
+  // Projects
+  async getProjects(filter?: string): Promise<BCProject[]> {
+    let endpoint = '/projects';
+    if (filter) {
+      endpoint += `?$filter=${encodeURIComponent(filter)}`;
+    }
+    const response = await this.fetch<PaginatedResponse<BCProject>>(endpoint);
+    return response.value;
+  }
+
+  async getProject(projectId: string): Promise<BCProject> {
+    return this.fetch<BCProject>(`/projects(${projectId})`);
+  }
+
+  // Employees
+  async getEmployees(filter?: string): Promise<BCEmployee[]> {
+    let endpoint = '/employees';
+    if (filter) {
+      endpoint += `?$filter=${encodeURIComponent(filter)}`;
+    }
+    const response = await this.fetch<PaginatedResponse<BCEmployee>>(endpoint);
+    return response.value;
+  }
+
+  async getEmployee(employeeId: string): Promise<BCEmployee> {
+    return this.fetch<BCEmployee>(`/employees(${employeeId})`);
+  }
+
+  // Jobs (Legacy - use getProjects instead)
   async getJobs(filter?: string): Promise<BCJob[]> {
     let endpoint = '/jobs';
     if (filter) {
@@ -147,6 +177,32 @@ class BusinessCentralClient {
     await this.fetch(`/jobJournals(${journalTemplateName},${journalBatchName})/Microsoft.NAV.post`, {
       method: 'POST',
     });
+  }
+
+  // Company Information
+  async getCompanyInfo(): Promise<{
+    displayName: string;
+    addressLine1: string;
+    addressLine2: string;
+    city: string;
+    postalCode: string;
+    country: string;
+    email: string;
+    website: string;
+    currencyCode: string;
+  } | null> {
+    const response = await this.fetch<PaginatedResponse<{
+      displayName: string;
+      addressLine1: string;
+      addressLine2: string;
+      city: string;
+      postalCode: string;
+      country: string;
+      email: string;
+      website: string;
+      currencyCode: string;
+    }>>('/companyInformation');
+    return response.value[0] || null;
   }
 }
 

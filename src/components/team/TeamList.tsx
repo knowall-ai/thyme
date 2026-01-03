@@ -3,55 +3,59 @@
 import { useState, useEffect } from 'react';
 import { TeamMemberCard } from './TeamMemberCard';
 import { Card } from '@/components/ui';
+import { bcClient } from '@/services/bc/bcClient';
+import type { BCEmployee } from '@/types';
 
-// Mock data - would come from BC API in production
-const mockTeamMembers = [
-  {
-    id: '1',
-    name: 'Ben Weeks',
-    email: 'ben@knowall.ai',
-    role: 'Developer',
-    hoursThisWeek: 32,
-    hoursTarget: 40,
-    status: 'on-track' as const,
-  },
-  {
-    id: '2',
-    name: 'Sarah Johnson',
-    email: 'sarah@knowall.ai',
-    role: 'Project Manager',
-    hoursThisWeek: 38,
-    hoursTarget: 40,
-    status: 'on-track' as const,
-  },
-  {
-    id: '3',
-    name: 'Mike Chen',
-    email: 'mike@knowall.ai',
-    role: 'Designer',
-    hoursThisWeek: 24,
-    hoursTarget: 40,
-    status: 'behind' as const,
-  },
-  {
-    id: '4',
-    name: 'Emma Wilson',
-    email: 'emma@knowall.ai',
-    role: 'Developer',
-    hoursThisWeek: 42,
-    hoursTarget: 40,
-    status: 'ahead' as const,
-  },
-];
+interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  hoursThisWeek: number;
+  hoursTarget: number;
+  status: 'on-track' | 'behind' | 'ahead';
+}
+
+function mapEmployeeToMember(employee: BCEmployee): TeamMember {
+  // TODO: Fetch actual hours from timeRegistrationEntries
+  const hoursThisWeek = 0;
+  const hoursTarget = 40;
+
+  let status: 'on-track' | 'behind' | 'ahead' = 'on-track';
+  const progress = hoursThisWeek / hoursTarget;
+  if (progress < 0.6) status = 'behind';
+  else if (progress > 1) status = 'ahead';
+
+  return {
+    id: employee.id,
+    name: employee.displayName,
+    email: employee.email || '',
+    role: employee.jobTitle || 'Team Member',
+    hoursThisWeek,
+    hoursTarget,
+    status,
+  };
+}
 
 export function TeamList() {
   const [isLoading, setIsLoading] = useState(true);
-  const [members, setMembers] = useState(mockTeamMembers);
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Simulate loading
-    const timer = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(timer);
+    async function fetchEmployees() {
+      try {
+        const employees = await bcClient.getEmployees("status eq 'Active'");
+        const teamMembers = employees.map(mapEmployeeToMember);
+        setMembers(teamMembers);
+      } catch (err) {
+        console.error('Failed to fetch employees:', err);
+        setError('Failed to load team members');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchEmployees();
   }, []);
 
   const totalHours = members.reduce((sum, m) => sum + m.hoursThisWeek, 0);
@@ -62,6 +66,22 @@ export function TeamList() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-thyme-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-500 mb-2">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="text-thyme-500 hover:text-thyme-400 underline"
+          >
+            Try again
+          </button>
+        </div>
       </div>
     );
   }

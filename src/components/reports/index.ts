@@ -1,2 +1,1 @@
-export { WeeklySummaryChart } from './WeeklySummaryChart';
-export { ExportButton } from './ExportButton';
+export { ReportsPanel } from './ReportsPanel';

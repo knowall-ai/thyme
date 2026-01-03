@@ -1,3 +1,10 @@
+// UI types
+export interface SelectOption {
+  value: string;
+  label: string;
+  disabled?: boolean;
+}
+
 // User types
 export interface User {
   id: string;
@@ -25,6 +32,25 @@ export interface BCJob {
   billToCustomerName?: string;
   startDate?: string;
   endDate?: string;
+}
+
+export interface BCProject {
+  id: string;
+  number: string;
+  displayName: string;
+  lastModifiedDateTime?: string;
+}
+
+export interface BCEmployee {
+  id: string;
+  number: string;
+  displayName: string;
+  givenName: string;
+  surname: string;
+  jobTitle: string;
+  email?: string;
+  status: 'Active' | 'Inactive';
+  lastModifiedDateTime?: string;
 }
 
 export interface BCJobTask {

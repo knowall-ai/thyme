@@ -1,5 +1,5 @@
 import { bcClient } from './bcClient';
-import type { Project, Task, BCJob, BCJobTask } from '@/types';
+import type { Project, Task, BCProject, BCJobTask } from '@/types';
 
 // Color palette for projects
 const PROJECT_COLORS = [
@@ -19,15 +19,15 @@ function getProjectColor(index: number): string {
   return PROJECT_COLORS[index % PROJECT_COLORS.length];
 }
 
-function mapBCJobToProject(job: BCJob, index: number, favorites: string[]): Project {
+function mapBCProjectToProject(bcProject: BCProject, index: number, favorites: string[]): Project {
   return {
-    id: job.id,
-    code: job.number,
-    name: job.description,
-    clientName: job.billToCustomerName,
+    id: bcProject.id,
+    code: bcProject.number,
+    name: bcProject.displayName,
+    clientName: undefined,
     color: getProjectColor(index),
-    status: job.status === 'Completed' ? 'completed' : 'active',
-    isFavorite: favorites.includes(job.id),
+    status: 'active',
+    isFavorite: favorites.includes(bcProject.id),
     tasks: [],
   };
 }
@@ -57,19 +57,18 @@ function saveFavorites(favorites: string[]): void {
 }
 
 export const projectService = {
-  async getProjects(includeCompleted = false): Promise<Project[]> {
-    const filter = includeCompleted ? undefined : "status eq 'Open'";
-    const jobs = await bcClient.getJobs(filter);
+  async getProjects(_includeCompleted = false): Promise<Project[]> {
+    const bcProjects = await bcClient.getProjects();
     const favorites = getFavorites();
 
-    return jobs.map((job, index) => mapBCJobToProject(job, index, favorites));
+    return bcProjects.map((bcProject, index) => mapBCProjectToProject(bcProject, index, favorites));
   },
 
   async getProject(projectId: string): Promise<Project | null> {
     try {
-      const job = await bcClient.getJob(projectId);
+      const bcProject = await bcClient.getProject(projectId);
       const favorites = getFavorites();
-      const project = mapBCJobToProject(job, 0, favorites);
+      const project = mapBCProjectToProject(bcProject, 0, favorites);
 
       // Also fetch tasks
       const tasks = await this.getProjectTasks(project.code);
