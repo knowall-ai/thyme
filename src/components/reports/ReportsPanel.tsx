@@ -31,15 +31,15 @@ export function ReportsPanel() {
     <div className="space-y-6">
       {/* Date Range Selector */}
       <Card variant="bordered" className="p-4">
-        <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <CalendarIcon className="w-5 h-5 text-dark-400" />
+            <CalendarIcon className="h-5 w-5 text-dark-400" />
             <span className="text-dark-100">{getDateRangeLabel()}</span>
           </div>
           <div className="flex gap-2">
             <button
               onClick={() => setDateRange('week')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                 dateRange === 'week'
                   ? 'bg-thyme-600 text-white'
                   : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
@@ -49,7 +49,7 @@ export function ReportsPanel() {
             </button>
             <button
               onClick={() => setDateRange('month')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                 dateRange === 'month'
                   ? 'bg-thyme-600 text-white'
                   : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
@@ -62,11 +62,11 @@ export function ReportsPanel() {
       </Card>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <Card variant="bordered" className="p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-thyme-500/20 rounded-lg">
-              <ClockIcon className="w-5 h-5 text-thyme-500" />
+            <div className="rounded-lg bg-thyme-500/20 p-2">
+              <ClockIcon className="h-5 w-5 text-thyme-500" />
             </div>
             <div>
               <p className="text-sm text-dark-400">Total Hours</p>
@@ -76,8 +76,8 @@ export function ReportsPanel() {
         </Card>
         <Card variant="bordered" className="p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-500/20 rounded-lg">
-              <ChartBarIcon className="w-5 h-5 text-blue-500" />
+            <div className="rounded-lg bg-blue-500/20 p-2">
+              <ChartBarIcon className="h-5 w-5 text-blue-500" />
             </div>
             <div>
               <p className="text-sm text-dark-400">Billable Hours</p>
@@ -87,8 +87,8 @@ export function ReportsPanel() {
         </Card>
         <Card variant="bordered" className="p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-500/20 rounded-lg">
-              <ChartBarIcon className="w-5 h-5 text-purple-500" />
+            <div className="rounded-lg bg-purple-500/20 p-2">
+              <ChartBarIcon className="h-5 w-5 text-purple-500" />
             </div>
             <div>
               <p className="text-sm text-dark-400">Projects</p>
@@ -98,8 +98,8 @@ export function ReportsPanel() {
         </Card>
         <Card variant="bordered" className="p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-500/20 rounded-lg">
-              <ChartBarIcon className="w-5 h-5 text-amber-500" />
+            <div className="rounded-lg bg-amber-500/20 p-2">
+              <ChartBarIcon className="h-5 w-5 text-amber-500" />
             </div>
             <div>
               <p className="text-sm text-dark-400">Billable %</p>
@@ -111,25 +111,25 @@ export function ReportsPanel() {
 
       {/* Project Breakdown */}
       <Card variant="bordered" className="p-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">Hours by Project</h2>
-          <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-dark-300 hover:text-white bg-dark-700 hover:bg-dark-600 rounded-lg transition-colors">
-            <DocumentArrowDownIcon className="w-4 h-4" />
+          <button className="flex items-center gap-2 rounded-lg bg-dark-700 px-3 py-1.5 text-sm text-dark-300 transition-colors hover:bg-dark-600 hover:text-white">
+            <DocumentArrowDownIcon className="h-4 w-4" />
             Export
           </button>
         </div>
-        <div className="text-center py-12 text-dark-400">
-          <ChartBarIcon className="w-12 h-12 mx-auto mb-4 text-dark-600" />
+        <div className="py-12 text-center text-dark-400">
+          <ChartBarIcon className="mx-auto mb-4 h-12 w-12 text-dark-600" />
           <p>No time entries found for this period</p>
-          <p className="text-sm mt-1">Start tracking time to see your reports here</p>
+          <p className="mt-1 text-sm">Start tracking time to see your reports here</p>
         </div>
       </Card>
 
       {/* Daily Breakdown */}
       <Card variant="bordered" className="p-6">
-        <h2 className="text-lg font-semibold text-white mb-6">Daily Breakdown</h2>
-        <div className="text-center py-12 text-dark-400">
-          <CalendarIcon className="w-12 h-12 mx-auto mb-4 text-dark-600" />
+        <h2 className="mb-6 text-lg font-semibold text-white">Daily Breakdown</h2>
+        <div className="py-12 text-center text-dark-400">
+          <CalendarIcon className="mx-auto mb-4 h-12 w-12 text-dark-600" />
           <p>No time entries found for this period</p>
         </div>
       </Card>

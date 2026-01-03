@@ -84,9 +84,7 @@ export const projectService = {
     const jobTasks = await bcClient.getJobTasks(projectCode);
 
     // Filter to only posting tasks (billable tasks)
-    const postingTasks = jobTasks.filter(
-      (task) => task.jobTaskType === 'Posting'
-    );
+    const postingTasks = jobTasks.filter((task) => task.jobTaskType === 'Posting');
 
     return postingTasks.map((task) => mapBCJobTaskToTask(task, projectCode));
   },

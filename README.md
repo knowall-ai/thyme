@@ -13,15 +13,15 @@ A modern time tracking web application that integrates with Microsoft Dynamics 3
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | React 18, Next.js 14 |
-| Styling | Tailwind CSS |
-| State | Zustand |
-| Auth | MSAL.js (Microsoft Entra ID) |
-| Data | Business Central OData API |
-| Testing | Playwright, Vitest |
-| Hosting | Azure App Service |
+| Layer    | Technology                   |
+| -------- | ---------------------------- |
+| Frontend | React 18, Next.js 14         |
+| Styling  | Tailwind CSS                 |
+| State    | Zustand                      |
+| Auth     | MSAL.js (Microsoft Entra ID) |
+| Data     | Business Central OData API   |
+| Testing  | Playwright, Vitest           |
+| Hosting  | Azure App Service            |
 
 ## Getting Started
 
@@ -66,14 +66,35 @@ BC_COMPANY_ID=<business-central-company-guid>
 ### Scripts
 
 ```bash
-npm run dev        # Start development server
-npm run build      # Build for production
-npm run start      # Start production server
-npm run lint       # Run ESLint
-npm run test       # Run unit tests
-npm run test:e2e   # Run E2E tests
-npm run typecheck  # Run TypeScript checks
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run start        # Start production server
+npm run lint         # Run ESLint
+npm run lint:fix     # Run ESLint with auto-fix
+npm run format       # Format code with Prettier
+npm run format:check # Check formatting without changes
+npm run test         # Run unit tests
+npm run test:e2e     # Run E2E tests
+npm run typecheck    # Run TypeScript checks
+npm run check        # Run all checks (format, lint, typecheck, build)
 ```
+
+### Code Quality Checks
+
+Before submitting a PR, ensure all checks pass:
+
+```bash
+npm run check
+```
+
+This runs:
+
+1. **Format check** - Prettier formatting validation
+2. **Lint** - ESLint code quality rules
+3. **Type check** - TypeScript type validation
+4. **Build** - Production build verification
+
+These checks also run automatically via GitHub Actions on every PR.
 
 ### Project Structure
 

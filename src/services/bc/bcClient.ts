@@ -9,7 +9,8 @@ import type {
   PaginatedResponse,
 } from '@/types';
 
-const BC_BASE_URL = process.env.NEXT_PUBLIC_BC_BASE_URL || 'https://api.businesscentral.dynamics.com/v2.0';
+const BC_BASE_URL =
+  process.env.NEXT_PUBLIC_BC_BASE_URL || 'https://api.businesscentral.dynamics.com/v2.0';
 const BC_ENVIRONMENT = process.env.BC_ENVIRONMENT || 'sandbox';
 const BC_COMPANY_ID = process.env.BC_COMPANY_ID || '';
 
@@ -31,9 +32,9 @@ class BusinessCentralClient {
     const response = await fetch(url, {
       ...options,
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
         ...options.headers,
       },
     });
@@ -107,7 +108,7 @@ class BusinessCentralClient {
 
   // Resources (Users/Employees)
   async getResources(filter?: string): Promise<BCResource[]> {
-    let endpoint = '/resources?$filter=type eq \'Person\'';
+    let endpoint = "/resources?$filter=type eq 'Person'";
     if (filter) {
       endpoint += ` and ${filter}`;
     }
@@ -136,7 +137,9 @@ class BusinessCentralClient {
     return response.value;
   }
 
-  async createJobJournalLine(line: Omit<BCJobJournalLine, 'id' | 'lineNumber'>): Promise<BCJobJournalLine> {
+  async createJobJournalLine(
+    line: Omit<BCJobJournalLine, 'id' | 'lineNumber'>
+  ): Promise<BCJobJournalLine> {
     return this.fetch<BCJobJournalLine>('/jobJournalLines', {
       method: 'POST',
       body: JSON.stringify(line),
@@ -167,16 +170,16 @@ class BusinessCentralClient {
   }
 
   // Post job journal (commit time entries)
-  async postJobJournal(
-    journalTemplateName: string,
-    journalBatchName: string
-  ): Promise<void> {
+  async postJobJournal(journalTemplateName: string, journalBatchName: string): Promise<void> {
     // This typically requires a custom API endpoint or action in BC
     // The standard API doesn't directly support posting journals
     // You would need to create a custom API page in BC for this
-    await this.fetch(`/jobJournals(${journalTemplateName},${journalBatchName})/Microsoft.NAV.post`, {
-      method: 'POST',
-    });
+    await this.fetch(
+      `/jobJournals(${journalTemplateName},${journalBatchName})/Microsoft.NAV.post`,
+      {
+        method: 'POST',
+      }
+    );
   }
 
   // Company Information
@@ -191,17 +194,19 @@ class BusinessCentralClient {
     website: string;
     currencyCode: string;
   } | null> {
-    const response = await this.fetch<PaginatedResponse<{
-      displayName: string;
-      addressLine1: string;
-      addressLine2: string;
-      city: string;
-      postalCode: string;
-      country: string;
-      email: string;
-      website: string;
-      currencyCode: string;
-    }>>('/companyInformation');
+    const response = await this.fetch<
+      PaginatedResponse<{
+        displayName: string;
+        addressLine1: string;
+        addressLine2: string;
+        city: string;
+        postalCode: string;
+        country: string;
+        email: string;
+        website: string;
+        currencyCode: string;
+      }>
+    >('/companyInformation');
     return response.value[0] || null;
   }
 }

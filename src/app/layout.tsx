@@ -8,15 +8,12 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'Thyme - Time Tracking for Business Central | KnowAll.ai',
-  description: 'Modern time tracking application that syncs with Microsoft Dynamics 365 Business Central. Built by KnowAll.ai.',
+  description:
+    'Modern time tracking application that syncs with Microsoft Dynamics 365 Business Central. Built by KnowAll.ai.',
   keywords: ['time tracking', 'business central', 'dynamics 365', 'timesheet', 'knowall'],
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark">
       <body className={`${inter.className} bg-dark-950 text-white`}>

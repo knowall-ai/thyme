@@ -42,12 +42,8 @@ export function ExportButton() {
   };
 
   return (
-    <Button
-      variant="outline"
-      onClick={handleExport}
-      disabled={entries.length === 0}
-    >
-      <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
+    <Button variant="outline" onClick={handleExport} disabled={entries.length === 0}>
+      <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
       Export CSV
     </Button>
   );

@@ -41,9 +41,7 @@ export const msalConfig: Configuration = {
 export const graphScopes: string[] = ['User.Read'];
 
 // Scopes for Business Central API
-export const bcScopes: string[] = [
-  'https://api.businesscentral.dynamics.com/.default',
-];
+export const bcScopes: string[] = ['https://api.businesscentral.dynamics.com/.default'];
 
 // Login request configuration
 // Note: .default scope cannot be combined with other scopes

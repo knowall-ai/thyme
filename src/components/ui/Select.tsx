@@ -23,10 +23,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     return (
       <div className="w-full">
         {label && (
-          <label
-            htmlFor={selectId}
-            className="block text-sm font-medium text-dark-200 mb-1"
-          >
+          <label htmlFor={selectId} className="mb-1 block text-sm font-medium text-dark-200">
             {label}
           </label>
         )}
@@ -35,8 +32,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           ref={ref}
           className={cn(
             'flex h-10 w-full rounded-lg border border-dark-600 bg-dark-800 px-3 py-2 text-sm text-white',
-            'focus:outline-none focus:ring-2 focus:ring-knowall-green focus:border-transparent',
-            'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-dark-900',
+            'focus:border-transparent focus:outline-none focus:ring-2 focus:ring-knowall-green',
+            'disabled:cursor-not-allowed disabled:bg-dark-900 disabled:opacity-50',
             error && 'border-red-500 focus:ring-red-500',
             className
           )}
@@ -48,11 +45,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             </option>
           )}
           {options.map((option) => (
-            <option
-              key={option.value}
-              value={option.value}
-              disabled={option.disabled}
-            >
+            <option key={option.value} value={option.value} disabled={option.disabled}>
               {option.label}
             </option>
           ))}

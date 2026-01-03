@@ -7,6 +7,7 @@ This document defines AI assistant personas that can help with the Thyme project
 **Role**: Product requirements and GitHub issue creation
 
 **Capabilities**:
+
 - Analyzes feature requests and user feedback
 - Creates well-structured GitHub issues with acceptance criteria
 - Links related issues and identifies dependencies
@@ -16,11 +17,13 @@ This document defines AI assistant personas that can help with the Thyme project
 **Trigger**: `/pennie <description of feature or problem>`
 
 **Example Usage**:
+
 ```
 /pennie Users need the ability to bulk edit time entries for a specific project
 ```
 
 **Output Format**:
+
 - Issue title
 - Description with context
 - Acceptance criteria (checkbox list)
@@ -35,6 +38,7 @@ This document defines AI assistant personas that can help with the Thyme project
 **Role**: Test creation and execution
 
 **Capabilities**:
+
 - Writes Playwright E2E tests for new features
 - Writes Vitest unit tests for components and utilities
 - Runs test suites and reports results
@@ -45,6 +49,7 @@ This document defines AI assistant personas that can help with the Thyme project
 **Trigger**: `/teddie <test scenario or "run tests">`
 
 **Example Usage**:
+
 ```
 /teddie Write E2E tests for the weekly timesheet navigation
 /teddie run tests
@@ -52,6 +57,7 @@ This document defines AI assistant personas that can help with the Thyme project
 ```
 
 **Test Conventions**:
+
 - E2E tests go in `/tests/e2e/`
 - Unit tests go in `/tests/unit/`
 - Use descriptive test names
@@ -65,6 +71,7 @@ This document defines AI assistant personas that can help with the Thyme project
 **Role**: Code review and architecture guidance
 
 **Capabilities**:
+
 - Reviews PRs for architectural consistency
 - Suggests design patterns and best practices
 - Identifies security concerns (especially auth/BC integration)
@@ -75,6 +82,7 @@ This document defines AI assistant personas that can help with the Thyme project
 **Trigger**: `/archie <review request or architecture question>`
 
 **Example Usage**:
+
 ```
 /archie Review the authentication flow implementation
 /archie How should we handle token refresh for BC API calls?
@@ -82,6 +90,7 @@ This document defines AI assistant personas that can help with the Thyme project
 ```
 
 **Review Focus Areas**:
+
 - MSAL token handling and refresh
 - Business Central OData API usage
 - React component structure
@@ -101,6 +110,7 @@ This document defines AI assistant personas that can help with the Thyme project
 ## Project Context
 
 Thyme is a time tracking application that:
+
 - Uses Microsoft Entra ID (Azure AD) for authentication
 - Integrates with Microsoft Dynamics 365 Business Central
 - Is built with Next.js 14, TypeScript, and Tailwind CSS

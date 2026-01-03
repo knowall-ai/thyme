@@ -48,11 +48,7 @@ export const timeEntryService = {
     // Get local entries
     const localEntries = getLocalEntries().filter((entry) => {
       const entryDate = parseISO(entry.date);
-      return (
-        entry.userId === userId &&
-        entryDate >= startDate &&
-        entryDate <= endDate
-      );
+      return entry.userId === userId && entryDate >= startDate && entryDate <= endDate;
     });
 
     return localEntries;
@@ -85,10 +81,7 @@ export const timeEntryService = {
   },
 
   // Update an existing entry
-  async updateEntry(
-    entryId: string,
-    updates: Partial<TimeEntry>
-  ): Promise<TimeEntry | null> {
+  async updateEntry(entryId: string, updates: Partial<TimeEntry>): Promise<TimeEntry | null> {
     const entries = getLocalEntries();
     const index = entries.findIndex((e) => e.id === entryId);
 
@@ -138,12 +131,7 @@ export const timeEntryService = {
           continue;
         }
 
-        const bcLine = mapTimeEntryToBCLine(
-          entry,
-          resourceNumber,
-          project.code,
-          task.code
-        );
+        const bcLine = mapTimeEntryToBCLine(entry, resourceNumber, project.code, task.code);
 
         const createdLine = await bcClient.createJobJournalLine(bcLine);
 
@@ -174,9 +162,7 @@ export const timeEntryService = {
     for (const entry of previousEntries) {
       // Calculate offset (days from previous week start)
       const entryDate = parseISO(entry.date);
-      const dayOffset =
-        (entryDate.getTime() - previousWeekStart.getTime()) /
-        (1000 * 60 * 60 * 24);
+      const dayOffset = (entryDate.getTime() - previousWeekStart.getTime()) / (1000 * 60 * 60 * 24);
 
       // Create new date in current week
       const newDate = new Date(currentWeekStart);
@@ -206,9 +192,12 @@ export const timeEntryService = {
 
   // Get daily totals
   getDailyTotals(entries: TimeEntry[]): { [date: string]: number } {
-    return entries.reduce((totals, entry) => {
-      totals[entry.date] = (totals[entry.date] || 0) + entry.hours;
-      return totals;
-    }, {} as { [date: string]: number });
+    return entries.reduce(
+      (totals, entry) => {
+        totals[entry.date] = (totals[entry.date] || 0) + entry.hours;
+        return totals;
+      },
+      {} as { [date: string]: number }
+    );
   },
 };
