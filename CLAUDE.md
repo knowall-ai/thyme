@@ -15,11 +15,32 @@ Thyme is a time tracking application that integrates with Microsoft Dynamics 365
 ## Development Commands
 
 ```bash
-npm run dev      # Start dev server
-npm run build    # Production build
-npm run test     # Run tests
-npm run lint     # Lint code
+npm run dev          # Start dev server
+npm run build        # Production build
+npm run test         # Run tests
+npm run lint         # Lint code
+npm run lint:fix     # Auto-fix lint issues
+npm run format       # Format code with Prettier
+npm run format:check # Verify formatting
+npm run typecheck    # TypeScript type checking
+npm run check        # Run all checks (format, lint, typecheck, build)
 ```
+
+## Code Quality
+
+**Before committing changes**, run all checks:
+
+```bash
+npm run check
+```
+
+This validates:
+- Prettier formatting (`npm run format:check`)
+- ESLint rules (`npm run lint`)
+- TypeScript types (`npm run typecheck`)
+- Production build (`npm run build`)
+
+CI/CD runs these checks automatically on every PR via GitHub Actions.
 
 ## Troubleshooting Documentation
 
