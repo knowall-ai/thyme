@@ -12,3 +12,5 @@ export type { ModalProps } from './Modal';
 
 export { Card, CardHeader, CardContent, CardFooter } from './Card';
 export type { CardProps } from './Card';
+
+export { TeamsBotBanner } from './TeamsBotBanner';

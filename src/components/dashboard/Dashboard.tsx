@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Layout } from '@/components/layout';
 import { WeeklyTimesheet } from '@/components/timesheet';
 import { TimerDisplay, StartTimerModal } from '@/components/timer';
+import { TeamsBotBanner } from '@/components/ui';
 
 export function Dashboard() {
   const [isTimerModalOpen, setIsTimerModalOpen] = useState(false);
@@ -11,6 +12,9 @@ export function Dashboard() {
   return (
     <Layout>
       <div className="space-y-6">
+        {/* Teams Bot Promo */}
+        <TeamsBotBanner />
+
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
