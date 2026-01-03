@@ -91,7 +91,7 @@ export function StartTimerModal({ isOpen, onClose }: StartTimerModalProps) {
         <div>
           <label
             htmlFor="timer-notes"
-            className="block text-sm font-medium text-gray-700 mb-1"
+            className="block text-sm font-medium text-dark-200 mb-1"
           >
             Notes (optional)
           </label>
@@ -100,13 +100,13 @@ export function StartTimerModal({ isOpen, onClose }: StartTimerModalProps) {
             rows={2}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="flex w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-thyme-500 focus:border-transparent"
+            className="flex w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-100 placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-thyme-500 focus:border-transparent"
             placeholder="What are you working on?"
           />
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-2 pt-4 border-t border-gray-200">
+        <div className="flex justify-end gap-2 pt-4 border-t border-dark-700">
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>

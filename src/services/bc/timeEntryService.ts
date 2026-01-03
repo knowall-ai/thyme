@@ -19,7 +19,7 @@ function saveLocalEntries(entries: TimeEntry[]): void {
 }
 
 function generateId(): string {
-  return `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `local_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
 }
 
 function mapTimeEntryToBCLine(
@@ -118,7 +118,7 @@ export const timeEntryService = {
   },
 
   // Sync pending entries to Business Central
-  async syncToBCBusinessCentral(
+  async syncToBusinessCentral(
     resourceNumber: string,
     projects: Project[]
   ): Promise<{ synced: number; failed: number }> {

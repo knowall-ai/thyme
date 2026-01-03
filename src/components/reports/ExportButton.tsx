@@ -3,7 +3,7 @@
 import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui';
 import { useTimeEntriesStore, useProjectsStore } from '@/hooks';
-import { formatDate, formatWeekRange } from '@/utils';
+import { formatDate } from '@/utils';
 
 export function ExportButton() {
   const { entries, currentWeekStart } = useTimeEntriesStore();

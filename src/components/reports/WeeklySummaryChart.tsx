@@ -115,7 +115,7 @@ export function WeeklySummaryChart() {
       {/* Chart */}
       <Card variant="bordered" className="lg:col-span-2">
         <CardHeader>
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-lg font-semibold text-dark-100">
             Hours by Day
           </h3>
         </CardHeader>
@@ -124,7 +124,7 @@ export function WeeklySummaryChart() {
             {entries.length > 0 ? (
               <Bar data={chartData} options={options as never} />
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-500">
+              <div className="flex items-center justify-center h-full text-dark-400">
                 No data for this week
               </div>
             )}
@@ -135,21 +135,21 @@ export function WeeklySummaryChart() {
       {/* Summary */}
       <Card variant="bordered">
         <CardHeader>
-          <h3 className="text-lg font-semibold text-gray-900">Summary</h3>
+          <h3 className="text-lg font-semibold text-dark-100">Summary</h3>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {/* Total */}
-            <div className="pb-4 border-b border-gray-200">
-              <p className="text-sm text-gray-500">Total Hours</p>
-              <p className="text-3xl font-bold text-gray-900">
+            <div className="pb-4 border-b border-dark-700">
+              <p className="text-sm text-dark-400">Total Hours</p>
+              <p className="text-3xl font-bold text-dark-100">
                 {formatTime(totalHours)}
               </p>
             </div>
 
             {/* By project */}
             <div className="space-y-3">
-              <p className="text-sm font-medium text-gray-700">By Project</p>
+              <p className="text-sm font-medium text-dark-200">By Project</p>
               {projectTotals.map(({ project, hours }) => (
                 <div
                   key={project?.id}
@@ -160,18 +160,18 @@ export function WeeklySummaryChart() {
                       className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: project?.color }}
                     />
-                    <span className="text-sm text-gray-700 truncate">
+                    <span className="text-sm text-dark-200 truncate">
                       {project?.name}
                     </span>
                   </div>
-                  <span className="text-sm font-medium text-gray-900">
+                  <span className="text-sm font-medium text-dark-100">
                     {formatTime(hours)}
                   </span>
                 </div>
               ))}
 
               {projectTotals.length === 0 && (
-                <p className="text-sm text-gray-500">No entries this week</p>
+                <p className="text-sm text-dark-400">No entries this week</p>
               )}
             </div>
           </div>

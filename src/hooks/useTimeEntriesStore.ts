@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { TimeEntry, WeekData } from '@/types';
 import { timeEntryService } from '@/services/bc';
-import { getWeekStart, formatDate, getWeekEnd } from '@/utils';
+import { getWeekStart, getWeekEnd } from '@/utils';
 
 interface TimeEntriesStore {
   entries: TimeEntry[];

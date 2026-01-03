@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import {
   MagnifyingGlassIcon,
   StarIcon as StarOutlineIcon,
@@ -17,7 +16,6 @@ interface ProjectListProps {
 
 export function ProjectList({ onSelectProject }: ProjectListProps) {
   const {
-    projects,
     isLoading,
     searchQuery,
     setSearchQuery,
