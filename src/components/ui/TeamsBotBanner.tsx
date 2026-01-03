@@ -46,7 +46,7 @@ export function TeamsBotBanner() {
 
         {/* CTA */}
         <a
-          href="https://knowall.ai/thyme-bot"
+          href="https://knowall.ai/"
           target="_blank"
           rel="noopener noreferrer"
           className="flex-shrink-0 bg-white text-[#5B5FC7] px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/90 transition-colors"
