@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import toast from 'react-hot-toast';
 import {
   ClockIcon,
   FolderIcon,
@@ -24,6 +25,15 @@ const navigation = [
 export function Header() {
   const pathname = usePathname();
   const { account, logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout failed:', error);
+      toast.error('Failed to sign out. Please try again.');
+    }
+  };
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
@@ -89,7 +99,7 @@ export function Header() {
                   </span>
                 </div>
                 <button
-                  onClick={logout}
+                  onClick={handleLogout}
                   className="rounded-lg p-2 text-dark-400 transition-colors hover:bg-dark-800 hover:text-white"
                   title="Sign out"
                 >

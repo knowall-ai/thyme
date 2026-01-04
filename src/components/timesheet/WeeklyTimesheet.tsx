@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
+import toast from 'react-hot-toast';
 import { DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 import { useTimeEntriesStore, useProjectsStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
@@ -20,6 +21,7 @@ export function WeeklyTimesheet() {
     entries,
     currentWeekStart,
     isLoading,
+    error: entriesError,
     fetchWeekEntries,
     navigateToWeek,
     goToCurrentWeek,
@@ -28,7 +30,7 @@ export function WeeklyTimesheet() {
     getTotalHours,
   } = useTimeEntriesStore();
 
-  const { projects, fetchProjects } = useProjectsStore();
+  const { projects, error: projectsError, fetchProjects } = useProjectsStore();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -44,6 +46,19 @@ export function WeeklyTimesheet() {
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
+
+  // Show toast when errors occur
+  useEffect(() => {
+    if (entriesError) {
+      toast.error('Failed to load time entries. Please try refreshing the page.');
+    }
+  }, [entriesError]);
+
+  useEffect(() => {
+    if (projectsError) {
+      toast.error('Failed to load projects. Some features may not work correctly.');
+    }
+  }, [projectsError]);
 
   const weekDays = getWeekDays(currentWeekStart);
 
@@ -67,7 +82,13 @@ export function WeeklyTimesheet() {
 
   const handleCopyPreviousWeek = async () => {
     if (userId) {
-      await copyPreviousWeek(userId);
+      try {
+        await copyPreviousWeek(userId);
+        toast.success('Previous week entries copied');
+      } catch (error) {
+        console.error('Failed to copy previous week:', error);
+        toast.error('Failed to copy previous week entries. Please try again.');
+      }
     }
   };
 
