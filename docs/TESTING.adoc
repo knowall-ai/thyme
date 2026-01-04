@@ -1,0 +1,206 @@
+= Thyme Testing Guide
+:toc:
+
+== Overview
+
+Thyme uses a comprehensive testing strategy with:
+
+* **Vitest** - Unit and integration tests
+* **Playwright** - End-to-end tests
+
+== Running Tests
+
+=== Unit Tests (Vitest)
+
+[source,bash]
+----
+# Run all unit tests
+npm run test
+
+# Run with UI
+npm run test:ui
+
+# Run with coverage
+npm run test:coverage
+
+# Run specific test file
+npm run test -- src/utils/dateUtils.test.ts
+----
+
+=== E2E Tests (Playwright)
+
+[source,bash]
+----
+# Install Playwright browsers (first time)
+npx playwright install
+
+# Run all E2E tests
+npm run test:e2e
+
+# Run with UI mode
+npm run test:e2e:ui
+
+# Run specific test file
+npx playwright test tests/e2e/auth.spec.ts
+----
+
+== Test Structure
+
+[source]
+----
+tests/
+├── e2e/                      # Playwright E2E tests
+│   ├── auth.spec.ts          # Authentication flows
+│   ├── timesheet.spec.ts     # Weekly timesheet
+│   ├── timer.spec.ts         # Timer functionality
+│   ├── projects.spec.ts      # Project management
+│   └── reports.spec.ts       # Reporting features
+└── unit/                     # Vitest unit tests
+    ├── utils/
+    │   └── dateUtils.test.ts
+    ├── hooks/
+    │   └── useTimer.test.ts
+    └── components/
+        └── Button.test.tsx
+----
+
+== Mocking Business Central API
+
+For E2E tests, use Playwright's request interception:
+
+[source,typescript]
+----
+test.beforeEach(async ({ page }) => {
+  // Mock BC API responses
+  await page.route('**/api.businesscentral.dynamics.com/**', async route => {
+    const url = route.request().url();
+
+    if (url.includes('/jobs')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          value: mockJobs
+        })
+      });
+    }
+  });
+});
+----
+
+== Test Data
+
+=== Mock Projects
+
+[source,typescript]
+----
+export const mockProjects = [
+  {
+    id: 'proj-1',
+    code: 'PROJ-001',
+    name: 'Website Redesign',
+    clientName: 'ACME Corp',
+    color: '#22c55e',
+    status: 'active',
+    tasks: [
+      { id: 'task-1', code: 'DEV', name: 'Development', isBillable: true },
+      { id: 'task-2', code: 'QA', name: 'Testing', isBillable: true },
+    ]
+  }
+];
+----
+
+== Writing Tests
+
+=== Unit Test Example
+
+[source,typescript]
+----
+import { describe, it, expect } from 'vitest';
+import { formatTime, getWeekStart } from '@/utils/dateUtils';
+
+describe('dateUtils', () => {
+  describe('formatTime', () => {
+    it('formats whole hours', () => {
+      expect(formatTime(8)).toBe('8h');
+    });
+
+    it('formats hours with minutes', () => {
+      expect(formatTime(8.5)).toBe('8h 30m');
+    });
+
+    it('formats minutes only', () => {
+      expect(formatTime(0.5)).toBe('30m');
+    });
+  });
+
+  describe('getWeekStart', () => {
+    it('returns Monday for any day in the week', () => {
+      const wednesday = new Date('2024-01-10'); // Wednesday
+      const monday = getWeekStart(wednesday);
+      expect(monday.getDay()).toBe(1); // Monday
+    });
+  });
+});
+----
+
+=== E2E Test Example
+
+[source,typescript]
+----
+import { test, expect } from '@playwright/test';
+
+test.describe('Weekly Timesheet', () => {
+  test.beforeEach(async ({ page }) => {
+    // Setup authentication mock
+    await page.goto('/');
+  });
+
+  test('displays current week by default', async ({ page }) => {
+    await expect(page.getByRole('heading', { level: 2 })).toContainText('Jan');
+  });
+
+  test('navigates to previous week', async ({ page }) => {
+    await page.getByRole('button', { name: 'Previous week' }).click();
+    // Assert week changed
+  });
+
+  test('adds time entry via modal', async ({ page }) => {
+    await page.getByRole('button', { name: 'Add' }).first().click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+
+    await page.getByLabel('Project').selectOption('proj-1');
+    await page.getByLabel('Task').selectOption('task-1');
+    await page.getByLabel('Hours').fill('8');
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+  });
+});
+----
+
+== Continuous Integration
+
+Tests run automatically in GitHub Actions:
+
+[source,yaml]
+----
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm run test
+      - run: npx playwright install --with-deps
+      - run: npm run test:e2e
+----
+
+== Coverage Requirements
+
+* Unit tests: Aim for 80%+ coverage on utilities and hooks
+* E2E tests: Cover all critical user journeys
+* Focus on business logic over UI rendering

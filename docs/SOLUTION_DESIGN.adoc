@@ -1,0 +1,148 @@
+= Thyme Solution Design
+:toc:
+:toclevels: 3
+
+== Overview
+
+Thyme is a modern time tracking web application designed for KnowAll.ai team members. It integrates with Microsoft Dynamics 365 Business Central for project/job data synchronization and uses Microsoft Entra ID for authentication.
+
+== System Context
+
+[source]
+----
+                    ┌─────────────────────────────────────────┐
+                    │           Microsoft Entra ID            │
+                    │         (Authentication Provider)        │
+                    └────────────────────┬────────────────────┘
+                                         │ OAuth 2.0 / OIDC
+                                         │
+    ┌─────────────┐                      │                      ┌─────────────────┐
+    │   Browser   │────────HTTPS─────────┼──────────────────────│  Business       │
+    │  (React SPA)│                      │                      │  Central API    │
+    └─────────────┘                      │                      │  (OData v4)     │
+                                         ▼                      └─────────────────┘
+                              ┌──────────────────┐                       │
+                              │   Azure App      │                       │
+                              │   Service        │───────Bearer Token────┘
+                              │   (Next.js)      │
+                              └──────────────────┘
+----
+
+== Component Architecture
+
+=== Frontend (React/Next.js)
+
+[source]
+----
+src/
+├── app/                    # Next.js App Router pages
+├── components/
+│   ├── ui/                 # Reusable UI components (Button, Input, Modal)
+│   ├── layout/             # Layout components (Header, Footer)
+│   ├── landing/            # Landing page for unauthenticated users
+│   ├── dashboard/          # Main dashboard after login
+│   ├── timesheet/          # Weekly timesheet components
+│   ├── timer/              # Timer functionality
+│   ├── projects/           # Project listing and selection
+│   └── reports/            # Reporting and export
+├── hooks/                  # Custom React hooks and Zustand stores
+├── services/
+│   ├── auth/               # MSAL configuration and helpers
+│   └── bc/                 # Business Central API client
+├── types/                  # TypeScript type definitions
+└── utils/                  # Utility functions
+----
+
+=== State Management
+
+The application uses Zustand for state management with the following stores:
+
+* **useTimerStore** - Timer state with persistence (localStorage)
+* **useProjectsStore** - Projects and tasks from Business Central
+* **useTimeEntriesStore** - Time entries with local caching
+* **useSettingsStore** - User preferences with persistence
+
+== Data Flow
+
+=== Authentication Flow
+
+[source]
+----
+1. User clicks "Sign in with Microsoft"
+2. MSAL.js initiates OAuth 2.0 authorization code flow
+3. User authenticates with Microsoft Entra ID
+4. Token returned with BC API scope
+5. Token stored in browser (managed by MSAL)
+6. App renders authenticated dashboard
+----
+
+=== Time Entry Flow
+
+[source]
+----
+1. User creates/edits time entry in UI
+2. Entry saved to local state (immediate feedback)
+3. Entry queued for sync with BC
+4. Background sync creates Job Journal Line in BC
+5. Sync status updated (pending → synced)
+----
+
+== Business Central Integration
+
+=== Entity Mapping
+
+|===
+| BC Entity | Thyme Concept | Purpose
+
+| Jobs | Projects | Project/client work containers
+| Job Task Lines | Tasks | Billable activities within projects
+| Resources | Users | Employee/contractor mapping
+| Job Journal Lines | Time Entries | Actual time logged
+|===
+
+=== API Endpoints
+
+[source]
+----
+GET  /companies({id})/jobs                    # Fetch all projects
+GET  /companies({id})/jobs({id})/jobTaskLines # Fetch tasks for project
+GET  /companies({id})/resources               # Fetch employees
+POST /companies({id})/jobJournalLines         # Create time entry
+----
+
+== Security Considerations
+
+=== Authentication
+
+* Microsoft Entra ID provides enterprise-grade authentication
+* Single Sign-On (SSO) for KnowAll.ai users
+* Token refresh handled automatically by MSAL.js
+* No passwords stored in application
+
+=== Authorization
+
+* Only authenticated KnowAll.ai users can access
+* BC API access controlled by token scope
+* User can only see/edit own time entries (enforced in UI)
+
+=== Data Protection
+
+* All communication over HTTPS
+* Tokens stored securely (MSAL manages)
+* Local cache encrypted in localStorage
+* No sensitive data in URL parameters
+
+== Technology Stack
+
+|===
+| Layer | Technology | Purpose
+
+| Frontend | React 18 | UI framework
+| Framework | Next.js 14 | SSR/routing
+| Styling | Tailwind CSS | Utility-first CSS
+| State | Zustand | Client state management
+| Auth | MSAL.js | Azure AD authentication
+| Data | Business Central OData | Backend data
+| Testing | Playwright + Vitest | E2E + Unit tests
+| Hosting | Azure App Service | Cloud hosting
+|===

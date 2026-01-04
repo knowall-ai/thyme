@@ -1,0 +1,50 @@
+= Thyme Troubleshooting Guide
+
+Common issues and their solutions. Add new entries as problems are discovered and resolved.
+
+|===
+| Problem | Solution
+
+| Auth redirect fails with "AADSTS50011" error
+| Verify redirect URI in Azure App Registration matches `NEXT_PUBLIC_AZURE_REDIRECT_URI` exactly (including trailing slash if present)
+
+| BC API returns 401 Unauthorized
+| Check that BC API permissions are granted admin consent in Azure; verify token hasn't expired
+
+| BC API returns 403 Forbidden
+| User needs appropriate Business Central license and permissions assigned
+
+| Projects dropdown is empty
+| Verify `BC_COMPANY_ID` is correct; check that `/projects` endpoint returns data (not `/jobs`)
+
+| Team page shows no employees
+| Ensure employees exist in BC with status 'Active'; check `/employees` endpoint
+
+| Timer state lost on refresh
+| Check browser allows localStorage; timer state persists in localStorage
+
+| "missing required error components" on page load
+| Clear `.next` folder and restart dev server: `rm -rf .next && npm run dev`
+
+| Sign-in popup blocked
+| App now uses redirect flow; if still seeing popups, clear cache and rebuild
+
+| Logout doesn't work
+| Verify `postLogoutRedirectUri` is set to `/` in AuthProvider; check for console errors
+
+| TypeScript build errors after changes
+| Run `npm run build` to see full errors; check that new types are exported from `src/types/index.ts`
+
+| Tailwind classes not applying
+| Ensure file is in `content` array in `tailwind.config.js`; avoid dynamic class string interpolation
+
+| vitest/vite version conflict
+| `vitest.config.ts` should be excluded in `tsconfig.json` exclude array
+
+| Dev server on wrong port
+| Ports 3000/3001 may be in use; check console output for actual port (e.g., 3002)
+
+| BC API returns 404 on endpoint
+| Verify the endpoint exists in BC API v2.0; some entities use different names (e.g., `projects` not `jobs`)
+
+|===

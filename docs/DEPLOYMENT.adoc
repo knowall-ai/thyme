@@ -1,0 +1,171 @@
+= Thyme Deployment Guide
+:toc:
+
+== Prerequisites
+
+* Azure subscription with App Service plan
+* Microsoft Entra ID tenant (Azure AD)
+* Business Central environment with API access
+* Node.js 20 LTS (for local development)
+
+== Azure Resource Setup
+
+=== 1. Create App Service
+
+[source,bash]
+----
+# Create resource group
+az group create --name thyme-rg --location westeurope
+
+# Create App Service plan (Linux, B1)
+az appservice plan create \
+  --name thyme-plan \
+  --resource-group thyme-rg \
+  --sku B1 \
+  --is-linux
+
+# Create web app
+az webapp create \
+  --name thyme-knowall \
+  --resource-group thyme-rg \
+  --plan thyme-plan \
+  --runtime "NODE:20-lts"
+----
+
+=== 2. Configure Custom Domain
+
+[source,bash]
+----
+# Add custom domain
+az webapp config hostname add \
+  --webapp-name thyme-knowall \
+  --resource-group thyme-rg \
+  --hostname thyme.knowall.ai
+
+# Enable HTTPS (after DNS verification)
+az webapp config ssl bind \
+  --name thyme-knowall \
+  --resource-group thyme-rg \
+  --certificate-thumbprint <cert-thumbprint> \
+  --ssl-type SNI
+----
+
+== Entra ID App Registration
+
+=== 1. Create App Registration
+
+1. Go to Azure Portal → Microsoft Entra ID → App registrations
+2. Click "New registration"
+3. Configure:
+   - Name: `Thyme - Time Tracking`
+   - Supported account types: `Single tenant`
+   - Redirect URI: `https://thyme.knowall.ai` (SPA)
+
+=== 2. Configure Authentication
+
+1. Go to Authentication tab
+2. Add platform: Single-page application
+3. Add redirect URIs:
+   - `https://thyme.knowall.ai`
+   - `http://localhost:3000` (for development)
+4. Enable "Access tokens" and "ID tokens"
+
+=== 3. Configure API Permissions
+
+1. Go to API permissions tab
+2. Add permissions:
+   - Microsoft Graph: `User.Read`
+   - Dynamics 365 Business Central: `.default`
+3. Grant admin consent
+
+=== 4. Create Client Secret (if needed for backend)
+
+1. Go to Certificates & secrets
+2. Create new client secret
+3. Save the value securely
+
+== Environment Variables
+
+Set these in Azure App Service Configuration:
+
+[source]
+----
+NEXT_PUBLIC_AZURE_CLIENT_ID=<app-registration-client-id>
+NEXT_PUBLIC_AZURE_TENANT_ID=<tenant-id>
+NEXT_PUBLIC_AZURE_REDIRECT_URI=https://thyme.knowall.ai
+BC_ENVIRONMENT=production
+BC_COMPANY_ID=<business-central-company-guid>
+NEXT_PUBLIC_BC_BASE_URL=https://api.businesscentral.dynamics.com/v2.0
+----
+
+== CI/CD Pipeline (GitHub Actions)
+
+Create `.github/workflows/deploy.yml`:
+
+[source,yaml]
+----
+name: Deploy to Azure
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests
+      run: npm test
+
+    - name: Build
+      run: npm run build
+      env:
+        NEXT_PUBLIC_AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        NEXT_PUBLIC_AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+
+    - name: Deploy to Azure
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'thyme-knowall'
+        publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
+        package: .next/standalone
+----
+
+== Manual Deployment
+
+[source,bash]
+----
+# Build for production
+npm run build
+
+# The standalone output is in .next/standalone
+# Deploy this folder to Azure App Service
+
+# Or use Azure CLI
+az webapp deployment source config-zip \
+  --name thyme-knowall \
+  --resource-group thyme-rg \
+  --src deploy.zip
+----
+
+== Post-Deployment Checklist
+
+- [ ] Verify app loads at https://thyme.knowall.ai
+- [ ] Test Microsoft sign-in flow
+- [ ] Verify Business Central API connection
+- [ ] Check projects load from BC
+- [ ] Test time entry creation
+- [ ] Verify timer functionality
+- [ ] Test on mobile devices
