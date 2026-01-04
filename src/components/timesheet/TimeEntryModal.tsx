@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { TrashIcon } from '@heroicons/react/24/outline';
 import { Modal, Button, Input, Select } from '@/components/ui';
 import { useTimeEntriesStore, useProjectsStore } from '@/hooks';
@@ -113,9 +114,11 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
           isRunning: false,
         });
       }
+      toast.success(entry ? 'Time entry updated' : 'Time entry saved');
       onClose();
     } catch (error) {
       console.error('Failed to save entry:', error);
+      toast.error('Failed to save time entry. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -131,9 +134,11 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
     setIsSubmitting(true);
     try {
       await deleteEntry(entry.id);
+      toast.success('Time entry deleted');
       onClose();
     } catch (error) {
       console.error('Failed to delete entry:', error);
+      toast.error('Failed to delete time entry. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

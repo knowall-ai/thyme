@@ -1,5 +1,6 @@
+import toast from 'react-hot-toast';
 import { bcClient } from './bcClient';
-import type { TimeEntry, BCJobJournalLine, Project, Task } from '@/types';
+import type { TimeEntry, BCJobJournalLine, Project } from '@/types';
 import { format, parseISO } from 'date-fns';
 
 // Local storage key for time entries (cached/pending sync)
@@ -147,6 +148,22 @@ export const timeEntryService = {
     }
 
     saveLocalEntries(entries);
+
+    // Show user-friendly notifications for sync results
+    if (synced > 0 && failed === 0) {
+      toast.success(
+        `Successfully synced ${synced} time ${synced === 1 ? 'entry' : 'entries'} to Business Central`
+      );
+    } else if (synced > 0 && failed > 0) {
+      toast.error(
+        `Synced ${synced} ${synced === 1 ? 'entry' : 'entries'}, but ${failed} failed. Please try again.`
+      );
+    } else if (failed > 0) {
+      toast.error(
+        `Failed to sync ${failed} time ${failed === 1 ? 'entry' : 'entries'}. Please try again.`
+      );
+    }
+
     return { synced, failed };
   },
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { Card } from '@/components/ui';
 import { bcClient } from '@/services/bc/bcClient';
 import { useAuth } from '@/services/auth';
@@ -38,6 +39,7 @@ export function SettingsPanel() {
       } catch (err) {
         console.error('Failed to fetch company info:', err);
         setError('Failed to load company information');
+        toast.error('Failed to load company information. Please try again.');
       } finally {
         setIsLoading(false);
       }
