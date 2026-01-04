@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card } from '@/components/ui';
 import {
   ChartBarIcon,
@@ -8,13 +8,141 @@ import {
   ClockIcon,
   DocumentArrowDownIcon,
 } from '@heroicons/react/24/outline';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  parseISO,
+} from 'date-fns';
+import { useAuth } from '@/services/auth';
+import { useProjectsStore } from '@/hooks';
+import { timeEntryService } from '@/services/bc';
+import type { TimeEntry, Project } from '@/types';
 
 type DateRange = 'week' | 'month' | 'custom';
 
+interface ProjectHours {
+  projectId: string;
+  projectName: string;
+  projectColor: string;
+  hours: number;
+  billableHours: number;
+}
+
+interface DayBreakdown {
+  date: string;
+  label: string;
+  hours: number;
+}
+
 export function ReportsPanel() {
   const [dateRange, setDateRange] = useState<DateRange>('week');
+  const [entries, setEntries] = useState<TimeEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const today = new Date();
+
+  const { account } = useAuth();
+  const userId = account?.localAccountId || '';
+  const { projects, fetchProjects } = useProjectsStore();
+
+  // Calculate date range boundaries
+  const { startDate, endDate } = useMemo(() => {
+    const now = new Date();
+    if (dateRange === 'week') {
+      return {
+        startDate: startOfWeek(now, { weekStartsOn: 1 }),
+        endDate: endOfWeek(now, { weekStartsOn: 1 }),
+      };
+    } else {
+      return {
+        startDate: startOfMonth(now),
+        endDate: endOfMonth(now),
+      };
+    }
+  }, [dateRange]);
+
+  // Fetch entries when date range or user changes
+  useEffect(() => {
+    if (!userId) return;
+
+    const fetchEntries = async () => {
+      setIsLoading(true);
+      try {
+        const data = await timeEntryService.getEntries(startDate, endDate, userId);
+        setEntries(data);
+      } catch (error) {
+        console.error('Failed to fetch entries for reports:', error);
+        setEntries([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEntries();
+  }, [userId, startDate, endDate]);
+
+  // Fetch projects on mount
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
+
+  // Calculate statistics from entries
+  const stats = useMemo(() => {
+    const totalHours = entries.reduce((sum, entry) => sum + entry.hours, 0);
+    const billableHours = entries
+      .filter((entry) => entry.isBillable)
+      .reduce((sum, entry) => sum + entry.hours, 0);
+    const uniqueProjects = new Set(entries.map((entry) => entry.projectId)).size;
+    const billablePercentage = totalHours > 0 ? Math.round((billableHours / totalHours) * 100) : 0;
+
+    return { totalHours, billableHours, uniqueProjects, billablePercentage };
+  }, [entries]);
+
+  // Calculate hours by project
+  const projectHours = useMemo((): ProjectHours[] => {
+    const projectMap = new Map<string, { hours: number; billableHours: number }>();
+
+    entries.forEach((entry) => {
+      const existing = projectMap.get(entry.projectId) || { hours: 0, billableHours: 0 };
+      existing.hours += entry.hours;
+      if (entry.isBillable) {
+        existing.billableHours += entry.hours;
+      }
+      projectMap.set(entry.projectId, existing);
+    });
+
+    return Array.from(projectMap.entries())
+      .map(([projectId, data]) => {
+        const project = projects.find((p) => p.id === projectId);
+        return {
+          projectId,
+          projectName: project?.name || 'Unknown Project',
+          projectColor: project?.color || '#6B7280',
+          hours: data.hours,
+          billableHours: data.billableHours,
+        };
+      })
+      .sort((a, b) => b.hours - a.hours);
+  }, [entries, projects]);
+
+  // Calculate daily breakdown
+  const dailyBreakdown = useMemo((): DayBreakdown[] => {
+    const days = eachDayOfInterval({ start: startDate, end: endDate });
+    const dailyTotals = timeEntryService.getDailyTotals(entries);
+
+    return days.map((day) => ({
+      date: format(day, 'yyyy-MM-dd'),
+      label: format(day, 'EEE, MMM d'),
+      hours: dailyTotals[format(day, 'yyyy-MM-dd')] || 0,
+    }));
+  }, [entries, startDate, endDate]);
+
+  // Find max hours for bar chart scaling
+  const maxProjectHours = Math.max(...projectHours.map((p) => p.hours), 1);
+  const maxDailyHours = Math.max(...dailyBreakdown.map((d) => d.hours), 1);
 
   const getDateRangeLabel = () => {
     switch (dateRange) {
@@ -25,6 +153,13 @@ export function ReportsPanel() {
       default:
         return 'Custom Range';
     }
+  };
+
+  const formatHours = (hours: number): string => {
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
   };
 
   return (
@@ -70,7 +205,9 @@ export function ReportsPanel() {
             </div>
             <div>
               <p className="text-sm text-dark-400">Total Hours</p>
-              <p className="text-xl font-bold text-dark-100">0h</p>
+              <p className="text-xl font-bold text-dark-100">
+                {isLoading ? '...' : formatHours(stats.totalHours)}
+              </p>
             </div>
           </div>
         </Card>
@@ -81,7 +218,9 @@ export function ReportsPanel() {
             </div>
             <div>
               <p className="text-sm text-dark-400">Billable Hours</p>
-              <p className="text-xl font-bold text-dark-100">0h</p>
+              <p className="text-xl font-bold text-dark-100">
+                {isLoading ? '...' : formatHours(stats.billableHours)}
+              </p>
             </div>
           </div>
         </Card>
@@ -92,7 +231,9 @@ export function ReportsPanel() {
             </div>
             <div>
               <p className="text-sm text-dark-400">Projects</p>
-              <p className="text-xl font-bold text-dark-100">0</p>
+              <p className="text-xl font-bold text-dark-100">
+                {isLoading ? '...' : stats.uniqueProjects}
+              </p>
             </div>
           </div>
         </Card>
@@ -103,7 +244,9 @@ export function ReportsPanel() {
             </div>
             <div>
               <p className="text-sm text-dark-400">Billable %</p>
-              <p className="text-xl font-bold text-dark-100">0%</p>
+              <p className="text-xl font-bold text-dark-100">
+                {isLoading ? '...' : `${stats.billablePercentage}%`}
+              </p>
             </div>
           </div>
         </Card>
@@ -118,20 +261,88 @@ export function ReportsPanel() {
             Export
           </button>
         </div>
-        <div className="py-12 text-center text-dark-400">
-          <ChartBarIcon className="mx-auto mb-4 h-12 w-12 text-dark-600" />
-          <p>No time entries found for this period</p>
-          <p className="mt-1 text-sm">Start tracking time to see your reports here</p>
-        </div>
+        {isLoading ? (
+          <div className="py-12 text-center text-dark-400">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-dark-600 border-t-thyme-500"></div>
+            <p className="mt-4">Loading...</p>
+          </div>
+        ) : projectHours.length === 0 ? (
+          <div className="py-12 text-center text-dark-400">
+            <ChartBarIcon className="mx-auto mb-4 h-12 w-12 text-dark-600" />
+            <p>No time entries found for this period</p>
+            <p className="mt-1 text-sm">Start tracking time to see your reports here</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {projectHours.map((project) => (
+              <div key={project.projectId} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="h-3 w-3 rounded-full"
+                      style={{ backgroundColor: project.projectColor }}
+                    />
+                    <span className="text-sm font-medium text-dark-100">{project.projectName}</span>
+                  </div>
+                  <span className="text-sm text-dark-400">{formatHours(project.hours)}</span>
+                </div>
+                <div className="relative h-2 overflow-hidden rounded-full bg-dark-700">
+                  <div
+                    className="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${(project.hours / maxProjectHours) * 100}%`,
+                      backgroundColor: project.projectColor,
+                    }}
+                  />
+                </div>
+                {project.billableHours > 0 && (
+                  <p className="text-xs text-dark-500">
+                    {formatHours(project.billableHours)} billable
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       {/* Daily Breakdown */}
       <Card variant="bordered" className="p-6">
         <h2 className="mb-6 text-lg font-semibold text-white">Daily Breakdown</h2>
-        <div className="py-12 text-center text-dark-400">
-          <CalendarIcon className="mx-auto mb-4 h-12 w-12 text-dark-600" />
-          <p>No time entries found for this period</p>
-        </div>
+        {isLoading ? (
+          <div className="py-12 text-center text-dark-400">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-dark-600 border-t-thyme-500"></div>
+            <p className="mt-4">Loading...</p>
+          </div>
+        ) : entries.length === 0 ? (
+          <div className="py-12 text-center text-dark-400">
+            <CalendarIcon className="mx-auto mb-4 h-12 w-12 text-dark-600" />
+            <p>No time entries found for this period</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {dailyBreakdown.map((day) => (
+              <div key={day.date} className="flex items-center gap-4">
+                <span className="w-28 text-sm text-dark-400">{day.label}</span>
+                <div className="relative h-6 flex-1 overflow-hidden rounded bg-dark-700">
+                  {day.hours > 0 && (
+                    <div
+                      className="absolute left-0 top-0 flex h-full items-center rounded bg-thyme-600 px-2 transition-all duration-500"
+                      style={{ width: `${Math.max((day.hours / maxDailyHours) * 100, 10)}%` }}
+                    >
+                      <span className="text-xs font-medium text-white">
+                        {formatHours(day.hours)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <span className="w-16 text-right text-sm font-medium text-dark-100">
+                  {day.hours > 0 ? formatHours(day.hours) : '-'}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
     </div>
   );
