@@ -9,8 +9,32 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
   title: 'Thyme - Time Tracking for Business Central | KnowAll.ai',
   description:
-    'Modern time tracking application that syncs with Microsoft Dynamics 365 Business Central. Built by KnowAll.ai.',
+    'Modern time tracking application that syncs with Microsoft Dynamics 365 Business Central. Track time, manage projects, and keep your data in sync. Built by KnowAll.ai.',
   keywords: ['time tracking', 'business central', 'dynamics 365', 'timesheet', 'knowall'],
+  authors: [{ name: 'KnowAll.ai', url: 'https://knowall.ai' }],
+  creator: 'KnowAll.ai',
+  publisher: 'KnowAll.ai',
+  metadataBase: new URL('https://thyme.knowall.ai'),
+  openGraph: {
+    title: 'Thyme - Time Tracking for Business Central',
+    description:
+      'Modern time tracking application that syncs with Microsoft Dynamics 365 Business Central. Track time, manage projects, and keep your data in sync.',
+    url: 'https://thyme.knowall.ai',
+    siteName: 'Thyme by KnowAll.ai',
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Thyme - Time Tracking for Business Central',
+    description:
+      'Modern time tracking that syncs with Microsoft Dynamics 365 Business Central. Built by KnowAll.ai.',
+    creator: '@knowall_ai',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
