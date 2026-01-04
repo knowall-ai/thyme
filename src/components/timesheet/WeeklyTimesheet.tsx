@@ -76,7 +76,7 @@ export function WeeklyTimesheet() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <WeekNavigation
           currentWeekStart={currentWeekStart}
           onPrevious={() => navigateToWeek('prev')}
@@ -86,8 +86,9 @@ export function WeeklyTimesheet() {
 
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={handleCopyPreviousWeek} disabled={isLoading}>
-            <DocumentDuplicateIcon className="mr-2 h-4 w-4" />
-            Copy previous week
+            <DocumentDuplicateIcon className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Copy previous week</span>
+            <span className="sm:hidden">Copy week</span>
           </Button>
         </div>
       </div>
@@ -106,56 +107,69 @@ export function WeeklyTimesheet() {
 
       {/* Timesheet Grid */}
       <Card variant="bordered" className="overflow-hidden">
-        {/* Day Headers */}
-        <div className="grid grid-cols-7 border-b border-dark-700 bg-dark-900">
-          {weekDays.map((day) => {
-            const isToday = isDayToday(day);
-            return (
-              <div
-                key={day.toISOString()}
-                className={`border-r border-dark-700 p-3 text-center last:border-r-0 ${
-                  isToday ? 'bg-knowall-green/10' : ''
-                }`}
-              >
-                <p className="text-xs font-medium uppercase text-dark-400">{format(day, 'EEE')}</p>
-                <p
-                  className={`text-lg font-semibold ${
-                    isToday ? 'text-knowall-green' : 'text-white'
-                  }`}
-                >
-                  {format(day, 'd')}
-                </p>
-              </div>
-            );
-          })}
+        {/* Mobile scroll hint */}
+        <div className="flex items-center justify-end gap-2 border-b border-dark-700 bg-dark-900/50 px-3 py-1.5 text-xs text-dark-400 sm:hidden">
+          <span>Swipe to view week</span>
+          <span>→</span>
         </div>
 
-        {/* Entries Grid */}
-        {isLoading ? (
-          <div className="flex h-64 items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-knowall-green"></div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-7">
-            {weekDays.map((day) => {
-              const dateStr = formatDate(day);
-              const dayEntries = getEntriesForDay(dateStr);
-              const isToday = isDayToday(day);
+        {/* Scrollable container for mobile */}
+        <div className="overflow-x-auto">
+          <div className="min-w-[640px]">
+            {/* Day Headers */}
+            <div className="grid grid-cols-7 border-b border-dark-700 bg-dark-900">
+              {weekDays.map((day) => {
+                const isToday = isDayToday(day);
+                return (
+                  <div
+                    key={day.toISOString()}
+                    className={`border-r border-dark-700 p-2 text-center last:border-r-0 sm:p-3 ${
+                      isToday ? 'bg-knowall-green/10' : ''
+                    }`}
+                  >
+                    <p className="text-xs font-medium uppercase text-dark-400">
+                      {format(day, 'EEE')}
+                    </p>
+                    <p
+                      className={`text-base font-semibold sm:text-lg ${
+                        isToday ? 'text-knowall-green' : 'text-white'
+                      }`}
+                    >
+                      {format(day, 'd')}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
 
-              return (
-                <TimeEntryCell
-                  key={day.toISOString()}
-                  entries={dayEntries}
-                  date={dateStr}
-                  isToday={isToday}
-                  projects={projects}
-                  onAddEntry={handleAddEntry}
-                  onEditEntry={handleEditEntry}
-                />
-              );
-            })}
+            {/* Entries Grid */}
+            {isLoading ? (
+              <div className="flex h-64 items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-knowall-green"></div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-7">
+                {weekDays.map((day) => {
+                  const dateStr = formatDate(day);
+                  const dayEntries = getEntriesForDay(dateStr);
+                  const isToday = isDayToday(day);
+
+                  return (
+                    <TimeEntryCell
+                      key={day.toISOString()}
+                      entries={dayEntries}
+                      date={dateStr}
+                      isToday={isToday}
+                      projects={projects}
+                      onAddEntry={handleAddEntry}
+                      onEditEntry={handleEditEntry}
+                    />
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Empty State */}
         {!isLoading && entries.length === 0 && (
