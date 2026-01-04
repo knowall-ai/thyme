@@ -21,7 +21,8 @@ export async function getAccessToken(
 
     if (!account) {
       console.error('No active account found');
-      toast.error('Session expired. Please sign in again.');
+      // Use toast ID to prevent duplicate notifications when multiple API calls fail
+      toast.error('Session expired. Please sign in again.', { id: 'session-expired' });
       return null;
     }
 
@@ -43,7 +44,8 @@ export async function getAccessToken(
       return null;
     } catch (redirectError) {
       console.error('Failed to acquire token via redirect:', redirectError);
-      toast.error('Authentication failed. Please sign in again.');
+      // Use toast ID to prevent duplicate notifications when multiple API calls fail
+      toast.error('Authentication failed. Please sign in again.', { id: 'auth-failed' });
       return null;
     }
   }
