@@ -43,7 +43,7 @@ export async function getAccessToken(
       return null;
     } catch (redirectError) {
       console.error('Failed to acquire token via redirect:', redirectError);
-      toast.error('Authentication failed. Please try signing in again.');
+      toast.error('Authentication failed. Please sign in again.');
       return null;
     }
   }
