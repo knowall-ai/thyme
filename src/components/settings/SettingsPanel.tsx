@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui';
 import { bcClient } from '@/services/bc/bcClient';
 import { useAuth } from '@/services/auth';
+import { useSettingsStore } from '@/hooks/useSettingsStore';
 import {
   BuildingOffice2Icon,
   EnvelopeIcon,
@@ -26,6 +27,7 @@ interface CompanyInfo {
 
 export function SettingsPanel() {
   const { account } = useAuth();
+  const { weeklyHoursTarget, notificationsEnabled, updateSettings } = useSettingsStore();
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -136,7 +138,14 @@ export function SettingsPanel() {
             </div>
             <input
               type="number"
-              defaultValue={40}
+              min={0}
+              max={168}
+              value={weeklyHoursTarget}
+              onChange={(e) =>
+                updateSettings({
+                  weeklyHoursTarget: Math.max(0, parseInt(e.target.value) || 0),
+                })
+              }
               className="w-20 rounded-lg border border-dark-600 bg-dark-800 px-3 py-2 text-dark-100 focus:outline-none focus:ring-2 focus:ring-thyme-500"
             />
           </div>
@@ -146,7 +155,12 @@ export function SettingsPanel() {
               <p className="text-sm text-dark-400">Get reminded to fill in your timesheet</p>
             </div>
             <label className="relative inline-flex cursor-pointer items-center">
-              <input type="checkbox" defaultChecked className="peer sr-only" />
+              <input
+                type="checkbox"
+                checked={notificationsEnabled}
+                onChange={(e) => updateSettings({ notificationsEnabled: e.target.checked })}
+                className="peer sr-only"
+              />
               <div className="peer h-6 w-11 rounded-full bg-dark-600 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-thyme-600 peer-checked:after:translate-x-full peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-thyme-500"></div>
             </label>
           </div>
