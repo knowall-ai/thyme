@@ -16,15 +16,15 @@ Thyme has **partial responsive support**. While the app uses Tailwind CSS and in
 
 ### What Works Well
 
-| Component | Responsive Support | Notes |
-|-----------|-------------------|-------|
-| Landing Page | ✅ Good | Uses `sm:`, `lg:` breakpoints for layout shifts |
-| Header/Navigation | ✅ Good | Has mobile bottom nav (`sm:hidden`) |
-| Modal | ✅ Good | Uses `p-4` padding and responsive max-widths |
-| Footer | ✅ Good | Stacks vertically on mobile |
-| Feature Grid | ✅ Good | Uses `md:grid-cols-2` |
-| Benefits Section | ✅ Good | Uses `lg:grid-cols-2` |
-| Reports Chart | ✅ Good | Uses `lg:grid-cols-3` |
+| Component         | Responsive Support | Notes                                           |
+| ----------------- | ------------------ | ----------------------------------------------- |
+| Landing Page      | ✅ Good            | Uses `sm:`, `lg:` breakpoints for layout shifts |
+| Header/Navigation | ✅ Good            | Has mobile bottom nav (`sm:hidden`)             |
+| Modal             | ✅ Good            | Uses `p-4` padding and responsive max-widths    |
+| Footer            | ✅ Good            | Stacks vertically on mobile                     |
+| Feature Grid      | ✅ Good            | Uses `md:grid-cols-2`                           |
+| Benefits Section  | ✅ Good            | Uses `lg:grid-cols-2`                           |
+| Reports Chart     | ✅ Good            | Uses `lg:grid-cols-3`                           |
 
 ### Critical Issues Found
 
@@ -39,12 +39,14 @@ Thyme has **partial responsive support**. While the app uses Tailwind CSS and in
 **Problem:** The 7-column grid has **no responsive breakpoints**. On mobile (320-414px), each column is only ~45-60px wide, making content unreadable and unusable.
 
 **Impact:**
+
 - Text gets truncated/overflows
 - Tap targets are too small (<44px)
 - Day headers become illegible
 - Time entries cannot be read
 
 **Recommendation:** Implement one of:
+
 - Horizontal scroll with snap (`overflow-x-auto snap-x`)
 - Single-day view on mobile with day picker
 - Stack days vertically on mobile
@@ -75,19 +77,20 @@ Thyme has **partial responsive support**. While the app uses Tailwind CSS and in
 
 Found **35 responsive breakpoint classes** across 9 files:
 
-| File | Count |
-|------|-------|
-| LandingPage.tsx | 15 |
-| Header.tsx | 4 |
-| Modal.tsx | 4 |
-| Button.tsx | 3 |
-| SettingsPanel.tsx | 2 |
-| Layout.tsx | 2 |
-| WeeklySummaryChart.tsx | 2 |
-| TeamList.tsx | 2 |
-| ReportsPanel.tsx | 1 |
+| File                   | Count |
+| ---------------------- | ----- |
+| LandingPage.tsx        | 15    |
+| Header.tsx             | 4     |
+| Modal.tsx              | 4     |
+| Button.tsx             | 3     |
+| SettingsPanel.tsx      | 2     |
+| Layout.tsx             | 2     |
+| WeeklySummaryChart.tsx | 2     |
+| TeamList.tsx           | 2     |
+| ReportsPanel.tsx       | 1     |
 
 **Notable Absences:**
+
 - WeeklyTimesheet.tsx - 0 responsive classes
 - TimeEntryCell.tsx - 0 responsive classes
 - TimerDisplay.tsx - 0 responsive classes
@@ -132,16 +135,16 @@ Found **35 responsive breakpoint classes** across 9 files:
 
 Once fixes are applied, test at these breakpoints:
 
-| Breakpoint | Device Example | Priority |
-|------------|---------------|----------|
-| 320px | iPhone SE | High |
-| 375px | iPhone 12/13 | High |
-| 414px | iPhone Plus/Max | High |
-| 768px | iPad Portrait | Medium |
-| 1024px | iPad Landscape | Medium |
-| 1280px | Laptop | Low |
-| 1920px | Desktop | Low |
+| Breakpoint | Device Example  | Priority |
+| ---------- | --------------- | -------- |
+| 320px      | iPhone SE       | High     |
+| 375px      | iPhone 12/13    | High     |
+| 414px      | iPhone Plus/Max | High     |
+| 768px      | iPad Portrait   | Medium   |
+| 1024px     | iPad Landscape  | Medium   |
+| 1280px     | Laptop          | Low      |
+| 1920px     | Desktop         | Low      |
 
 ---
 
-*Report generated during responsiveness verification on branch `claude/test-thyme-responsiveness-Cy1Ba`*
+_Report generated during responsiveness verification on branch `claude/test-thyme-responsiveness-Cy1Ba`_
