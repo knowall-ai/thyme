@@ -1,0 +1,6 @@
+{
+  "code_review": {
+    "auto_review": false,
+    "trigger": "manual"
+  }
+}
