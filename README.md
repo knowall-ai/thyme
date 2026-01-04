@@ -1,5 +1,7 @@
 # Thyme - Time Tracking for Business Central
 
+![Thyme - Time Tracking for Business Central](public/social-preview.svg)
+
 A modern time tracking web application that integrates with Microsoft Dynamics 365 Business Central. Built by [KnowAll.ai](https://knowall.ai).
 
 ## Features
