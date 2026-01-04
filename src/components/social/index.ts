@@ -1,0 +1,1 @@
+export { SocialImageContent } from './SocialImageContent';
