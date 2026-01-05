@@ -164,12 +164,30 @@ Thyme uses 4 deployment slots (slot1-slot4) for PR testing:
 for i in {1..4}; do
   az webapp deployment slot create \
     --name thyme-knowall \
-    --resource-group KnowAllAIRG \
+    --resource-group <resource-group-name> \
     --slot "slot${i}"
 done
 
-# Environment variables are configured automatically per slot
-# Each slot has its own redirect URI pointing to slotN.knowall.ai
+# You'll configure environment variables per slot in Azure App Service
+# Each slot should have its own redirect URI (e.g., https://slotN.thyme.knowall.ai)
+----
+
+==== Configure slot-specific environment variables
+
+For each deployment slot (`slot1`–`slot4`), configure its own application settings (environment variables) in Azure App Service:
+
+. In the Azure Portal, open your App Service (for example, `thyme-knowall`).
+. In the left menu, select *Deployment slots* and click the slot you want to configure (for example, `slot1`).
+. In the slot blade, select *Configuration* → *Application settings*.
+. Add or update the environment variables for this slot. For example:
+.. `NEXT_PUBLIC_APP_URL` = `https://slot1.thyme.knowall.ai`
+.. `NEXT_PUBLIC_AZURE_REDIRECT_URI` = `https://slot1.thyme.knowall.ai`
+.. Any other app-specific settings that should differ per slot
+. Click *Save* and allow the slot to restart if prompted.
+. Repeat these steps for `slot2`, `slot3`, and `slot4`, adjusting the values for each slot (e.g., `https://slot2.thyme.knowall.ai`, `https://slot3.thyme.knowall.ai`, etc.).
+
+These settings are *slot-specific*: when you swap slots, their configuration (including redirect URIs) stays with the slot, so each PR environment continues to work correctly.
+
 ----
 
 === GitHub Secrets Setup
@@ -177,17 +195,18 @@ done
 Configure these secrets in your GitHub repository (Settings → Secrets and variables → Actions):
 
 1. **AZURE_WEBAPP_NAME**: Your Azure App Service name (e.g., `thyme-knowall`)
-2. **AZURE_WEBAPP_PUBLISH_PROFILE**: Download from Azure Portal → App Service → Deployment Center → Manage publish profile
+2. **AZURE_WEBAPP_PUBLISH_PROFILE**: Download from Azure Portal → App Service → Deployment Center → Manage publish profile for the production slot
 
-To get the publish profile:
+NOTE: Azure App Service publish profiles can be used across deployment slots when they share the same App Service. The production publish profile works for all slots (slot1-slot4) because they authenticate to the same App Service resource.
+
+To get the publish profile for the production slot:
 
 [source,bash]
 ----
-# Download publish profile for the staging slot
+# Download publish profile for the production slot
 az webapp deployment list-publishing-profiles \
   --name thyme-knowall \
-  --resource-group thyme-rg \
-  --slot staging \
+  --resource-group <resource-group-name> \
   --xml
 ----
 
@@ -239,7 +258,7 @@ The workflow uses **GitHub's Deployments API** to track which PR is deployed to 
 
 After deployment completes:
 
-1. Visit the deployment URL (e.g., `https://slot1.knowall.ai`)
+1. Visit the deployment URL (e.g., `https://slot1.thyme.knowall.ai`)
 2. Check the PR comment for the exact slot URL
 3. Test the PR changes thoroughly:
    - Authentication flow (redirect URI is configured for the slot domain)
@@ -254,10 +273,10 @@ After deployment completes:
    - Re-run the workflow to deploy updated code to the same slot
 
 **Available Deployment Slots:**
-- `slot1.knowall.ai` - Primary testing slot
-- `slot2.knowall.ai` - Secondary testing slot
-- `slot3.knowall.ai` - Additional slot for parallel testing
-- `slot4.knowall.ai` - Additional slot for parallel testing
+- `slot1.thyme.knowall.ai` - Primary testing slot
+- `slot2.thyme.knowall.ai` - Secondary testing slot
+- `slot3.thyme.knowall.ai` - Additional slot for parallel testing
+- `slot4.thyme.knowall.ai` - Additional slot for parallel testing
 
 **Parallel Testing:**
 Multiple PRs can be deployed to different slots simultaneously, allowing reviewers to test several changes in parallel without conflicts.
@@ -271,11 +290,11 @@ Deployment slots persist until manually deleted. To clean up after testing:
 # Delete a deployment slot (optional)
 az webapp deployment slot delete \
   --name thyme-knowall \
-  --resource-group thyme-rg \
-  --slot staging
+  --resource-group <resource-group-name> \
+  --slot slot1
 ----
 
-NOTE: You typically keep the staging slot and reuse it for multiple PR deployments.
+NOTE: You typically keep the deployment slots (slot1–slot4) and reuse them for multiple PR deployments.
 
 == Manual Deployment
 

@@ -8,10 +8,19 @@ on:
         required: true
         type: number
       slot_name:
-        description: 'Target deployment slot (slot1, slot2, slot3, or slot4)'
+        description: 'Target deployment slot'
         required: false
         default: 'slot1'
-        type: string
+        type: choice
+        options:
+          - slot1
+          - slot2
+          - slot3
+          - slot4
+
+concurrency:
+  group: deploy-pr-${{ github.event.inputs.slot_name }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -42,7 +51,7 @@ jobs:
             core.setOutput('ref', pr.head.ref);
             core.setOutput('sha', pr.head.sha);
             core.setOutput('title', pr.title);
-            core.summary.addHeading(`Deploying PR #${{ inputs.pr_number }}: ${pr.title}`);
+            core.summary.addHeading('Deploying PR #${{ inputs.pr_number }}: ' + pr.title);
             core.summary.addRaw(`Branch: \`${pr.head.ref}\` (${pr.head.sha.substring(0, 7)})`);
             core.summary.addRaw(`Target slot: \`${{ inputs.slot_name }}\``);
             await core.summary.write();
@@ -79,7 +88,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.pr.outputs.sha }}
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -92,6 +101,12 @@ jobs:
 
       - name: Run tests
         run: npm run test -- --run
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
 
       - name: Type check
         run: npm run typecheck
@@ -113,7 +128,7 @@ jobs:
         with:
           script: |
             const slotName = '${{ inputs.slot_name }}';
-            const url = `https://${slotName}.knowall.ai`;
+            const url = `https://${slotName}.thyme.knowall.ai`;
 
             // Create deployment
             const { data: deployment } = await github.rest.repos.createDeployment({
@@ -126,13 +141,23 @@ jobs:
               required_contexts: [],
               payload: {
                 pr_number: ${{ inputs.pr_number }},
-                pr_title: '${{ steps.pr.outputs.title }}',
+                pr_title: ${{ toJson(steps.pr.outputs.title) }},
                 deployer: '${{ github.actor }}'
               }
             });
 
             core.setOutput('deployment_id', deployment.id);
             core.setOutput('url', url);
+
+            // Mark deployment as in progress
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: deployment.id,
+              state: 'in_progress',
+              environment_url: url,
+              description: 'Deployment in progress'
+            });
 
       - name: Deploy to Azure App Service Slot
         id: deploy
@@ -226,8 +251,34 @@ jobs:
               body: comment
             });
 
+      - name: Comment on PR (deployment failed)
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const slotName = '${{ inputs.slot_name }}';
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+
+            const comment = `## ❌ Deployment Failed
+
+            The deployment of PR #${{ inputs.pr_number }} to **${slotName}** has failed.
+
+            **Environment:** \`${slotName}\`
+            **Status:** ❌ Failed
+
+            [View workflow run for details →](${runUrl})
+
+            Please review the logs in the workflow run to diagnose and fix the issue.`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ inputs.pr_number }},
+              body: comment
+            });
+
       - name: Update previous PR comment
-        if: success() && steps.check_deployment.outputs.previous_pr
+        if: success() && steps.check_deployment.outputs.previous_pr != ''
         uses: actions/github-script@v7
         with:
           script: |
@@ -238,7 +289,7 @@ jobs:
 
             This deployment to **${slotName}** was replaced by PR #${{ inputs.pr_number }} on ${new Date().toUTCString()}.
 
-            **Previous URL:** https://${slotName}.knowall.ai (now shows PR #${{ inputs.pr_number }})
+            **Previous URL:** https://${slotName}.thyme.knowall.ai (now shows PR #${{ inputs.pr_number }})
 
             [View deployment history →](${{ github.server_url }}/${{ github.repository }}/deployments)`;
 
