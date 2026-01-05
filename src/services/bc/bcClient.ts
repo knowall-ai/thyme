@@ -11,8 +11,8 @@ import type {
 
 const BC_BASE_URL =
   process.env.NEXT_PUBLIC_BC_BASE_URL || 'https://api.businesscentral.dynamics.com/v2.0';
-const BC_ENVIRONMENT = process.env.BC_ENVIRONMENT || 'sandbox';
-const BC_COMPANY_ID = process.env.BC_COMPANY_ID || '';
+const BC_ENVIRONMENT = process.env.NEXT_PUBLIC_BC_ENVIRONMENT || 'sandbox';
+const BC_COMPANY_ID = process.env.NEXT_PUBLIC_BC_COMPANY_ID || '';
 
 class BusinessCentralClient {
   private baseUrl: string;
