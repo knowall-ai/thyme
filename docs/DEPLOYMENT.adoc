@@ -143,6 +143,107 @@ jobs:
         package: .next/standalone
 ----
 
+== PR Testing with Deployment Slots
+
+=== Overview
+
+The repository includes a manual workflow that allows reviewers to deploy PRs to Azure App Service deployment slots for testing before merging. This enables testing in a production-like environment without affecting the main application.
+
+=== Prerequisites
+
+1. **Azure App Service Plan**: Standard tier or higher (required for deployment slots)
+2. **Deployment Slot**: Create a staging slot for PR testing
+
+==== Create Deployment Slot
+
+[source,bash]
+----
+# Create a staging deployment slot
+az webapp deployment slot create \
+  --name thyme-knowall \
+  --resource-group thyme-rg \
+  --slot staging
+
+# Copy environment variables from production to staging
+az webapp config appsettings list \
+  --name thyme-knowall \
+  --resource-group thyme-rg \
+  --output json > prod-settings.json
+
+az webapp config appsettings set \
+  --name thyme-knowall \
+  --resource-group thyme-rg \
+  --slot staging \
+  --settings @prod-settings.json
+----
+
+=== GitHub Secrets Setup
+
+Configure these secrets in your GitHub repository (Settings → Secrets and variables → Actions):
+
+1. **AZURE_WEBAPP_NAME**: Your Azure App Service name (e.g., `thyme-knowall`)
+2. **AZURE_WEBAPP_PUBLISH_PROFILE**: Download from Azure Portal → App Service → Deployment Center → Manage publish profile
+
+To get the publish profile:
+
+[source,bash]
+----
+# Download publish profile for the staging slot
+az webapp deployment list-publishing-profiles \
+  --name thyme-knowall \
+  --resource-group thyme-rg \
+  --slot staging \
+  --xml
+----
+
+Copy the XML output and add it as the `AZURE_WEBAPP_PUBLISH_PROFILE` secret in GitHub.
+
+=== Using the Workflow
+
+1. **Navigate to Actions**: Go to your GitHub repository → Actions tab
+2. **Select Workflow**: Click "Deploy PR to Azure Slot" from the workflow list
+3. **Run Workflow**: Click "Run workflow" button
+4. **Enter Details**:
+   - **PR number**: The pull request number to deploy
+   - **Slot name**: Target deployment slot (default: `staging`)
+5. **Monitor**: Watch the workflow execution in the Actions tab
+
+The workflow will:
+
+- ✅ Validate the PR is open
+- ✅ Run tests and type checking
+- ✅ Build the application
+- ✅ Deploy to the specified slot
+- ✅ Comment on the PR with the staging URL
+
+=== Testing the Deployment
+
+After deployment completes:
+
+1. Visit the staging URL: `https://thyme-knowall-staging.azurewebsites.net`
+2. Test the PR changes thoroughly:
+   - Authentication flow
+   - Business Central integration
+   - New features or bug fixes
+   - Mobile responsiveness
+3. If issues are found, request changes on the PR
+4. Re-run the workflow after fixes are pushed
+
+=== Cleanup
+
+Deployment slots persist until manually deleted. To clean up after testing:
+
+[source,bash]
+----
+# Delete a deployment slot (optional)
+az webapp deployment slot delete \
+  --name thyme-knowall \
+  --resource-group thyme-rg \
+  --slot staging
+----
+
+NOTE: You typically keep the staging slot and reuse it for multiple PR deployments.
+
 == Manual Deployment
 
 [source,bash]

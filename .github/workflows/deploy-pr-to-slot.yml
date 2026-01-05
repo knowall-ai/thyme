@@ -1,0 +1,131 @@
+name: Deploy PR to Azure Slot
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to deploy'
+        required: true
+        type: number
+      slot_name:
+        description: 'Target deployment slot'
+        required: false
+        default: 'staging'
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  deploy-pr:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get PR details
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: ${{ inputs.pr_number }}
+            });
+
+            if (pr.state !== 'open') {
+              core.setFailed(`PR #${{ inputs.pr_number }} is not open (state: ${pr.state})`);
+              return;
+            }
+
+            core.setOutput('ref', pr.head.ref);
+            core.setOutput('sha', pr.head.sha);
+            core.setOutput('title', pr.title);
+            core.summary.addHeading(`Deploying PR #${{ inputs.pr_number }}: ${pr.title}`);
+            core.summary.addRaw(`Branch: \`${pr.head.ref}\` (${pr.head.sha.substring(0, 7)})`);
+            core.summary.addRaw(`Target slot: \`${{ inputs.slot_name }}\``);
+            await core.summary.write();
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm run test -- --run
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Build application
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Deploy to Azure App Service Slot
+        id: deploy
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+          slot-name: ${{ inputs.slot_name }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: .
+
+      - name: Output deployment URL
+        id: url
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const appName = process.env.AZURE_WEBAPP_NAME;
+            const slotName = '${{ inputs.slot_name }}';
+            const url = `https://${appName}-${slotName}.azurewebsites.net`;
+
+            core.setOutput('url', url);
+
+            core.summary.addHeading('Deployment Complete! 🚀', 2);
+            core.summary.addRaw(`\n**Staging URL:** ${url}\n`);
+            core.summary.addRaw(`\nTest the PR at the staging slot and verify functionality before merging.\n`);
+            await core.summary.write();
+
+            console.log(`✅ PR #${{ inputs.pr_number }} deployed to: ${url}`);
+        env:
+          AZURE_WEBAPP_NAME: ${{ secrets.AZURE_WEBAPP_NAME }}
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = '${{ steps.url.outputs.url }}';
+            const comment = `## 🚀 Deployment Complete
+
+            PR #${{ inputs.pr_number }} has been deployed to the \`${{ inputs.slot_name }}\` slot for testing.
+
+            **Staging URL:** ${url}
+
+            Please test the changes in the staging environment before merging.
+
+            <details>
+            <summary>Deployment Details</summary>
+
+            - **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            - **Commit:** ${{ steps.pr.outputs.sha }}
+            - **Triggered by:** @${{ github.actor }}
+
+            </details>`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ inputs.pr_number }},
+              body: comment
+            });
