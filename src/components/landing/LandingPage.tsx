@@ -284,7 +284,18 @@ export function LandingPage() {
                 KnowAll.ai
               </a>
             </div>
-            <p className="text-sm text-dark-500">Time Tracking for Business Central</p>
+            <div className="flex items-center gap-4 text-sm text-dark-500">
+              <span>Time Tracking for Business Central</span>
+              <span>·</span>
+              <a
+                href="https://github.com/knowall-ai/thyme/issues"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="transition-colors hover:text-dark-300"
+              >
+                Provide feedback
+              </a>
+            </div>
           </div>
         </div>
       </footer>

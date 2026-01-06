@@ -31,6 +31,15 @@ export function Layout({ children }: LayoutProps) {
               >
                 KnowAll.ai
               </a>
+              <span>·</span>
+              <a
+                href="https://github.com/knowall-ai/thyme/issues"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="transition-colors hover:text-dark-300"
+              >
+                Provide feedback
+              </a>
             </div>
           </div>
         </footer>
