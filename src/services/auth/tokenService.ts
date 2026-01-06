@@ -1,22 +1,15 @@
-import { PublicClientApplication, SilentRequest } from '@azure/msal-browser';
-import { msalConfig, bcTokenRequest, graphTokenRequest } from './msalConfig';
-
-let msalInstance: PublicClientApplication | null = null;
-
-async function getMsalInstance(): Promise<PublicClientApplication> {
-  if (!msalInstance) {
-    msalInstance = new PublicClientApplication(msalConfig);
-    await msalInstance.initialize();
-  }
-  return msalInstance;
-}
+import { SilentRequest } from '@azure/msal-browser';
+import { bcTokenRequest, graphTokenRequest } from './msalConfig';
+import { msalInstance, initializeMsal } from './msalInstance';
 
 export async function getAccessToken(
   scopes: string[] = bcTokenRequest.scopes
 ): Promise<string | null> {
   try {
-    const instance = await getMsalInstance();
-    const account = instance.getActiveAccount();
+    // Ensure MSAL is initialized before making any calls
+    await initializeMsal();
+
+    const account = msalInstance.getActiveAccount();
 
     if (!account) {
       console.error('No active account found');
@@ -28,15 +21,14 @@ export async function getAccessToken(
       account,
     };
 
-    const response = await instance.acquireTokenSilent(request);
+    const response = await msalInstance.acquireTokenSilent(request);
     return response.accessToken;
   } catch (error) {
     console.error('Failed to acquire token silently:', error);
 
     // If silent acquisition fails, redirect to login
     try {
-      const instance = await getMsalInstance();
-      await instance.acquireTokenRedirect({ scopes });
+      await msalInstance.acquireTokenRedirect({ scopes });
       // This won't return - browser will redirect
       return null;
     } catch (redirectError) {

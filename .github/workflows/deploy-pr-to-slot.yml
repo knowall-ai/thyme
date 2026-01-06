@@ -1,0 +1,301 @@
+name: Deploy PR to Azure Slot
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to deploy'
+        required: true
+        type: number
+      slot_name:
+        description: 'Target deployment slot'
+        required: false
+        default: 'slot1'
+        type: choice
+        options:
+          - slot1
+          - slot2
+          - slot3
+          - slot4
+
+concurrency:
+  group: deploy-pr-${{ github.event.inputs.slot_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: write
+  deployments: write
+
+jobs:
+  deploy-pr:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get PR details
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: ${{ inputs.pr_number }}
+            });
+
+            if (pr.state !== 'open') {
+              core.setFailed(`PR #${{ inputs.pr_number }} is not open (state: ${pr.state})`);
+              return;
+            }
+
+            core.setOutput('ref', pr.head.ref);
+            core.setOutput('sha', pr.head.sha);
+            core.setOutput('title', pr.title);
+            core.summary.addHeading('Deploying PR #${{ inputs.pr_number }}: ' + pr.title);
+            core.summary.addRaw(`Branch: \`${pr.head.ref}\` (${pr.head.sha.substring(0, 7)})`);
+            core.summary.addRaw(`Target slot: \`${{ inputs.slot_name }}\``);
+            await core.summary.write();
+
+      - name: Check existing deployment
+        id: check_deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const slotName = '${{ inputs.slot_name }}';
+
+            // Get active deployments for this environment
+            const { data: deployments } = await github.rest.repos.listDeployments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              environment: slotName,
+              per_page: 1
+            });
+
+            if (deployments.length > 0) {
+              const deployment = deployments[0];
+
+              // Get the PR number from deployment payload
+              const deployedPR = deployment.payload?.pr_number;
+
+              if (deployedPR && deployedPR !== ${{ inputs.pr_number }}) {
+                core.warning(`⚠️  Slot ${slotName} currently has PR #${deployedPR} deployed. This deployment will replace it.`);
+                core.setOutput('previous_pr', deployedPR);
+                core.setOutput('previous_deployment_id', deployment.id);
+              }
+            }
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.sha }}
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm run test -- --run
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Build application
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Prepare standalone deployment
+        run: |
+          cp -r public .next/standalone/
+          cp -r .next/static .next/standalone/.next/
+          echo "Standalone deployment package prepared"
+
+      - name: Create GitHub deployment
+        id: create_deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const slotName = '${{ inputs.slot_name }}';
+            const url = `https://${slotName}.thyme.knowall.ai`;
+
+            // Create deployment
+            const { data: deployment } = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: '${{ steps.pr.outputs.sha }}',
+              environment: slotName,
+              description: `Deploy PR #${{ inputs.pr_number }} to ${slotName}`,
+              auto_merge: false,
+              required_contexts: [],
+              payload: {
+                pr_number: ${{ inputs.pr_number }},
+                pr_title: ${{ toJson(steps.pr.outputs.title) }},
+                deployer: '${{ github.actor }}'
+              }
+            });
+
+            core.setOutput('deployment_id', deployment.id);
+            core.setOutput('url', url);
+
+            // Mark deployment as in progress
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: deployment.id,
+              state: 'in_progress',
+              environment_url: url,
+              description: 'Deployment in progress'
+            });
+
+      - name: Deploy to Azure App Service Slot
+        id: deploy
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+          slot-name: ${{ inputs.slot_name }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: .next/standalone
+          startup-command: 'node server.js'
+
+      - name: Update deployment status
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deploymentId = '${{ steps.create_deployment.outputs.deployment_id }}';
+            const url = '${{ steps.create_deployment.outputs.url }}';
+            const success = '${{ job.status }}' === 'success';
+
+            // Update deployment status
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: deploymentId,
+              state: success ? 'success' : 'failure',
+              environment_url: url,
+              description: success ? 'Deployment successful' : 'Deployment failed'
+            });
+
+            // Mark previous deployment as inactive if this succeeded
+            if (success && '${{ steps.check_deployment.outputs.previous_deployment_id }}') {
+              await github.rest.repos.createDeploymentStatus({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: '${{ steps.check_deployment.outputs.previous_deployment_id }}',
+                state: 'inactive',
+                description: 'Replaced by PR #${{ inputs.pr_number }}'
+              });
+            }
+
+            if (success) {
+              core.summary.addHeading('Deployment Complete! 🚀', 2);
+              core.summary.addRaw(`\n**Environment:** ${{ inputs.slot_name }}\n`);
+              core.summary.addRaw(`**Deployment URL:** ${url}\n`);
+              core.summary.addRaw(`\nTest the PR at the deployment slot and verify functionality before merging.\n`);
+              await core.summary.write();
+
+              console.log(`✅ PR #${{ inputs.pr_number }} deployed to: ${url}`);
+            }
+
+      - name: Comment on PR
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = '${{ steps.create_deployment.outputs.url }}';
+            const slotName = '${{ inputs.slot_name }}';
+            const previousPR = '${{ steps.check_deployment.outputs.previous_pr }}';
+
+            let comment = `## 🚀 Deployment Complete
+
+            PR #${{ inputs.pr_number }} has been deployed to **${slotName}** for testing.
+
+            **Environment:** \`${slotName}\`
+            **Deployment URL:** ${url}
+            **Status:** ✅ Active
+
+            [View deployment details →](${{ github.server_url }}/${{ github.repository }}/deployments)
+
+            Please test the changes in the deployment slot before merging.`;
+
+            if (previousPR) {
+              comment += `\n\n> **Note:** This deployment replaced PR #${previousPR} in ${slotName}.`;
+            }
+
+            comment += `\n\n<details>
+            <summary>Deployment Details</summary>
+
+            - **Workflow Run:** [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            - **Commit:** \`${{ steps.pr.outputs.sha }}\`
+            - **Triggered by:** @${{ github.actor }}
+            - **Deployed:** ${new Date().toUTCString()}
+
+            </details>`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ inputs.pr_number }},
+              body: comment
+            });
+
+      - name: Comment on PR (deployment failed)
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const slotName = '${{ inputs.slot_name }}';
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+
+            const comment = `## ❌ Deployment Failed
+
+            The deployment of PR #${{ inputs.pr_number }} to **${slotName}** has failed.
+
+            **Environment:** \`${slotName}\`
+            **Status:** ❌ Failed
+
+            [View workflow run for details →](${runUrl})
+
+            Please review the logs in the workflow run to diagnose and fix the issue.`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ inputs.pr_number }},
+              body: comment
+            });
+
+      - name: Update previous PR comment
+        if: success() && steps.check_deployment.outputs.previous_pr != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const previousPR = '${{ steps.check_deployment.outputs.previous_pr }}';
+            const slotName = '${{ inputs.slot_name }}';
+
+            const comment = `## ⚠️ Deployment Replaced
+
+            This deployment to **${slotName}** was replaced by PR #${{ inputs.pr_number }} on ${new Date().toUTCString()}.
+
+            **Previous URL:** https://${slotName}.thyme.knowall.ai (now shows PR #${{ inputs.pr_number }})
+
+            [View deployment history →](${{ github.server_url }}/${{ github.repository }}/deployments)`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: previousPR,
+              body: comment
+            });

@@ -1,3 +1,4 @@
+export { useCompanyStore } from './useCompanyStore';
 export { useTimerStore } from './useTimerStore';
 export { useProjectsStore } from './useProjectsStore';
 export { useTimeEntriesStore } from './useTimeEntriesStore';
