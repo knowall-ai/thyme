@@ -5,55 +5,21 @@ interface ThymeLogoProps {
 export function ThymeLogo({ className = 'h-5 w-5' }: ThymeLogoProps) {
   return (
     <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-      {/* Thyme sprig logo - stylized herb leaf design */}
-      {/* Central stem */}
+      {/* Thyme sprig - simple curved stem with small round leaves */}
       <path
-        d="M16 28C16 28 16 8 16 6"
+        d="M16 28 Q14 20 16 12 Q17 8 20 4"
         stroke="currentColor"
-        strokeWidth="2.5"
+        strokeWidth="2"
         strokeLinecap="round"
+        fill="none"
       />
-
-      {/* Leaf pairs - bottom to top */}
-      {/* Bottom pair */}
-      <ellipse
-        cx="10"
-        cy="22"
-        rx="4.5"
-        ry="2.8"
-        fill="currentColor"
-        transform="rotate(-35 10 22)"
-      />
-      <ellipse cx="22" cy="22" rx="4.5" ry="2.8" fill="currentColor" transform="rotate(35 22 22)" />
-
-      {/* Second pair */}
-      <ellipse cx="11" cy="16" rx="4" ry="2.2" fill="currentColor" transform="rotate(-40 11 16)" />
-      <ellipse cx="21" cy="16" rx="4" ry="2.2" fill="currentColor" transform="rotate(40 21 16)" />
-
-      {/* Third pair */}
-      <ellipse
-        cx="12.5"
-        cy="11"
-        rx="3.2"
-        ry="1.8"
-        fill="currentColor"
-        transform="rotate(-45 12.5 11)"
-      />
-      <ellipse
-        cx="19.5"
-        cy="11"
-        rx="3.2"
-        ry="1.8"
-        fill="currentColor"
-        transform="rotate(45 19.5 11)"
-      />
-
-      {/* Top pair */}
-      <ellipse cx="14" cy="7" rx="2.5" ry="1.4" fill="currentColor" transform="rotate(-50 14 7)" />
-      <ellipse cx="18" cy="7" rx="2.5" ry="1.4" fill="currentColor" transform="rotate(50 18 7)" />
-
-      {/* Tip leaf */}
-      <ellipse cx="16" cy="4.5" rx="2" ry="1.2" fill="currentColor" />
+      {/* Leaves along stem */}
+      <circle cx="13" cy="22" r="2.5" fill="currentColor" />
+      <circle cx="19" cy="20" r="2" fill="currentColor" />
+      <circle cx="13" cy="16" r="2" fill="currentColor" />
+      <circle cx="18" cy="13" r="1.8" fill="currentColor" />
+      <circle cx="15" cy="10" r="1.5" fill="currentColor" />
+      <circle cx="19" cy="7" r="1.3" fill="currentColor" />
     </svg>
   );
 }
