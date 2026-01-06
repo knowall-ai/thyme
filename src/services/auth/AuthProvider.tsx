@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode, useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import {
   MsalProvider,
   AuthenticatedTemplate,
@@ -50,6 +51,7 @@ export function useAuth() {
       await instance.loginRedirect(loginRequest);
     } catch (error) {
       console.error('Login failed:', error);
+      toast.error('Login failed. Please try again.');
       throw error;
     }
   };

@@ -1,4 +1,5 @@
 import { SilentRequest } from '@azure/msal-browser';
+import toast from 'react-hot-toast';
 import { bcTokenRequest, graphTokenRequest } from './msalConfig';
 import { msalInstance, initializeMsal } from './msalInstance';
 
@@ -13,6 +14,8 @@ export async function getAccessToken(
 
     if (!account) {
       console.error('No active account found');
+      // Use toast ID to prevent duplicate notifications when multiple API calls fail
+      toast.error('Session expired. Please sign in again.', { id: 'session-expired' });
       return null;
     }
 
