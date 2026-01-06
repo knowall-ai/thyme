@@ -11,11 +11,12 @@ import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import { Card, Input, Select } from '@/components/ui';
 import { useProjectsStore } from '@/hooks';
 import type { Project } from '@/types';
-import { cn } from '@/utils';
+import { cn, getBCJobsListUrl, getBCCustomersListUrl } from '@/utils';
+import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 
 type FilterOption = 'all' | 'favorites' | 'active' | 'completed';
 type SortOption = 'name-asc' | 'name-desc' | 'code' | 'recent';
-type ClientFilter = 'all' | string;
+type CustomerFilter = 'all' | string;
 
 interface ProjectListProps {
   onSelectProject?: (project: Project) => void;
@@ -33,7 +34,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
 
   const [filterBy, setFilterBy] = useState<FilterOption>('all');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
-  const [clientFilter, setClientFilter] = useState<ClientFilter>('all');
+  const [customerFilter, setCustomerFilter] = useState<CustomerFilter>('all');
 
   useEffect(() => {
     fetchProjects();
@@ -41,22 +42,22 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
 
   const filteredProjects = getFilteredProjects();
 
-  // Get unique clients for the filter dropdown
-  const uniqueClients = useMemo(() => {
-    const clients = new Set<string>();
+  // Get unique customers for the filter dropdown
+  const uniqueCustomers = useMemo(() => {
+    const customers = new Set<string>();
     filteredProjects.forEach((p) => {
-      clients.add(p.clientName || 'No Client');
+      customers.add(p.customerName || 'No Customer');
     });
-    return Array.from(clients).sort();
+    return Array.from(customers).sort();
   }, [filteredProjects]);
 
   // Apply filter and sort
   const processedProjects = useMemo(() => {
     let result = [...filteredProjects];
 
-    // Apply client filter
-    if (clientFilter !== 'all') {
-      result = result.filter((p) => (p.clientName || 'No Client') === clientFilter);
+    // Apply customer filter
+    if (customerFilter !== 'all') {
+      result = result.filter((p) => (p.customerName || 'No Customer') === customerFilter);
     }
 
     // Apply status filter
@@ -94,16 +95,16 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
     }
 
     return result;
-  }, [filteredProjects, filterBy, sortBy, clientFilter]);
+  }, [filteredProjects, filterBy, sortBy, customerFilter]);
 
-  // Group projects by client
+  // Group projects by customer
   const groupedProjects = processedProjects.reduce(
     (groups, project) => {
-      const client = project.clientName || 'No Client';
-      if (!groups[client]) {
-        groups[client] = [];
+      const customer = project.customerName || 'No Customer';
+      if (!groups[customer]) {
+        groups[customer] = [];
       }
-      groups[client].push(project);
+      groups[customer].push(project);
       return groups;
     },
     {} as Record<string, Project[]>
@@ -119,6 +120,29 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
 
   return (
     <div className="space-y-6">
+      {/* Business Central Links */}
+      <div className="flex items-center gap-4 text-sm">
+        <span className="text-gray-400">Open in Business Central:</span>
+        <a
+          href={getBCJobsListUrl()}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 text-thyme-400 hover:text-thyme-300"
+        >
+          Projects
+          <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+        </a>
+        <a
+          href={getBCCustomersListUrl()}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 text-thyme-400 hover:text-thyme-300"
+        >
+          Customers
+          <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+        </a>
+      </div>
+
       {/* Search and Filter/Sort Controls */}
       <div className="space-y-3">
         <div className="relative">
@@ -133,15 +157,15 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          {/* Client Filter */}
+          {/* Customer Filter */}
           <div className="flex items-center gap-2">
             <Select
-              value={clientFilter}
-              onChange={(e) => setClientFilter(e.target.value)}
+              value={customerFilter}
+              onChange={(e) => setCustomerFilter(e.target.value)}
               className="w-40"
               options={[
-                { value: 'all', label: 'All Clients' },
-                ...uniqueClients.map((client) => ({ value: client, label: client })),
+                { value: 'all', label: 'All Customers' },
+                ...uniqueCustomers.map((customer) => ({ value: customer, label: customer })),
               ]}
             />
           </div>
@@ -181,11 +205,11 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
       </div>
 
       {/* Project Groups */}
-      {Object.entries(groupedProjects).map(([client, clientProjects]) => (
-        <div key={client}>
-          <h3 className="mb-2 text-sm font-medium text-gray-500">{client}</h3>
+      {Object.entries(groupedProjects).map(([customer, customerProjects]) => (
+        <div key={customer}>
+          <h3 className="mb-2 text-sm font-medium text-gray-500">{customer}</h3>
           <div className="space-y-2">
-            {clientProjects.map((project) => (
+            {customerProjects.map((project) => (
               <Card
                 key={project.id}
                 variant="bordered"

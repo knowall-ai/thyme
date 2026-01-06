@@ -41,6 +41,15 @@ export interface BCProject {
   lastModifiedDateTime?: string;
 }
 
+export interface BCCustomer {
+  id: string;
+  number: string;
+  displayName: string;
+  email?: string;
+  phoneNumber?: string;
+  lastModifiedDateTime?: string;
+}
+
 export interface BCEmployee {
   id: string;
   number: string;
@@ -86,7 +95,7 @@ export interface Project {
   id: string;
   code: string;
   name: string;
-  clientName?: string;
+  customerName?: string;
   color: string;
   status: 'active' | 'completed' | 'archived';
   isFavorite: boolean;

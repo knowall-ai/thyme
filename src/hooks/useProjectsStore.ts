@@ -81,7 +81,7 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
       (p) =>
         p.name.toLowerCase().includes(lowerQuery) ||
         p.code.toLowerCase().includes(lowerQuery) ||
-        p.clientName?.toLowerCase().includes(lowerQuery)
+        p.customerName?.toLowerCase().includes(lowerQuery)
     );
   },
 

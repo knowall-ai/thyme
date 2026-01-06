@@ -1,5 +1,5 @@
 import { bcClient } from './bcClient';
-import type { Project, Task, BCProject, BCJobTask } from '@/types';
+import type { Project, Task, BCJob, BCJobTask } from '@/types';
 
 // Color palette for projects
 const PROJECT_COLORS = [
@@ -19,15 +19,15 @@ function getProjectColor(index: number): string {
   return PROJECT_COLORS[index % PROJECT_COLORS.length];
 }
 
-function mapBCProjectToProject(bcProject: BCProject, index: number, favorites: string[]): Project {
+function mapBCJobToProject(bcJob: BCJob, index: number, favorites: string[]): Project {
   return {
-    id: bcProject.id,
-    code: bcProject.number,
-    name: bcProject.displayName,
-    clientName: undefined,
+    id: bcJob.id,
+    code: bcJob.number,
+    name: bcJob.description,
+    customerName: bcJob.billToCustomerName || undefined,
     color: getProjectColor(index),
-    status: 'active',
-    isFavorite: favorites.includes(bcProject.id),
+    status: bcJob.status === 'Completed' ? 'completed' : 'active',
+    isFavorite: favorites.includes(bcJob.id),
     tasks: [],
   };
 }
@@ -58,17 +58,18 @@ function saveFavorites(favorites: string[]): void {
 
 export const projectService = {
   async getProjects(_includeCompleted = false): Promise<Project[]> {
-    const bcProjects = await bcClient.getProjects();
+    // Use Jobs API instead of Projects to get customer info (billToCustomerName)
+    const bcJobs = await bcClient.getJobs();
     const favorites = getFavorites();
 
-    return bcProjects.map((bcProject, index) => mapBCProjectToProject(bcProject, index, favorites));
+    return bcJobs.map((bcJob, index) => mapBCJobToProject(bcJob, index, favorites));
   },
 
   async getProject(projectId: string): Promise<Project | null> {
     try {
-      const bcProject = await bcClient.getProject(projectId);
+      const bcJob = await bcClient.getJob(projectId);
       const favorites = getFavorites();
-      const project = mapBCProjectToProject(bcProject, 0, favorites);
+      const project = mapBCJobToProject(bcJob, 0, favorites);
 
       // Also fetch tasks
       const tasks = await this.getProjectTasks(project.code);
@@ -97,7 +98,7 @@ export const projectService = {
       (project) =>
         project.name.toLowerCase().includes(lowerQuery) ||
         project.code.toLowerCase().includes(lowerQuery) ||
-        project.clientName?.toLowerCase().includes(lowerQuery)
+        project.customerName?.toLowerCase().includes(lowerQuery)
     );
   },
 

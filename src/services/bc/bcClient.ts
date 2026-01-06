@@ -2,6 +2,7 @@ import { getBCAccessToken } from '../auth';
 import type {
   BCJob,
   BCProject,
+  BCCustomer,
   BCEmployee,
   BCJobTask,
   BCJobJournalLine,
@@ -64,6 +65,20 @@ class BusinessCentralClient {
 
   async getProject(projectId: string): Promise<BCProject> {
     return this.fetch<BCProject>(`/projects(${projectId})`);
+  }
+
+  // Customers
+  async getCustomers(filter?: string): Promise<BCCustomer[]> {
+    let endpoint = '/customers';
+    if (filter) {
+      endpoint += `?$filter=${encodeURIComponent(filter)}`;
+    }
+    const response = await this.fetch<PaginatedResponse<BCCustomer>>(endpoint);
+    return response.value;
+  }
+
+  async getCustomer(customerId: string): Promise<BCCustomer> {
+    return this.fetch<BCCustomer>(`/customers(${customerId})`);
   }
 
   // Employees
