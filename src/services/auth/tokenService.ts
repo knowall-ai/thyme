@@ -1,5 +1,5 @@
 import { SilentRequest } from '@azure/msal-browser';
-import { bcTokenRequest, graphTokenRequest } from './msalConfig';
+import { bcTokenRequest, graphTokenRequest, devopsTokenRequest } from './msalConfig';
 import { msalInstance, initializeMsal } from './msalInstance';
 
 export async function getAccessToken(
@@ -44,4 +44,8 @@ export async function getBCAccessToken(): Promise<string | null> {
 
 export async function getGraphAccessToken(): Promise<string | null> {
   return getAccessToken(graphTokenRequest.scopes);
+}
+
+export async function getDevOpsAccessToken(): Promise<string | null> {
+  return getAccessToken(devopsTokenRequest.scopes);
 }

@@ -4,5 +4,10 @@ export {
   AuthenticatedTemplate,
   UnauthenticatedTemplate,
 } from './AuthProvider';
-export { msalConfig, loginRequest, bcScopes, graphScopes } from './msalConfig';
-export { getAccessToken, getBCAccessToken, getGraphAccessToken } from './tokenService';
+export { msalConfig, loginRequest, bcScopes, graphScopes, devopsScopes } from './msalConfig';
+export {
+  getAccessToken,
+  getBCAccessToken,
+  getGraphAccessToken,
+  getDevOpsAccessToken,
+} from './tokenService';

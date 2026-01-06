@@ -117,6 +117,11 @@ export interface TimeEntry {
   // Synced from BC
   bcJobJournalLineId?: string;
   syncStatus: 'pending' | 'synced' | 'error';
+  // Azure DevOps work item linking
+  devOpsWorkItemId?: number;
+  devOpsWorkItemTitle?: string;
+  devOpsOrganization?: string;
+  devOpsProject?: string;
 }
 
 export interface TimerState {
@@ -142,6 +147,9 @@ export interface UserSettings {
   weeklyHoursTarget: number;
   notificationsEnabled: boolean;
   theme: 'light' | 'dark' | 'system';
+  // Azure DevOps integration settings
+  devOpsOrganization?: string;
+  devOpsProject?: string;
 }
 
 // API Response types
@@ -165,4 +173,42 @@ export interface ReportFilters {
   endDate: string;
   projectIds?: string[];
   taskIds?: string[];
+}
+
+// Azure DevOps types
+export interface DevOpsWorkItem {
+  id: number;
+  rev: number;
+  url: string;
+  fields: {
+    'System.Id': number;
+    'System.Title': string;
+    'System.State': string;
+    'System.WorkItemType': string;
+    'System.AssignedTo'?: {
+      displayName: string;
+      uniqueName: string;
+    };
+    'System.IterationPath'?: string;
+    'System.AreaPath'?: string;
+    'System.Description'?: string;
+    'Microsoft.VSTS.Scheduling.CompletedWork'?: number;
+    'Microsoft.VSTS.Scheduling.RemainingWork'?: number;
+  };
+}
+
+export interface DevOpsWorkItemSearchResult {
+  id: number;
+  title: string;
+  state: string;
+  workItemType: string;
+  assignedTo?: string;
+}
+
+export interface DevOpsProject {
+  id: string;
+  name: string;
+  description?: string;
+  url: string;
+  state: string;
 }

@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { TrashIcon } from '@heroicons/react/24/outline';
 import { Modal, Button, Input, Select } from '@/components/ui';
-import { useTimeEntriesStore, useProjectsStore } from '@/hooks';
+import { useTimeEntriesStore, useProjectsStore, useSettingsStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
+import { WorkItemSearch } from './WorkItemSearch';
 import type { TimeEntry, SelectOption } from '@/types';
 import { formatDateForDisplay } from '@/utils';
 
@@ -21,12 +22,14 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
 
   const { addEntry, updateEntry, deleteEntry } = useTimeEntriesStore();
   const { projects, selectedProject, selectedTask, selectProject, selectTask } = useProjectsStore();
+  const { devOpsOrganization, devOpsProject } = useSettingsStore();
 
   const [projectId, setProjectId] = useState('');
   const [taskId, setTaskId] = useState('');
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
   const [notes, setNotes] = useState('');
+  const [workItem, setWorkItem] = useState<{ id: number; title: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Reset form when modal opens
@@ -41,6 +44,12 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
         setHours(h.toString());
         setMinutes(m.toString());
         setNotes(entry.notes || '');
+        // Restore work item link if present
+        if (entry.devOpsWorkItemId && entry.devOpsWorkItemTitle) {
+          setWorkItem({ id: entry.devOpsWorkItemId, title: entry.devOpsWorkItemTitle });
+        } else {
+          setWorkItem(null);
+        }
       } else {
         // New entry
         setProjectId(selectedProject?.id || '');
@@ -48,6 +57,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
         setHours('');
         setMinutes('');
         setNotes('');
+        setWorkItem(null);
       }
     }
   }, [isOpen, entry, selectedProject, selectedTask]);
@@ -91,6 +101,21 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
 
     setIsSubmitting(true);
     try {
+      // Prepare DevOps work item data
+      const devOpsData = workItem
+        ? {
+            devOpsWorkItemId: workItem.id,
+            devOpsWorkItemTitle: workItem.title,
+            devOpsOrganization: devOpsOrganization,
+            devOpsProject: devOpsProject,
+          }
+        : {
+            devOpsWorkItemId: undefined,
+            devOpsWorkItemTitle: undefined,
+            devOpsOrganization: undefined,
+            devOpsProject: undefined,
+          };
+
       if (entry) {
         // Update existing entry
         await updateEntry(entry.id, {
@@ -99,6 +124,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
           hours: totalHours,
           notes,
           isBillable: task?.isBillable ?? true,
+          ...devOpsData,
         });
       } else {
         // Create new entry
@@ -111,6 +137,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
           notes,
           isBillable: task?.isBillable ?? true,
           isRunning: false,
+          ...devOpsData,
         });
       }
       onClose();
@@ -203,6 +230,15 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
             placeholder="What did you work on?"
           />
         </div>
+
+        {/* Work Item Link */}
+        <WorkItemSearch
+          organization={devOpsOrganization || ''}
+          project={devOpsProject || ''}
+          value={workItem}
+          onChange={setWorkItem}
+          disabled={isSubmitting}
+        />
 
         {/* Actions */}
         <div className="flex items-center justify-between border-t border-dark-700 pt-4">

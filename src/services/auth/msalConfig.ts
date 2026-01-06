@@ -43,6 +43,10 @@ export const graphScopes: string[] = ['User.Read'];
 // Scopes for Business Central API
 export const bcScopes: string[] = ['https://api.businesscentral.dynamics.com/.default'];
 
+// Scopes for Azure DevOps API
+// The Azure DevOps application ID in Microsoft Entra ID is 499b84ac-1321-427f-aa17-267ca6975798
+export const devopsScopes: string[] = ['499b84ac-1321-427f-aa17-267ca6975798/.default'];
+
 // Login request configuration
 // Note: .default scope cannot be combined with other scopes
 // We use BC scopes for login, and acquire Graph tokens separately if needed
@@ -58,4 +62,9 @@ export const bcTokenRequest = {
 // Silent token request for Graph API
 export const graphTokenRequest = {
   scopes: graphScopes,
+};
+
+// Silent token request for Azure DevOps API
+export const devopsTokenRequest = {
+  scopes: devopsScopes,
 };
