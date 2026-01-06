@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { TrashIcon } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
+import { TrashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { Modal, Button, Input, Select } from '@/components/ui';
 import { useTimeEntriesStore, useProjectsStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
+import { bcClient } from '@/services/bc/bcClient';
 import type { TimeEntry, SelectOption } from '@/types';
 import { formatDateForDisplay } from '@/utils';
 
@@ -29,6 +31,14 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
   const [minutes, setMinutes] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [extensionInstalled, setExtensionInstalled] = useState<boolean | null>(null);
+
+  // Check if BC extension is installed
+  useEffect(() => {
+    if (isOpen) {
+      bcClient.isExtensionInstalled().then(setExtensionInstalled);
+    }
+  }, [isOpen]);
 
   // Get unique customers from projects
   const customerOptions: SelectOption[] = useMemo(() => {
@@ -152,9 +162,11 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
           isRunning: false,
         });
       }
+      toast.success(entry ? 'Time entry updated' : 'Time entry saved');
       onClose();
     } catch (error) {
       console.error('Failed to save entry:', error);
+      toast.error('Failed to save time entry. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -170,9 +182,11 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
     setIsSubmitting(true);
     try {
       await deleteEntry(entry.id);
+      toast.success('Time entry deleted');
       onClose();
     } catch (error) {
       console.error('Failed to delete entry:', error);
+      toast.error('Failed to delete time entry. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -181,6 +195,36 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
   const title = entry
     ? `Edit time entry for ${date ? formatDateForDisplay(date) : ''}`
     : `New time entry for ${date ? formatDateForDisplay(date) : ''}`;
+
+  // Show extension required message if not installed
+  if (extensionInstalled === false) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title={title}>
+        <div className="flex flex-col items-center py-6 text-center">
+          <div className="mb-4 rounded-full bg-amber-500/10 p-3">
+            <ExclamationTriangleIcon className="h-8 w-8 text-amber-500" />
+          </div>
+          <h3 className="mb-2 text-lg font-semibold text-white">Extension Required</h3>
+          <p className="mb-4 max-w-sm text-sm text-dark-300">
+            The Thyme BC Extension is required to log time entries. It provides the project tasks
+            needed by Business Central.
+          </p>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() =>
+                window.open('https://github.com/knowall-ai/thyme-bc-extension', '_blank')
+              }
+            >
+              Learn More
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>

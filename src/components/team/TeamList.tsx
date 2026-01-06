@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { TeamMemberCard } from './TeamMemberCard';
 import { Card } from '@/components/ui';
 import { bcClient } from '@/services/bc/bcClient';
@@ -51,6 +52,7 @@ export function TeamList() {
       } catch (err) {
         console.error('Failed to fetch employees:', err);
         setError('Failed to load team members');
+        toast.error('Failed to load team members. Please try again.');
       } finally {
         setIsLoading(false);
       }

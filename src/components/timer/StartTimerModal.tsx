@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { Modal, Button, Select } from '@/components/ui';
 import { useTimer, useProjectsStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
+import { bcClient } from '@/services/bc/bcClient';
 import type { SelectOption } from '@/types';
 
 interface StartTimerModalProps {
@@ -21,6 +23,14 @@ export function StartTimerModal({ isOpen, onClose }: StartTimerModalProps) {
   const [projectId, setProjectId] = useState('');
   const [taskId, setTaskId] = useState('');
   const [notes, setNotes] = useState('');
+  const [extensionInstalled, setExtensionInstalled] = useState<boolean | null>(null);
+
+  // Check if BC extension is installed
+  useEffect(() => {
+    if (isOpen) {
+      bcClient.isExtensionInstalled().then(setExtensionInstalled);
+    }
+  }, [isOpen]);
 
   // Reset form when modal opens
   useEffect(() => {
@@ -63,6 +73,36 @@ export function StartTimerModal({ isOpen, onClose }: StartTimerModalProps) {
     timer.start(projectId, taskId, notes || undefined);
     onClose();
   };
+
+  // Show extension required message if not installed
+  if (extensionInstalled === false) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="Start Timer">
+        <div className="flex flex-col items-center py-6 text-center">
+          <div className="mb-4 rounded-full bg-amber-500/10 p-3">
+            <ExclamationTriangleIcon className="h-8 w-8 text-amber-500" />
+          </div>
+          <h3 className="mb-2 text-lg font-semibold text-white">Extension Required</h3>
+          <p className="mb-4 max-w-sm text-sm text-dark-300">
+            The Thyme BC Extension is required to start a timer. It provides the project tasks
+            needed by Business Central.
+          </p>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() =>
+                window.open('https://github.com/knowall-ai/thyme-bc-extension', '_blank')
+              }
+            >
+              Learn More
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Start Timer">
