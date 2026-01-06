@@ -4,7 +4,7 @@ interface ThymeLogoProps {
 
 export function ThymeLogo({ className = 'h-5 w-5' }: ThymeLogoProps) {
   return (
-    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
       {/* Thyme sprig - angled 45 degrees */}
       <g transform="rotate(-45 16 16)">
         <path
