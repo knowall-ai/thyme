@@ -1,5 +1,6 @@
 'use client';
 
+import toast from 'react-hot-toast';
 import { useAuth } from '@/services/auth';
 import {
   ClockIcon,
@@ -48,6 +49,15 @@ const benefits = [
 export function LandingPage() {
   const { login, isLoading } = useAuth();
 
+  const handleLogin = async () => {
+    try {
+      await login();
+    } catch (error) {
+      console.error('Login failed:', error);
+      toast.error('Failed to sign in. Please try again.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-dark-950">
       {/* Background effects */}
@@ -71,7 +81,7 @@ export function LandingPage() {
 
             {/* Auth button */}
             <button
-              onClick={login}
+              onClick={handleLogin}
               disabled={isLoading}
               className="flex items-center gap-2 rounded-lg bg-knowall-green px-5 py-2.5 font-semibold text-dark-950 shadow-lg shadow-knowall-green/20 transition-all duration-200 hover:bg-knowall-green-light hover:shadow-knowall-green/40 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -119,7 +129,7 @@ export function LandingPage() {
 
             <div className="flex flex-col justify-center gap-4 sm:flex-row">
               <button
-                onClick={login}
+                onClick={handleLogin}
                 disabled={isLoading}
                 className="group flex items-center justify-center gap-2 rounded-xl bg-knowall-green px-8 py-4 font-semibold text-dark-950 shadow-xl shadow-knowall-green/20 transition-all duration-200 hover:bg-knowall-green-light hover:shadow-knowall-green/40 disabled:opacity-50"
               >
@@ -253,7 +263,7 @@ export function LandingPage() {
                   Use your KnowAll.ai Microsoft account to access Thyme securely.
                 </p>
                 <button
-                  onClick={login}
+                  onClick={handleLogin}
                   disabled={isLoading}
                   className="w-full rounded-lg bg-knowall-green px-6 py-3 font-semibold text-dark-950 transition-colors hover:bg-knowall-green-light disabled:opacity-50"
                 >

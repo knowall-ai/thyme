@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { TrashIcon } from '@heroicons/react/24/outline';
+import { useState, useEffect, useMemo } from 'react';
+import toast from 'react-hot-toast';
+import { TrashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { Modal, Button, Input, Select } from '@/components/ui';
 import { useTimeEntriesStore, useProjectsStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
+import { bcClient } from '@/services/bc/bcClient';
 import type { TimeEntry, SelectOption } from '@/types';
 import { formatDateForDisplay } from '@/utils';
 
@@ -22,18 +24,55 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
   const { addEntry, updateEntry, deleteEntry } = useTimeEntriesStore();
   const { projects, selectedProject, selectedTask, selectProject, selectTask } = useProjectsStore();
 
+  const [customerId, setCustomerId] = useState('');
   const [projectId, setProjectId] = useState('');
   const [taskId, setTaskId] = useState('');
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [extensionInstalled, setExtensionInstalled] = useState<boolean | null>(null);
+
+  // Check if BC extension is installed
+  useEffect(() => {
+    if (isOpen) {
+      bcClient.isExtensionInstalled().then(setExtensionInstalled);
+    }
+  }, [isOpen]);
+
+  // Get unique customers from projects
+  const customerOptions: SelectOption[] = useMemo(() => {
+    const customers = new Map<string, string>();
+    projects.forEach((p) => {
+      const customerName = p.customerName || 'Unknown';
+      if (!customers.has(customerName)) {
+        customers.set(customerName, customerName);
+      }
+    });
+    return Array.from(customers.keys())
+      .sort()
+      .map((name) => ({ value: name, label: name }));
+  }, [projects]);
+
+  // Check if we should show customer dropdown (hide if only one customer or all "Unknown")
+  const showCustomerDropdown =
+    customerOptions.length > 1 ||
+    (customerOptions.length === 1 && customerOptions[0].value !== 'Unknown');
+
+  // Filter projects by selected customer (or show all if customer dropdown is hidden)
+  const filteredProjects = useMemo(() => {
+    if (!showCustomerDropdown) return projects;
+    if (!customerId) return [];
+    return projects.filter((p) => (p.customerName || 'Unknown') === customerId);
+  }, [projects, customerId, showCustomerDropdown]);
 
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
       if (entry) {
-        // Editing existing entry
+        // Editing existing entry - find the project to get customer
+        const project = projects.find((p) => p.id === entry.projectId);
+        setCustomerId(project?.customerName || 'Unknown');
         setProjectId(entry.projectId);
         setTaskId(entry.taskId);
         const h = Math.floor(entry.hours);
@@ -43,6 +82,8 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
         setNotes(entry.notes || '');
       } else {
         // New entry
+        const customerName = selectedProject?.customerName || 'Unknown';
+        setCustomerId(customerName);
         setProjectId(selectedProject?.id || '');
         setTaskId(selectedTask?.id || '');
         setHours('');
@@ -50,9 +91,9 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
         setNotes('');
       }
     }
-  }, [isOpen, entry, selectedProject, selectedTask]);
+  }, [isOpen, entry, selectedProject, selectedTask, projects]);
 
-  const projectOptions: SelectOption[] = projects.map((p) => ({
+  const projectOptions: SelectOption[] = filteredProjects.map((p) => ({
     value: p.id,
     label: `${p.code} - ${p.name}`,
   }));
@@ -64,6 +105,14 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
         value: t.id,
         label: t.name,
       })) || [];
+
+  const handleCustomerChange = (value: string) => {
+    setCustomerId(value);
+    setProjectId('');
+    setTaskId('');
+    selectProject(null);
+    selectTask(null);
+  };
 
   const handleProjectChange = (value: string) => {
     setProjectId(value);
@@ -113,9 +162,11 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
           isRunning: false,
         });
       }
+      toast.success(entry ? 'Time entry updated' : 'Time entry saved');
       onClose();
     } catch (error) {
       console.error('Failed to save entry:', error);
+      toast.error('Failed to save time entry. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -131,9 +182,11 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
     setIsSubmitting(true);
     try {
       await deleteEntry(entry.id);
+      toast.success('Time entry deleted');
       onClose();
     } catch (error) {
       console.error('Failed to delete entry:', error);
+      toast.error('Failed to delete time entry. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -143,9 +196,51 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
     ? `Edit time entry for ${date ? formatDateForDisplay(date) : ''}`
     : `New time entry for ${date ? formatDateForDisplay(date) : ''}`;
 
+  // Show extension required message if not installed
+  if (extensionInstalled === false) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title={title}>
+        <div className="flex flex-col items-center py-6 text-center">
+          <div className="mb-4 rounded-full bg-amber-500/10 p-3">
+            <ExclamationTriangleIcon className="h-8 w-8 text-amber-500" />
+          </div>
+          <h3 className="mb-2 text-lg font-semibold text-white">Extension Required</h3>
+          <p className="mb-4 max-w-sm text-sm text-dark-300">
+            The Thyme BC Extension is required to log time entries. It provides the project tasks
+            needed by Business Central.
+          </p>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() =>
+                window.open('https://github.com/knowall-ai/thyme-bc-extension', '_blank')
+              }
+            >
+              Learn More
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Customer - only show if multiple customers exist */}
+        {showCustomerDropdown && (
+          <Select
+            label="Customer"
+            options={customerOptions}
+            value={customerId}
+            onChange={(e) => handleCustomerChange(e.target.value)}
+            placeholder="Select a customer"
+            required
+          />
+        )}
+
         {/* Project */}
         <Select
           label="Project"
@@ -153,6 +248,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
           value={projectId}
           onChange={(e) => handleProjectChange(e.target.value)}
           placeholder="Select a project"
+          disabled={showCustomerDropdown && !customerId}
           required
         />
 
