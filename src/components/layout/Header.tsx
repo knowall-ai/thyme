@@ -95,15 +95,17 @@ export function Header() {
                 {photoUrl ? (
                   <img
                     src={photoUrl}
-                    alt={account.name || 'Profile'}
+                    alt={account.name ? `${account.name}'s profile photo` : 'User profile photo'}
                     className="h-10 w-10 rounded-full border border-knowall-green/30 object-cover"
                   />
                 ) : (
                   <div className="flex h-10 w-10 items-center justify-center rounded-full border border-knowall-green/30 bg-knowall-green/20">
                     <span className="text-sm font-medium text-knowall-green">
                       {account.name
-                        ?.split(' ')
-                        .map((n) => n[0])
+                        ?.trim()
+                        .split(/\s+/)
+                        .filter(Boolean)
+                        .map((part) => (part ? Array.from(part)[0] : ''))
                         .join('')
                         .toUpperCase()
                         .slice(0, 2)}

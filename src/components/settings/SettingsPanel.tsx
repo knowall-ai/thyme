@@ -70,15 +70,17 @@ export function SettingsPanel() {
             {photoUrl ? (
               <img
                 src={photoUrl}
-                alt={account?.name || 'Profile'}
+                alt={account?.name ? `${account.name}'s profile photo` : 'User profile photo'}
                 className="h-20 w-20 rounded-full border-2 border-thyme-500/30 object-cover"
               />
             ) : (
               <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-thyme-500/30 bg-thyme-500/20">
                 <span className="text-2xl font-medium text-thyme-500">
                   {account?.name
-                    ?.split(' ')
-                    .map((n) => n[0])
+                    ?.trim()
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .map((part) => (part ? Array.from(part)[0] : ''))
                     .join('')
                     .toUpperCase()
                     .slice(0, 2) || '?'}

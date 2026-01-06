@@ -5,7 +5,8 @@ import { getGraphAccessToken } from './tokenService';
 const GRAPH_API_BASE = 'https://graph.microsoft.com/v1.0';
 
 // Cache for profile photo to avoid repeated API calls
-let cachedPhotoUrl: string | null = null;
+// Use undefined to indicate "not cached", null to indicate "no photo available"
+let cachedPhotoUrl: string | null | undefined = undefined;
 let cacheTimestamp: number = 0;
 const CACHE_DURATION_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -15,8 +16,8 @@ const CACHE_DURATION_MS = 30 * 60 * 1000; // 30 minutes
  * Returns null if no photo is available or on error.
  */
 export async function getProfilePhoto(): Promise<string | null> {
-  // Return cached photo if still valid
-  if (cachedPhotoUrl && Date.now() - cacheTimestamp < CACHE_DURATION_MS) {
+  // Return cached result if still valid (including cached null for users without photos)
+  if (cachedPhotoUrl !== undefined && Date.now() - cacheTimestamp < CACHE_DURATION_MS) {
     return cachedPhotoUrl;
   }
 
@@ -35,7 +36,9 @@ export async function getProfilePhoto(): Promise<string | null> {
 
     if (!response.ok) {
       if (response.status === 404) {
-        // User has no profile photo set
+        // User has no profile photo set - cache this to avoid repeated API calls
+        cachedPhotoUrl = null;
+        cacheTimestamp = Date.now();
         return null;
       }
       console.error('Failed to fetch profile photo:', response.status);
@@ -61,7 +64,7 @@ export async function getProfilePhoto(): Promise<string | null> {
  * Call this on logout to ensure fresh photo on next login.
  */
 export function clearProfilePhotoCache(): void {
-  cachedPhotoUrl = null;
+  cachedPhotoUrl = undefined;
   cacheTimestamp = 0;
 }
 
