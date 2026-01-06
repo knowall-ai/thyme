@@ -96,7 +96,16 @@ export function SettingsPanel() {
             </div>
             <div>
               <p className="text-sm text-dark-400">Email</p>
-              <p className="text-dark-100">{account?.username || 'Not available'}</p>
+              {account?.username ? (
+                <a
+                  href={`mailto:${account.username}`}
+                  className="text-dark-100 hover:text-thyme-400 hover:underline"
+                >
+                  {account.username}
+                </a>
+              ) : (
+                <p className="text-dark-100">Not available</p>
+              )}
             </div>
           </div>
         </div>
@@ -131,14 +140,38 @@ export function SettingsPanel() {
               <EnvelopeIcon className="h-4 w-4 text-dark-400" />
               <div>
                 <p className="text-sm text-dark-400">Email</p>
-                <p className="text-dark-100">{companyInfo.email || 'Not set'}</p>
+                {companyInfo.email ? (
+                  <a
+                    href={`mailto:${companyInfo.email}`}
+                    className="text-dark-100 hover:text-thyme-400 hover:underline"
+                  >
+                    {companyInfo.email}
+                  </a>
+                ) : (
+                  <p className="text-dark-100">Not set</p>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-2">
               <GlobeAltIcon className="h-4 w-4 text-dark-400" />
               <div>
                 <p className="text-sm text-dark-400">Website</p>
-                <p className="text-dark-100">{companyInfo.website || 'Not set'}</p>
+                {companyInfo.website ? (
+                  <a
+                    href={
+                      companyInfo.website.startsWith('http')
+                        ? companyInfo.website
+                        : `https://${companyInfo.website}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-dark-100 hover:text-thyme-400 hover:underline"
+                  >
+                    {companyInfo.website}
+                  </a>
+                ) : (
+                  <p className="text-dark-100">Not set</p>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-2">
