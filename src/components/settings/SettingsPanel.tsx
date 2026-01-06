@@ -4,13 +4,17 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Card } from '@/components/ui';
 import { bcClient } from '@/services/bc/bcClient';
-import { useAuth } from '@/services/auth';
+import { useAuth, useProfilePhoto } from '@/services/auth';
+import { useCompanyStore } from '@/hooks';
 import {
   BuildingOffice2Icon,
+  BuildingOfficeIcon,
+  MapPinIcon,
   EnvelopeIcon,
   GlobeAltIcon,
   CurrencyPoundIcon,
   UserCircleIcon,
+  UserIcon,
 } from '@heroicons/react/24/outline';
 
 interface CompanyInfo {
@@ -26,13 +30,18 @@ interface CompanyInfo {
 }
 
 export function SettingsPanel() {
-  const { account } = useAuth();
+  const { account, isAuthenticated } = useAuth();
+  const { photoUrl } = useProfilePhoto(isAuthenticated);
+  const { selectedCompany } = useCompanyStore();
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Re-fetch company info when selected company changes
   useEffect(() => {
     async function fetchCompanyInfo() {
+      setIsLoading(true);
+      setError(null);
       try {
         const response = await bcClient.getCompanyInfo();
         setCompanyInfo(response);
@@ -45,7 +54,7 @@ export function SettingsPanel() {
       }
     }
     fetchCompanyInfo();
-  }, []);
+  }, [selectedCompany]);
 
   if (isLoading) {
     return (
@@ -63,14 +72,56 @@ export function SettingsPanel() {
           <UserCircleIcon className="h-6 w-6 text-thyme-500" />
           <h2 className="text-lg font-semibold text-white">Your Account</h2>
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <p className="text-sm text-dark-400">Name</p>
-            <p className="text-dark-100">{account?.name || 'Not available'}</p>
+        <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2">
+          {/* Left column: Photo and Name */}
+          <div className="flex items-start gap-4">
+            {/* Profile Photo */}
+            <div className="shrink-0">
+              {photoUrl ? (
+                <img
+                  src={photoUrl}
+                  alt={account?.name ? `${account.name}'s profile photo` : 'User profile photo'}
+                  className="h-16 w-16 rounded-full border-2 border-thyme-500/30 object-cover"
+                />
+              ) : (
+                <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-thyme-500/30 bg-thyme-500/20">
+                  <span className="text-xl font-medium text-thyme-500">
+                    {account?.name
+                      ?.trim()
+                      .split(/\s+/)
+                      .filter(Boolean)
+                      .map((part) => (part ? Array.from(part)[0] : ''))
+                      .join('')
+                      .toUpperCase()
+                      .slice(0, 2) || '?'}
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="flex items-start gap-2 pt-1">
+              <UserIcon className="mt-0.5 h-4 w-4 text-dark-400" />
+              <div>
+                <p className="text-sm text-dark-400">Name</p>
+                <p className="text-dark-100">{account?.name || 'Not available'}</p>
+              </div>
+            </div>
           </div>
-          <div>
-            <p className="text-sm text-dark-400">Email</p>
-            <p className="text-dark-100">{account?.username || 'Not available'}</p>
+          {/* Right column: Email */}
+          <div className="flex items-start gap-2 pt-1">
+            <EnvelopeIcon className="mt-0.5 h-4 w-4 text-dark-400" />
+            <div>
+              <p className="text-sm text-dark-400">Email</p>
+              {account?.username ? (
+                <a
+                  href={`mailto:${account.username}`}
+                  className="text-dark-100 hover:text-thyme-400 hover:underline"
+                >
+                  {account.username}
+                </a>
+              ) : (
+                <p className="text-dark-100">Not available</p>
+              )}
+            </div>
           </div>
         </div>
       </Card>
@@ -84,41 +135,79 @@ export function SettingsPanel() {
         {error ? (
           <p className="text-red-500">{error}</p>
         ) : companyInfo ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <p className="text-sm text-dark-400">Company Name</p>
-              <p className="text-dark-100">{companyInfo.displayName}</p>
-            </div>
-            <div>
-              <p className="text-sm text-dark-400">Address</p>
-              <p className="text-dark-100">
-                {companyInfo.addressLine1}
-                {companyInfo.addressLine2 && <>, {companyInfo.addressLine2}</>}
-                <br />
-                {companyInfo.city}, {companyInfo.postalCode}
-                <br />
-                {companyInfo.country}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <EnvelopeIcon className="h-4 w-4 text-dark-400" />
-              <div>
-                <p className="text-sm text-dark-400">Email</p>
-                <p className="text-dark-100">{companyInfo.email || 'Not set'}</p>
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2">
+            {/* Left column: Company details */}
+            <div className="space-y-3">
+              <div className="flex items-start gap-2">
+                <BuildingOfficeIcon className="mt-0.5 h-4 w-4 text-dark-400" />
+                <div>
+                  <p className="text-sm text-dark-400">Company Name</p>
+                  <p className="text-dark-100">{companyInfo.displayName || 'Not set'}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <EnvelopeIcon className="mt-0.5 h-4 w-4 text-dark-400" />
+                <div>
+                  <p className="text-sm text-dark-400">Email</p>
+                  {companyInfo.email ? (
+                    <a
+                      href={`mailto:${companyInfo.email}`}
+                      className="text-dark-100 hover:text-thyme-400 hover:underline"
+                    >
+                      {companyInfo.email}
+                    </a>
+                  ) : (
+                    <p className="text-dark-100">Not set</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <GlobeAltIcon className="mt-0.5 h-4 w-4 text-dark-400" />
+                <div>
+                  <p className="text-sm text-dark-400">Website</p>
+                  {companyInfo.website ? (
+                    <a
+                      href={
+                        companyInfo.website.startsWith('http')
+                          ? companyInfo.website
+                          : `https://${companyInfo.website}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-dark-100 hover:text-thyme-400 hover:underline"
+                    >
+                      {companyInfo.website}
+                    </a>
+                  ) : (
+                    <p className="text-dark-100">Not set</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <CurrencyPoundIcon className="mt-0.5 h-4 w-4 text-dark-400" />
+                <div>
+                  <p className="text-sm text-dark-400">Currency</p>
+                  <p className="text-dark-100">{companyInfo.currencyCode || 'Not set'}</p>
+                </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <GlobeAltIcon className="h-4 w-4 text-dark-400" />
+            {/* Right column: Address */}
+            <div className="flex items-start gap-2">
+              <MapPinIcon className="mt-0.5 h-4 w-4 text-dark-400" />
               <div>
-                <p className="text-sm text-dark-400">Website</p>
-                <p className="text-dark-100">{companyInfo.website || 'Not set'}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <CurrencyPoundIcon className="h-4 w-4 text-dark-400" />
-              <div>
-                <p className="text-sm text-dark-400">Currency</p>
-                <p className="text-dark-100">{companyInfo.currencyCode}</p>
+                <p className="text-sm text-dark-400">Address</p>
+                {companyInfo.addressLine1 ? (
+                  <p className="text-dark-100">
+                    {companyInfo.addressLine1}
+                    {companyInfo.addressLine2 && <>, {companyInfo.addressLine2}</>}
+                    <br />
+                    {companyInfo.city}, {companyInfo.postalCode}
+                    <br />
+                    {companyInfo.country}
+                  </p>
+                ) : (
+                  <p className="text-dark-100">Not set</p>
+                )}
               </div>
             </div>
           </div>

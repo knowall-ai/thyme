@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { TeamMemberCard } from './TeamMemberCard';
 import { Card } from '@/components/ui';
 import { bcClient } from '@/services/bc/bcClient';
+import { useCompanyStore } from '@/hooks';
 import type { BCEmployee } from '@/types';
 
 interface TeamMember {
@@ -39,12 +40,16 @@ function mapEmployeeToMember(employee: BCEmployee): TeamMember {
 }
 
 export function TeamList() {
+  const { selectedCompany } = useCompanyStore();
   const [isLoading, setIsLoading] = useState(true);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  // Re-fetch employees when selected company changes
   useEffect(() => {
     async function fetchEmployees() {
+      setIsLoading(true);
+      setError(null);
       try {
         const employees = await bcClient.getEmployees("status eq 'Active'");
         const teamMembers = employees.map(mapEmployeeToMember);
@@ -58,7 +63,7 @@ export function TeamList() {
       }
     }
     fetchEmployees();
-  }, []);
+  }, [selectedCompany]);
 
   const totalHours = members.reduce((sum, m) => sum + m.hoursThisWeek, 0);
   const totalTarget = members.reduce((sum, m) => sum + m.hoursTarget, 0);

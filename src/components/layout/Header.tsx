@@ -11,7 +11,7 @@ import {
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline';
-import { useAuth } from '@/services/auth';
+import { useAuth, useProfilePhoto } from '@/services/auth';
 import { cn } from '@/utils';
 import { ThymeLogo } from '@/components/icons';
 import { CompanySwitcher } from './CompanySwitcher';
@@ -26,7 +26,8 @@ const navigation = [
 
 export function Header() {
   const pathname = usePathname();
-  const { account, logout } = useAuth();
+  const { account, logout, isAuthenticated } = useAuth();
+  const { photoUrl } = useProfilePhoto(isAuthenticated);
 
   const handleLogout = async () => {
     try {
@@ -91,16 +92,26 @@ export function Header() {
                   <p className="text-sm font-medium text-white">{account.name}</p>
                   <p className="text-xs text-dark-400">{account.username}</p>
                 </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-knowall-green/30 bg-knowall-green/20">
-                  <span className="text-sm font-medium text-knowall-green">
-                    {account.name
-                      ?.split(' ')
-                      .map((n) => n[0])
-                      .join('')
-                      .toUpperCase()
-                      .slice(0, 2)}
-                  </span>
-                </div>
+                {photoUrl ? (
+                  <img
+                    src={photoUrl}
+                    alt={account.name ? `${account.name}'s profile photo` : 'User profile photo'}
+                    className="h-10 w-10 rounded-full border border-knowall-green/30 object-cover"
+                  />
+                ) : (
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-knowall-green/30 bg-knowall-green/20">
+                    <span className="text-sm font-medium text-knowall-green">
+                      {account.name
+                        ?.trim()
+                        .split(/\s+/)
+                        .filter(Boolean)
+                        .map((part) => (part ? Array.from(part)[0] : ''))
+                        .join('')
+                        .toUpperCase()
+                        .slice(0, 2)}
+                    </span>
+                  </div>
+                )}
                 <button
                   onClick={handleLogout}
                   className="rounded-lg p-2 text-dark-400 transition-colors hover:bg-dark-800 hover:text-white"

@@ -11,6 +11,7 @@ import {
 import { AccountInfo, InteractionStatus } from '@azure/msal-browser';
 import { loginRequest } from './msalConfig';
 import { msalInstance, initializeMsal } from './msalInstance';
+import { clearProfilePhotoCache } from './graphService';
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -55,6 +56,7 @@ export function useAuth() {
 
   const logout = async () => {
     try {
+      clearProfilePhotoCache();
       await instance.logoutRedirect({
         postLogoutRedirectUri: '/',
       });

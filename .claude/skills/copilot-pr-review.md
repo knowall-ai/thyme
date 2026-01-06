@@ -4,134 +4,149 @@ Guidance for responding to GitHub Copilot's automated PR review comments.
 
 ## When to Use
 
-Use this skill when addressing GitHub Copilot review comments on pull requests.
+Use this skill when:
+
+- A PR has Copilot review comments that need addressing
+- User asks to "respond to Copilot comments" or similar
 
 ## General Philosophy
 
-GitHub Copilot is generally good with its reviews. Work collaboratively with Copilot to improve the quality of the solution. You should aim to resolve all comments unless you have good justification not to.
+GitHub Copilot reviews are generally good and should normally be resolved. Work collaboratively with Copilot to improve code quality. Aim to resolve ALL comments unless you have strong justification not to.
 
 ## Workflow
 
-### 1. Address Each Comment Individually
+### 1. Fetch All Copilot Comments
 
-- Review each Copilot comment one at a time
-- Don't batch responses - each comment deserves individual attention
-- Use `gh api` to interact with PR comments
+```bash
+# Get all review comments on a PR
+gh api repos/{owner}/{repo}/pulls/{pr}/comments \
+  --jq '.[] | select(.user.login == "Copilot") | {id: .id, path: .path, line: .line, body: .body}'
+```
 
-### 2. Evaluate the Comment
+### 2. Address Each Comment Individually
 
-For each comment, determine:
+For EACH comment:
 
-- **Valid and actionable**: Make the suggested change
-- **Valid but needs discussion**: Explain your approach while considering the feedback
-- **Disagree**: Push back with clear reasoning
-- **New feature request**: Raise a GitHub issue instead
+1. Read and understand the suggestion
+2. Evaluate whether to accept, modify, or decline
+3. Make code changes if needed
+4. Commit changes (reference will be used in response)
+5. Reply to the comment with action taken
 
 ### 3. Response Actions
 
-#### If You Agree and Fix It
+#### If You Agree and Fix It (Most Common)
 
 1. Make the code change
-2. Commit with a clear message referencing the feedback
-3. Reply to the comment acknowledging the fix
-4. Mark the comment as **Resolved**
+2. Commit with clear message
+3. Reply referencing the commit:
 
 ```bash
-# Reply to a PR review comment
-gh api repos/{owner}/{repo}/pulls/{pr}/comments/{comment_id}/replies \
-  -f body="Fixed in latest commit. Thanks for catching this!"
-
-# Resolve a review thread (use the thread ID, not comment ID)
-gh api graphql -f query='
-  mutation {
-    resolveReviewThread(input: {threadId: "THREAD_ID"}) {
-      thread { isResolved }
-    }
-  }
-'
+# Reply to a PR review comment (use in_reply_to, NOT the /replies endpoint)
+gh api repos/{owner}/{repo}/pulls/{pr}/comments \
+  -f body="Fixed! [Description of change]. See commit abc1234." \
+  -F in_reply_to={comment_id}
 ```
 
-#### If You Disagree
+Example responses:
 
-1. Provide clear technical justification for your approach
-2. Reference documentation, best practices, or project conventions
-3. Be respectful - Copilot's suggestions often have merit
-4. Leave the thread open for discussion if needed
+- "Fixed! Added null check as suggested."
+- "Fixed! Updated to use `Array.from()` for proper Unicode handling."
+- "Fixed! Now caching the null result to prevent repeated API calls."
 
-Example response:
+#### If You Disagree (Justify Why)
 
-> "I considered this approach, but [specific reason]. The current implementation [benefits]. Happy to discuss further if you see issues I'm missing."
+Provide clear technical reasoning:
 
-#### If It's a New Feature
+```bash
+gh api repos/{owner}/{repo}/pulls/{pr}/comments \
+  -f body="Valid concern, but acceptable for current scope because [reason]. The current approach [benefits]. We can revisit if [condition]." \
+  -F in_reply_to={comment_id}
+```
 
-1. Create a GitHub issue for the feature request
-2. Reference the issue in your reply to Copilot
-3. Mark as **Resolved** (the issue tracks the work)
+Example:
+
+- "Valid concern, but acceptable for MVP. The 30-minute cache duration keeps memory usage reasonable for single-user scope. We can optimize further if memory becomes an issue in production."
+
+#### If It's Out of Scope (Create Issue)
+
+For good suggestions that are larger features:
 
 ```bash
 # Create an issue
-gh issue create --title "Feature: [description]" --body "Raised from PR #X review feedback..."
+gh issue create \
+  --title "Enhancement: [description]" \
+  --body "Raised from Copilot review on PR #X.
+
+## Suggestion
+[Copilot's suggestion]
+
+## Context
+[Why this is out of scope for current PR but worth tracking]"
 
 # Reply referencing the issue
-gh api repos/{owner}/{repo}/pulls/{pr}/comments/{comment_id}/replies \
-  -f body="Good suggestion! This would be a new feature - I've raised #Y to track this."
+gh api repos/{owner}/{repo}/pulls/{pr}/comments \
+  -f body="Good suggestion! This would be a larger enhancement - created #Y to track this." \
+  -F in_reply_to={comment_id}
 ```
 
-### 4. Resolution Guidelines
+### 4. Commit Message Format
 
-**Mark as Resolved when:**
+When fixing Copilot review items, use clear commit messages:
 
-- You've made the suggested change
-- You've created an issue for a feature request
-- After discussion, both sides agree on the approach
-- The comment is no longer actionable
+```
+fix: Address Copilot review feedback
 
-**Keep Open when:**
+- [Change 1 description]
+- [Change 2 description]
+- [Change 3 description]
+```
 
-- You're pushing back and want reviewer input
-- The discussion is ongoing
-- You need clarification
+### 5. Resolution
+
+After replying to all comments:
+
+- Verify all Copilot comments have responses
+- Run `npm run check` to ensure changes don't break anything
+- Push the changes
 
 ## Commands Reference
 
 ```bash
-# List PR review comments
-gh api repos/{owner}/{repo}/pulls/{pr}/comments
+# List all Copilot review comments on a PR
+gh api repos/{owner}/{repo}/pulls/{pr}/comments \
+  --jq '.[] | select(.user.login == "Copilot") | {id, path, line, body}'
 
-# Get a specific PR's reviews
-gh pr view {pr} --comments
+# Reply to a specific comment
+gh api repos/{owner}/{repo}/pulls/{pr}/comments \
+  -f body="Your response here" \
+  -F in_reply_to={comment_id}
 
-# Reply to a review comment
-gh api repos/{owner}/{repo}/pulls/{pr}/comments/{comment_id}/replies \
-  -f body="Your response"
+# Get PR number from current branch
+gh pr view --json number --jq '.number'
 
-# Get review threads (for resolving)
-gh api graphql -f query='
-  query {
-    repository(owner: "{owner}", name: "{repo}") {
-      pullRequest(number: {pr}) {
-        reviewThreads(first: 100) {
-          nodes {
-            id
-            isResolved
-            comments(first: 1) {
-              nodes { body }
-            }
-          }
-        }
-      }
-    }
-  }
-'
+# View all comments with context
+gh api repos/{owner}/{repo}/pulls/{pr}/comments \
+  --jq '.[] | "\(.id): \(.path):\(.line) - \(.body[0:100])..."'
 ```
 
 ## Quality Checklist
 
-Before marking all Copilot comments as addressed:
+Before marking Copilot review as complete:
 
+- [ ] Fetched ALL Copilot comments
 - [ ] Each comment reviewed individually
-- [ ] Code changes committed with clear messages
-- [ ] Replies added to each comment explaining action taken
-- [ ] New features tracked as issues
-- [ ] Resolved threads marked appropriately
-- [ ] Run `npm run check` to verify changes don't break anything
+- [ ] Code changes made where appropriate
+- [ ] Changes committed with clear messages
+- [ ] Reply added to EACH comment explaining action taken
+- [ ] Out-of-scope features tracked as GitHub issues
+- [ ] Run `npm run check` passes
+- [ ] Changes pushed to remote
+
+## Important Notes
+
+- Always respond to EVERY Copilot comment - don't leave any unanswered
+- Reference commits when describing fixes
+- Be specific in responses (not just "Fixed" - say what was fixed)
+- Copilot suggestions are usually good - default to accepting them
+- When declining, provide clear technical justification
