@@ -4,19 +4,30 @@ import {
   PencilIcon,
   EllipsisHorizontalIcon,
   StarIcon as StarOutlineIcon,
+  CalendarIcon,
+  UserIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import { Button } from '@/components/ui';
 import { useProjectsStore } from '@/hooks';
 import type { Project } from '@/types';
 import { cn } from '@/utils';
+import { format, parseISO } from 'date-fns';
 
 interface ProjectDetailsHeaderProps {
   project: Project;
 }
 
+function formatDateRange(startDate?: string, endDate?: string): string | null {
+  if (!startDate && !endDate) return null;
+  const start = startDate ? format(parseISO(startDate), 'd MMM yyyy') : 'TBD';
+  const end = endDate ? format(parseISO(endDate), 'd MMM yyyy') : 'TBD';
+  return `${start} - ${end}`;
+}
+
 export function ProjectDetailsHeader({ project }: ProjectDetailsHeaderProps) {
   const { toggleFavorite } = useProjectsStore();
+  const dateRange = formatDateRange(project.startDate, project.endDate);
 
   return (
     <div className="space-y-4">
@@ -38,7 +49,7 @@ export function ProjectDetailsHeader({ project }: ProjectDetailsHeaderProps) {
           </div>
 
           {/* Project code and status */}
-          <div className="mt-2 flex items-center gap-3">
+          <div className="mt-2 flex flex-wrap items-center gap-3">
             <span className="font-mono text-sm text-dark-400">{project.code}</span>
             <span
               className={cn(
@@ -52,7 +63,44 @@ export function ProjectDetailsHeader({ project }: ProjectDetailsHeaderProps) {
             >
               {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
             </span>
+
+            {/* Date range (from extension) */}
+            {dateRange && (
+              <span className="flex items-center gap-1.5 text-sm text-dark-400">
+                <CalendarIcon className="h-4 w-4" />
+                {dateRange}
+              </span>
+            )}
+
+            {/* Project manager (from extension) */}
+            {project.projectManager && (
+              <span className="flex items-center gap-1.5 text-sm text-dark-400">
+                <UserIcon className="h-4 w-4" />
+                {project.projectManager}
+              </span>
+            )}
           </div>
+
+          {/* Description (from extension) */}
+          {project.description && (
+            <p className="mt-2 text-sm text-dark-300">{project.description}</p>
+          )}
+
+          {/* Extension status indicator */}
+          {!project.hasExtendedData && (
+            <p className="mt-2 text-xs text-dark-500">
+              Install{' '}
+              <a
+                href="https://github.com/knowall-ai/thyme-bc-extension"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-thyme-500 hover:text-thyme-400"
+              >
+                thyme-bc-extension
+              </a>{' '}
+              to see project dates, manager, and description
+            </p>
+          )}
         </div>
 
         {/* Actions */}

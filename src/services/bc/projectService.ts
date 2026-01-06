@@ -1,5 +1,5 @@
 import { bcClient } from './bcClient';
-import type { Project, Task, BCProject, BCJobTask } from '@/types';
+import type { Project, Task, BCProject, BCProjectExtended, BCJobTask } from '@/types';
 
 // Color palette for projects
 const PROJECT_COLORS = [
@@ -19,16 +19,44 @@ function getProjectColor(index: number): string {
   return PROJECT_COLORS[index % PROJECT_COLORS.length];
 }
 
-function mapBCProjectToProject(bcProject: BCProject, index: number, favorites: string[]): Project {
+// Map BC status to app status
+function mapBCStatus(bcStatus?: string): 'active' | 'completed' | 'archived' {
+  if (!bcStatus) return 'active';
+  switch (bcStatus) {
+    case 'Completed':
+      return 'completed';
+    case 'Planning':
+    case 'Quote':
+      return 'archived'; // Using archived for planning/quote status
+    case 'Open':
+    default:
+      return 'active';
+  }
+}
+
+function mapBCProjectToProject(
+  bcProject: BCProject | BCProjectExtended,
+  index: number,
+  favorites: string[],
+  isExtended: boolean
+): Project {
+  const extended = bcProject as BCProjectExtended;
+
   return {
     id: bcProject.id,
     code: bcProject.number,
     name: bcProject.displayName,
-    clientName: undefined,
+    description: isExtended ? extended.description : undefined,
+    clientName: isExtended ? extended.billToCustomerName : undefined,
+    clientCode: isExtended ? extended.billToCustomerNo : undefined,
+    projectManager: isExtended ? extended.personResponsible : undefined,
     color: getProjectColor(index),
-    status: 'active',
+    status: isExtended ? mapBCStatus(extended.status) : 'active',
+    startDate: isExtended ? extended.startingDate : undefined,
+    endDate: isExtended ? extended.endingDate : undefined,
     isFavorite: favorites.includes(bcProject.id),
     tasks: [],
+    hasExtendedData: isExtended,
   };
 }
 
@@ -57,18 +85,25 @@ function saveFavorites(favorites: string[]): void {
 }
 
 export const projectService = {
+  // Check if the BC extension is installed
+  async isExtensionInstalled(): Promise<boolean> {
+    return bcClient.isExtensionInstalled();
+  },
+
   async getProjects(_includeCompleted = false): Promise<Project[]> {
-    const bcProjects = await bcClient.getProjects();
+    const { projects: bcProjects, isExtended } = await bcClient.getProjectsSmart();
     const favorites = getFavorites();
 
-    return bcProjects.map((bcProject, index) => mapBCProjectToProject(bcProject, index, favorites));
+    return bcProjects.map((bcProject, index) =>
+      mapBCProjectToProject(bcProject, index, favorites, isExtended)
+    );
   },
 
   async getProject(projectId: string): Promise<Project | null> {
     try {
-      const bcProject = await bcClient.getProject(projectId);
+      const { project: bcProject, isExtended } = await bcClient.getProjectSmart(projectId);
       const favorites = getFavorites();
-      const project = mapBCProjectToProject(bcProject, 0, favorites);
+      const project = mapBCProjectToProject(bcProject, 0, favorites, isExtended);
 
       // Also fetch tasks
       const tasks = await this.getProjectTasks(project.code);

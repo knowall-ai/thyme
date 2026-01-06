@@ -2,6 +2,7 @@ import { getBCAccessToken } from '../auth';
 import type {
   BCJob,
   BCProject,
+  BCProjectExtended,
   BCEmployee,
   BCJobTask,
   BCJobJournalLine,
@@ -16,9 +17,13 @@ const BC_COMPANY_ID = process.env.NEXT_PUBLIC_BC_COMPANY_ID || '';
 
 class BusinessCentralClient {
   private baseUrl: string;
+  private extensionBaseUrl: string;
+  private extensionAvailable: boolean | null = null;
 
   constructor() {
     this.baseUrl = `${BC_BASE_URL}/${BC_ENVIRONMENT}/api/v2.0/companies(${BC_COMPANY_ID})`;
+    // Custom API from thyme-bc-extension
+    this.extensionBaseUrl = `${BC_BASE_URL}/${BC_ENVIRONMENT}/api/knowall/thyme/v1.0/companies(${BC_COMPANY_ID})`;
   }
 
   private async fetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -52,7 +57,74 @@ class BusinessCentralClient {
     return response.json();
   }
 
-  // Projects
+  private async fetchExtension<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const token = await getBCAccessToken();
+
+    if (!token) {
+      throw new Error('Failed to get Business Central access token');
+    }
+
+    const url = `${this.extensionBaseUrl}${endpoint}`;
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`BC Extension API Error (${response.status}): ${errorText}`);
+    }
+
+    if (response.status === 204) {
+      return {} as T;
+    }
+
+    return response.json();
+  }
+
+  // Check if thyme-bc-extension is installed
+  // See: https://github.com/knowall-ai/thyme-bc-extension
+  async isExtensionInstalled(): Promise<boolean> {
+    if (this.extensionAvailable !== null) {
+      return this.extensionAvailable;
+    }
+
+    try {
+      const token = await getBCAccessToken();
+      if (!token) {
+        this.extensionAvailable = false;
+        return false;
+      }
+
+      const url = `${this.extensionBaseUrl}/projects?$top=1`;
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+      });
+
+      // If we get a 200, the extension is installed
+      this.extensionAvailable = response.ok;
+      return this.extensionAvailable;
+    } catch {
+      this.extensionAvailable = false;
+      return false;
+    }
+  }
+
+  // Reset extension cache (useful for testing or after extension install)
+  resetExtensionCache(): void {
+    this.extensionAvailable = null;
+  }
+
+  // Projects (standard API)
   async getProjects(filter?: string): Promise<BCProject[]> {
     let endpoint = '/projects';
     if (filter) {
@@ -64,6 +136,45 @@ class BusinessCentralClient {
 
   async getProject(projectId: string): Promise<BCProject> {
     return this.fetch<BCProject>(`/projects(${projectId})`);
+  }
+
+  // Projects (extended API from thyme-bc-extension)
+  async getProjectsExtended(filter?: string): Promise<BCProjectExtended[]> {
+    let endpoint = '/projects';
+    if (filter) {
+      endpoint += `?$filter=${encodeURIComponent(filter)}`;
+    }
+    const response = await this.fetchExtension<PaginatedResponse<BCProjectExtended>>(endpoint);
+    return response.value;
+  }
+
+  async getProjectExtended(projectId: string): Promise<BCProjectExtended> {
+    return this.fetchExtension<BCProjectExtended>(`/projects(${projectId})`);
+  }
+
+  // Smart project fetch - uses extension if available, falls back to standard
+  async getProjectsSmart(
+    filter?: string
+  ): Promise<{ projects: BCProject[] | BCProjectExtended[]; isExtended: boolean }> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (extensionInstalled) {
+      const projects = await this.getProjectsExtended(filter);
+      return { projects, isExtended: true };
+    }
+    const projects = await this.getProjects(filter);
+    return { projects, isExtended: false };
+  }
+
+  async getProjectSmart(
+    projectId: string
+  ): Promise<{ project: BCProject | BCProjectExtended; isExtended: boolean }> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (extensionInstalled) {
+      const project = await this.getProjectExtended(projectId);
+      return { project, isExtended: true };
+    }
+    const project = await this.getProject(projectId);
+    return { project, isExtended: false };
   }
 
   // Employees

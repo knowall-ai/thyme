@@ -41,6 +41,18 @@ export interface BCProject {
   lastModifiedDateTime?: string;
 }
 
+// Extended project type from thyme-bc-extension
+// See: https://github.com/knowall-ai/thyme-bc-extension
+export interface BCProjectExtended extends BCProject {
+  description?: string;
+  billToCustomerNo?: string;
+  billToCustomerName?: string;
+  personResponsible?: string;
+  status?: 'Planning' | 'Quote' | 'Open' | 'Completed';
+  startingDate?: string;
+  endingDate?: string;
+}
+
 export interface BCEmployee {
   id: string;
   number: string;
@@ -86,11 +98,18 @@ export interface Project {
   id: string;
   code: string;
   name: string;
+  description?: string;
   clientName?: string;
+  clientCode?: string;
+  projectManager?: string;
   color: string;
   status: 'active' | 'completed' | 'archived';
+  startDate?: string;
+  endDate?: string;
   isFavorite: boolean;
   tasks: Task[];
+  // Indicates if extended data from thyme-bc-extension is available
+  hasExtendedData?: boolean;
 }
 
 export interface Task {
