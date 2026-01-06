@@ -15,11 +15,14 @@ export interface User {
 }
 
 // Business Central types
+export type BCEnvironmentType = 'sandbox' | 'production';
+
 export interface BCCompany {
   id: string;
   name: string;
   displayName: string;
   businessProfileId?: string;
+  environment?: BCEnvironmentType;
 }
 
 export interface BCResource {
