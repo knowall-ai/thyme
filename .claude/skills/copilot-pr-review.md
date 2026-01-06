@@ -38,7 +38,7 @@ For each comment, determine:
 
 ```bash
 # Reply to a PR review comment
-gh api repos/{owner}/{repo}/pulls/comments/{comment_id}/replies \
+gh api repos/{owner}/{repo}/pulls/{pr}/comments/{comment_id}/replies \
   -f body="Fixed in latest commit. Thanks for catching this!"
 
 # Resolve a review thread (use the thread ID, not comment ID)
@@ -73,7 +73,7 @@ Example response:
 gh issue create --title "Feature: [description]" --body "Raised from PR #X review feedback..."
 
 # Reply referencing the issue
-gh api repos/{owner}/{repo}/pulls/comments/{comment_id}/replies \
+gh api repos/{owner}/{repo}/pulls/{pr}/comments/{comment_id}/replies \
   -f body="Good suggestion! This would be a new feature - I've raised #Y to track this."
 ```
 
@@ -102,7 +102,7 @@ gh api repos/{owner}/{repo}/pulls/{pr}/comments
 gh pr view {pr} --comments
 
 # Reply to a review comment
-gh api repos/{owner}/{repo}/pulls/comments/{comment_id}/replies \
+gh api repos/{owner}/{repo}/pulls/{pr}/comments/{comment_id}/replies \
   -f body="Your response"
 
 # Get review threads (for resolving)
