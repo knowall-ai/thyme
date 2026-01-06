@@ -114,8 +114,8 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
           isRunning: false,
         });
       }
-      onClose();
       toast.success(entry ? 'Time entry updated' : 'Time entry saved');
+      onClose();
     } catch (error) {
       console.error('Failed to save entry:', error);
       toast.error('Failed to save time entry. Please try again.');
@@ -134,8 +134,8 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
     setIsSubmitting(true);
     try {
       await deleteEntry(entry.id);
-      onClose();
       toast.success('Time entry deleted');
+      onClose();
     } catch (error) {
       console.error('Failed to delete entry:', error);
       toast.error('Failed to delete time entry. Please try again.');

@@ -21,7 +21,6 @@ export function WeeklyTimesheet() {
     entries,
     currentWeekStart,
     isLoading,
-    error: entriesError,
     fetchWeekEntries,
     navigateToWeek,
     goToCurrentWeek,
@@ -47,13 +46,7 @@ export function WeeklyTimesheet() {
     fetchProjects();
   }, [fetchProjects]);
 
-  // Show toast when errors occur
-  useEffect(() => {
-    if (entriesError) {
-      toast.error('Failed to load time entries. Please try refreshing the page.');
-    }
-  }, [entriesError]);
-
+  // Show toast when projects fail to load (entries errors handled locally in components)
   useEffect(() => {
     if (projectsError) {
       toast.error('Failed to load projects. Some features may not work correctly.');
