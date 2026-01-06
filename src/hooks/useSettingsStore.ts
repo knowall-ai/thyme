@@ -10,7 +10,7 @@ interface SettingsStore extends UserSettings {
 const defaultSettings: UserSettings = {
   defaultProjectId: undefined,
   defaultTaskId: undefined,
-  weeklyHoursTarget: 40,
+  weeklyHoursTarget: 37.5,
   notificationsEnabled: true,
   theme: 'system',
 };

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { TeamMemberCard } from './TeamMemberCard';
 import { Card } from '@/components/ui';
 import { bcClient } from '@/services/bc/bcClient';
+import { useSettingsStore } from '@/hooks/useSettingsStore';
 import type { BCEmployee } from '@/types';
 
 interface TeamMember {
@@ -16,13 +17,12 @@ interface TeamMember {
   status: 'on-track' | 'behind' | 'ahead';
 }
 
-function mapEmployeeToMember(employee: BCEmployee): TeamMember {
+function mapEmployeeToMember(employee: BCEmployee, hoursTarget: number): TeamMember {
   // TODO: Fetch actual hours from timeRegistrationEntries
   const hoursThisWeek = 0;
-  const hoursTarget = 40;
 
   let status: 'on-track' | 'behind' | 'ahead' = 'on-track';
-  const progress = hoursThisWeek / hoursTarget;
+  const progress = hoursTarget > 0 ? hoursThisWeek / hoursTarget : 0;
   if (progress < 0.6) status = 'behind';
   else if (progress > 1) status = 'ahead';
 
@@ -38,16 +38,16 @@ function mapEmployeeToMember(employee: BCEmployee): TeamMember {
 }
 
 export function TeamList() {
+  const { weeklyHoursTarget } = useSettingsStore();
   const [isLoading, setIsLoading] = useState(true);
-  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [employees, setEmployees] = useState<BCEmployee[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchEmployees() {
       try {
-        const employees = await bcClient.getEmployees("status eq 'Active'");
-        const teamMembers = employees.map(mapEmployeeToMember);
-        setMembers(teamMembers);
+        const data = await bcClient.getEmployees("status eq 'Active'");
+        setEmployees(data);
       } catch (err) {
         console.error('Failed to fetch employees:', err);
         setError('Failed to load team members');
@@ -57,6 +57,12 @@ export function TeamList() {
     }
     fetchEmployees();
   }, []);
+
+  // Derive members from employees when weeklyHoursTarget changes (no API refetch)
+  const members = useMemo(
+    () => employees.map((emp) => mapEmployeeToMember(emp, weeklyHoursTarget)),
+    [employees, weeklyHoursTarget]
+  );
 
   const totalHours = members.reduce((sum, m) => sum + m.hoursThisWeek, 0);
   const totalTarget = members.reduce((sum, m) => sum + m.hoursTarget, 0);
