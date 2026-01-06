@@ -137,15 +137,19 @@ export function SettingsPanel() {
               <p className="text-sm text-dark-400">Your target hours per week for tracking</p>
             </div>
             <input
+              id="weekly-hours-target"
               type="number"
               min={0}
               max={168}
               value={weeklyHoursTarget}
-              onChange={(e) =>
+              onChange={(e) => {
+                const parsed = parseFloat(e.target.value);
+                const safeValue = isNaN(parsed) ? 0 : parsed;
                 updateSettings({
-                  weeklyHoursTarget: Math.max(0, parseInt(e.target.value) || 0),
-                })
-              }
+                  weeklyHoursTarget: Math.min(168, Math.max(0, safeValue)),
+                });
+              }}
+              aria-label="Weekly hours target"
               className="w-20 rounded-lg border border-dark-600 bg-dark-800 px-3 py-2 text-dark-100 focus:outline-none focus:ring-2 focus:ring-thyme-500"
             />
           </div>
@@ -160,6 +164,7 @@ export function SettingsPanel() {
                 checked={notificationsEnabled}
                 onChange={(e) => updateSettings({ notificationsEnabled: e.target.checked })}
                 className="peer sr-only"
+                aria-label="Timesheet reminders"
               />
               <div className="peer h-6 w-11 rounded-full bg-dark-600 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-thyme-600 peer-checked:after:translate-x-full peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-thyme-500"></div>
             </label>

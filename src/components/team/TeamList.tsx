@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { TeamMemberCard } from './TeamMemberCard';
 import { Card } from '@/components/ui';
 import { bcClient } from '@/services/bc/bcClient';
@@ -40,15 +40,14 @@ function mapEmployeeToMember(employee: BCEmployee, hoursTarget: number): TeamMem
 export function TeamList() {
   const { weeklyHoursTarget } = useSettingsStore();
   const [isLoading, setIsLoading] = useState(true);
-  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [employees, setEmployees] = useState<BCEmployee[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchEmployees() {
       try {
-        const employees = await bcClient.getEmployees("status eq 'Active'");
-        const teamMembers = employees.map((emp) => mapEmployeeToMember(emp, weeklyHoursTarget));
-        setMembers(teamMembers);
+        const data = await bcClient.getEmployees("status eq 'Active'");
+        setEmployees(data);
       } catch (err) {
         console.error('Failed to fetch employees:', err);
         setError('Failed to load team members');
@@ -57,7 +56,13 @@ export function TeamList() {
       }
     }
     fetchEmployees();
-  }, [weeklyHoursTarget]);
+  }, []);
+
+  // Derive members from employees when weeklyHoursTarget changes (no API refetch)
+  const members = useMemo(
+    () => employees.map((emp) => mapEmployeeToMember(emp, weeklyHoursTarget)),
+    [employees, weeklyHoursTarget]
+  );
 
   const totalHours = members.reduce((sum, m) => sum + m.hoursThisWeek, 0);
   const totalTarget = members.reduce((sum, m) => sum + m.hoursTarget, 0);
