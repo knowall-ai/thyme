@@ -54,6 +54,11 @@ class BusinessCentralClient {
   }
 
   private get baseUrl(): string {
+    if (!this._companyId) {
+      throw new Error(
+        'BusinessCentralClient: companyId is not set. Select a company or configure NEXT_PUBLIC_BC_COMPANY_ID.'
+      );
+    }
     return `${BC_BASE_URL}/${this._environment}/api/v2.0/companies(${this._companyId})`;
   }
 
@@ -62,6 +67,11 @@ class BusinessCentralClient {
   }
 
   private get customApiBaseUrl(): string {
+    if (!this._companyId) {
+      throw new Error(
+        'BusinessCentralClient: companyId is not set. Select a company or configure NEXT_PUBLIC_BC_COMPANY_ID.'
+      );
+    }
     return `${BC_BASE_URL}/${this._environment}/api/${THYME_API_PUBLISHER}/${THYME_API_GROUP}/${THYME_API_VERSION}/companies(${this._companyId})`;
   }
 

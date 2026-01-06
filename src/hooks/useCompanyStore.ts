@@ -27,6 +27,16 @@ export const useCompanyStore = create<CompanyStore>((set, get) => ({
       // Fetch companies from all environments
       const companies = await bcClient.getAllCompanies();
 
+      // Handle empty companies array
+      if (!companies || companies.length === 0) {
+        set({
+          companies: [],
+          selectedCompany: null,
+          isLoading: false,
+        });
+        return;
+      }
+
       // Find the currently selected company (match by ID and environment)
       const currentCompanyId = bcClient.companyId;
       const currentEnv = bcClient.environment;
