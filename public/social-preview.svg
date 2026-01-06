@@ -37,10 +37,24 @@
     <rect x="478" y="160" width="80" height="80" rx="16" fill="#00D26A"/>
   </g>
 
-  <!-- Clock icon -->
-  <g transform="translate(518, 200)">
-    <circle cx="12" cy="12" r="10" stroke="#020617" stroke-width="2.5" fill="none"/>
-    <polyline points="12,6 12,12 16,14" stroke="#020617" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Thyme leaf icon -->
+  <g transform="translate(493, 175)">
+    <!-- Central stem -->
+    <path d="M25 50C25 50 25 12 25 9" stroke="#020617" stroke-width="3.5" stroke-linecap="round"/>
+    <!-- Bottom pair -->
+    <ellipse cx="15" cy="40" rx="7" ry="4.3" fill="#020617" transform="rotate(-35 15 40)"/>
+    <ellipse cx="35" cy="40" rx="7" ry="4.3" fill="#020617" transform="rotate(35 35 40)"/>
+    <!-- Second pair -->
+    <ellipse cx="17" cy="30" rx="6" ry="3.3" fill="#020617" transform="rotate(-40 17 30)"/>
+    <ellipse cx="33" cy="30" rx="6" ry="3.3" fill="#020617" transform="rotate(40 33 30)"/>
+    <!-- Third pair -->
+    <ellipse cx="19" cy="20" rx="5" ry="2.8" fill="#020617" transform="rotate(-45 19 20)"/>
+    <ellipse cx="31" cy="20" rx="5" ry="2.8" fill="#020617" transform="rotate(45 31 20)"/>
+    <!-- Top pair -->
+    <ellipse cx="21" cy="12" rx="4" ry="2.2" fill="#020617" transform="rotate(-50 21 12)"/>
+    <ellipse cx="29" cy="12" rx="4" ry="2.2" fill="#020617" transform="rotate(50 29 12)"/>
+    <!-- Tip -->
+    <ellipse cx="25" cy="7" rx="3" ry="1.8" fill="#020617"/>
   </g>
 
   <!-- Thyme text -->

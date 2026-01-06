@@ -9,6 +9,7 @@ import {
   CheckCircleIcon,
   ArrowRightIcon,
 } from '@heroicons/react/24/outline';
+import { ThymeLogo } from '@/components/icons';
 
 const features = [
   {
@@ -60,7 +61,7 @@ export function LandingPage() {
             {/* Logo */}
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-knowall-green shadow-lg shadow-knowall-green/20">
-                <ClockIcon className="h-6 w-6 text-dark-950" />
+                <ThymeLogo className="h-6 w-6 text-dark-950" />
               </div>
               <div>
                 <span className="text-xl font-bold text-white">Thyme</span>
@@ -270,7 +271,7 @@ export function LandingPage() {
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-knowall-green">
-                <ClockIcon className="h-5 w-5 text-dark-950" />
+                <ThymeLogo className="h-5 w-5 text-dark-950" />
               </div>
               <span className="font-semibold text-white">Thyme</span>
               <span className="text-dark-500">by</span>

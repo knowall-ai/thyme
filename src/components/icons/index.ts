@@ -1,0 +1,1 @@
+export { ThymeLogo } from './ThymeLogo';
