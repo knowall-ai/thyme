@@ -15,6 +15,7 @@ import { cn } from '@/utils';
 
 type FilterOption = 'all' | 'favorites' | 'active' | 'completed';
 type SortOption = 'name-asc' | 'name-desc' | 'code' | 'recent';
+type ClientFilter = 'all' | string;
 
 interface ProjectListProps {
   onSelectProject?: (project: Project) => void;
@@ -32,6 +33,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
 
   const [filterBy, setFilterBy] = useState<FilterOption>('all');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
+  const [clientFilter, setClientFilter] = useState<ClientFilter>('all');
 
   useEffect(() => {
     fetchProjects();
@@ -39,11 +41,25 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
 
   const filteredProjects = getFilteredProjects();
 
+  // Get unique clients for the filter dropdown
+  const uniqueClients = useMemo(() => {
+    const clients = new Set<string>();
+    filteredProjects.forEach((p) => {
+      clients.add(p.clientName || 'No Client');
+    });
+    return Array.from(clients).sort();
+  }, [filteredProjects]);
+
   // Apply filter and sort
   const processedProjects = useMemo(() => {
     let result = [...filteredProjects];
 
-    // Apply filter
+    // Apply client filter
+    if (clientFilter !== 'all') {
+      result = result.filter((p) => (p.clientName || 'No Client') === clientFilter);
+    }
+
+    // Apply status filter
     switch (filterBy) {
       case 'favorites':
         result = result.filter((p) => p.isFavorite);
@@ -78,7 +94,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
     }
 
     return result;
-  }, [filteredProjects, filterBy, sortBy]);
+  }, [filteredProjects, filterBy, sortBy, clientFilter]);
 
   // Group projects by client
   const groupedProjects = processedProjects.reduce(
@@ -116,8 +132,21 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
           />
         </div>
 
-        <div className="flex gap-3">
-          {/* Filter */}
+        <div className="flex flex-wrap gap-3">
+          {/* Client Filter */}
+          <div className="flex items-center gap-2">
+            <Select
+              value={clientFilter}
+              onChange={(e) => setClientFilter(e.target.value)}
+              className="w-40"
+              options={[
+                { value: 'all', label: 'All Clients' },
+                ...uniqueClients.map((client) => ({ value: client, label: client })),
+              ]}
+            />
+          </div>
+
+          {/* Status Filter */}
           <div className="flex items-center gap-2">
             <FunnelIcon className="h-4 w-4 text-gray-400" />
             <Select
@@ -125,7 +154,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
               onChange={(e) => setFilterBy(e.target.value as FilterOption)}
               className="w-36"
               options={[
-                { value: 'all', label: 'All Projects' },
+                { value: 'all', label: 'All Status' },
                 { value: 'favorites', label: 'Favorites' },
                 { value: 'active', label: 'Active' },
                 { value: 'completed', label: 'Completed' },
