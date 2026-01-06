@@ -1,6 +1,11 @@
 'use client';
 
-import { MagnifyingGlassIcon, StarIcon as StarOutlineIcon } from '@heroicons/react/24/outline';
+import { useRouter } from 'next/navigation';
+import {
+  MagnifyingGlassIcon,
+  StarIcon as StarOutlineIcon,
+  ChevronRightIcon,
+} from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import { Card, Input } from '@/components/ui';
 import { useProjectsStore } from '@/hooks';
@@ -12,8 +17,17 @@ interface ProjectListProps {
 }
 
 export function ProjectList({ onSelectProject }: ProjectListProps) {
+  const router = useRouter();
   const { isLoading, searchQuery, setSearchQuery, getFilteredProjects, toggleFavorite } =
     useProjectsStore();
+
+  const handleProjectClick = (project: Project) => {
+    if (onSelectProject) {
+      onSelectProject(project);
+    } else {
+      router.push(`/projects/${project.id}`);
+    }
+  };
 
   const filteredProjects = getFilteredProjects();
 
@@ -55,17 +69,17 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
       {/* Project Groups */}
       {Object.entries(groupedProjects).map(([client, clientProjects]) => (
         <div key={client}>
-          <h3 className="mb-2 text-sm font-medium text-gray-500">{client}</h3>
+          <h3 className="mb-2 text-sm font-medium text-dark-400">{client}</h3>
           <div className="space-y-2">
             {clientProjects.map((project) => (
               <Card
                 key={project.id}
                 variant="bordered"
                 className={cn(
-                  'cursor-pointer p-4 transition-shadow hover:shadow-md',
-                  onSelectProject && 'hover:border-thyme-300'
+                  'cursor-pointer p-4 transition-all hover:border-dark-600 hover:shadow-md',
+                  onSelectProject && 'hover:border-thyme-500'
                 )}
-                onClick={() => onSelectProject?.(project)}
+                onClick={() => handleProjectClick(project)}
               >
                 <div className="flex items-start gap-3">
                   {/* Color indicator */}
@@ -77,20 +91,20 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
                   {/* Project info */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs text-gray-500">{project.code}</span>
+                      <span className="font-mono text-xs text-dark-400">{project.code}</span>
                       <span
                         className={cn(
                           'rounded px-1.5 py-0.5 text-xs',
                           project.status === 'active'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-600'
+                            ? 'bg-green-500/20 text-green-400'
+                            : 'bg-dark-700 text-dark-400'
                         )}
                       >
                         {project.status}
                       </span>
                     </div>
-                    <h4 className="truncate font-medium text-gray-900">{project.name}</h4>
-                    <p className="text-sm text-gray-500">{project.tasks.length} tasks</p>
+                    <h4 className="truncate font-medium text-white">{project.name}</h4>
+                    <p className="text-sm text-dark-400">{project.tasks.length} tasks</p>
                   </div>
 
                   {/* Favorite button */}
@@ -99,14 +113,17 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
                       e.stopPropagation();
                       toggleFavorite(project.id);
                     }}
-                    className="rounded p-1 transition-colors hover:bg-gray-100"
+                    className="rounded p-1 transition-colors hover:bg-dark-700"
                   >
                     {project.isFavorite ? (
                       <StarSolidIcon className="h-5 w-5 text-amber-400" />
                     ) : (
-                      <StarOutlineIcon className="h-5 w-5 text-gray-400" />
+                      <StarOutlineIcon className="h-5 w-5 text-dark-400" />
                     )}
                   </button>
+
+                  {/* Navigate indicator */}
+                  {!onSelectProject && <ChevronRightIcon className="h-5 w-5 text-dark-500" />}
                 </div>
               </Card>
             ))}
@@ -117,7 +134,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
       {/* Empty state */}
       {filteredProjects.length === 0 && (
         <div className="py-12 text-center">
-          <p className="text-gray-500">
+          <p className="text-dark-400">
             {searchQuery ? 'No projects match your search' : 'No projects available'}
           </p>
         </div>
