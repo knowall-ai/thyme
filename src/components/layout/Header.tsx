@@ -10,7 +10,7 @@ import {
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline';
-import { useAuth } from '@/services/auth';
+import { useAuth, useProfilePhoto } from '@/services/auth';
 import { cn } from '@/utils';
 
 const navigation = [
@@ -23,7 +23,8 @@ const navigation = [
 
 export function Header() {
   const pathname = usePathname();
-  const { account, logout } = useAuth();
+  const { account, logout, isAuthenticated } = useAuth();
+  const { photoUrl } = useProfilePhoto(isAuthenticated);
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
@@ -78,16 +79,24 @@ export function Header() {
                   <p className="text-sm font-medium text-white">{account.name}</p>
                   <p className="text-xs text-dark-400">{account.username}</p>
                 </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-knowall-green/30 bg-knowall-green/20">
-                  <span className="text-sm font-medium text-knowall-green">
-                    {account.name
-                      ?.split(' ')
-                      .map((n) => n[0])
-                      .join('')
-                      .toUpperCase()
-                      .slice(0, 2)}
-                  </span>
-                </div>
+                {photoUrl ? (
+                  <img
+                    src={photoUrl}
+                    alt={account.name || 'Profile'}
+                    className="h-10 w-10 rounded-full border border-knowall-green/30 object-cover"
+                  />
+                ) : (
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-knowall-green/30 bg-knowall-green/20">
+                    <span className="text-sm font-medium text-knowall-green">
+                      {account.name
+                        ?.split(' ')
+                        .map((n) => n[0])
+                        .join('')
+                        .toUpperCase()
+                        .slice(0, 2)}
+                    </span>
+                  </div>
+                )}
                 <button
                   onClick={logout}
                   className="rounded-lg p-2 text-dark-400 transition-colors hover:bg-dark-800 hover:text-white"

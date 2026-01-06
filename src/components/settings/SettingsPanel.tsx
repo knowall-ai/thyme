@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui';
 import { bcClient } from '@/services/bc/bcClient';
-import { useAuth } from '@/services/auth';
+import { useAuth, useProfilePhoto } from '@/services/auth';
 import {
   BuildingOffice2Icon,
   EnvelopeIcon,
@@ -25,7 +25,8 @@ interface CompanyInfo {
 }
 
 export function SettingsPanel() {
-  const { account } = useAuth();
+  const { account, isAuthenticated } = useAuth();
+  const { photoUrl } = useProfilePhoto(isAuthenticated);
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,14 +62,38 @@ export function SettingsPanel() {
           <UserCircleIcon className="h-6 w-6 text-thyme-500" />
           <h2 className="text-lg font-semibold text-white">Your Account</h2>
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <p className="text-sm text-dark-400">Name</p>
-            <p className="text-dark-100">{account?.name || 'Not available'}</p>
+        <div className="flex items-start gap-6">
+          {/* Profile Photo */}
+          <div className="shrink-0">
+            {photoUrl ? (
+              <img
+                src={photoUrl}
+                alt={account?.name || 'Profile'}
+                className="h-20 w-20 rounded-full border-2 border-thyme-500/30 object-cover"
+              />
+            ) : (
+              <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-thyme-500/30 bg-thyme-500/20">
+                <span className="text-2xl font-medium text-thyme-500">
+                  {account?.name
+                    ?.split(' ')
+                    .map((n) => n[0])
+                    .join('')
+                    .toUpperCase()
+                    .slice(0, 2) || '?'}
+                </span>
+              </div>
+            )}
           </div>
-          <div>
-            <p className="text-sm text-dark-400">Email</p>
-            <p className="text-dark-100">{account?.username || 'Not available'}</p>
+          {/* User Details */}
+          <div className="grid flex-1 grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <p className="text-sm text-dark-400">Name</p>
+              <p className="text-dark-100">{account?.name || 'Not available'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-dark-400">Email</p>
+              <p className="text-dark-100">{account?.username || 'Not available'}</p>
+            </div>
           </div>
         </div>
       </Card>
