@@ -2,14 +2,21 @@
 
 import { Card } from '@/components/ui';
 import { formatTime } from '@/utils';
-import type { Project, TimeEntry } from '@/types';
+import type { Project, TimeEntry, BCTimeEntry } from '@/types';
 
 interface ProjectStatsCardsProps {
   project: Project;
   timeEntries: TimeEntry[];
+  bcTimeEntries?: BCTimeEntry[];
+  hasRealTimeData?: boolean;
 }
 
-export function ProjectStatsCards({ project, timeEntries }: ProjectStatsCardsProps) {
+export function ProjectStatsCards({
+  project,
+  timeEntries,
+  bcTimeEntries = [],
+  hasRealTimeData = false,
+}: ProjectStatsCardsProps) {
   // Calculate statistics from time entries
   const totalHours = timeEntries.reduce((sum, entry) => sum + entry.hours, 0);
   const billableHours = timeEntries
@@ -17,16 +24,26 @@ export function ProjectStatsCards({ project, timeEntries }: ProjectStatsCardsPro
     .reduce((sum, entry) => sum + entry.hours, 0);
   const nonBillableHours = totalHours - billableHours;
 
-  // Mock budget data - in a real app, this would come from BC
+  // Budget data - placeholder until BC provides this
   // BC API limitation: budget data not available via standard API (see issue #41)
   const budgetHours = 100; // Placeholder
   const remainingHours = Math.max(0, budgetHours - totalHours);
   const budgetPercentUsed = budgetHours > 0 ? (totalHours / budgetHours) * 100 : 0;
 
-  // Mock cost data - would come from BC job ledger entries
-  const hourlyRate = 125; // Placeholder rate
-  const totalCost = totalHours * hourlyRate;
-  const billableAmount = billableHours * hourlyRate;
+  // Calculate costs from real BC data if available, otherwise use estimates
+  let totalCost: number;
+  let billableAmount: number;
+
+  if (hasRealTimeData && bcTimeEntries.length > 0) {
+    // Use real BC cost data
+    totalCost = bcTimeEntries.reduce((sum, entry) => sum + entry.totalCost, 0);
+    billableAmount = bcTimeEntries.reduce((sum, entry) => sum + entry.totalPrice, 0);
+  } else {
+    // Fallback to estimated calculations
+    const hourlyRate = 125; // Placeholder rate
+    totalCost = totalHours * hourlyRate;
+    billableAmount = billableHours * hourlyRate;
+  }
 
   const stats = [
     {

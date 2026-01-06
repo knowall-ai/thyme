@@ -93,6 +93,26 @@ export interface BCJobJournalLine {
   totalPrice?: number;
 }
 
+// Time entry type from thyme-bc-extension /timeEntries endpoint
+// See: https://github.com/knowall-ai/thyme-bc-extension/issues/2
+export interface BCTimeEntry {
+  id: string;
+  entryNo: number;
+  jobNo: string;
+  jobTaskNo: string;
+  postingDate: string;
+  type: 'Resource' | 'Item' | 'G/L Account';
+  no: string; // Resource/Item number
+  description: string;
+  quantity: number; // Hours for resources
+  unitCost: number;
+  totalCost: number;
+  unitPrice: number;
+  totalPrice: number;
+  workTypeCode?: string;
+  entryType: 'Usage' | 'Sale';
+}
+
 // Application types
 export interface Project {
   id: string;
@@ -136,6 +156,11 @@ export interface TimeEntry {
   // Synced from BC
   bcJobJournalLineId?: string;
   syncStatus: 'pending' | 'synced' | 'error';
+  // BC cost data (from thyme-bc-extension /timeEntries)
+  unitCost?: number;
+  totalCost?: number;
+  unitPrice?: number;
+  totalPrice?: number;
 }
 
 export interface TimerState {

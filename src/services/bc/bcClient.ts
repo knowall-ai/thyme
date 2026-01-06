@@ -7,6 +7,7 @@ import type {
   BCJobTask,
   BCJobJournalLine,
   BCResource,
+  BCTimeEntry,
   PaginatedResponse,
 } from '@/types';
 
@@ -175,6 +176,38 @@ class BusinessCentralClient {
     }
     const project = await this.getProject(projectId);
     return { project, isExtended: false };
+  }
+
+  // Time Entries (from thyme-bc-extension /timeEntries endpoint)
+  // See: https://github.com/knowall-ai/thyme-bc-extension/issues/2
+  async getTimeEntries(
+    jobNo?: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<BCTimeEntry[]> {
+    const filters: string[] = [];
+
+    if (jobNo) {
+      filters.push(`jobNo eq '${jobNo}'`);
+    }
+    if (startDate) {
+      filters.push(`postingDate ge ${startDate}`);
+    }
+    if (endDate) {
+      filters.push(`postingDate le ${endDate}`);
+    }
+
+    let endpoint = '/timeEntries';
+    if (filters.length > 0) {
+      endpoint += `?$filter=${encodeURIComponent(filters.join(' and '))}`;
+    }
+
+    const response = await this.fetchExtension<PaginatedResponse<BCTimeEntry>>(endpoint);
+    return response.value;
+  }
+
+  async getProjectTimeEntries(jobNo: string): Promise<BCTimeEntry[]> {
+    return this.getTimeEntries(jobNo);
   }
 
   // Employees

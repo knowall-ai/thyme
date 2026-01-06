@@ -5,14 +5,23 @@ import { Card, CardHeader, CardContent } from '@/components/ui';
 import { ChevronDownIcon, ChevronRightIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 import { cn } from '@/utils';
 import { formatTime } from '@/utils';
-import type { Project, Task, TimeEntry } from '@/types';
+import type { Project, Task, TimeEntry, BCTimeEntry } from '@/types';
 
 interface ProjectTasksTableProps {
   project: Project;
   timeEntries: TimeEntry[];
+  bcTimeEntries?: BCTimeEntry[];
+  hasRealTimeData?: boolean;
 }
 
 type GroupBy = 'task' | 'team';
+
+interface UserStats {
+  userId: string;
+  hours: number;
+  totalCost: number;
+  totalPrice: number;
+}
 
 interface TaskStats {
   task: Task;
@@ -20,45 +29,69 @@ interface TaskStats {
   billableAmount: number;
   costs: number;
   entries: TimeEntry[];
-  userBreakdown: { userId: string; hours: number }[];
+  userBreakdown: UserStats[];
 }
 
-export function ProjectTasksTable({ project, timeEntries }: ProjectTasksTableProps) {
+export function ProjectTasksTable({
+  project,
+  timeEntries,
+  bcTimeEntries = [],
+  hasRealTimeData = false,
+}: ProjectTasksTableProps) {
   const [groupBy, setGroupBy] = useState<GroupBy>('task');
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [dateFilter, setDateFilter] = useState<'all' | 'week' | 'month'>('all');
 
-  // Mock hourly rate
-  const hourlyRate = 125;
+  // Fallback hourly rate when BC data not available
+  const fallbackHourlyRate = 125;
 
   // Calculate task statistics
   const taskStats = useMemo((): TaskStats[] => {
     return project.tasks.map((task) => {
-      const taskEntries = timeEntries.filter((e) => e.taskId === task.id);
+      // Filter entries by task code (taskId might be task code for BC entries)
+      const taskEntries = timeEntries.filter((e) => e.taskId === task.id || e.taskId === task.code);
       const hours = taskEntries.reduce((sum, e) => sum + e.hours, 0);
 
-      // Group by user
-      const userMap = new Map<string, number>();
+      // Group by user with cost data
+      const userMap = new Map<string, UserStats>();
       taskEntries.forEach((entry) => {
-        const current = userMap.get(entry.userId) || 0;
-        userMap.set(entry.userId, current + entry.hours);
+        const existing = userMap.get(entry.userId) || {
+          userId: entry.userId,
+          hours: 0,
+          totalCost: 0,
+          totalPrice: 0,
+        };
+        existing.hours += entry.hours;
+        existing.totalCost += entry.totalCost || entry.hours * fallbackHourlyRate * 0.6;
+        existing.totalPrice +=
+          entry.totalPrice || (task.isBillable ? entry.hours * fallbackHourlyRate : 0);
+        userMap.set(entry.userId, existing);
       });
 
-      const userBreakdown = Array.from(userMap.entries()).map(([userId, hours]) => ({
-        userId,
-        hours,
-      }));
+      const userBreakdown = Array.from(userMap.values());
+
+      // Calculate totals - use real BC data if available
+      let billableAmount: number;
+      let costs: number;
+
+      if (hasRealTimeData) {
+        billableAmount = userBreakdown.reduce((sum, u) => sum + u.totalPrice, 0);
+        costs = userBreakdown.reduce((sum, u) => sum + u.totalCost, 0);
+      } else {
+        billableAmount = task.isBillable ? hours * fallbackHourlyRate : 0;
+        costs = hours * (fallbackHourlyRate * 0.6);
+      }
 
       return {
         task,
         hours,
-        billableAmount: task.isBillable ? hours * hourlyRate : 0,
-        costs: hours * (hourlyRate * 0.6), // Mock cost calculation
+        billableAmount,
+        costs,
         entries: taskEntries,
         userBreakdown,
       };
     });
-  }, [project.tasks, timeEntries]);
+  }, [project.tasks, timeEntries, hasRealTimeData]);
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -194,23 +227,17 @@ export function ProjectTasksTable({ project, timeEntries }: ProjectTasksTablePro
                       <td className="py-2 pl-14 pr-6">
                         <div className="flex items-center gap-2 text-dark-300">
                           <UserCircleIcon className="h-5 w-5 text-dark-500" />
-                          <span className="text-sm">{user.userId.split('_')[0] || 'Unknown'}</span>
+                          <span className="text-sm">{user.userId || 'Unknown'}</span>
                         </div>
                       </td>
                       <td className="px-6 py-2 text-right text-dark-400">
                         {formatTime(user.hours)}
                       </td>
                       <td className="px-6 py-2 text-right text-dark-400">
-                        €
-                        {(user.hours * hourlyRate).toLocaleString('en-IE', {
-                          minimumFractionDigits: 2,
-                        })}
+                        €{user.totalPrice.toLocaleString('en-IE', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="px-6 py-2 text-right text-dark-500">
-                        €
-                        {(user.hours * hourlyRate * 0.6).toLocaleString('en-IE', {
-                          minimumFractionDigits: 2,
-                        })}
+                        €{user.totalCost.toLocaleString('en-IE', { minimumFractionDigits: 2 })}
                       </td>
                     </tr>
                   ))}
@@ -284,7 +311,7 @@ export function ProjectTasksTable({ project, timeEntries }: ProjectTasksTablePro
                       <td className="py-2 pl-14 pr-6">
                         <div className="flex items-center gap-2 text-dark-300">
                           <UserCircleIcon className="h-5 w-5 text-dark-500" />
-                          <span className="text-sm">{user.userId.split('_')[0] || 'Unknown'}</span>
+                          <span className="text-sm">{user.userId || 'Unknown'}</span>
                         </div>
                       </td>
                       <td className="px-6 py-2 text-right text-dark-500">
@@ -292,10 +319,7 @@ export function ProjectTasksTable({ project, timeEntries }: ProjectTasksTablePro
                       </td>
                       <td className="px-6 py-2 text-right text-dark-500">€0.00</td>
                       <td className="px-6 py-2 text-right text-dark-500">
-                        €
-                        {(user.hours * hourlyRate * 0.6).toLocaleString('en-IE', {
-                          minimumFractionDigits: 2,
-                        })}
+                        €{user.totalCost.toLocaleString('en-IE', { minimumFractionDigits: 2 })}
                       </td>
                     </tr>
                   ))}

@@ -4,14 +4,37 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { AuthenticatedTemplate, UnauthenticatedTemplate } from '@/services/auth';
 import { Layout } from '@/components/layout';
-import { projectService } from '@/services/bc';
-import type { Project, TimeEntry } from '@/types';
+import { projectService, bcClient } from '@/services/bc';
+import type { Project, TimeEntry, BCTimeEntry } from '@/types';
 import { ProjectDetailsHeader } from '@/components/projects/ProjectDetailsHeader';
 import { ProjectStatsCards } from '@/components/projects/ProjectStatsCards';
 import { ProjectTimeChart } from '@/components/projects/ProjectTimeChart';
 import { ProjectTasksTable } from '@/components/projects/ProjectTasksTable';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
+
+// Convert BC time entries to app format for display
+function mapBCTimeEntriesToTimeEntries(bcEntries: BCTimeEntry[], projectId: string): TimeEntry[] {
+  return bcEntries.map((entry) => ({
+    id: entry.id,
+    projectId: projectId,
+    taskId: entry.jobTaskNo,
+    userId: entry.no, // Resource number as user ID
+    date: entry.postingDate,
+    hours: entry.quantity,
+    notes: entry.description,
+    isBillable: entry.entryType === 'Sale' || entry.totalPrice > 0,
+    isRunning: false,
+    createdAt: entry.postingDate,
+    updatedAt: entry.postingDate,
+    syncStatus: 'synced' as const,
+    // Store BC-specific data for stats calculation
+    unitCost: entry.unitCost,
+    totalCost: entry.totalCost,
+    unitPrice: entry.unitPrice,
+    totalPrice: entry.totalPrice,
+  }));
+}
 
 function ProjectDetailsContent() {
   const params = useParams();
@@ -20,6 +43,8 @@ function ProjectDetailsContent() {
 
   const [project, setProject] = useState<Project | null>(null);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+  const [bcTimeEntries, setBcTimeEntries] = useState<BCTimeEntry[]>([]);
+  const [hasRealTimeData, setHasRealTimeData] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,12 +63,32 @@ function ProjectDetailsContent() {
         }
         setProject(projectData);
 
-        // Load time entries for this project from localStorage
-        const storedEntries = localStorage.getItem('thyme_time_entries');
-        if (storedEntries) {
-          const allEntries: TimeEntry[] = JSON.parse(storedEntries);
-          const projectEntries = allEntries.filter((e) => e.projectId === projectId);
-          setTimeEntries(projectEntries);
+        // Try to fetch time entries from BC extension first
+        const extensionInstalled = await bcClient.isExtensionInstalled();
+        if (extensionInstalled) {
+          try {
+            const entries = await bcClient.getProjectTimeEntries(projectData.code);
+            setBcTimeEntries(entries);
+            setTimeEntries(mapBCTimeEntriesToTimeEntries(entries, projectId));
+            setHasRealTimeData(true);
+          } catch {
+            // Extension installed but timeEntries endpoint not available yet
+            // Fall back to localStorage
+            loadLocalEntries();
+          }
+        } else {
+          // No extension, use localStorage
+          loadLocalEntries();
+        }
+
+        function loadLocalEntries() {
+          const storedEntries = localStorage.getItem('thyme_time_entries');
+          if (storedEntries) {
+            const allEntries: TimeEntry[] = JSON.parse(storedEntries);
+            const projectEntries = allEntries.filter((e) => e.projectId === projectId);
+            setTimeEntries(projectEntries);
+          }
+          setHasRealTimeData(false);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load project');
@@ -106,13 +151,23 @@ function ProjectDetailsContent() {
         <ProjectDetailsHeader project={project} />
 
         {/* Stats Cards */}
-        <ProjectStatsCards project={project} timeEntries={timeEntries} />
+        <ProjectStatsCards
+          project={project}
+          timeEntries={timeEntries}
+          bcTimeEntries={bcTimeEntries}
+          hasRealTimeData={hasRealTimeData}
+        />
 
         {/* Time Chart */}
         <ProjectTimeChart project={project} timeEntries={timeEntries} />
 
         {/* Tasks Table */}
-        <ProjectTasksTable project={project} timeEntries={timeEntries} />
+        <ProjectTasksTable
+          project={project}
+          timeEntries={timeEntries}
+          bcTimeEntries={bcTimeEntries}
+          hasRealTimeData={hasRealTimeData}
+        />
       </div>
     </Layout>
   );
