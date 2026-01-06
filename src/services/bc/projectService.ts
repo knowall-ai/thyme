@@ -1,5 +1,5 @@
 import { bcClient } from './bcClient';
-import type { Project, Task, BCJob, BCJobTask } from '@/types';
+import type { Project, Task, BCProject, BCJobTask } from '@/types';
 
 // Color palette for projects
 const PROJECT_COLORS = [
@@ -19,15 +19,15 @@ function getProjectColor(index: number): string {
   return PROJECT_COLORS[index % PROJECT_COLORS.length];
 }
 
-function mapBCJobToProject(bcJob: BCJob, index: number, favorites: string[]): Project {
+function mapBCProjectToProject(bcProject: BCProject, index: number, favorites: string[]): Project {
   return {
-    id: bcJob.id,
-    code: bcJob.number,
-    name: bcJob.description,
-    customerName: bcJob.billToCustomerName || undefined,
+    id: bcProject.id,
+    code: bcProject.number,
+    name: bcProject.displayName,
+    customerName: undefined, // TODO: Fetch from Jobs API or Customer link
     color: getProjectColor(index),
-    status: bcJob.status === 'Completed' ? 'completed' : 'active',
-    isFavorite: favorites.includes(bcJob.id),
+    status: 'active',
+    isFavorite: favorites.includes(bcProject.id),
     tasks: [],
   };
 }
@@ -58,18 +58,17 @@ function saveFavorites(favorites: string[]): void {
 
 export const projectService = {
   async getProjects(_includeCompleted = false): Promise<Project[]> {
-    // Use Jobs API instead of Projects to get customer info (billToCustomerName)
-    const bcJobs = await bcClient.getJobs();
+    const bcProjects = await bcClient.getProjects();
     const favorites = getFavorites();
 
-    return bcJobs.map((bcJob, index) => mapBCJobToProject(bcJob, index, favorites));
+    return bcProjects.map((bcProject, index) => mapBCProjectToProject(bcProject, index, favorites));
   },
 
   async getProject(projectId: string): Promise<Project | null> {
     try {
-      const bcJob = await bcClient.getJob(projectId);
+      const bcProject = await bcClient.getProject(projectId);
       const favorites = getFavorites();
-      const project = mapBCJobToProject(bcJob, 0, favorites);
+      const project = mapBCProjectToProject(bcProject, 0, favorites);
 
       // Also fetch tasks
       const tasks = await this.getProjectTasks(project.code);
