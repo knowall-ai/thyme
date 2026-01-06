@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { MagnifyingGlassIcon, StarIcon as StarOutlineIcon } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import { Card, Input } from '@/components/ui';
@@ -12,8 +13,18 @@ interface ProjectListProps {
 }
 
 export function ProjectList({ onSelectProject }: ProjectListProps) {
-  const { isLoading, searchQuery, setSearchQuery, getFilteredProjects, toggleFavorite } =
-    useProjectsStore();
+  const {
+    isLoading,
+    searchQuery,
+    setSearchQuery,
+    getFilteredProjects,
+    toggleFavorite,
+    fetchProjects,
+  } = useProjectsStore();
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
 
   const filteredProjects = getFilteredProjects();
 
