@@ -59,6 +59,7 @@ gh api graphql -f query='
 4. Leave the thread open for discussion if needed
 
 Example response:
+
 > "I considered this approach, but [specific reason]. The current implementation [benefits]. Happy to discuss further if you see issues I'm missing."
 
 #### If It's a New Feature
@@ -79,12 +80,14 @@ gh api repos/{owner}/{repo}/pulls/{pr}/comments/{comment_id}/replies \
 ### 4. Resolution Guidelines
 
 **Mark as Resolved when:**
+
 - You've made the suggested change
 - You've created an issue for a feature request
 - After discussion, both sides agree on the approach
 - The comment is no longer actionable
 
 **Keep Open when:**
+
 - You're pushing back and want reviewer input
 - The discussion is ongoing
 - You need clarification
