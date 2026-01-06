@@ -19,12 +19,16 @@ function getProjectColor(index: number): string {
   return PROJECT_COLORS[index % PROJECT_COLORS.length];
 }
 
+// NOTE: The standard BC API v2.0 /projects endpoint does not return customer information.
+// Customer name would require a custom BC API extension (see: https://github.com/knowall-ai/thyme-bc-extension/issues/1)
+// For now, we set customerName to 'Unknown' until the custom API is available.
+
 function mapBCProjectToProject(bcProject: BCProject, index: number, favorites: string[]): Project {
   return {
     id: bcProject.id,
     code: bcProject.number,
     name: bcProject.displayName,
-    customerName: undefined, // TODO: Fetch from Jobs API or Customer link
+    customerName: 'Unknown', // BC API limitation - requires custom API extension
     color: getProjectColor(index),
     status: 'active',
     isFavorite: favorites.includes(bcProject.id),
@@ -36,7 +40,7 @@ function mapBCJobTaskToTask(jobTask: BCJobTask, projectId: string): Task {
   return {
     id: jobTask.id,
     projectId,
-    code: jobTask.taskNumber,
+    code: jobTask.jobTaskNo,
     name: jobTask.description,
     isBillable: jobTask.jobTaskType === 'Posting',
   };

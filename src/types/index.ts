@@ -64,8 +64,8 @@ export interface BCEmployee {
 
 export interface BCJobTask {
   id: string;
-  jobNumber: string;
-  taskNumber: string;
+  jobNo: string;
+  jobTaskNo: string;
   description: string;
   jobTaskType: 'Posting' | 'Heading' | 'Total' | 'Begin-Total' | 'End-Total';
 }
