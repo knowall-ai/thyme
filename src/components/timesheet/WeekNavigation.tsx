@@ -35,9 +35,12 @@ export function WeekNavigation({
       <h2 className="text-lg font-semibold text-white">{formatWeekRange(currentWeekStart)}</h2>
 
       {!isCurrentWeek && (
-        <Button variant="ghost" size="sm" onClick={onToday}>
-          Today
-        </Button>
+        <button
+          onClick={onToday}
+          className="text-sm text-primary hover:text-primary/80 hover:underline transition-colors"
+        >
+          Return to this week
+        </button>
       )}
     </div>
   );
