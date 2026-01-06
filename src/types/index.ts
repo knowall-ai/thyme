@@ -15,6 +15,13 @@ export interface User {
 }
 
 // Business Central types
+export interface BCCompany {
+  id: string;
+  name: string;
+  displayName: string;
+  businessProfileId?: string;
+}
+
 export interface BCResource {
   id: string;
   number: string;

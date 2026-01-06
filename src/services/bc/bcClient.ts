@@ -1,5 +1,6 @@
 import { getBCAccessToken } from '../auth';
 import type {
+  BCCompany,
   BCJob,
   BCProject,
   BCEmployee,
@@ -12,13 +13,84 @@ import type {
 const BC_BASE_URL =
   process.env.NEXT_PUBLIC_BC_BASE_URL || 'https://api.businesscentral.dynamics.com/v2.0';
 const BC_ENVIRONMENT = process.env.NEXT_PUBLIC_BC_ENVIRONMENT || 'sandbox';
-const BC_COMPANY_ID = process.env.NEXT_PUBLIC_BC_COMPANY_ID || '';
+const BC_DEFAULT_COMPANY_ID = process.env.NEXT_PUBLIC_BC_COMPANY_ID || '';
+
+// localStorage key for persisting selected company
+const COMPANY_STORAGE_KEY = 'thyme_selected_company_id';
 
 class BusinessCentralClient {
-  private baseUrl: string;
+  private _companyId: string;
+  private _onCompanyChangeCallbacks: Array<(companyId: string) => void> = [];
 
   constructor() {
-    this.baseUrl = `${BC_BASE_URL}/${BC_ENVIRONMENT}/api/v2.0/companies(${BC_COMPANY_ID})`;
+    // Try to load from localStorage, fall back to env var
+    this._companyId = this.loadCompanyId();
+  }
+
+  private loadCompanyId(): string {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(COMPANY_STORAGE_KEY);
+      if (stored) return stored;
+    }
+    return BC_DEFAULT_COMPANY_ID;
+  }
+
+  private get baseUrl(): string {
+    return `${BC_BASE_URL}/${BC_ENVIRONMENT}/api/v2.0/companies(${this._companyId})`;
+  }
+
+  private get apiBaseUrl(): string {
+    return `${BC_BASE_URL}/${BC_ENVIRONMENT}/api/v2.0`;
+  }
+
+  // Company management
+  get companyId(): string {
+    return this._companyId;
+  }
+
+  setCompanyId(companyId: string): void {
+    if (this._companyId !== companyId) {
+      this._companyId = companyId;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(COMPANY_STORAGE_KEY, companyId);
+      }
+      // Notify listeners
+      this._onCompanyChangeCallbacks.forEach((cb) => cb(companyId));
+    }
+  }
+
+  onCompanyChange(callback: (companyId: string) => void): () => void {
+    this._onCompanyChangeCallbacks.push(callback);
+    // Return unsubscribe function
+    return () => {
+      this._onCompanyChangeCallbacks = this._onCompanyChangeCallbacks.filter(
+        (cb) => cb !== callback
+      );
+    };
+  }
+
+  // Fetch companies (doesn't require company ID in URL)
+  async getCompanies(): Promise<BCCompany[]> {
+    const token = await getBCAccessToken();
+    if (!token) {
+      throw new Error('Failed to get Business Central access token');
+    }
+
+    const url = `${this.apiBaseUrl}/companies`;
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`BC API Error (${response.status}): ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data.value as BCCompany[];
   }
 
   private async fetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
