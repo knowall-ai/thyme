@@ -92,16 +92,16 @@ export function SettingsPanel() {
             )}
           </div>
           {/* User Details */}
-          <div className="grid flex-1 grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="flex items-center gap-2">
-              <UserIcon className="h-4 w-4 text-dark-400" />
+          <div className="grid flex-1 grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2">
+            <div className="flex items-start gap-2">
+              <UserIcon className="mt-0.5 h-4 w-4 text-dark-400" />
               <div>
                 <p className="text-sm text-dark-400">Name</p>
                 <p className="text-dark-100">{account?.name || 'Not available'}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <EnvelopeIcon className="h-4 w-4 text-dark-400" />
+            <div className="flex items-start gap-2">
+              <EnvelopeIcon className="mt-0.5 h-4 w-4 text-dark-400" />
               <div>
                 <p className="text-sm text-dark-400">Email</p>
                 {account?.username ? (
@@ -129,14 +129,63 @@ export function SettingsPanel() {
         {error ? (
           <p className="text-red-500">{error}</p>
         ) : companyInfo ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="flex items-start gap-2">
-              <BuildingOfficeIcon className="mt-0.5 h-4 w-4 text-dark-400" />
-              <div>
-                <p className="text-sm text-dark-400">Company Name</p>
-                <p className="text-dark-100">{companyInfo.displayName}</p>
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2">
+            {/* Left column: Company details */}
+            <div className="space-y-3">
+              <div className="flex items-start gap-2">
+                <BuildingOfficeIcon className="mt-0.5 h-4 w-4 text-dark-400" />
+                <div>
+                  <p className="text-sm text-dark-400">Company Name</p>
+                  <p className="text-dark-100">{companyInfo.displayName}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <EnvelopeIcon className="mt-0.5 h-4 w-4 text-dark-400" />
+                <div>
+                  <p className="text-sm text-dark-400">Email</p>
+                  {companyInfo.email ? (
+                    <a
+                      href={`mailto:${companyInfo.email}`}
+                      className="text-dark-100 hover:text-thyme-400 hover:underline"
+                    >
+                      {companyInfo.email}
+                    </a>
+                  ) : (
+                    <p className="text-dark-100">Not set</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <GlobeAltIcon className="mt-0.5 h-4 w-4 text-dark-400" />
+                <div>
+                  <p className="text-sm text-dark-400">Website</p>
+                  {companyInfo.website ? (
+                    <a
+                      href={
+                        companyInfo.website.startsWith('http')
+                          ? companyInfo.website
+                          : `https://${companyInfo.website}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-dark-100 hover:text-thyme-400 hover:underline"
+                    >
+                      {companyInfo.website}
+                    </a>
+                  ) : (
+                    <p className="text-dark-100">Not set</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <CurrencyPoundIcon className="mt-0.5 h-4 w-4 text-dark-400" />
+                <div>
+                  <p className="text-sm text-dark-400">Currency</p>
+                  <p className="text-dark-100">{companyInfo.currencyCode}</p>
+                </div>
               </div>
             </div>
+            {/* Right column: Address */}
             <div className="flex items-start gap-2">
               <MapPinIcon className="mt-0.5 h-4 w-4 text-dark-400" />
               <div>
@@ -149,51 +198,6 @@ export function SettingsPanel() {
                   <br />
                   {companyInfo.country}
                 </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <EnvelopeIcon className="h-4 w-4 text-dark-400" />
-              <div>
-                <p className="text-sm text-dark-400">Email</p>
-                {companyInfo.email ? (
-                  <a
-                    href={`mailto:${companyInfo.email}`}
-                    className="text-dark-100 hover:text-thyme-400 hover:underline"
-                  >
-                    {companyInfo.email}
-                  </a>
-                ) : (
-                  <p className="text-dark-100">Not set</p>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <GlobeAltIcon className="h-4 w-4 text-dark-400" />
-              <div>
-                <p className="text-sm text-dark-400">Website</p>
-                {companyInfo.website ? (
-                  <a
-                    href={
-                      companyInfo.website.startsWith('http')
-                        ? companyInfo.website
-                        : `https://${companyInfo.website}`
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-dark-100 hover:text-thyme-400 hover:underline"
-                  >
-                    {companyInfo.website}
-                  </a>
-                ) : (
-                  <p className="text-dark-100">Not set</p>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <CurrencyPoundIcon className="h-4 w-4 text-dark-400" />
-              <div>
-                <p className="text-sm text-dark-400">Currency</p>
-                <p className="text-dark-100">{companyInfo.currencyCode}</p>
               </div>
             </div>
           </div>

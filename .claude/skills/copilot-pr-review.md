@@ -5,6 +5,7 @@ Guidance for responding to GitHub Copilot's automated PR review comments.
 ## When to Use
 
 Use this skill when:
+
 - A PR has Copilot review comments that need addressing
 - User asks to "respond to Copilot comments" or similar
 
@@ -25,6 +26,7 @@ gh api repos/{owner}/{repo}/pulls/{pr}/comments \
 ### 2. Address Each Comment Individually
 
 For EACH comment:
+
 1. Read and understand the suggestion
 2. Evaluate whether to accept, modify, or decline
 3. Make code changes if needed
@@ -47,6 +49,7 @@ gh api repos/{owner}/{repo}/pulls/{pr}/comments \
 ```
 
 Example responses:
+
 - "Fixed! Added null check as suggested."
 - "Fixed! Updated to use `Array.from()` for proper Unicode handling."
 - "Fixed! Now caching the null result to prevent repeated API calls."
@@ -62,6 +65,7 @@ gh api repos/{owner}/{repo}/pulls/{pr}/comments \
 ```
 
 Example:
+
 - "Valid concern, but acceptable for MVP. The 30-minute cache duration keeps memory usage reasonable for single-user scope. We can optimize further if memory becomes an issue in production."
 
 #### If It's Out of Scope (Create Issue)
@@ -101,6 +105,7 @@ fix: Address Copilot review feedback
 ### 5. Resolution
 
 After replying to all comments:
+
 - Verify all Copilot comments have responses
 - Run `npm run check` to ensure changes don't break anything
 - Push the changes
