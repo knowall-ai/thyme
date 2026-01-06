@@ -1,12 +1,20 @@
 'use client';
 
-import { useEffect } from 'react';
-import { MagnifyingGlassIcon, StarIcon as StarOutlineIcon } from '@heroicons/react/24/outline';
+import { useEffect, useState, useMemo } from 'react';
+import {
+  MagnifyingGlassIcon,
+  StarIcon as StarOutlineIcon,
+  FunnelIcon,
+  ArrowsUpDownIcon,
+} from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
-import { Card, Input } from '@/components/ui';
+import { Card, Input, Select } from '@/components/ui';
 import { useProjectsStore } from '@/hooks';
 import type { Project } from '@/types';
 import { cn } from '@/utils';
+
+type FilterOption = 'all' | 'favorites' | 'active' | 'completed';
+type SortOption = 'name-asc' | 'name-desc' | 'code' | 'recent';
 
 interface ProjectListProps {
   onSelectProject?: (project: Project) => void;
@@ -22,14 +30,58 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
     fetchProjects,
   } = useProjectsStore();
 
+  const [filterBy, setFilterBy] = useState<FilterOption>('all');
+  const [sortBy, setSortBy] = useState<SortOption>('name-asc');
+
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
 
   const filteredProjects = getFilteredProjects();
 
+  // Apply filter and sort
+  const processedProjects = useMemo(() => {
+    let result = [...filteredProjects];
+
+    // Apply filter
+    switch (filterBy) {
+      case 'favorites':
+        result = result.filter((p) => p.isFavorite);
+        break;
+      case 'active':
+        result = result.filter((p) => p.status === 'active');
+        break;
+      case 'completed':
+        result = result.filter((p) => p.status === 'completed');
+        break;
+    }
+
+    // Apply sort
+    switch (sortBy) {
+      case 'name-asc':
+        result.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'name-desc':
+        result.sort((a, b) => b.name.localeCompare(a.name));
+        break;
+      case 'code':
+        result.sort((a, b) => a.code.localeCompare(b.code));
+        break;
+      case 'recent':
+        // Favorites first, then by name
+        result.sort((a, b) => {
+          if (a.isFavorite && !b.isFavorite) return -1;
+          if (!a.isFavorite && b.isFavorite) return 1;
+          return a.name.localeCompare(b.name);
+        });
+        break;
+    }
+
+    return result;
+  }, [filteredProjects, filterBy, sortBy]);
+
   // Group projects by client
-  const groupedProjects = filteredProjects.reduce(
+  const groupedProjects = processedProjects.reduce(
     (groups, project) => {
       const client = project.clientName || 'No Client';
       if (!groups[client]) {
@@ -51,16 +103,52 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
 
   return (
     <div className="space-y-6">
-      {/* Search */}
-      <div className="relative">
-        <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-        <Input
-          type="text"
-          placeholder="Search projects..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
+      {/* Search and Filter/Sort Controls */}
+      <div className="space-y-3">
+        <div className="relative">
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+          <Input
+            type="text"
+            placeholder="Search projects..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+
+        <div className="flex gap-3">
+          {/* Filter */}
+          <div className="flex items-center gap-2">
+            <FunnelIcon className="h-4 w-4 text-gray-400" />
+            <Select
+              value={filterBy}
+              onChange={(e) => setFilterBy(e.target.value as FilterOption)}
+              className="w-36"
+              options={[
+                { value: 'all', label: 'All Projects' },
+                { value: 'favorites', label: 'Favorites' },
+                { value: 'active', label: 'Active' },
+                { value: 'completed', label: 'Completed' },
+              ]}
+            />
+          </div>
+
+          {/* Sort */}
+          <div className="flex items-center gap-2">
+            <ArrowsUpDownIcon className="h-4 w-4 text-gray-400" />
+            <Select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className="w-36"
+              options={[
+                { value: 'name-asc', label: 'Name (A-Z)' },
+                { value: 'name-desc', label: 'Name (Z-A)' },
+                { value: 'code', label: 'Code' },
+                { value: 'recent', label: 'Recent' },
+              ]}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Project Groups */}
@@ -100,7 +188,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
                         {project.status}
                       </span>
                     </div>
-                    <h4 className="truncate font-medium text-gray-900">{project.name}</h4>
+                    <h4 className="truncate font-medium text-white">{project.name}</h4>
                     <p className="text-sm text-gray-500">{project.tasks.length} tasks</p>
                   </div>
 
@@ -126,10 +214,14 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
       ))}
 
       {/* Empty state */}
-      {filteredProjects.length === 0 && (
+      {processedProjects.length === 0 && (
         <div className="py-12 text-center">
           <p className="text-gray-500">
-            {searchQuery ? 'No projects match your search' : 'No projects available'}
+            {searchQuery
+              ? 'No projects match your search'
+              : filterBy !== 'all'
+                ? 'No projects match the current filter'
+                : 'No projects available'}
           </p>
         </div>
       )}
