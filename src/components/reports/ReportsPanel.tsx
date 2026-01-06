@@ -15,14 +15,14 @@ import {
   startOfMonth,
   endOfMonth,
   eachDayOfInterval,
-  parseISO,
 } from 'date-fns';
 import { useAuth } from '@/services/auth';
 import { useProjectsStore } from '@/hooks';
 import { timeEntryService } from '@/services/bc';
-import type { TimeEntry, Project } from '@/types';
+import { formatTime } from '@/utils';
+import type { TimeEntry } from '@/types';
 
-type DateRange = 'week' | 'month' | 'custom';
+type DateRange = 'week' | 'month';
 
 interface ProjectHours {
   projectId: string;
@@ -42,6 +42,7 @@ export function ReportsPanel() {
   const [dateRange, setDateRange] = useState<DateRange>('week');
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const today = new Date();
 
   const { account } = useAuth();
@@ -70,11 +71,13 @@ export function ReportsPanel() {
 
     const fetchEntries = async () => {
       setIsLoading(true);
+      setError(null);
       try {
         const data = await timeEntryService.getEntries(startDate, endDate, userId);
         setEntries(data);
-      } catch (error) {
-        console.error('Failed to fetch entries for reports:', error);
+      } catch (err) {
+        console.error('Failed to fetch entries for reports:', err);
+        setError('Failed to load report data');
         setEntries([]);
       } finally {
         setIsLoading(false);
@@ -145,21 +148,10 @@ export function ReportsPanel() {
   const maxDailyHours = Math.max(...dailyBreakdown.map((d) => d.hours), 1);
 
   const getDateRangeLabel = () => {
-    switch (dateRange) {
-      case 'week':
-        return `${format(startOfWeek(today, { weekStartsOn: 1 }), 'MMM d')} - ${format(endOfWeek(today, { weekStartsOn: 1 }), 'MMM d, yyyy')}`;
-      case 'month':
-        return format(today, 'MMMM yyyy');
-      default:
-        return 'Custom Range';
+    if (dateRange === 'week') {
+      return `${format(startOfWeek(today, { weekStartsOn: 1 }), 'MMM d')} - ${format(endOfWeek(today, { weekStartsOn: 1 }), 'MMM d, yyyy')}`;
     }
-  };
-
-  const formatHours = (hours: number): string => {
-    const h = Math.floor(hours);
-    const m = Math.round((hours - h) * 60);
-    if (m === 0) return `${h}h`;
-    return `${h}h ${m}m`;
+    return format(today, 'MMMM yyyy');
   };
 
   return (
@@ -206,7 +198,7 @@ export function ReportsPanel() {
             <div>
               <p className="text-sm text-dark-400">Total Hours</p>
               <p className="text-xl font-bold text-dark-100">
-                {isLoading ? '...' : formatHours(stats.totalHours)}
+                {isLoading ? '...' : formatTime(stats.totalHours)}
               </p>
             </div>
           </div>
@@ -219,7 +211,7 @@ export function ReportsPanel() {
             <div>
               <p className="text-sm text-dark-400">Billable Hours</p>
               <p className="text-xl font-bold text-dark-100">
-                {isLoading ? '...' : formatHours(stats.billableHours)}
+                {isLoading ? '...' : formatTime(stats.billableHours)}
               </p>
             </div>
           </div>
@@ -266,7 +258,17 @@ export function ReportsPanel() {
             <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-dark-600 border-t-thyme-500"></div>
             <p className="mt-4">Loading...</p>
           </div>
-        ) : projectHours.length === 0 ? (
+        ) : error ? (
+          <div className="py-12 text-center">
+            <p className="mb-2 text-red-500">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="text-thyme-500 underline hover:text-thyme-400"
+            >
+              Try again
+            </button>
+          </div>
+        ) : entries.length === 0 ? (
           <div className="py-12 text-center text-dark-400">
             <ChartBarIcon className="mx-auto mb-4 h-12 w-12 text-dark-600" />
             <p>No time entries found for this period</p>
@@ -284,7 +286,7 @@ export function ReportsPanel() {
                     />
                     <span className="text-sm font-medium text-dark-100">{project.projectName}</span>
                   </div>
-                  <span className="text-sm text-dark-400">{formatHours(project.hours)}</span>
+                  <span className="text-sm text-dark-400">{formatTime(project.hours)}</span>
                 </div>
                 <div className="relative h-2 overflow-hidden rounded-full bg-dark-700">
                   <div
@@ -297,7 +299,7 @@ export function ReportsPanel() {
                 </div>
                 {project.billableHours > 0 && (
                   <p className="text-xs text-dark-500">
-                    {formatHours(project.billableHours)} billable
+                    {formatTime(project.billableHours)} billable
                   </p>
                 )}
               </div>
@@ -314,6 +316,16 @@ export function ReportsPanel() {
             <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-dark-600 border-t-thyme-500"></div>
             <p className="mt-4">Loading...</p>
           </div>
+        ) : error ? (
+          <div className="py-12 text-center">
+            <p className="mb-2 text-red-500">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="text-thyme-500 underline hover:text-thyme-400"
+            >
+              Try again
+            </button>
+          </div>
         ) : entries.length === 0 ? (
           <div className="py-12 text-center text-dark-400">
             <CalendarIcon className="mx-auto mb-4 h-12 w-12 text-dark-600" />
@@ -328,16 +340,19 @@ export function ReportsPanel() {
                   {day.hours > 0 && (
                     <div
                       className="absolute left-0 top-0 flex h-full items-center rounded bg-thyme-600 px-2 transition-all duration-500"
-                      style={{ width: `${Math.max((day.hours / maxDailyHours) * 100, 10)}%` }}
+                      style={{
+                        width: `${(day.hours / maxDailyHours) * 100}%`,
+                        minWidth: '24px',
+                      }}
                     >
                       <span className="text-xs font-medium text-white">
-                        {formatHours(day.hours)}
+                        {formatTime(day.hours)}
                       </span>
                     </div>
                   )}
                 </div>
                 <span className="w-16 text-right text-sm font-medium text-dark-100">
-                  {day.hours > 0 ? formatHours(day.hours) : '-'}
+                  {day.hours > 0 ? formatTime(day.hours) : '-'}
                 </span>
               </div>
             ))}
