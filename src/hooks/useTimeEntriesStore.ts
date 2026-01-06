@@ -15,6 +15,7 @@ interface TimeEntriesStore {
   ) => Promise<TimeEntry>;
   updateEntry: (entryId: string, updates: Partial<TimeEntry>) => Promise<void>;
   deleteEntry: (entryId: string) => Promise<void>;
+  clearEntries: () => void;
   copyPreviousWeek: (userId: string) => Promise<void>;
   navigateToWeek: (direction: 'prev' | 'next') => void;
   goToCurrentWeek: () => void;
@@ -83,6 +84,10 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
       set({ error: message });
       throw error;
     }
+  },
+
+  clearEntries: () => {
+    set({ entries: [], error: null });
   },
 
   copyPreviousWeek: async (userId: string) => {

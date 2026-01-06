@@ -1,5 +1,7 @@
 import { getBCAccessToken } from '../auth';
 import type {
+  BCCompany,
+  BCEnvironmentType,
   BCJob,
   BCProject,
   BCCustomer,
@@ -12,22 +14,149 @@ import type {
 
 const BC_BASE_URL =
   process.env.NEXT_PUBLIC_BC_BASE_URL || 'https://api.businesscentral.dynamics.com/v2.0';
-const BC_ENVIRONMENT = process.env.NEXT_PUBLIC_BC_ENVIRONMENT || 'sandbox';
-const BC_COMPANY_ID = process.env.NEXT_PUBLIC_BC_COMPANY_ID || '';
+const BC_DEFAULT_ENVIRONMENT =
+  (process.env.NEXT_PUBLIC_BC_ENVIRONMENT as BCEnvironmentType) || 'production';
+const BC_DEFAULT_COMPANY_ID = process.env.NEXT_PUBLIC_BC_COMPANY_ID || '';
+
+// localStorage keys for persisting selection
+const COMPANY_STORAGE_KEY = 'thyme_selected_company_id';
+const ENVIRONMENT_STORAGE_KEY = 'thyme_selected_environment';
 
 // Custom Thyme BC Extension API settings
 const THYME_API_PUBLISHER = 'knowall';
 const THYME_API_GROUP = 'thyme';
 const THYME_API_VERSION = 'v1.0';
 
+// Available environments to query
+const BC_ENVIRONMENTS: BCEnvironmentType[] = ['sandbox', 'production'];
+
 class BusinessCentralClient {
-  private baseUrl: string;
-  private customApiBaseUrl: string;
+  private _companyId: string;
+  private _environment: BCEnvironmentType;
   private _extensionInstalled: boolean | null = null;
 
   constructor() {
-    this.baseUrl = `${BC_BASE_URL}/${BC_ENVIRONMENT}/api/v2.0/companies(${BC_COMPANY_ID})`;
-    this.customApiBaseUrl = `${BC_BASE_URL}/${BC_ENVIRONMENT}/api/${THYME_API_PUBLISHER}/${THYME_API_GROUP}/${THYME_API_VERSION}/companies(${BC_COMPANY_ID})`;
+    // Try to load from localStorage, fall back to env vars
+    const stored = this.loadStoredSelection();
+    this._companyId = stored.companyId;
+    this._environment = stored.environment;
+  }
+
+  private loadStoredSelection(): { companyId: string; environment: BCEnvironmentType } {
+    if (typeof window !== 'undefined') {
+      const storedCompany = localStorage.getItem(COMPANY_STORAGE_KEY);
+      const storedEnv = localStorage.getItem(ENVIRONMENT_STORAGE_KEY) as BCEnvironmentType | null;
+      if (storedCompany && storedEnv) {
+        return { companyId: storedCompany, environment: storedEnv };
+      }
+    }
+    return { companyId: BC_DEFAULT_COMPANY_ID, environment: BC_DEFAULT_ENVIRONMENT };
+  }
+
+  private get baseUrl(): string {
+    if (!this._companyId) {
+      throw new Error(
+        'BusinessCentralClient: companyId is not set. Select a company or configure NEXT_PUBLIC_BC_COMPANY_ID.'
+      );
+    }
+    return `${BC_BASE_URL}/${this._environment}/api/v2.0/companies(${this._companyId})`;
+  }
+
+  private get apiBaseUrl(): string {
+    return `${BC_BASE_URL}/${this._environment}/api/v2.0`;
+  }
+
+  private get customApiBaseUrl(): string {
+    if (!this._companyId) {
+      throw new Error(
+        'BusinessCentralClient: companyId is not set. Select a company or configure NEXT_PUBLIC_BC_COMPANY_ID.'
+      );
+    }
+    return `${BC_BASE_URL}/${this._environment}/api/${THYME_API_PUBLISHER}/${THYME_API_GROUP}/${THYME_API_VERSION}/companies(${this._companyId})`;
+  }
+
+  // Company management
+  get companyId(): string {
+    return this._companyId;
+  }
+
+  get environment(): BCEnvironmentType {
+    return this._environment;
+  }
+
+  setCompany(companyId: string, environment: BCEnvironmentType): void {
+    const companyChanged = this._companyId !== companyId;
+    const envChanged = this._environment !== environment;
+
+    if (companyChanged || envChanged) {
+      this._companyId = companyId;
+      this._environment = environment;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(COMPANY_STORAGE_KEY, companyId);
+        localStorage.setItem(ENVIRONMENT_STORAGE_KEY, environment);
+      }
+      // Reset extension cache when company/environment changes
+      this._extensionInstalled = null;
+    }
+  }
+
+  // Backwards compatibility
+  setCompanyId(companyId: string): void {
+    this.setCompany(companyId, this._environment);
+  }
+
+  // Fetch companies from a specific environment
+  private async getCompaniesFromEnvironment(environment: BCEnvironmentType): Promise<BCCompany[]> {
+    const token = await getBCAccessToken();
+    if (!token) {
+      throw new Error('Failed to get Business Central access token');
+    }
+
+    const url = `${BC_BASE_URL}/${environment}/api/v2.0/companies`;
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      // Don't throw for 404 - environment might not exist
+      if (response.status === 404) {
+        return [];
+      }
+      const errorText = await response.text();
+      throw new Error(`BC API Error (${response.status}): ${errorText}`);
+    }
+
+    const data = await response.json();
+    // Tag each company with its environment
+    // Use name as fallback if displayName is empty (some environments don't set displayName)
+    return (data.value as BCCompany[]).map((company) => ({
+      ...company,
+      displayName: company.displayName || company.name,
+      environment,
+    }));
+  }
+
+  // Fetch companies from all environments
+  async getAllCompanies(): Promise<BCCompany[]> {
+    const results = await Promise.allSettled(
+      BC_ENVIRONMENTS.map((env) => this.getCompaniesFromEnvironment(env))
+    );
+
+    const companies: BCCompany[] = [];
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        companies.push(...result.value);
+      }
+    }
+    return companies;
+  }
+
+  // Fetch companies from current environment only (backwards compatibility)
+  async getCompanies(): Promise<BCCompany[]> {
+    return this.getCompaniesFromEnvironment(this._environment);
   }
 
   /**

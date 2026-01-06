@@ -11,6 +11,7 @@ interface ProjectsStore {
   searchQuery: string;
 
   fetchProjects: () => Promise<void>;
+  clearProjects: () => void;
   selectProject: (project: Project | null) => void;
   selectTask: (task: Task | null) => void;
   toggleFavorite: (projectId: string) => void;
@@ -51,6 +52,10 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
       const message = error instanceof Error ? error.message : 'Failed to fetch projects';
       set({ error: message, isLoading: false });
     }
+  },
+
+  clearProjects: () => {
+    set({ projects: [], selectedProject: null, selectedTask: null });
   },
 
   selectProject: (project: Project | null) => {
