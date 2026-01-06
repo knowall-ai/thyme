@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { TimeEntry, WeekData } from '@/types';
+import type { TimeEntry, WeekData, BCEmployee } from '@/types';
 import { timeEntryService } from '@/services/bc';
 import { getWeekStart, getWeekEnd } from '@/utils';
 
@@ -10,6 +10,7 @@ interface TimeEntriesStore {
   error: string | null;
 
   fetchWeekEntries: (userId: string, weekStart?: Date) => Promise<void>;
+  fetchTeammateEntries: (teammate: BCEmployee, weekStart?: Date) => Promise<void>;
   addEntry: (
     entry: Omit<TimeEntry, 'id' | 'createdAt' | 'updatedAt' | 'syncStatus'>
   ) => Promise<TimeEntry>;
@@ -41,6 +42,19 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
       set({ entries, isLoading: false });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch entries';
+      set({ error: message, isLoading: false });
+    }
+  },
+
+  fetchTeammateEntries: async (teammate: BCEmployee, weekStart?: Date) => {
+    const week = weekStart || get().currentWeekStart;
+    set({ isLoading: true, error: null, currentWeekStart: week });
+
+    try {
+      const entries = await timeEntryService.getTeammateEntries(week, teammate);
+      set({ entries, isLoading: false });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch teammate entries';
       set({ error: message, isLoading: false });
     }
   },
