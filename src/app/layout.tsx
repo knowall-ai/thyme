@@ -15,6 +15,10 @@ export const metadata: Metadata = {
   creator: 'KnowAll.ai',
   publisher: 'KnowAll.ai',
   metadataBase: new URL('https://thyme.knowall.ai'),
+  icons: {
+    icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
+    apple: '/favicon.svg',
+  },
   openGraph: {
     title: 'Thyme - Time Tracking for Business Central',
     description:

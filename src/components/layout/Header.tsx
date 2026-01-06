@@ -12,6 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth, useProfilePhoto } from '@/services/auth';
 import { cn } from '@/utils';
+import { ThymeLogo } from '@/components/icons';
 
 const navigation = [
   { name: 'Time', href: '/', icon: ClockIcon },
@@ -41,7 +42,7 @@ export function Header() {
             <Link href="/" className="flex shrink-0 items-center">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-knowall-green shadow-lg shadow-knowall-green/20">
-                  <ClockIcon className="h-5 w-5 text-dark-950" />
+                  <ThymeLogo className="h-5 w-5 text-dark-950" />
                 </div>
                 <span className="text-xl font-bold text-white">Thyme</span>
               </div>

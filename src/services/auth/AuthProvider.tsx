@@ -8,40 +8,9 @@ import {
   useMsal,
   useIsAuthenticated,
 } from '@azure/msal-react';
-import {
-  PublicClientApplication,
-  EventType,
-  AccountInfo,
-  InteractionStatus,
-} from '@azure/msal-browser';
-import { msalConfig, loginRequest } from './msalConfig';
-
-// Initialize MSAL instance
-const msalInstance = new PublicClientApplication(msalConfig);
-
-// Set up event callbacks for MSAL
-msalInstance.initialize().then(() => {
-  // Handle redirect response
-  msalInstance.handleRedirectPromise().then((response) => {
-    if (response) {
-      msalInstance.setActiveAccount(response.account);
-    } else {
-      // Account selection logic
-      const accounts = msalInstance.getAllAccounts();
-      if (accounts.length > 0) {
-        msalInstance.setActiveAccount(accounts[0]);
-      }
-    }
-  });
-
-  // Listen for sign-in events
-  msalInstance.addEventCallback((event) => {
-    if (event.eventType === EventType.LOGIN_SUCCESS && event.payload) {
-      const account = event.payload as AccountInfo;
-      msalInstance.setActiveAccount(account);
-    }
-  });
-});
+import { AccountInfo, InteractionStatus } from '@azure/msal-browser';
+import { loginRequest } from './msalConfig';
+import { msalInstance, initializeMsal } from './msalInstance';
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -51,7 +20,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    msalInstance.initialize().then(() => {
+    initializeMsal().then(() => {
       setIsInitialized(true);
     });
   }, []);
