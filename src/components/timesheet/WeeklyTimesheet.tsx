@@ -120,7 +120,7 @@ export function WeeklyTimesheet() {
 
       {/* Timesheet Grid */}
       <Card variant="bordered" className="overflow-x-auto">
-        <div className="min-w-[700px]">
+        <div className="min-w-[700px] md:min-w-0">
           {/* Day Headers */}
           <div className="grid grid-cols-7 border-b border-dark-700 bg-dark-900">
             {weekDays.map((day) => {
