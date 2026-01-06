@@ -15,7 +15,7 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | User needs appropriate Business Central license and permissions assigned
 
 | Projects dropdown is empty
-| Verify `BC_COMPANY_ID` is correct; check that `/projects` endpoint returns data (not `/jobs`)
+| Verify `NEXT_PUBLIC_BC_COMPANY_ID` and `NEXT_PUBLIC_BC_ENVIRONMENT` are set (must have `NEXT_PUBLIC_` prefix for client-side access); check that `/projects` endpoint returns data (not `/jobs`)
 
 | Team page shows no employees
 | Ensure employees exist in BC with status 'Active'; check `/employees` endpoint
