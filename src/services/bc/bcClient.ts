@@ -3,6 +3,7 @@ import type {
   BCCompany,
   BCJob,
   BCProject,
+  BCCustomer,
   BCEmployee,
   BCJobTask,
   BCJobJournalLine,
@@ -18,9 +19,14 @@ const BC_DEFAULT_COMPANY_ID = process.env.NEXT_PUBLIC_BC_COMPANY_ID || '';
 // localStorage key for persisting selected company
 const COMPANY_STORAGE_KEY = 'thyme_selected_company_id';
 
+// Custom Thyme BC Extension API settings
+const THYME_API_PUBLISHER = 'knowall';
+const THYME_API_GROUP = 'thyme';
+const THYME_API_VERSION = 'v1.0';
+
 class BusinessCentralClient {
   private _companyId: string;
-  private _onCompanyChangeCallbacks: Array<(companyId: string) => void> = [];
+  private _extensionInstalled: boolean | null = null;
 
   constructor() {
     // Try to load from localStorage, fall back to env var
@@ -43,6 +49,10 @@ class BusinessCentralClient {
     return `${BC_BASE_URL}/${BC_ENVIRONMENT}/api/v2.0`;
   }
 
+  private get customApiBaseUrl(): string {
+    return `${BC_BASE_URL}/${BC_ENVIRONMENT}/api/${THYME_API_PUBLISHER}/${THYME_API_GROUP}/${THYME_API_VERSION}/companies(${this._companyId})`;
+  }
+
   // Company management
   get companyId(): string {
     return this._companyId;
@@ -54,19 +64,9 @@ class BusinessCentralClient {
       if (typeof window !== 'undefined') {
         localStorage.setItem(COMPANY_STORAGE_KEY, companyId);
       }
-      // Notify listeners
-      this._onCompanyChangeCallbacks.forEach((cb) => cb(companyId));
+      // Reset extension cache when company changes
+      this._extensionInstalled = null;
     }
-  }
-
-  onCompanyChange(callback: (companyId: string) => void): () => void {
-    this._onCompanyChangeCallbacks.push(callback);
-    // Return unsubscribe function
-    return () => {
-      this._onCompanyChangeCallbacks = this._onCompanyChangeCallbacks.filter(
-        (cb) => cb !== callback
-      );
-    };
   }
 
   // Fetch companies (doesn't require company ID in URL)
@@ -91,6 +91,49 @@ class BusinessCentralClient {
 
     const data = await response.json();
     return data.value as BCCompany[];
+  }
+
+  /**
+   * Check if the Thyme BC Extension is installed.
+   * The extension provides additional API endpoints with customer and task data.
+   * @see https://github.com/knowall-ai/thyme-bc-extension
+   */
+  async isExtensionInstalled(): Promise<boolean> {
+    // Return cached result if available
+    if (this._extensionInstalled !== null) {
+      return this._extensionInstalled;
+    }
+
+    try {
+      const token = await getBCAccessToken();
+      if (!token) {
+        this._extensionInstalled = false;
+        return false;
+      }
+
+      // Try to access the custom API endpoint
+      const url = `${this.customApiBaseUrl}/projects?$top=1`;
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      // If we get a 200, the extension is installed
+      this._extensionInstalled = response.ok;
+      return this._extensionInstalled;
+    } catch {
+      this._extensionInstalled = false;
+      return false;
+    }
+  }
+
+  /**
+   * Reset the cached extension status (useful after installation)
+   */
+  resetExtensionCache(): void {
+    this._extensionInstalled = null;
   }
 
   private async fetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -138,6 +181,20 @@ class BusinessCentralClient {
     return this.fetch<BCProject>(`/projects(${projectId})`);
   }
 
+  // Customers
+  async getCustomers(filter?: string): Promise<BCCustomer[]> {
+    let endpoint = '/customers';
+    if (filter) {
+      endpoint += `?$filter=${encodeURIComponent(filter)}`;
+    }
+    const response = await this.fetch<PaginatedResponse<BCCustomer>>(endpoint);
+    return response.value;
+  }
+
+  async getCustomer(customerId: string): Promise<BCCustomer> {
+    return this.fetch<BCCustomer>(`/customers(${customerId})`);
+  }
+
   // Employees
   async getEmployees(filter?: string): Promise<BCEmployee[]> {
     let endpoint = '/employees';
@@ -166,16 +223,20 @@ class BusinessCentralClient {
     return this.fetch<BCJob>(`/jobs(${jobId})`);
   }
 
-  // Job Tasks
-  async getJobTasks(jobNumber: string): Promise<BCJobTask[]> {
-    const filter = `jobNumber eq '${jobNumber}'`;
-    const endpoint = `/jobTaskLines?$filter=${encodeURIComponent(filter)}`;
-    const response = await this.fetch<PaginatedResponse<BCJobTask>>(endpoint);
-    return response.value;
+  // Job Tasks - BC API v2.0 doesn't expose job tasks in standard endpoints
+  // This requires a custom API page to be created in BC
+  async getJobTasks(_jobNumber: string): Promise<BCJobTask[]> {
+    // Standard BC API v2.0 doesn't have job tasks endpoint
+    // Options to enable this:
+    // 1. Create a custom API page in BC that exposes Job Tasks
+    // 2. Use BC's OData v4 endpoint with $expand (if supported)
+    // For now, return empty array - tasks must be added via custom BC API
+    console.warn('Job tasks endpoint not available in standard BC API v2.0');
+    return [];
   }
 
   async getJobTask(jobTaskId: string): Promise<BCJobTask> {
-    return this.fetch<BCJobTask>(`/jobTaskLines(${jobTaskId})`);
+    return this.fetch<BCJobTask>(`/jobTasks(${jobTaskId})`);
   }
 
   // Resources (Users/Employees)

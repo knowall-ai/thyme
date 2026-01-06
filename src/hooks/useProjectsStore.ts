@@ -11,6 +11,7 @@ interface ProjectsStore {
   searchQuery: string;
 
   fetchProjects: () => Promise<void>;
+  clearProjects: () => void;
   selectProject: (project: Project | null) => void;
   selectTask: (task: Task | null) => void;
   toggleFavorite: (projectId: string) => void;
@@ -33,11 +34,16 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
     try {
       const projects = await projectService.getProjects();
 
-      // Fetch tasks for each project
+      // Fetch tasks for each project (gracefully handle failures)
       const projectsWithTasks = await Promise.all(
         projects.map(async (project) => {
-          const tasks = await projectService.getProjectTasks(project.code);
-          return { ...project, tasks };
+          try {
+            const tasks = await projectService.getProjectTasks(project.code);
+            return { ...project, tasks };
+          } catch {
+            // If task fetch fails, just use empty tasks array
+            return { ...project, tasks: [] };
+          }
         })
       );
 
@@ -46,6 +52,10 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
       const message = error instanceof Error ? error.message : 'Failed to fetch projects';
       set({ error: message, isLoading: false });
     }
+  },
+
+  clearProjects: () => {
+    set({ projects: [], selectedProject: null, selectedTask: null });
   },
 
   selectProject: (project: Project | null) => {
@@ -76,7 +86,7 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
       (p) =>
         p.name.toLowerCase().includes(lowerQuery) ||
         p.code.toLowerCase().includes(lowerQuery) ||
-        p.clientName?.toLowerCase().includes(lowerQuery)
+        p.customerName?.toLowerCase().includes(lowerQuery)
     );
   },
 

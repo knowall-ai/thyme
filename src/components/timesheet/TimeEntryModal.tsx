@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { TrashIcon } from '@heroicons/react/24/outline';
 import { Modal, Button, Input, Select } from '@/components/ui';
 import { useTimeEntriesStore, useProjectsStore } from '@/hooks';
@@ -22,6 +22,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
   const { addEntry, updateEntry, deleteEntry } = useTimeEntriesStore();
   const { projects, selectedProject, selectedTask, selectProject, selectTask } = useProjectsStore();
 
+  const [customerId, setCustomerId] = useState('');
   const [projectId, setProjectId] = useState('');
   const [taskId, setTaskId] = useState('');
   const [hours, setHours] = useState('');
@@ -29,11 +30,39 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Get unique customers from projects
+  const customerOptions: SelectOption[] = useMemo(() => {
+    const customers = new Map<string, string>();
+    projects.forEach((p) => {
+      const customerName = p.customerName || 'Unknown';
+      if (!customers.has(customerName)) {
+        customers.set(customerName, customerName);
+      }
+    });
+    return Array.from(customers.keys())
+      .sort()
+      .map((name) => ({ value: name, label: name }));
+  }, [projects]);
+
+  // Check if we should show customer dropdown (hide if only one customer or all "Unknown")
+  const showCustomerDropdown =
+    customerOptions.length > 1 ||
+    (customerOptions.length === 1 && customerOptions[0].value !== 'Unknown');
+
+  // Filter projects by selected customer (or show all if customer dropdown is hidden)
+  const filteredProjects = useMemo(() => {
+    if (!showCustomerDropdown) return projects;
+    if (!customerId) return [];
+    return projects.filter((p) => (p.customerName || 'Unknown') === customerId);
+  }, [projects, customerId, showCustomerDropdown]);
+
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
       if (entry) {
-        // Editing existing entry
+        // Editing existing entry - find the project to get customer
+        const project = projects.find((p) => p.id === entry.projectId);
+        setCustomerId(project?.customerName || 'Unknown');
         setProjectId(entry.projectId);
         setTaskId(entry.taskId);
         const h = Math.floor(entry.hours);
@@ -43,6 +72,8 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
         setNotes(entry.notes || '');
       } else {
         // New entry
+        const customerName = selectedProject?.customerName || 'Unknown';
+        setCustomerId(customerName);
         setProjectId(selectedProject?.id || '');
         setTaskId(selectedTask?.id || '');
         setHours('');
@@ -50,9 +81,9 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
         setNotes('');
       }
     }
-  }, [isOpen, entry, selectedProject, selectedTask]);
+  }, [isOpen, entry, selectedProject, selectedTask, projects]);
 
-  const projectOptions: SelectOption[] = projects.map((p) => ({
+  const projectOptions: SelectOption[] = filteredProjects.map((p) => ({
     value: p.id,
     label: `${p.code} - ${p.name}`,
   }));
@@ -64,6 +95,14 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
         value: t.id,
         label: t.name,
       })) || [];
+
+  const handleCustomerChange = (value: string) => {
+    setCustomerId(value);
+    setProjectId('');
+    setTaskId('');
+    selectProject(null);
+    selectTask(null);
+  };
 
   const handleProjectChange = (value: string) => {
     setProjectId(value);
@@ -146,6 +185,18 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Customer - only show if multiple customers exist */}
+        {showCustomerDropdown && (
+          <Select
+            label="Customer"
+            options={customerOptions}
+            value={customerId}
+            onChange={(e) => handleCustomerChange(e.target.value)}
+            placeholder="Select a customer"
+            required
+          />
+        )}
+
         {/* Project */}
         <Select
           label="Project"
@@ -153,6 +204,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
           value={projectId}
           onChange={(e) => handleProjectChange(e.target.value)}
           placeholder="Select a project"
+          disabled={showCustomerDropdown && !customerId}
           required
         />
 

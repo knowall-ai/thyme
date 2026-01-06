@@ -12,13 +12,14 @@ export function CompanySwitcher() {
 
   const { companies, selectedCompany, isLoading, fetchCompanies, selectCompany } =
     useCompanyStore();
-  const { fetchProjects } = useProjectsStore();
+  const { fetchProjects, clearProjects } = useProjectsStore();
   const { clearEntries } = useTimeEntriesStore();
 
-  // Fetch companies on mount
+  // Fetch companies on mount (Zustand actions are stable, empty dependency is intentional)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchCompanies();
-  }, [fetchCompanies]);
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -41,8 +42,9 @@ export function CompanySwitcher() {
     setIsOpen(false);
     setSearchQuery('');
 
-    // Reload data for new company
+    // Clear all data before fetching new company data
     clearEntries();
+    clearProjects();
     await fetchProjects();
   };
 

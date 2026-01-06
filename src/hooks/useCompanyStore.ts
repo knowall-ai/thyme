@@ -49,7 +49,6 @@ export const useCompanyStore = create<CompanyStore>((set, get) => ({
     if (current?.id !== company.id) {
       bcClient.setCompanyId(company.id);
       set({ selectedCompany: company });
-      // Note: Components should listen for company changes and reload data
     }
   },
 
