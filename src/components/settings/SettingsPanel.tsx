@@ -7,10 +7,13 @@ import { bcClient } from '@/services/bc/bcClient';
 import { useAuth, useProfilePhoto } from '@/services/auth';
 import {
   BuildingOffice2Icon,
+  BuildingOfficeIcon,
+  MapPinIcon,
   EnvelopeIcon,
   GlobeAltIcon,
   CurrencyPoundIcon,
   UserCircleIcon,
+  UserIcon,
 } from '@heroicons/react/24/outline';
 
 interface CompanyInfo {
@@ -90,22 +93,28 @@ export function SettingsPanel() {
           </div>
           {/* User Details */}
           <div className="grid flex-1 grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <p className="text-sm text-dark-400">Name</p>
-              <p className="text-dark-100">{account?.name || 'Not available'}</p>
+            <div className="flex items-center gap-2">
+              <UserIcon className="h-4 w-4 text-dark-400" />
+              <div>
+                <p className="text-sm text-dark-400">Name</p>
+                <p className="text-dark-100">{account?.name || 'Not available'}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-dark-400">Email</p>
-              {account?.username ? (
-                <a
-                  href={`mailto:${account.username}`}
-                  className="text-dark-100 hover:text-thyme-400 hover:underline"
-                >
-                  {account.username}
-                </a>
-              ) : (
-                <p className="text-dark-100">Not available</p>
-              )}
+            <div className="flex items-center gap-2">
+              <EnvelopeIcon className="h-4 w-4 text-dark-400" />
+              <div>
+                <p className="text-sm text-dark-400">Email</p>
+                {account?.username ? (
+                  <a
+                    href={`mailto:${account.username}`}
+                    className="text-dark-100 hover:text-thyme-400 hover:underline"
+                  >
+                    {account.username}
+                  </a>
+                ) : (
+                  <p className="text-dark-100">Not available</p>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -121,20 +130,26 @@ export function SettingsPanel() {
           <p className="text-red-500">{error}</p>
         ) : companyInfo ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <p className="text-sm text-dark-400">Company Name</p>
-              <p className="text-dark-100">{companyInfo.displayName}</p>
+            <div className="flex items-start gap-2">
+              <BuildingOfficeIcon className="mt-0.5 h-4 w-4 text-dark-400" />
+              <div>
+                <p className="text-sm text-dark-400">Company Name</p>
+                <p className="text-dark-100">{companyInfo.displayName}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-dark-400">Address</p>
-              <p className="text-dark-100">
-                {companyInfo.addressLine1}
-                {companyInfo.addressLine2 && <>, {companyInfo.addressLine2}</>}
-                <br />
-                {companyInfo.city}, {companyInfo.postalCode}
-                <br />
-                {companyInfo.country}
-              </p>
+            <div className="flex items-start gap-2">
+              <MapPinIcon className="mt-0.5 h-4 w-4 text-dark-400" />
+              <div>
+                <p className="text-sm text-dark-400">Address</p>
+                <p className="text-dark-100">
+                  {companyInfo.addressLine1}
+                  {companyInfo.addressLine2 && <>, {companyInfo.addressLine2}</>}
+                  <br />
+                  {companyInfo.city}, {companyInfo.postalCode}
+                  <br />
+                  {companyInfo.country}
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <EnvelopeIcon className="h-4 w-4 text-dark-400" />
