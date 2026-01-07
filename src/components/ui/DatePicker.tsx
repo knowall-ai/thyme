@@ -28,6 +28,13 @@ export function DatePicker({ selectedDate, onDateSelect, className }: DatePicker
   const [viewDate, setViewDate] = useState(selectedDate || new Date());
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Keep viewDate in sync with external selectedDate changes
+  useEffect(() => {
+    if (selectedDate) {
+      setViewDate(selectedDate);
+    }
+  }, [selectedDate]);
+
   // Close on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -78,14 +85,13 @@ export function DatePicker({ selectedDate, onDateSelect, className }: DatePicker
     setViewDate(addMonths(viewDate, 1));
   };
 
+  const today = new Date();
+
   const handleTodayClick = () => {
-    const today = new Date();
     setViewDate(today);
     onDateSelect(today);
     setIsOpen(false);
   };
-
-  const today = new Date();
 
   return (
     <div ref={containerRef} className={cn('relative', className)}>
@@ -100,7 +106,12 @@ export function DatePicker({ selectedDate, onDateSelect, className }: DatePicker
       </Button>
 
       {isOpen && (
-        <div className="absolute left-0 top-full z-50 mt-2 w-72 rounded-lg border border-dark-600 bg-dark-800 p-3 shadow-xl">
+        <div
+          className="absolute left-0 top-full z-50 mt-2 w-72 rounded-lg border border-dark-600 bg-dark-800 p-3 shadow-xl"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Date picker"
+        >
           {/* Month/Year Header */}
           <div className="mb-3 flex items-center justify-between">
             <Button variant="ghost" size="icon" onClick={handlePrevMonth} className="h-8 w-8">
@@ -139,7 +150,7 @@ export function DatePicker({ selectedDate, onDateSelect, className }: DatePicker
                   onClick={() => handleDateClick(day)}
                   className={cn(
                     'h-8 w-8 rounded text-sm transition-colors',
-                    'hover:bg-dark-700 focus:outline-none focus:ring-2 focus:ring-knowall-green focus:ring-offset-1 focus:ring-offset-dark-800',
+                    'hover:bg-dark-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-knowall-green focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900',
                     !isCurrentMonth && 'text-dark-500',
                     isCurrentMonth && !isSelected && 'text-dark-200',
                     isToday && !isSelected && 'font-semibold text-knowall-green',
