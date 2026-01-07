@@ -130,7 +130,12 @@ export function WeeklyTimesheet() {
 
         {!isViewingTeammate && (
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={handleCopyPreviousWeek} disabled={isLoading}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCopyPreviousWeek}
+              disabled={isLoading}
+            >
               <DocumentDuplicateIcon className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Copy previous week</span>
             </Button>
