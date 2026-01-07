@@ -45,15 +45,15 @@ export function ExtensionBanner() {
   return (
     <div className="border-b border-amber-600/30 bg-amber-900/20">
       <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0 text-amber-500" />
             <p className="text-sm text-amber-200">
               <span className="font-medium">Limited functionality:</span> Install the Thyme BC
               Extension to enable customer filtering and project tasks.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-shrink-0 items-center gap-3">
             <a
               href="https://github.com/knowall-ai/thyme-bc-extension"
               target="_blank"
