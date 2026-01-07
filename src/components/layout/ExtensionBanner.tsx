@@ -50,7 +50,7 @@ export function ExtensionBanner() {
             <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0 text-amber-500" />
             <p className="text-sm text-amber-200">
               <span className="font-medium">Limited functionality:</span> Install the Thyme BC
-              Extension to enable customer filtering and project tasks.
+              Extension to enable customer names, project tasks, and timesheet management.
             </p>
           </div>
           <div className="flex flex-shrink-0 items-center gap-3">

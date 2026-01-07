@@ -14,6 +14,7 @@ import type {
 
 const BC_BASE_URL =
   process.env.NEXT_PUBLIC_BC_BASE_URL || 'https://api.businesscentral.dynamics.com/v2.0';
+const BC_TENANT_ID = process.env.NEXT_PUBLIC_AZURE_TENANT_ID || '';
 const BC_DEFAULT_ENVIRONMENT =
   (process.env.NEXT_PUBLIC_BC_ENVIRONMENT as BCEnvironmentType) || 'production';
 const BC_DEFAULT_COMPANY_ID = process.env.NEXT_PUBLIC_BC_COMPANY_ID || '';
@@ -53,17 +54,21 @@ class BusinessCentralClient {
     return { companyId: BC_DEFAULT_COMPANY_ID, environment: BC_DEFAULT_ENVIRONMENT };
   }
 
+  private get tenantPath(): string {
+    return BC_TENANT_ID ? `${BC_TENANT_ID}/` : '';
+  }
+
   private get baseUrl(): string {
     if (!this._companyId) {
       throw new Error(
         'BusinessCentralClient: companyId is not set. Select a company or configure NEXT_PUBLIC_BC_COMPANY_ID.'
       );
     }
-    return `${BC_BASE_URL}/${this._environment}/api/v2.0/companies(${this._companyId})`;
+    return `${BC_BASE_URL}/${this.tenantPath}${this._environment}/api/v2.0/companies(${this._companyId})`;
   }
 
   private get apiBaseUrl(): string {
-    return `${BC_BASE_URL}/${this._environment}/api/v2.0`;
+    return `${BC_BASE_URL}/${this.tenantPath}${this._environment}/api/v2.0`;
   }
 
   private get customApiBaseUrl(): string {
@@ -72,7 +77,7 @@ class BusinessCentralClient {
         'BusinessCentralClient: companyId is not set. Select a company or configure NEXT_PUBLIC_BC_COMPANY_ID.'
       );
     }
-    return `${BC_BASE_URL}/${this._environment}/api/${THYME_API_PUBLISHER}/${THYME_API_GROUP}/${THYME_API_VERSION}/companies(${this._companyId})`;
+    return `${BC_BASE_URL}/${this.tenantPath}${this._environment}/api/${THYME_API_PUBLISHER}/${THYME_API_GROUP}/${THYME_API_VERSION}/companies(${this._companyId})`;
   }
 
   // Company management
@@ -112,7 +117,8 @@ class BusinessCentralClient {
       throw new Error('Failed to get Business Central access token');
     }
 
-    const url = `${BC_BASE_URL}/${environment}/api/v2.0/companies`;
+    const tenantPath = BC_TENANT_ID ? `${BC_TENANT_ID}/` : '';
+    const url = `${BC_BASE_URL}/${tenantPath}${environment}/api/v2.0/companies`;
     const response = await fetch(url, {
       headers: {
         Authorization: `Bearer ${token}`,
