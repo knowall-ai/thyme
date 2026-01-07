@@ -86,3 +86,15 @@ Uses MSAL with redirect flow (not popup). Key files:
 - `src/services/auth/AuthProvider.tsx` - MSAL setup and hooks
 - `src/services/auth/msalConfig.ts` - Configuration
 - `src/services/auth/tokenService.ts` - Token acquisition
+
+## Branch Switching
+
+**Important**: After switching git branches, you must restart the dev server:
+
+```bash
+rm -rf .next && npm run dev
+```
+
+The Next.js dev server caches compiled code in `.next/`. When switching branches, many files change simultaneously and the webpack cache becomes stale, causing module loading errors.
+
+After restarting the dev server, always tell the user the development server URL (check the terminal output for the port number, as it may vary between branches).
