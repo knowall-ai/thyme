@@ -12,6 +12,7 @@ interface TimeEntryCellProps {
   projects: Project[];
   onAddEntry: (date: string) => void;
   onEditEntry: (entry: TimeEntry) => void;
+  readOnly?: boolean;
 }
 
 export function TimeEntryCell({
@@ -21,6 +22,7 @@ export function TimeEntryCell({
   projects,
   onAddEntry,
   onEditEntry,
+  readOnly = false,
 }: TimeEntryCellProps) {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -49,10 +51,25 @@ export function TimeEntryCell({
       {/* Entries */}
       <div className="space-y-1">
         {entries.map((entry) => (
-          <button
+          <div
             key={entry.id}
-            onClick={() => onEditEntry(entry)}
-            className="group w-full rounded-md p-2 text-left transition-colors hover:bg-dark-600/50"
+            onClick={readOnly ? undefined : () => onEditEntry(entry)}
+            role={readOnly ? undefined : 'button'}
+            tabIndex={readOnly ? undefined : 0}
+            onKeyDown={
+              readOnly
+                ? undefined
+                : (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onEditEntry(entry);
+                    }
+                  }
+            }
+            className={cn(
+              'w-full rounded-md p-2 text-left transition-colors',
+              !readOnly && 'cursor-pointer hover:bg-dark-600/50'
+            )}
             style={{
               backgroundColor: `${getProjectColor(entry.projectId)}20`,
               borderLeft: `3px solid ${getProjectColor(entry.projectId)}`,
@@ -65,12 +82,12 @@ export function TimeEntryCell({
               <span className="shrink-0 text-xs text-dark-400">{formatTime(entry.hours)}</span>
             </div>
             {entry.notes && <p className="mt-0.5 truncate text-xs text-dark-400">{entry.notes}</p>}
-          </button>
+          </div>
         ))}
       </div>
 
-      {/* Add button */}
-      {(isHovered || entries.length === 0) && (
+      {/* Add button - only show when not in read-only mode */}
+      {!readOnly && (isHovered || entries.length === 0) && (
         <button
           onClick={() => onAddEntry(date)}
           className={cn(

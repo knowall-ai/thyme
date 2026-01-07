@@ -2,12 +2,15 @@
 
 import { useState } from 'react';
 import { Layout } from '@/components/layout';
-import { WeeklyTimesheet } from '@/components/timesheet';
+import { WeeklyTimesheet, TeammateSelector } from '@/components/timesheet';
 import { TimerDisplay, StartTimerModal } from '@/components/timer';
 import { TeamsBotBanner } from '@/components/ui';
+import { useTeammateStore } from '@/hooks';
 
 export function Dashboard() {
   const [isTimerModalOpen, setIsTimerModalOpen] = useState(false);
+  const { selectedTeammate } = useTeammateStore();
+  const isViewingTeammate = selectedTeammate !== null;
 
   return (
     <Layout>
@@ -16,14 +19,21 @@ export function Dashboard() {
         <TeamsBotBanner />
 
         {/* Page Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Timesheet</h1>
-            <p className="mt-1 text-dark-400">Track your time and sync to Business Central</p>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-white">Timesheet</h1>
+              <p className="mt-1 text-dark-400">
+                {isViewingTeammate
+                  ? `Viewing ${selectedTeammate.displayName}'s timesheet`
+                  : 'Track your time and sync to Business Central'}
+              </p>
+            </div>
+            <TeammateSelector />
           </div>
 
-          {/* Timer */}
-          <TimerDisplay onStartTimer={() => setIsTimerModalOpen(true)} />
+          {/* Timer - only show when viewing own timesheet */}
+          {!isViewingTeammate && <TimerDisplay onStartTimer={() => setIsTimerModalOpen(true)} />}
         </div>
 
         {/* Weekly Timesheet */}

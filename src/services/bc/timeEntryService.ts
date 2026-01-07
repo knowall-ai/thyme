@@ -1,6 +1,6 @@
 import toast from 'react-hot-toast';
 import { bcClient } from './bcClient';
-import type { TimeEntry, BCJobJournalLine, Project } from '@/types';
+import type { TimeEntry, BCJobJournalLine, Project, BCEmployee } from '@/types';
 import { format, parseISO } from 'date-fns';
 
 // Local storage key for time entries (cached/pending sync)
@@ -216,5 +216,53 @@ export const timeEntryService = {
       },
       {} as { [date: string]: number }
     );
+  },
+
+  // Get entries for a teammate from Business Central
+  // This fetches job journal lines (unposted/pending time entries) for a specific employee
+  async getTeammateEntries(weekStart: Date, teammate: BCEmployee): Promise<TimeEntry[]> {
+    try {
+      // Get resource by employee email to find their resource number
+      const resource = teammate.email ? await bcClient.getResourceByEmail(teammate.email) : null;
+
+      if (!resource) {
+        // If no resource found, we can't fetch their entries
+        console.warn(`No resource found for employee ${teammate.displayName}`);
+        return [];
+      }
+
+      // Fetch job journal lines for this resource
+      const lines = await bcClient.getJobJournalLines(JOURNAL_TEMPLATE, JOURNAL_BATCH);
+
+      // Filter by resource number and date range
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+
+      const filteredLines = lines.filter((line) => {
+        if (line.number !== resource.number) return false;
+        const lineDate = parseISO(line.postingDate);
+        return lineDate >= weekStart && lineDate <= weekEnd;
+      });
+
+      // Map BC job journal lines to TimeEntry format
+      return filteredLines.map((line) => ({
+        id: line.id || `bc_${line.lineNumber}`,
+        projectId: line.jobNumber,
+        taskId: line.jobTaskNumber,
+        userId: teammate.id,
+        date: line.postingDate,
+        hours: line.quantity,
+        notes: line.description,
+        isBillable: true,
+        isRunning: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        bcJobJournalLineId: line.id,
+        syncStatus: 'synced' as const,
+      }));
+    } catch (error) {
+      console.error('Failed to fetch teammate entries:', error);
+      return [];
+    }
   },
 };
