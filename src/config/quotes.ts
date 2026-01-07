@@ -44,7 +44,7 @@ export const quotes: Quote[] = [
     author: 'Pericles',
   },
   {
-    text: "You can't turn back the clock. But you can wind it up again.",
+    text: "You can't turn back the Thyme. But you can wind it up again.",
     author: 'Bonnie Prudden',
   },
 ];
