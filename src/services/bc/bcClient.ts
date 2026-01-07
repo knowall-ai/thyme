@@ -295,15 +295,34 @@ class BusinessCentralClient {
     return this.fetch<BCJob>(`/jobs(${jobId})`);
   }
 
-  // Job Tasks - BC API v2.0 doesn't expose job tasks in standard endpoints
-  // This requires a custom API page to be created in BC
-  async getJobTasks(_jobNumber: string): Promise<BCJobTask[]> {
-    // Standard BC API v2.0 doesn't have job tasks endpoint
-    // Options to enable this:
-    // 1. Create a custom API page in BC that exposes Job Tasks
-    // 2. Use BC's OData v4 endpoint with $expand (if supported)
-    // For now, return empty array - tasks must be added via custom BC API
-    return [];
+  // Job Tasks - requires Thyme BC Extension
+  async getJobTasks(jobNumber: string): Promise<BCJobTask[]> {
+    // Check if extension is installed
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      return [];
+    }
+
+    try {
+      const token = await getBCAccessToken();
+      if (!token) return [];
+
+      const filter = `jobNo eq '${jobNumber}'`;
+      const url = `${this.customApiBaseUrl}/jobTasks?$filter=${encodeURIComponent(filter)}`;
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) return [];
+
+      const data = await response.json();
+      return data.value || [];
+    } catch {
+      return [];
+    }
   }
 
   async getJobTask(jobTaskId: string): Promise<BCJobTask> {
