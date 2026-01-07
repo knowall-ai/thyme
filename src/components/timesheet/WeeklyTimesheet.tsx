@@ -100,8 +100,8 @@ export function WeeklyTimesheet() {
 
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={handleCopyPreviousWeek} disabled={isLoading}>
-            <DocumentDuplicateIcon className="mr-2 h-4 w-4" />
-            Copy previous week
+            <DocumentDuplicateIcon className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Copy previous week</span>
           </Button>
         </div>
       </div>
@@ -119,71 +119,67 @@ export function WeeklyTimesheet() {
       </div>
 
       {/* Timesheet Grid */}
-      <Card variant="bordered" className="overflow-x-auto">
-        <div className="min-w-[700px] md:min-w-0">
-          {/* Day Headers */}
-          <div className="grid grid-cols-7 border-b border-dark-700 bg-dark-900">
-            {weekDays.map((day) => {
-              const isToday = isDayToday(day);
-              return (
-                <div
-                  key={day.toISOString()}
-                  className={`border-r border-dark-700 p-3 text-center last:border-r-0 ${
-                    isToday ? 'bg-knowall-green/10' : ''
+      <Card variant="bordered" className="overflow-hidden">
+        {/* Day Headers */}
+        <div className="grid grid-cols-7 border-b border-dark-700 bg-dark-900">
+          {weekDays.map((day) => {
+            const isToday = isDayToday(day);
+            return (
+              <div
+                key={day.toISOString()}
+                className={`border-r border-dark-700 p-3 text-center last:border-r-0 ${
+                  isToday ? 'bg-knowall-green/10' : ''
+                }`}
+              >
+                <p className="text-xs font-medium uppercase text-dark-400">{format(day, 'EEE')}</p>
+                <p
+                  className={`text-lg font-semibold ${
+                    isToday ? 'text-knowall-green' : 'text-white'
                   }`}
                 >
-                  <p className="text-xs font-medium uppercase text-dark-400">
-                    {format(day, 'EEE')}
-                  </p>
-                  <p
-                    className={`text-lg font-semibold ${
-                      isToday ? 'text-knowall-green' : 'text-white'
-                    }`}
-                  >
-                    {format(day, 'd')}
-                  </p>
-                </div>
+                  {format(day, 'd')}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Entries Grid */}
+        {isLoading ? (
+          <div className="flex h-64 items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-knowall-green"></div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-7">
+            {weekDays.map((day) => {
+              const dateStr = formatDate(day);
+              const dayEntries = getEntriesForDay(dateStr);
+              const isToday = isDayToday(day);
+
+              return (
+                <TimeEntryCell
+                  key={day.toISOString()}
+                  entries={dayEntries}
+                  date={dateStr}
+                  isToday={isToday}
+                  projects={projects}
+                  onAddEntry={handleAddEntry}
+                  onEditEntry={handleEditEntry}
+                />
               );
             })}
           </div>
+        )}
 
-          {/* Entries Grid */}
-          {isLoading ? (
-            <div className="flex h-64 items-center justify-center">
-              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-knowall-green"></div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-7">
-              {weekDays.map((day) => {
-                const dateStr = formatDate(day);
-                const dayEntries = getEntriesForDay(dateStr);
-                const isToday = isDayToday(day);
-
-                return (
-                  <TimeEntryCell
-                    key={day.toISOString()}
-                    entries={dayEntries}
-                    date={dateStr}
-                    isToday={isToday}
-                    projects={projects}
-                    onAddEntry={handleAddEntry}
-                    onEditEntry={handleEditEntry}
-                  />
-                );
-              })}
-            </div>
-          )}
-
-          {/* Empty State */}
-          {!isLoading && entries.length === 0 && (
-            <div className="py-12 text-center">
-              <p className="mb-4 text-dark-300">
-                &quot;This is not a moment, it&apos;s the movement.&quot;
-              </p>
-              <p className="text-sm text-dark-500">- Lin-Manuel Miranda</p>
-            </div>
-          )}
-        </div>
+        {/* Empty State */}
+        {!isLoading && entries.length === 0 && (
+          <div className="py-12 text-center">
+            <p className="mb-4 text-dark-300">
+              &quot;This is not a moment, it&apos;s the movement.&quot;
+            </p>
+            <p className="text-sm text-dark-500">- Lin-Manuel Miranda</p>
+          </div>
+        )}
       </Card>
 
       {/* Time Entry Modal */}
