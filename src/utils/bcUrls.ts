@@ -2,12 +2,13 @@
  * Utility functions for generating Business Central URLs
  */
 
+import { bcClient } from '@/services/bc/bcClient';
+
 const BC_TENANT_ID = process.env.NEXT_PUBLIC_AZURE_TENANT_ID || '';
-const BC_ENVIRONMENT = process.env.NEXT_PUBLIC_BC_ENVIRONMENT || 'Production';
 
 // Business Central page IDs
 const BC_PAGES = {
-  jobList: 88, // Jobs (Projects) list
+  jobList: 89, // Jobs (Projects) list
   customerList: 22, // Customer list
   job: 88, // Single job card
   customer: 21, // Customer card
@@ -15,9 +16,11 @@ const BC_PAGES = {
 
 /**
  * Get the base Business Central URL for the current tenant and environment
+ * Uses the dynamically selected environment from the company switcher
  */
 function getBCBaseUrl(): string {
-  return `https://businesscentral.dynamics.com/${BC_TENANT_ID}/${BC_ENVIRONMENT}`;
+  const environment = bcClient.environment || 'Production';
+  return `https://businesscentral.dynamics.com/${BC_TENANT_ID}/${environment}`;
 }
 
 /**
