@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { DocumentDuplicateIcon } from '@heroicons/react/24/outline';
@@ -12,6 +12,7 @@ import { TimeEntryCell } from './TimeEntryCell';
 import { TimeEntryModal } from './TimeEntryModal';
 import type { TimeEntry } from '@/types';
 import { getWeekDays, formatDate, isDayToday, formatTime } from '@/utils';
+import { getRandomQuote } from '@/config/quotes';
 
 export function WeeklyTimesheet() {
   const { account } = useAuth();
@@ -35,6 +36,9 @@ export function WeeklyTimesheet() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
+
+  // Pick a random quote on mount
+  const quote = useMemo(() => getRandomQuote(), []);
 
   // Fetch data on mount and when week changes
   useEffect(() => {
@@ -176,10 +180,11 @@ export function WeeklyTimesheet() {
         {/* Empty State */}
         {!isLoading && entries.length === 0 && (
           <div className="py-12 text-center">
-            <p className="mb-4 text-dark-300">
-              &quot;This is not a moment, it&apos;s the movement.&quot;
+            <p className="mb-4 text-dark-300">&quot;{quote.text}&quot;</p>
+            <p className="text-sm text-dark-500">
+              — {quote.author}
+              {quote.source && <>, {quote.source}</>}
             </p>
-            <p className="text-sm text-dark-500">- Lin-Manuel Miranda</p>
           </div>
         )}
       </Card>
