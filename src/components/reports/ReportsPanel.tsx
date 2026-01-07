@@ -21,6 +21,8 @@ import {
   subWeeks,
   addMonths,
   subMonths,
+  isSameWeek,
+  isSameMonth,
 } from 'date-fns';
 import { useAuth } from '@/services/auth';
 import { useProjectsStore } from '@/hooks';
@@ -180,6 +182,12 @@ export function ReportsPanel() {
     return format(referenceDate, 'MMMM yyyy');
   };
 
+  // Check if viewing current period
+  const isCurrentPeriod =
+    dateRange === 'week'
+      ? isSameWeek(referenceDate, new Date(), { weekStartsOn: 1 })
+      : isSameMonth(referenceDate, new Date());
+
   return (
     <div className="space-y-6">
       {/* Date Range Selector */}
@@ -200,12 +208,14 @@ export function ReportsPanel() {
             >
               <ChevronRightIcon className="h-5 w-5" />
             </button>
-            <button
-              onClick={handleToday}
-              className="rounded-lg bg-dark-700 px-3 py-2 text-sm text-dark-300 transition-colors hover:bg-dark-600 hover:text-white"
-            >
-              Today
-            </button>
+            {!isCurrentPeriod && (
+              <button
+                onClick={handleToday}
+                className="rounded-lg bg-dark-700 px-3 py-2 text-sm text-dark-300 transition-colors hover:bg-dark-600 hover:text-white"
+              >
+                Today
+              </button>
+            )}
             <CalendarIcon className="ml-2 h-5 w-5 text-dark-400" />
             <span className="text-dark-100">{getDateRangeLabel()}</span>
           </div>
