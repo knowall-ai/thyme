@@ -25,9 +25,17 @@ function getBCBaseUrl(): string {
 
 /**
  * Generate a URL to open a specific page in Business Central
+ * @param pageId - The BC page ID
+ * @param companyName - Optional company name to include in the URL
  */
-export function getBCPageUrl(pageId: number): string {
-  return `${getBCBaseUrl()}/?page=${pageId}`;
+export function getBCPageUrl(pageId: number, companyName?: string): string {
+  const baseUrl = getBCBaseUrl();
+  const params = new URLSearchParams();
+  if (companyName) {
+    params.set('company', companyName);
+  }
+  params.set('page', pageId.toString());
+  return `${baseUrl}/?${params.toString()}`;
 }
 
 /**
@@ -46,10 +54,18 @@ export function getBCCustomersListUrl(): string {
 
 /**
  * Generate a URL to open a specific job in Business Central
+ * @param jobNumber - The job/project number
+ * @param companyName - Optional company name to include in the URL
  */
-export function getBCJobUrl(jobNumber: string): string {
-  // Using the filter parameter to open a specific job
-  return `${getBCBaseUrl()}/?page=${BC_PAGES.job}&filter='No.' IS '${encodeURIComponent(jobNumber)}'`;
+export function getBCJobUrl(jobNumber: string, companyName?: string): string {
+  const baseUrl = getBCBaseUrl();
+  const params = new URLSearchParams();
+  if (companyName) {
+    params.set('company', companyName);
+  }
+  params.set('page', BC_PAGES.job.toString());
+  params.set('filter', `'No.' IS '${jobNumber}'`);
+  return `${baseUrl}/?${params.toString()}`;
 }
 
 /**

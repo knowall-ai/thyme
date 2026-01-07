@@ -11,8 +11,9 @@ import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import { Card, Input, Select } from '@/components/ui';
 import { useProjectsStore } from '@/hooks';
 import type { Project } from '@/types';
-import { cn, getBCJobsListUrl, getBCCustomersListUrl } from '@/utils';
+import { cn, getBCJobsListUrl, getBCCustomersListUrl, getBCJobUrl } from '@/utils';
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
+import { useCompanyStore } from '@/hooks';
 
 type FilterOption = 'all' | 'favorites' | 'active' | 'completed';
 type SortOption = 'name-asc' | 'name-desc' | 'code' | 'recent';
@@ -31,6 +32,8 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
     toggleFavorite,
     fetchProjects,
   } = useProjectsStore();
+
+  const selectedCompany = useCompanyStore((state) => state.selectedCompany);
 
   const [filterBy, setFilterBy] = useState<FilterOption>('all');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
@@ -245,20 +248,35 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
                     <p className="text-sm text-gray-500">{project.tasks.length} tasks</p>
                   </div>
 
-                  {/* Favorite button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFavorite(project.id);
-                    }}
-                    className="rounded p-1 transition-colors hover:bg-gray-100"
-                  >
-                    {project.isFavorite ? (
-                      <StarSolidIcon className="h-5 w-5 text-amber-400" />
-                    ) : (
-                      <StarOutlineIcon className="h-5 w-5 text-gray-400" />
-                    )}
-                  </button>
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-1">
+                    {/* Open in BC button */}
+                    <a
+                      href={getBCJobUrl(project.code, selectedCompany?.name)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-thyme-400"
+                      title="Open in Business Central"
+                    >
+                      <ArrowTopRightOnSquareIcon className="h-5 w-5" />
+                    </a>
+
+                    {/* Favorite button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFavorite(project.id);
+                      }}
+                      className="rounded p-1 transition-colors hover:bg-gray-100"
+                    >
+                      {project.isFavorite ? (
+                        <StarSolidIcon className="h-5 w-5 text-amber-400" />
+                      ) : (
+                        <StarOutlineIcon className="h-5 w-5 text-gray-400" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </Card>
             ))}
