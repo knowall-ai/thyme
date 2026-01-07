@@ -52,8 +52,7 @@ export function LandingPage() {
   const handleLogin = async () => {
     try {
       await login();
-    } catch (error) {
-      console.error('Login failed:', error);
+    } catch {
       toast.error('Failed to sign in. Please try again.');
     }
   };

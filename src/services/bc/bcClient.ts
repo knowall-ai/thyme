@@ -297,7 +297,6 @@ class BusinessCentralClient {
     // 1. Create a custom API page in BC that exposes Job Tasks
     // 2. Use BC's OData v4 endpoint with $expand (if supported)
     // For now, return empty array - tasks must be added via custom BC API
-    console.warn('Job tasks endpoint not available in standard BC API v2.0');
     return [];
   }
 

@@ -24,7 +24,6 @@ export async function getProfilePhoto(): Promise<string | null> {
   try {
     const accessToken = await getGraphAccessToken();
     if (!accessToken) {
-      console.error('Failed to get Graph access token');
       return null;
     }
 
@@ -41,7 +40,6 @@ export async function getProfilePhoto(): Promise<string | null> {
         cacheTimestamp = Date.now();
         return null;
       }
-      console.error('Failed to fetch profile photo:', response.status);
       return null;
     }
 
@@ -53,8 +51,7 @@ export async function getProfilePhoto(): Promise<string | null> {
     cacheTimestamp = Date.now();
 
     return dataUrl;
-  } catch (error) {
-    console.error('Error fetching profile photo:', error);
+  } catch {
     return null;
   }
 }

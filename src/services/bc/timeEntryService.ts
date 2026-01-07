@@ -127,7 +127,6 @@ export const timeEntryService = {
         const task = project?.tasks.find((t) => t.id === entry.taskId);
 
         if (!project || !task) {
-          console.error(`Project or task not found for entry ${entry.id}`);
           failed++;
           continue;
         }
@@ -140,8 +139,7 @@ export const timeEntryService = {
         entry.bcJobJournalLineId = createdLine.id;
         entry.syncStatus = 'synced';
         synced++;
-      } catch (error) {
-        console.error(`Failed to sync entry ${entry.id}:`, error);
+      } catch {
         entry.syncStatus = 'error';
         failed++;
       }
@@ -227,7 +225,6 @@ export const timeEntryService = {
 
       if (!resource) {
         // If no resource found, we can't fetch their entries
-        console.warn(`No resource found for employee ${teammate.displayName}`);
         return [];
       }
 
@@ -260,8 +257,7 @@ export const timeEntryService = {
         bcJobJournalLineId: line.id,
         syncStatus: 'synced' as const,
       }));
-    } catch (error) {
-      console.error('Failed to fetch teammate entries:', error);
+    } catch {
       return [];
     }
   },

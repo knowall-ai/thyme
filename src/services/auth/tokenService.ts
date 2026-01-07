@@ -13,7 +13,6 @@ export async function getAccessToken(
     const account = msalInstance.getActiveAccount();
 
     if (!account) {
-      console.error('No active account found');
       // Use toast ID to prevent duplicate notifications when multiple API calls fail
       toast.error('Session expired. Please sign in again.', { id: 'session-expired' });
       return null;
@@ -26,16 +25,13 @@ export async function getAccessToken(
 
     const response = await msalInstance.acquireTokenSilent(request);
     return response.accessToken;
-  } catch (error) {
-    console.error('Failed to acquire token silently:', error);
-
+  } catch {
     // If silent acquisition fails, redirect to login
     try {
       await msalInstance.acquireTokenRedirect({ scopes });
       // This won't return - browser will redirect
       return null;
-    } catch (redirectError) {
-      console.error('Failed to acquire token via redirect:', redirectError);
+    } catch {
       return null;
     }
   }
