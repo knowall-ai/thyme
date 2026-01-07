@@ -60,7 +60,10 @@ export function TimeEntryCell({
               readOnly
                 ? undefined
                 : (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') onEditEntry(entry);
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onEditEntry(entry);
+                    }
                   }
             }
             className={cn(

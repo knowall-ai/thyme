@@ -198,8 +198,8 @@ export function TeammateSelector() {
                           aria-selected={isSelected}
                         >
                           <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-dark-600 text-xs font-medium text-dark-200">
-                            {teammate.givenName?.[0]}
-                            {teammate.surname?.[0]}
+                            {teammate.givenName?.[0] || teammate.surname?.[0] || teammate.displayName?.[0] || '?'}
+                            {teammate.givenName?.[0] && teammate.surname?.[0] ? teammate.surname[0] : ''}
                           </div>
                           <div className="flex-1 truncate">
                             <div className="text-dark-200">{teammate.displayName}</div>
