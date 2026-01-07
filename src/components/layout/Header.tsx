@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -10,16 +11,31 @@ import {
   ChartBarIcon,
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
+  ClipboardDocumentCheckIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth, useProfilePhoto } from '@/services/auth';
+import { useApprovalStore, useCompanyStore } from '@/hooks';
 import { cn } from '@/utils';
 import { ThymeLogo } from '@/components/icons';
 import { CompanySwitcher } from './CompanySwitcher';
 
-const navigation = [
+interface NavItem {
+  name: string;
+  href: string;
+  icon: typeof ClockIcon;
+  requiresApprover?: boolean;
+}
+
+const navigation: NavItem[] = [
   { name: 'Time', href: '/', icon: ClockIcon },
   { name: 'Projects', href: '/projects', icon: FolderIcon },
   { name: 'Team', href: '/team', icon: UserGroupIcon },
+  {
+    name: 'Approvals',
+    href: '/approvals',
+    icon: ClipboardDocumentCheckIcon,
+    requiresApprover: true,
+  },
   { name: 'Reports', href: '/reports', icon: ChartBarIcon },
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
 ];
@@ -28,6 +44,25 @@ export function Header() {
   const pathname = usePathname();
   const { account, logout, isAuthenticated } = useAuth();
   const { photoUrl } = useProfilePhoto(isAuthenticated);
+  const { selectedCompany } = useCompanyStore();
+  const { isApprover, permissionChecked, checkApprovalPermission } = useApprovalStore();
+
+  // Check approval permissions on mount and when company changes
+  useEffect(() => {
+    if (isAuthenticated) {
+      checkApprovalPermission();
+    }
+  }, [isAuthenticated, selectedCompany, checkApprovalPermission]);
+
+  // Filter navigation items based on permissions
+  const visibleNavigation = useMemo(() => {
+    return navigation.filter((item) => {
+      if (item.requiresApprover) {
+        return permissionChecked && isApprover;
+      }
+      return true;
+    });
+  }, [permissionChecked, isApprover]);
 
   const handleLogout = async () => {
     try {
@@ -61,7 +96,7 @@ export function Header() {
 
             {/* Navigation */}
             <nav className="hidden sm:ml-8 sm:flex sm:space-x-1">
-              {navigation.map((item) => {
+              {visibleNavigation.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.href);
                 return (
@@ -128,7 +163,7 @@ export function Header() {
       {/* Mobile Navigation */}
       <nav className="border-t border-dark-700 sm:hidden">
         <div className="flex justify-around">
-          {navigation.map((item) => {
+          {visibleNavigation.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
             return (

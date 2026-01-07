@@ -9,6 +9,9 @@ import type {
   BCJobTask,
   BCJobJournalLine,
   BCResource,
+  BCTimeSheet,
+  BCTimeSheetLine,
+  TimeSheetStatus,
   PaginatedResponse,
 } from '@/types';
 
@@ -233,6 +236,40 @@ class BusinessCentralClient {
     return response.json();
   }
 
+  /**
+   * Fetch from custom Thyme BC Extension API
+   */
+  private async fetchCustomApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const token = await getBCAccessToken();
+
+    if (!token) {
+      throw new Error('Failed to get Business Central access token');
+    }
+
+    const url = `${this.customApiBaseUrl}${endpoint}`;
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`BC Custom API Error (${response.status}): ${errorText}`);
+    }
+
+    // Handle 204 No Content
+    if (response.status === 204) {
+      return {} as T;
+    }
+
+    return response.json();
+  }
+
   // Projects
   async getProjects(filter?: string): Promise<BCProject[]> {
     let endpoint = '/projects';
@@ -407,6 +444,147 @@ class BusinessCentralClient {
       }>
     >('/companyInformation');
     return response.value[0] || null;
+  }
+
+  // Time Sheets (requires Thyme BC Extension)
+
+  /**
+   * Get time sheets with optional filtering.
+   * Requires thyme-bc-extension with Time Sheet API endpoints.
+   * @see https://github.com/knowall-ai/thyme-bc-extension
+   */
+  async getTimeSheets(filter?: string): Promise<BCTimeSheet[]> {
+    let endpoint = '/timeSheets';
+    if (filter) {
+      endpoint += `?$filter=${encodeURIComponent(filter)}`;
+    }
+    const response = await this.fetchCustomApi<PaginatedResponse<BCTimeSheet>>(endpoint);
+    return response.value;
+  }
+
+  /**
+   * Get time sheets pending approval for the current user.
+   * The API filters by the current user's approver resource.
+   */
+  async getPendingApprovals(): Promise<BCTimeSheet[]> {
+    const filter = "status eq 'Submitted'";
+    return this.getTimeSheets(filter);
+  }
+
+  /**
+   * Get a specific time sheet by ID.
+   */
+  async getTimeSheet(timeSheetId: string): Promise<BCTimeSheet> {
+    return this.fetchCustomApi<BCTimeSheet>(`/timeSheets(${timeSheetId})`);
+  }
+
+  /**
+   * Get time sheet lines for a specific time sheet.
+   */
+  async getTimeSheetLines(timeSheetNumber: string): Promise<BCTimeSheetLine[]> {
+    const filter = `timeSheetNumber eq '${timeSheetNumber}'`;
+    const endpoint = `/timeSheetLines?$filter=${encodeURIComponent(filter)}`;
+    const response = await this.fetchCustomApi<PaginatedResponse<BCTimeSheetLine>>(endpoint);
+    return response.value;
+  }
+
+  /**
+   * Approve a time sheet.
+   * This triggers the BC approval workflow.
+   */
+  async approveTimeSheet(timeSheetId: string, comment?: string): Promise<void> {
+    await this.fetchCustomApi(`/timeSheets(${timeSheetId})/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ comment: comment || '' }),
+    });
+  }
+
+  /**
+   * Reject a time sheet.
+   * This triggers the BC rejection workflow and sends notification to the submitter.
+   */
+  async rejectTimeSheet(timeSheetId: string, comment: string): Promise<void> {
+    await this.fetchCustomApi(`/timeSheets(${timeSheetId})/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ comment }),
+    });
+  }
+
+  /**
+   * Approve specific time sheet lines.
+   */
+  async approveTimeSheetLines(lineIds: string[], comment?: string): Promise<void> {
+    await this.fetchCustomApi('/timeSheetLines/approveMultiple', {
+      method: 'POST',
+      body: JSON.stringify({ lineIds, comment: comment || '' }),
+    });
+  }
+
+  /**
+   * Reject specific time sheet lines.
+   */
+  async rejectTimeSheetLines(lineIds: string[], comment: string): Promise<void> {
+    await this.fetchCustomApi('/timeSheetLines/rejectMultiple', {
+      method: 'POST',
+      body: JSON.stringify({ lineIds, comment }),
+    });
+  }
+
+  /**
+   * Check if the current user has approval permissions.
+   * Returns the resource number if the user is an approver.
+   */
+  async checkApprovalPermission(): Promise<{ isApprover: boolean; resourceNumber?: string }> {
+    try {
+      const response = await this.fetchCustomApi<{ isApprover: boolean; resourceNumber?: string }>(
+        '/approvalPermissions'
+      );
+      return response;
+    } catch {
+      // If endpoint doesn't exist or fails, assume no approval permission
+      return { isApprover: false };
+    }
+  }
+
+  /**
+   * Get approval statistics for the dashboard KPI.
+   */
+  async getApprovalStats(): Promise<{
+    pendingCount: number;
+    pendingHours: number;
+  }> {
+    try {
+      const pendingSheets = await this.getPendingApprovals();
+      const pendingCount = pendingSheets.length;
+      const pendingHours = pendingSheets.reduce((sum, sheet) => sum + sheet.totalQuantity, 0);
+      return { pendingCount, pendingHours };
+    } catch {
+      return { pendingCount: 0, pendingHours: 0 };
+    }
+  }
+
+  /**
+   * Get time sheets filtered by status.
+   */
+  async getTimeSheetsByStatus(status: TimeSheetStatus): Promise<BCTimeSheet[]> {
+    const filter = `status eq '${status}'`;
+    return this.getTimeSheets(filter);
+  }
+
+  /**
+   * Get time sheets for a specific resource (employee).
+   */
+  async getTimeSheetsByResource(resourceNumber: string): Promise<BCTimeSheet[]> {
+    const filter = `resourceNumber eq '${resourceNumber}'`;
+    return this.getTimeSheets(filter);
+  }
+
+  /**
+   * Get time sheets within a date range.
+   */
+  async getTimeSheetsInRange(startDate: string, endDate: string): Promise<BCTimeSheet[]> {
+    const filter = `startingDate ge ${startDate} and endingDate le ${endDate}`;
+    return this.getTimeSheets(filter);
   }
 }
 

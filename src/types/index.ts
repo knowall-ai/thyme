@@ -100,6 +100,76 @@ export interface BCJobJournalLine {
   totalPrice?: number;
 }
 
+// Time Sheet types for approval workflow
+export type TimeSheetStatus = 'Open' | 'Submitted' | 'Rejected' | 'Approved' | 'Posted';
+
+export interface BCTimeSheet {
+  id: string;
+  number: string;
+  resourceNumber: string;
+  resourceName: string;
+  startingDate: string;
+  endingDate: string;
+  status: TimeSheetStatus;
+  totalQuantity: number;
+  submittedBy?: string;
+  submittedDateTime?: string;
+  approverResourceNumber?: string;
+  approverName?: string;
+  lastModifiedDateTime?: string;
+}
+
+export interface BCTimeSheetLine {
+  id: string;
+  timeSheetNumber: string;
+  lineNumber: number;
+  type: 'Resource' | 'Job' | 'Absence' | 'Assembly Order' | 'Service';
+  jobNumber?: string;
+  jobTaskNumber?: string;
+  description: string;
+  status: TimeSheetStatus;
+  totalQuantity: number;
+  approvedQuantity?: number;
+  approverComment?: string;
+  lastModifiedDateTime?: string;
+  // Daily detail entries
+  details?: BCTimeSheetLineDetail[];
+}
+
+export interface BCTimeSheetLineDetail {
+  id: string;
+  timeSheetLineId: string;
+  date: string;
+  quantity: number;
+  posted: boolean;
+}
+
+// Approval workflow types
+export interface PendingApproval {
+  id: string;
+  timeSheet: BCTimeSheet;
+  lines: BCTimeSheetLine[];
+  totalHours: number;
+  submittedDate: string;
+  employeeName: string;
+  employeeEmail?: string;
+}
+
+export interface ApprovalAction {
+  timeSheetId: string;
+  lineIds?: string[]; // If empty, applies to all lines
+  action: 'approve' | 'reject';
+  comment?: string;
+}
+
+export interface ApprovalFilters {
+  employeeId?: string;
+  startDate?: string;
+  endDate?: string;
+  projectId?: string;
+  status?: TimeSheetStatus;
+}
+
 // Application types
 export interface Project {
   id: string;
