@@ -25,5 +25,3 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           pr_number: ${{ inputs.pr_number }}
-          trigger_phrase: ''
-          review_on_open: false
