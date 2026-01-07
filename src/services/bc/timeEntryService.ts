@@ -219,7 +219,7 @@ export const timeEntryService = {
   },
 
   // Get entries for a teammate from Business Central
-  // This fetches posted time entries (job journal lines) for a specific employee
+  // This fetches job journal lines (unposted/pending time entries) for a specific employee
   async getTeammateEntries(weekStart: Date, teammate: BCEmployee): Promise<TimeEntry[]> {
     try {
       // Get resource by employee email to find their resource number
