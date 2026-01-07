@@ -80,6 +80,53 @@ export interface BCJobTask {
   jobTaskType: 'Posting' | 'Heading' | 'Total' | 'Begin-Total' | 'End-Total';
 }
 
+// Extended project data from the Thyme BC Extension API
+// See: https://github.com/knowall-ai/thyme-bc-extension
+export interface BCExtendedProject {
+  id: string;
+  no: string;
+  description: string;
+  billToCustomerNo: string;
+  billToCustomerName: string;
+  personResponsible: string;
+  status: 'Planning' | 'Quote' | 'Open' | 'Completed';
+  startingDate: string;
+  endingDate: string;
+  lastModifiedDateTime: string;
+}
+
+// Extended job task with budget/actual hours from the Thyme BC Extension
+export interface BCExtendedJobTask {
+  id: string;
+  jobNo: string;
+  jobTaskNo: string;
+  description: string;
+  jobTaskType: 'Posting' | 'Heading' | 'Total' | 'Begin-Total' | 'End-Total';
+  budgetTotalCost: number;
+  budgetTotalPrice: number;
+  usageTotalCost: number;
+  usageTotalPrice: number;
+  scheduleTotalCost: number;
+  scheduleTotalPrice: number;
+}
+
+// Time entry from Job Ledger (posted time entries)
+export interface BCTimeEntry {
+  id: string;
+  entryNo: number;
+  jobNo: string;
+  jobTaskNo: string;
+  postingDate: string;
+  documentNo: string;
+  type: 'Resource' | 'Item' | 'G/L Account';
+  no: string;
+  description: string;
+  quantity: number;
+  unitOfMeasureCode: string;
+  totalCost: number;
+  totalPrice: number;
+}
+
 export interface BCJobJournalLine {
   id?: string;
   journalTemplateName: string;
@@ -110,6 +157,27 @@ export interface Project {
   status: 'active' | 'completed' | 'archived';
   isFavorite: boolean;
   tasks: Task[];
+}
+
+// Extended project with additional details (when BC extension is available)
+export interface ExtendedProject extends Project {
+  customerNo?: string;
+  projectManager?: string;
+  startDate?: string;
+  endDate?: string;
+  bcStatus?: 'Planning' | 'Quote' | 'Open' | 'Completed';
+  budgetHours?: number;
+  usageHours?: number;
+  remainingHours?: number;
+  budgetCost?: number;
+  usageCost?: number;
+}
+
+export interface ExtendedTask extends Task {
+  budgetHours?: number;
+  usageHours?: number;
+  budgetCost?: number;
+  usageCost?: number;
 }
 
 export interface Task {

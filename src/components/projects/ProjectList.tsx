@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   MagnifyingGlassIcon,
   StarIcon as StarOutlineIcon,
@@ -24,6 +25,7 @@ interface ProjectListProps {
 }
 
 export function ProjectList({ onSelectProject }: ProjectListProps) {
+  const router = useRouter();
   const {
     isLoading,
     searchQuery,
@@ -34,6 +36,14 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
   } = useProjectsStore();
 
   const selectedCompany = useCompanyStore((state) => state.selectedCompany);
+
+  const handleProjectClick = (project: Project) => {
+    if (onSelectProject) {
+      onSelectProject(project);
+    } else {
+      router.push(`/projects/${project.id}`);
+    }
+  };
 
   const [filterBy, setFilterBy] = useState<FilterOption>('all');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
@@ -216,11 +226,8 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
               <Card
                 key={project.id}
                 variant="bordered"
-                className={cn(
-                  'cursor-pointer p-4 transition-shadow hover:shadow-md',
-                  onSelectProject && 'hover:border-thyme-300'
-                )}
-                onClick={() => onSelectProject?.(project)}
+                className="cursor-pointer p-4 transition-shadow hover:border-thyme-500/50 hover:shadow-md"
+                onClick={() => handleProjectClick(project)}
               >
                 <div className="flex items-start gap-3">
                   {/* Color indicator */}

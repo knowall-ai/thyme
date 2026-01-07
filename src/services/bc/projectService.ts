@@ -1,5 +1,15 @@
 import { bcClient } from './bcClient';
-import type { Project, Task, BCProject, BCJobTask } from '@/types';
+import type {
+  Project,
+  Task,
+  ExtendedProject,
+  ExtendedTask,
+  BCProject,
+  BCJobTask,
+  BCExtendedProject,
+  BCExtendedJobTask,
+  BCTimeEntry,
+} from '@/types';
 
 // Color palette for projects
 const PROJECT_COLORS = [
@@ -44,6 +54,35 @@ function mapBCJobTaskToTask(jobTask: BCJobTask, projectId: string): Task {
     name: jobTask.description,
     isBillable: jobTask.jobTaskType === 'Posting',
   };
+}
+
+function mapBCExtendedJobTaskToExtendedTask(
+  jobTask: BCExtendedJobTask,
+  projectId: string
+): ExtendedTask {
+  return {
+    id: jobTask.id,
+    projectId,
+    code: jobTask.jobTaskNo,
+    name: jobTask.description,
+    isBillable: jobTask.jobTaskType === 'Posting',
+    budgetHours: jobTask.scheduleTotalCost, // Using cost as hours proxy (need to check actual field)
+    usageHours: jobTask.usageTotalCost,
+    budgetCost: jobTask.budgetTotalCost,
+    usageCost: jobTask.usageTotalCost,
+  };
+}
+
+function mapBCStatusToStatus(bcStatus: BCExtendedProject['status']): Project['status'] {
+  switch (bcStatus) {
+    case 'Completed':
+      return 'completed';
+    case 'Planning':
+    case 'Quote':
+    case 'Open':
+    default:
+      return 'active';
+  }
 }
 
 // Local storage key for favorites
@@ -91,6 +130,63 @@ export const projectService = {
     const postingTasks = jobTasks.filter((task) => task.jobTaskType === 'Posting');
 
     return postingTasks.map((task) => mapBCJobTaskToTask(task, projectCode));
+  },
+
+  async getExtendedProject(projectId: string): Promise<ExtendedProject | null> {
+    try {
+      // First get the basic project
+      const bcProject = await bcClient.getProject(projectId);
+      const favorites = getFavorites();
+      const project = mapBCProjectToProject(bcProject, 0, favorites);
+
+      // Try to get extended data from the Thyme BC Extension
+      const extendedData = await bcClient.getExtendedProject(project.code);
+      const extendedTasks = await bcClient.getExtendedJobTasks(project.code);
+      const timeEntries = await bcClient.getTimeEntries(project.code);
+
+      // Map extended tasks
+      const postingTasks = extendedTasks.filter((task) => task.jobTaskType === 'Posting');
+      const tasks: ExtendedTask[] = postingTasks.map((task) =>
+        mapBCExtendedJobTaskToExtendedTask(task, project.code)
+      );
+
+      // Calculate totals from time entries
+      const totalUsageHours = timeEntries.reduce((sum, entry) => sum + entry.quantity, 0);
+      const totalUsageCost = timeEntries.reduce((sum, entry) => sum + entry.totalCost, 0);
+
+      // Calculate budget totals from tasks
+      const totalBudgetCost = extendedTasks.reduce((sum, task) => sum + task.budgetTotalCost, 0);
+
+      const extendedProject: ExtendedProject = {
+        ...project,
+        tasks,
+        customerName: extendedData?.billToCustomerName || project.customerName,
+        customerNo: extendedData?.billToCustomerNo,
+        projectManager: extendedData?.personResponsible,
+        startDate: extendedData?.startingDate,
+        endDate: extendedData?.endingDate,
+        bcStatus: extendedData?.status,
+        status: extendedData ? mapBCStatusToStatus(extendedData.status) : project.status,
+        usageHours: totalUsageHours,
+        usageCost: totalUsageCost,
+        budgetCost: totalBudgetCost,
+        remainingHours: totalBudgetCost > 0 ? totalBudgetCost - totalUsageCost : undefined,
+      };
+
+      return extendedProject;
+    } catch {
+      return null;
+    }
+  },
+
+  async getProjectTimeEntries(projectCode: string): Promise<BCTimeEntry[]> {
+    return bcClient.getTimeEntries(projectCode);
+  },
+
+  async getExtendedProjectTasks(projectCode: string): Promise<ExtendedTask[]> {
+    const extendedTasks = await bcClient.getExtendedJobTasks(projectCode);
+    const postingTasks = extendedTasks.filter((task) => task.jobTaskType === 'Posting');
+    return postingTasks.map((task) => mapBCExtendedJobTaskToExtendedTask(task, projectCode));
   },
 
   async searchProjects(query: string): Promise<Project[]> {

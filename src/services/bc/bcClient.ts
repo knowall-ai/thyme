@@ -9,6 +9,9 @@ import type {
   BCJobTask,
   BCJobJournalLine,
   BCResource,
+  BCExtendedProject,
+  BCExtendedJobTask,
+  BCTimeEntry,
   PaginatedResponse,
 } from '@/types';
 
@@ -329,6 +332,96 @@ class BusinessCentralClient {
 
   async getJobTask(jobTaskId: string): Promise<BCJobTask> {
     return this.fetch<BCJobTask>(`/jobTasks(${jobTaskId})`);
+  }
+
+  // Extended project data - requires Thyme BC Extension
+  async getExtendedProject(projectNo: string): Promise<BCExtendedProject | null> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      return null;
+    }
+
+    try {
+      const token = await getBCAccessToken();
+      if (!token) return null;
+
+      const escapedProjectNo = projectNo.replace(/'/g, "''");
+      const filter = `no eq '${escapedProjectNo}'`;
+      const url = `${this.customApiBaseUrl}/projects?$filter=${encodeURIComponent(filter)}`;
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      return data.value?.[0] || null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Extended job tasks with budget/usage data - requires Thyme BC Extension
+  async getExtendedJobTasks(jobNumber: string): Promise<BCExtendedJobTask[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      return [];
+    }
+
+    try {
+      const token = await getBCAccessToken();
+      if (!token) return [];
+
+      const escapedJobNumber = jobNumber.replace(/'/g, "''");
+      const filter = `jobNo eq '${escapedJobNumber}'`;
+      const url = `${this.customApiBaseUrl}/jobTasks?$filter=${encodeURIComponent(filter)}`;
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) return [];
+
+      const data = await response.json();
+      return data.value || [];
+    } catch {
+      return [];
+    }
+  }
+
+  // Time entries (posted job ledger entries) for a project - requires Thyme BC Extension
+  async getTimeEntries(jobNumber: string): Promise<BCTimeEntry[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      return [];
+    }
+
+    try {
+      const token = await getBCAccessToken();
+      if (!token) return [];
+
+      const escapedJobNumber = jobNumber.replace(/'/g, "''");
+      const filter = `jobNo eq '${escapedJobNumber}'`;
+      const url = `${this.customApiBaseUrl}/timeEntries?$filter=${encodeURIComponent(filter)}`;
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) return [];
+
+      const data = await response.json();
+      return data.value || [];
+    } catch {
+      return [];
+    }
   }
 
   // Resources (Users/Employees)
