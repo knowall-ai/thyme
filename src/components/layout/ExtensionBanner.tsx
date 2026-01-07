@@ -3,12 +3,14 @@
 import { useState, useEffect } from 'react';
 import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { bcClient } from '@/services/bc/bcClient';
+import { useCompanyStore } from '@/hooks';
 
 const BANNER_DISMISSED_KEY = 'thyme_extension_banner_dismissed';
 
 export function ExtensionBanner() {
   const [isVisible, setIsVisible] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
+  const selectedCompany = useCompanyStore((state) => state.selectedCompany);
 
   useEffect(() => {
     async function checkExtension() {
@@ -20,6 +22,8 @@ export function ExtensionBanner() {
       }
 
       try {
+        // Reset extension cache to force re-check
+        bcClient.resetExtensionCache();
         const installed = await bcClient.isExtensionInstalled();
         setIsVisible(!installed);
       } catch {
@@ -31,7 +35,7 @@ export function ExtensionBanner() {
     }
 
     checkExtension();
-  }, []);
+  }, [selectedCompany?.id, selectedCompany?.environment]);
 
   const handleDismiss = () => {
     localStorage.setItem(BANNER_DISMISSED_KEY, 'true');
@@ -50,7 +54,7 @@ export function ExtensionBanner() {
             <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0 text-amber-500" />
             <p className="text-sm text-amber-200">
               <span className="font-medium">Limited functionality:</span> Install the Thyme BC
-              Extension to enable customer filtering and project tasks.
+              Extension to enable customer names, project tasks, and timesheet management.
             </p>
           </div>
           <div className="flex flex-shrink-0 items-center gap-3">

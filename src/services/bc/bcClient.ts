@@ -14,6 +14,7 @@ import type {
 
 const BC_BASE_URL =
   process.env.NEXT_PUBLIC_BC_BASE_URL || 'https://api.businesscentral.dynamics.com/v2.0';
+const BC_TENANT_ID = process.env.NEXT_PUBLIC_AZURE_TENANT_ID || '';
 const BC_DEFAULT_ENVIRONMENT =
   (process.env.NEXT_PUBLIC_BC_ENVIRONMENT as BCEnvironmentType) || 'production';
 const BC_DEFAULT_COMPANY_ID = process.env.NEXT_PUBLIC_BC_COMPANY_ID || '';
@@ -53,17 +54,21 @@ class BusinessCentralClient {
     return { companyId: BC_DEFAULT_COMPANY_ID, environment: BC_DEFAULT_ENVIRONMENT };
   }
 
+  private get tenantPath(): string {
+    return BC_TENANT_ID ? `${BC_TENANT_ID}/` : '';
+  }
+
   private get baseUrl(): string {
     if (!this._companyId) {
       throw new Error(
         'BusinessCentralClient: companyId is not set. Select a company or configure NEXT_PUBLIC_BC_COMPANY_ID.'
       );
     }
-    return `${BC_BASE_URL}/${this._environment}/api/v2.0/companies(${this._companyId})`;
+    return `${BC_BASE_URL}/${this.tenantPath}${this._environment}/api/v2.0/companies(${this._companyId})`;
   }
 
   private get apiBaseUrl(): string {
-    return `${BC_BASE_URL}/${this._environment}/api/v2.0`;
+    return `${BC_BASE_URL}/${this.tenantPath}${this._environment}/api/v2.0`;
   }
 
   private get customApiBaseUrl(): string {
@@ -72,7 +77,7 @@ class BusinessCentralClient {
         'BusinessCentralClient: companyId is not set. Select a company or configure NEXT_PUBLIC_BC_COMPANY_ID.'
       );
     }
-    return `${BC_BASE_URL}/${this._environment}/api/${THYME_API_PUBLISHER}/${THYME_API_GROUP}/${THYME_API_VERSION}/companies(${this._companyId})`;
+    return `${BC_BASE_URL}/${this.tenantPath}${this._environment}/api/${THYME_API_PUBLISHER}/${THYME_API_GROUP}/${THYME_API_VERSION}/companies(${this._companyId})`;
   }
 
   // Company management
@@ -112,7 +117,8 @@ class BusinessCentralClient {
       throw new Error('Failed to get Business Central access token');
     }
 
-    const url = `${BC_BASE_URL}/${environment}/api/v2.0/companies`;
+    const tenantPath = BC_TENANT_ID ? `${BC_TENANT_ID}/` : '';
+    const url = `${BC_BASE_URL}/${tenantPath}${environment}/api/v2.0/companies`;
     const response = await fetch(url, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -289,15 +295,36 @@ class BusinessCentralClient {
     return this.fetch<BCJob>(`/jobs(${jobId})`);
   }
 
-  // Job Tasks - BC API v2.0 doesn't expose job tasks in standard endpoints
-  // This requires a custom API page to be created in BC
-  async getJobTasks(_jobNumber: string): Promise<BCJobTask[]> {
-    // Standard BC API v2.0 doesn't have job tasks endpoint
-    // Options to enable this:
-    // 1. Create a custom API page in BC that exposes Job Tasks
-    // 2. Use BC's OData v4 endpoint with $expand (if supported)
-    // For now, return empty array - tasks must be added via custom BC API
-    return [];
+  // Job Tasks - requires Thyme BC Extension
+  async getJobTasks(jobNumber: string): Promise<BCJobTask[]> {
+    // Check if extension is installed
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      return [];
+    }
+
+    try {
+      const token = await getBCAccessToken();
+      if (!token) return [];
+
+      // Escape single quotes in jobNumber for OData filter syntax
+      const escapedJobNumber = jobNumber.replace(/'/g, "''");
+      const filter = `jobNo eq '${escapedJobNumber}'`;
+      const url = `${this.customApiBaseUrl}/jobTasks?$filter=${encodeURIComponent(filter)}`;
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) return [];
+
+      const data = await response.json();
+      return data.value || [];
+    } catch {
+      return [];
+    }
   }
 
   async getJobTask(jobTaskId: string): Promise<BCJobTask> {
