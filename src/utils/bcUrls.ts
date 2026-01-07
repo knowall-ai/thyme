@@ -19,7 +19,7 @@ const BC_PAGES = {
  * Uses the dynamically selected environment from the company switcher
  */
 function getBCBaseUrl(): string {
-  const environment = bcClient.environment || 'Production';
+  const environment = bcClient.environment || 'production';
   return `https://businesscentral.dynamics.com/${BC_TENANT_ID}/${environment}`;
 }
 
@@ -65,7 +65,9 @@ export function getBCJobUrl(jobNumber: string, companyName?: string): string {
   if (companyName) {
     url += `company=${encodeURIComponent(companyName)}&`;
   }
-  url += `page=${BC_PAGES.job}&filter=${encodeURIComponent(`'No.' IS '${jobNumber}'`)}`;
+  // Escape single quotes in jobNumber for BC filter syntax
+  const escapedJobNumber = jobNumber.replace(/'/g, "''");
+  url += `page=${BC_PAGES.job}&filter=${encodeURIComponent(`'No.' IS '${escapedJobNumber}'`)}`;
   return url;
 }
 

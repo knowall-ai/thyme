@@ -307,7 +307,9 @@ class BusinessCentralClient {
       const token = await getBCAccessToken();
       if (!token) return [];
 
-      const filter = `jobNo eq '${jobNumber}'`;
+      // Escape single quotes in jobNumber for OData filter syntax
+      const escapedJobNumber = jobNumber.replace(/'/g, "''");
+      const filter = `jobNo eq '${escapedJobNumber}'`;
       const url = `${this.customApiBaseUrl}/jobTasks?$filter=${encodeURIComponent(filter)}`;
       const response = await fetch(url, {
         headers: {
