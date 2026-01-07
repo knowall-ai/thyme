@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Thyme is a time tracking application that integrates with Microsoft Dynamics 365 Business Central. Built with Next.js 14, MSAL authentication, and Tailwind CSS.
+Thyme is a time tracking application that integrates with Microsoft Dynamics 365 Business Central. Built with Next.js 15, MSAL authentication, and Tailwind CSS.
 
 ## Key Directories
 
