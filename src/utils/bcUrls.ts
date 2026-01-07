@@ -30,12 +30,13 @@ function getBCBaseUrl(): string {
  */
 export function getBCPageUrl(pageId: number, companyName?: string): string {
   const baseUrl = getBCBaseUrl();
-  const params = new URLSearchParams();
+  // Build URL manually to use %20 for spaces (BC doesn't accept + encoding)
+  let url = `${baseUrl}/?`;
   if (companyName) {
-    params.set('company', companyName);
+    url += `company=${encodeURIComponent(companyName)}&`;
   }
-  params.set('page', pageId.toString());
-  return `${baseUrl}/?${params.toString()}`;
+  url += `page=${pageId}`;
+  return url;
 }
 
 /**
@@ -59,13 +60,13 @@ export function getBCCustomersListUrl(): string {
  */
 export function getBCJobUrl(jobNumber: string, companyName?: string): string {
   const baseUrl = getBCBaseUrl();
-  const params = new URLSearchParams();
+  // Build URL manually to use %20 for spaces (BC doesn't accept + encoding)
+  let url = `${baseUrl}/?`;
   if (companyName) {
-    params.set('company', companyName);
+    url += `company=${encodeURIComponent(companyName)}&`;
   }
-  params.set('page', BC_PAGES.job.toString());
-  params.set('filter', `'No.' IS '${jobNumber}'`);
-  return `${baseUrl}/?${params.toString()}`;
+  url += `page=${BC_PAGES.job}&filter=${encodeURIComponent(`'No.' IS '${jobNumber}'`)}`;
+  return url;
 }
 
 /**
