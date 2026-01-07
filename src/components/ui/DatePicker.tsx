@@ -114,22 +114,35 @@ export function DatePicker({ selectedDate, onDateSelect, className }: DatePicker
         >
           {/* Month/Year Header */}
           <div className="mb-3 flex items-center justify-between">
-            <Button variant="ghost" size="icon" onClick={handlePrevMonth} className="h-8 w-8">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handlePrevMonth}
+              className="h-8 w-8"
+              aria-label="Previous month"
+            >
               <ChevronLeftIcon className="h-4 w-4" />
             </Button>
             <span className="text-sm font-semibold text-white">
               {format(viewDate, 'MMMM yyyy')}
             </span>
-            <Button variant="ghost" size="icon" onClick={handleNextMonth} className="h-8 w-8">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleNextMonth}
+              className="h-8 w-8"
+              aria-label="Next month"
+            >
               <ChevronRightIcon className="h-4 w-4" />
             </Button>
           </div>
 
           {/* Day of Week Headers */}
-          <div className="mb-1 grid grid-cols-7 gap-1">
+          <div className="mb-1 grid grid-cols-7 gap-1" role="row">
             {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((day) => (
               <div
                 key={day}
+                role="columnheader"
                 className="py-1 text-center text-xs font-medium uppercase text-dark-400"
               >
                 {day}
@@ -148,6 +161,8 @@ export function DatePicker({ selectedDate, onDateSelect, className }: DatePicker
                 <button
                   key={day.toISOString()}
                   onClick={() => handleDateClick(day)}
+                  aria-label={format(day, 'EEEE, MMMM d, yyyy')}
+                  aria-selected={isSelected || undefined}
                   className={cn(
                     'h-8 w-8 rounded text-sm transition-colors',
                     'hover:bg-dark-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-knowall-green focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900',
