@@ -54,7 +54,7 @@ export function TeamsBotBanner() {
           href="https://knowall.ai/"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-shrink-0 self-start rounded-lg bg-white px-4 py-2 text-sm font-medium text-[#5B5FC7] transition-colors hover:bg-white/90 sm:self-center"
+          className="mr-6 flex-shrink-0 self-start rounded-lg bg-white px-4 py-2 text-sm font-medium text-[#5B5FC7] transition-colors hover:bg-white/90 sm:self-center"
         >
           Learn More
         </a>
