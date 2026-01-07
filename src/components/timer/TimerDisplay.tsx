@@ -41,34 +41,36 @@ export function TimerDisplay({ onStartTimer }: TimerDisplayProps) {
   }
 
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-dark-700 bg-dark-800 p-4 shadow-lg">
+    <div className="flex flex-col gap-3 rounded-xl border border-dark-700 bg-dark-800 p-4 shadow-lg sm:flex-row sm:items-center sm:gap-4">
       {/* Timer Info */}
-      <div className="flex-1">
+      <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-center gap-2">
           {currentProject && (
             <div
-              className="h-3 w-3 rounded-full"
+              className="h-3 w-3 shrink-0 rounded-full"
               style={{ backgroundColor: currentProject.color }}
             />
           )}
-          <span className="font-medium text-white">
+          <span className="truncate font-medium text-white">
             {currentProject?.name || 'Unknown Project'}
           </span>
         </div>
-        <p className="text-sm text-dark-400">{currentTask?.name || 'Unknown Task'}</p>
+        <p className="truncate text-sm text-dark-400">{currentTask?.name || 'Unknown Task'}</p>
         {timer.notes && <p className="truncate text-sm text-dark-500">{timer.notes}</p>}
       </div>
 
-      {/* Timer Display */}
-      <div className="font-mono text-2xl font-bold tabular-nums text-knowall-green">
-        {formatDuration(timer.elapsedSeconds)}
-      </div>
+      {/* Timer Display and Stop Button */}
+      <div className="flex items-center justify-between gap-4 sm:justify-end">
+        <div className="font-mono text-2xl font-bold tabular-nums text-knowall-green">
+          {formatDuration(timer.elapsedSeconds)}
+        </div>
 
-      {/* Stop Button */}
-      <Button onClick={handleStop} variant="danger" size="icon" className="rounded-full">
-        <StopIcon className="h-5 w-5" />
-        <span className="sr-only">Stop timer</span>
-      </Button>
+        {/* Stop Button */}
+        <Button onClick={handleStop} variant="danger" size="icon" className="rounded-full">
+          <StopIcon className="h-5 w-5" />
+          <span className="sr-only">Stop timer</span>
+        </Button>
+      </div>
     </div>
   );
 }

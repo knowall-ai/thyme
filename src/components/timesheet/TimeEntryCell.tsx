@@ -39,7 +39,7 @@ export function TimeEntryCell({
   return (
     <div
       className={cn(
-        'min-h-[120px] border-r border-dark-700 p-2 transition-colors',
+        'min-h-[100px] border-r border-dark-700 p-2 transition-colors last:border-r-0 sm:min-h-[120px]',
         isToday ? 'bg-knowall-green/5' : 'bg-dark-800',
         isHovered && 'bg-dark-700/50'
       )}

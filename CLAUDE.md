@@ -26,6 +26,16 @@ npm run typecheck    # TypeScript type checking
 npm run check        # Run all checks (format, lint, typecheck, build)
 ```
 
+## Branch Switching
+
+**Important**: After switching git branches, you must restart the dev server:
+
+```bash
+rm -rf .next && npm run dev
+```
+
+The Next.js dev server caches compiled code in `.next/`. When switching branches, many files change simultaneously and the webpack cache becomes stale, causing module loading errors (e.g., "Initializing..." stuck, chunk load failures). A fresh restart rebuilds from scratch.
+
 ## Code Quality
 
 **Before committing changes**, run all checks:
