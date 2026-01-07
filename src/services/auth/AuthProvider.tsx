@@ -50,7 +50,6 @@ export function useAuth() {
     try {
       await instance.loginRedirect(loginRequest);
     } catch (error) {
-      console.error('Login failed:', error);
       toast.error('Login failed. Please try again.');
       throw error;
     }
@@ -63,7 +62,6 @@ export function useAuth() {
         postLogoutRedirectUri: '/',
       });
     } catch (error) {
-      console.error('Logout failed:', error);
       throw error;
     }
   };

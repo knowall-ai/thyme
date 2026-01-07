@@ -54,8 +54,7 @@ export function TeamList() {
         const employees = await bcClient.getEmployees("status eq 'Active'");
         const teamMembers = employees.map(mapEmployeeToMember);
         setMembers(teamMembers);
-      } catch (err) {
-        console.error('Failed to fetch employees:', err);
+      } catch {
         setError('Failed to load team members');
         toast.error('Failed to load team members. Please try again.');
       } finally {

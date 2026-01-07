@@ -88,8 +88,7 @@ export function WeeklyTimesheet() {
       try {
         await copyPreviousWeek(userId);
         toast.success('Previous week entries copied');
-      } catch (error) {
-        console.error('Failed to copy previous week:', error);
+      } catch {
         toast.error('Failed to copy previous week entries. Please try again.');
       }
     }

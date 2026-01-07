@@ -32,8 +32,7 @@ export function Header() {
   const handleLogout = async () => {
     try {
       await logout();
-    } catch (error) {
-      console.error('Logout failed:', error);
+    } catch {
       toast.error('Failed to sign out. Please try again.');
     }
   };

@@ -45,8 +45,7 @@ export function SettingsPanel() {
       try {
         const response = await bcClient.getCompanyInfo();
         setCompanyInfo(response);
-      } catch (err) {
-        console.error('Failed to fetch company info:', err);
+      } catch {
         setError('Failed to load company information');
         toast.error('Failed to load company information. Please try refreshing the page.');
       } finally {
