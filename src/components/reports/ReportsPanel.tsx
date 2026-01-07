@@ -7,6 +7,8 @@ import {
   CalendarIcon,
   ClockIcon,
   DocumentArrowDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 import {
   format,
@@ -15,6 +17,10 @@ import {
   startOfMonth,
   endOfMonth,
   eachDayOfInterval,
+  addWeeks,
+  subWeeks,
+  addMonths,
+  subMonths,
 } from 'date-fns';
 import { useAuth } from '@/services/auth';
 import { useProjectsStore } from '@/hooks';
@@ -40,10 +46,10 @@ interface DayBreakdown {
 
 export function ReportsPanel() {
   const [dateRange, setDateRange] = useState<DateRange>('week');
+  const [referenceDate, setReferenceDate] = useState(new Date());
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const today = new Date();
 
   const { account } = useAuth();
   const userId = account?.localAccountId || '';
@@ -51,19 +57,39 @@ export function ReportsPanel() {
 
   // Calculate date range boundaries
   const { startDate, endDate } = useMemo(() => {
-    const now = new Date();
     if (dateRange === 'week') {
       return {
-        startDate: startOfWeek(now, { weekStartsOn: 1 }),
-        endDate: endOfWeek(now, { weekStartsOn: 1 }),
+        startDate: startOfWeek(referenceDate, { weekStartsOn: 1 }),
+        endDate: endOfWeek(referenceDate, { weekStartsOn: 1 }),
       };
     } else {
       return {
-        startDate: startOfMonth(now),
-        endDate: endOfMonth(now),
+        startDate: startOfMonth(referenceDate),
+        endDate: endOfMonth(referenceDate),
       };
     }
-  }, [dateRange]);
+  }, [dateRange, referenceDate]);
+
+  // Navigation handlers
+  const handlePrevious = () => {
+    if (dateRange === 'week') {
+      setReferenceDate((prev) => subWeeks(prev, 1));
+    } else {
+      setReferenceDate((prev) => subMonths(prev, 1));
+    }
+  };
+
+  const handleNext = () => {
+    if (dateRange === 'week') {
+      setReferenceDate((prev) => addWeeks(prev, 1));
+    } else {
+      setReferenceDate((prev) => addMonths(prev, 1));
+    }
+  };
+
+  const handleToday = () => {
+    setReferenceDate(new Date());
+  };
 
   // Fetch entries when date range or user changes
   useEffect(() => {
@@ -149,9 +175,9 @@ export function ReportsPanel() {
 
   const getDateRangeLabel = () => {
     if (dateRange === 'week') {
-      return `${format(startOfWeek(today, { weekStartsOn: 1 }), 'MMM d')} - ${format(endOfWeek(today, { weekStartsOn: 1 }), 'MMM d, yyyy')}`;
+      return `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d, yyyy')}`;
     }
-    return format(today, 'MMMM yyyy');
+    return format(referenceDate, 'MMMM yyyy');
   };
 
   return (
@@ -160,7 +186,27 @@ export function ReportsPanel() {
       <Card variant="bordered" className="p-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <CalendarIcon className="h-5 w-5 text-dark-400" />
+            <button
+              onClick={handlePrevious}
+              className="rounded-lg bg-dark-700 p-2 text-dark-300 transition-colors hover:bg-dark-600 hover:text-white"
+              aria-label="Previous period"
+            >
+              <ChevronLeftIcon className="h-5 w-5" />
+            </button>
+            <button
+              onClick={handleNext}
+              className="rounded-lg bg-dark-700 p-2 text-dark-300 transition-colors hover:bg-dark-600 hover:text-white"
+              aria-label="Next period"
+            >
+              <ChevronRightIcon className="h-5 w-5" />
+            </button>
+            <button
+              onClick={handleToday}
+              className="rounded-lg bg-dark-700 px-3 py-2 text-sm text-dark-300 transition-colors hover:bg-dark-600 hover:text-white"
+            >
+              Today
+            </button>
+            <CalendarIcon className="ml-2 h-5 w-5 text-dark-400" />
             <span className="text-dark-100">{getDateRangeLabel()}</span>
           </div>
           <div className="flex gap-2">
