@@ -24,6 +24,7 @@ export function WeeklyTimesheet() {
     fetchWeekEntries,
     navigateToWeek,
     goToCurrentWeek,
+    goToDate,
     copyPreviousWeek,
     getEntriesForDay,
     getTotalHours,
@@ -96,6 +97,7 @@ export function WeeklyTimesheet() {
           onPrevious={() => navigateToWeek('prev')}
           onNext={() => navigateToWeek('next')}
           onToday={goToCurrentWeek}
+          onDateSelect={goToDate}
         />
 
         <div className="flex items-center gap-3">

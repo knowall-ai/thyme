@@ -19,6 +19,7 @@ interface TimeEntriesStore {
   copyPreviousWeek: (userId: string) => Promise<void>;
   navigateToWeek: (direction: 'prev' | 'next') => void;
   goToCurrentWeek: () => void;
+  goToDate: (date: Date) => void;
   getWeekData: () => WeekData;
   getEntriesForDay: (date: string) => TimeEntry[];
   getTotalHours: () => number;
@@ -123,6 +124,10 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
 
   goToCurrentWeek: () => {
     set({ currentWeekStart: getWeekStart(new Date()) });
+  },
+
+  goToDate: (date: Date) => {
+    set({ currentWeekStart: getWeekStart(date) });
   },
 
   getWeekData: () => {

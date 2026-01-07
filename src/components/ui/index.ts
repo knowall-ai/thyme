@@ -14,3 +14,6 @@ export { Card, CardHeader, CardContent, CardFooter } from './Card';
 export type { CardProps } from './Card';
 
 export { TeamsBotBanner } from './TeamsBotBanner';
+
+export { DatePicker } from './DatePicker';
+export type { DatePickerProps } from './DatePicker';

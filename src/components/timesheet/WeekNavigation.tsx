@@ -1,7 +1,7 @@
 'use client';
 
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import { Button } from '@/components/ui';
+import { Button, DatePicker } from '@/components/ui';
 import { formatWeekRange, getWeekStart, isSameDayAs } from '@/utils';
 
 interface WeekNavigationProps {
@@ -9,6 +9,7 @@ interface WeekNavigationProps {
   onPrevious: () => void;
   onNext: () => void;
   onToday: () => void;
+  onDateSelect: (date: Date) => void;
 }
 
 export function WeekNavigation({
@@ -16,6 +17,7 @@ export function WeekNavigation({
   onPrevious,
   onNext,
   onToday,
+  onDateSelect,
 }: WeekNavigationProps) {
   const isCurrentWeek = isSameDayAs(currentWeekStart, getWeekStart(new Date()));
 
@@ -31,6 +33,8 @@ export function WeekNavigation({
           <span className="sr-only">Next week</span>
         </Button>
       </div>
+
+      <DatePicker selectedDate={currentWeekStart} onDateSelect={onDateSelect} />
 
       <h2 className="text-lg font-semibold text-white">{formatWeekRange(currentWeekStart)}</h2>
 
