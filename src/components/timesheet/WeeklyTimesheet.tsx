@@ -3,20 +3,37 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import { DocumentDuplicateIcon, EyeIcon } from '@heroicons/react/24/outline';
+import {
+  DocumentDuplicateIcon,
+  EyeIcon,
+  PaperAirplaneIcon,
+  ArrowPathIcon,
+  ExclamationTriangleIcon,
+} from '@heroicons/react/24/outline';
 import { useTimeEntriesStore, useProjectsStore, useTeammateStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
 import { Button, Card } from '@/components/ui';
 import { WeekNavigation } from './WeekNavigation';
 import { TimeEntryCell } from './TimeEntryCell';
 import { TimeEntryModal } from './TimeEntryModal';
-import type { TimeEntry } from '@/types';
+import type { TimeEntry, TimesheetDisplayStatus } from '@/types';
 import { getWeekDays, formatDate, isDayToday, formatTime } from '@/utils';
 import { getRandomQuote } from '@/config/quotes';
+
+// Status badge colors
+const statusColors: Record<TimesheetDisplayStatus, string> = {
+  Open: 'bg-blue-500/20 text-blue-400',
+  'Partially Submitted': 'bg-yellow-500/20 text-yellow-400',
+  Submitted: 'bg-purple-500/20 text-purple-400',
+  Rejected: 'bg-red-500/20 text-red-400',
+  Approved: 'bg-green-500/20 text-green-400',
+  Mixed: 'bg-orange-500/20 text-orange-400',
+};
 
 export function WeeklyTimesheet() {
   const { account } = useAuth();
   const userId = account?.localAccountId || '';
+  const userEmail = account?.username || '';
   const { selectedTeammate } = useTeammateStore();
   const isViewingTeammate = selectedTeammate !== null;
 
@@ -24,6 +41,9 @@ export function WeeklyTimesheet() {
     entries,
     currentWeekStart,
     isLoading,
+    currentTimesheet,
+    timesheetStatus,
+    noTimesheetExists,
     fetchWeekEntries,
     fetchTeammateEntries,
     navigateToWeek,
@@ -32,6 +52,9 @@ export function WeeklyTimesheet() {
     copyPreviousWeek,
     getEntriesForDay,
     getTotalHours,
+    submitTimesheet,
+    reopenTimesheet,
+    isTimesheetEditable,
   } = useTimeEntriesStore();
 
   const { projects, error: projectsError, fetchProjects } = useProjectsStore();
@@ -39,18 +62,22 @@ export function WeeklyTimesheet() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Pick a random quote on mount
   const quote = useMemo(() => getRandomQuote(), []);
+
+  // Determine if editing is allowed
+  const canEdit = !isViewingTeammate && isTimesheetEditable();
 
   // Fetch data on mount and when week or teammate changes
   useEffect(() => {
     if (selectedTeammate) {
       fetchTeammateEntries(selectedTeammate, currentWeekStart);
-    } else if (userId) {
-      fetchWeekEntries(userId, currentWeekStart);
+    } else if (userEmail) {
+      fetchWeekEntries(userEmail, currentWeekStart);
     }
-  }, [userId, currentWeekStart, fetchWeekEntries, fetchTeammateEntries, selectedTeammate]);
+  }, [userEmail, currentWeekStart, fetchWeekEntries, fetchTeammateEntries, selectedTeammate]);
 
   useEffect(() => {
     fetchProjects();
@@ -66,12 +93,20 @@ export function WeeklyTimesheet() {
   const weekDays = getWeekDays(currentWeekStart);
 
   const handleAddEntry = (date: string) => {
+    if (!canEdit) {
+      toast.error('Timesheet is not editable. Please reopen it first.');
+      return;
+    }
     setSelectedDate(date);
     setSelectedEntry(null);
     setIsModalOpen(true);
   };
 
   const handleEditEntry = (entry: TimeEntry) => {
+    if (!canEdit) {
+      toast.error('Timesheet is not editable. Please reopen it first.');
+      return;
+    }
     setSelectedDate(entry.date);
     setSelectedEntry(entry);
     setIsModalOpen(true);
@@ -84,17 +119,81 @@ export function WeeklyTimesheet() {
   };
 
   const handleCopyPreviousWeek = async () => {
-    if (userId) {
+    if (!canEdit) {
+      toast.error('Timesheet is not editable. Please reopen it first.');
+      return;
+    }
+    if (userEmail) {
       try {
-        await copyPreviousWeek(userId);
-        toast.success('Previous week entries copied');
+        await copyPreviousWeek(userEmail);
       } catch {
-        toast.error('Failed to copy previous week entries. Please try again.');
+        // Error already shown by service
       }
     }
   };
 
+  const handleSubmitTimesheet = async () => {
+    if (!currentTimesheet) return;
+    setIsSubmitting(true);
+    try {
+      await submitTimesheet();
+    } catch {
+      // Error already shown by service
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReopenTimesheet = async () => {
+    if (!currentTimesheet) return;
+    setIsSubmitting(true);
+    try {
+      await reopenTimesheet();
+    } catch {
+      // Error already shown by service
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const totalHours = getTotalHours();
+
+  // No timesheet exists state
+  if (noTimesheetExists && !isViewingTeammate) {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <WeekNavigation
+            currentWeekStart={currentWeekStart}
+            onPrevious={() => navigateToWeek('prev')}
+            onNext={() => navigateToWeek('next')}
+            onToday={goToCurrentWeek}
+            onDateSelect={goToDate}
+          />
+        </div>
+
+        {/* No Timesheet Message */}
+        <Card variant="bordered" className="p-8">
+          <div className="flex flex-col items-center justify-center text-center">
+            <ExclamationTriangleIcon className="mb-4 h-12 w-12 text-yellow-500" />
+            <h3 className="mb-2 text-lg font-semibold text-white">No Timesheet Available</h3>
+            <p className="mb-4 max-w-md text-dark-300">
+              There is no timesheet created for this week. Please contact your manager or timesheet
+              administrator to create one for you.
+            </p>
+            <p className="text-sm text-dark-500">
+              Week: {format(currentWeekStart, 'MMM d')} -{' '}
+              {format(
+                new Date(currentWeekStart.getTime() + 6 * 24 * 60 * 60 * 1000),
+                'MMM d, yyyy'
+              )}
+            </p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -133,7 +232,7 @@ export function WeeklyTimesheet() {
               variant="outline"
               size="sm"
               onClick={handleCopyPreviousWeek}
-              disabled={isLoading}
+              disabled={isLoading || !canEdit}
             >
               <DocumentDuplicateIcon className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Copy previous week</span>
@@ -141,6 +240,55 @@ export function WeeklyTimesheet() {
           </div>
         )}
       </div>
+
+      {/* Timesheet Status Bar */}
+      {currentTimesheet && timesheetStatus && !isViewingTeammate && (
+        <div className="flex items-center justify-between rounded-lg border border-dark-700 bg-dark-850 px-4 py-3">
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-dark-400">
+              Timesheet: <span className="font-medium text-white">{currentTimesheet.number}</span>
+            </div>
+            <span
+              className={`rounded px-2 py-1 text-xs font-medium ${statusColors[timesheetStatus]}`}
+            >
+              {timesheetStatus}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {(timesheetStatus === 'Open' || timesheetStatus === 'Partially Submitted') && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleSubmitTimesheet}
+                disabled={isSubmitting || entries.length === 0}
+              >
+                <PaperAirplaneIcon className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Submit for Approval</span>
+                <span className="sm:hidden">Submit</span>
+              </Button>
+            )}
+            {timesheetStatus === 'Rejected' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReopenTimesheet}
+                disabled={isSubmitting}
+              >
+                <ArrowPathIcon className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Reopen for Editing</span>
+                <span className="sm:hidden">Reopen</span>
+              </Button>
+            )}
+            {timesheetStatus === 'Submitted' && (
+              <span className="text-sm text-dark-400">Awaiting approval</span>
+            )}
+            {timesheetStatus === 'Approved' && (
+              <span className="text-sm text-green-400">Timesheet approved</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Week Summary */}
       <div className="flex items-center gap-6">
@@ -151,6 +299,11 @@ export function WeeklyTimesheet() {
           <div className="text-sm text-dark-400">
             {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
           </div>
+        )}
+        {!canEdit && currentTimesheet && !isViewingTeammate && (
+          <span className="rounded bg-yellow-500/20 px-2 py-1 text-xs text-yellow-400">
+            Read-only
+          </span>
         )}
       </div>
 
@@ -201,7 +354,7 @@ export function WeeklyTimesheet() {
                   projects={projects}
                   onAddEntry={handleAddEntry}
                   onEditEntry={handleEditEntry}
-                  readOnly={isViewingTeammate}
+                  readOnly={!canEdit}
                 />
               );
             })}
@@ -209,7 +362,7 @@ export function WeeklyTimesheet() {
         )}
 
         {/* Empty State */}
-        {!isLoading && entries.length === 0 && (
+        {!isLoading && entries.length === 0 && !noTimesheetExists && (
           <div className="py-12 text-center">
             {isViewingTeammate ? (
               <>
@@ -217,7 +370,7 @@ export function WeeklyTimesheet() {
                   No time entries found for {selectedTeammate.displayName} this week.
                 </p>
                 <p className="text-sm text-dark-500">
-                  Time entries will appear here once synced to Business Central.
+                  Time entries will appear here once added to their timesheet.
                 </p>
               </>
             ) : (

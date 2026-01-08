@@ -9,6 +9,8 @@ import type {
   BCJobTask,
   BCJobJournalLine,
   BCResource,
+  BCTimeSheet,
+  BCTimeSheetLine,
   PaginatedResponse,
 } from '@/types';
 
@@ -405,6 +407,243 @@ class BusinessCentralClient {
         method: 'POST',
       }
     );
+  }
+
+  // ============================================
+  // Timesheet API (requires Thyme BC Extension)
+  // ============================================
+
+  private async customApiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const token = await getBCAccessToken();
+
+    if (!token) {
+      throw new Error('Failed to get Business Central access token');
+    }
+
+    const url = `${this.customApiBaseUrl}${endpoint}`;
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`BC API Error (${response.status}): ${errorText}`);
+    }
+
+    // Handle 204 No Content
+    if (response.status === 204) {
+      return {} as T;
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get timesheets, optionally filtered by resource number and/or date.
+   * @param resourceNo - Filter by resource number (employee)
+   * @param startingDate - Filter by week starting date (YYYY-MM-DD)
+   */
+  async getTimeSheets(resourceNo?: string, startingDate?: string): Promise<BCTimeSheet[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error(
+        'Thyme BC Extension is not installed. Timesheet functionality requires the extension.'
+      );
+    }
+
+    const filters: string[] = [];
+    if (resourceNo) {
+      const escaped = resourceNo.replace(/'/g, "''");
+      filters.push(`resourceNo eq '${escaped}'`);
+    }
+    if (startingDate) {
+      filters.push(`startingDate eq ${startingDate}`);
+    }
+
+    let endpoint = '/timeSheets';
+    if (filters.length > 0) {
+      endpoint += `?$filter=${encodeURIComponent(filters.join(' and '))}`;
+    }
+
+    const response = await this.customApiFetch<PaginatedResponse<BCTimeSheet>>(endpoint);
+    return response.value;
+  }
+
+  /**
+   * Get a specific timesheet by ID.
+   */
+  async getTimeSheet(timeSheetId: string): Promise<BCTimeSheet> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    return this.customApiFetch<BCTimeSheet>(`/timeSheets(${timeSheetId})`);
+  }
+
+  /**
+   * Get lines for a specific timesheet.
+   */
+  async getTimeSheetLines(timeSheetNo: string): Promise<BCTimeSheetLine[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    const escaped = timeSheetNo.replace(/'/g, "''");
+    const endpoint = `/timeSheetLines?$filter=${encodeURIComponent(`timeSheetNo eq '${escaped}'`)}`;
+    const response = await this.customApiFetch<PaginatedResponse<BCTimeSheetLine>>(endpoint);
+    return response.value;
+  }
+
+  /**
+   * Create a new timesheet line (time entry).
+   */
+  async createTimeSheetLine(
+    line: Omit<BCTimeSheetLine, 'id' | 'lineNo' | 'totalQuantity' | 'status' | '@odata.etag'>
+  ): Promise<BCTimeSheetLine> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    return this.customApiFetch<BCTimeSheetLine>('/timeSheetLines', {
+      method: 'POST',
+      body: JSON.stringify(line),
+    });
+  }
+
+  /**
+   * Update an existing timesheet line.
+   */
+  async updateTimeSheetLine(
+    lineId: string,
+    updates: Partial<BCTimeSheetLine>,
+    etag: string
+  ): Promise<BCTimeSheetLine> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    return this.customApiFetch<BCTimeSheetLine>(`/timeSheetLines(${lineId})`, {
+      method: 'PATCH',
+      headers: {
+        'If-Match': etag,
+      },
+      body: JSON.stringify(updates),
+    });
+  }
+
+  /**
+   * Delete a timesheet line.
+   */
+  async deleteTimeSheetLine(lineId: string, etag: string): Promise<void> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    await this.customApiFetch(`/timeSheetLines(${lineId})`, {
+      method: 'DELETE',
+      headers: {
+        'If-Match': etag,
+      },
+    });
+  }
+
+  /**
+   * Submit a timesheet for approval.
+   */
+  async submitTimeSheet(timeSheetId: string): Promise<void> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    await this.customApiFetch(`/timeSheets(${timeSheetId})/Microsoft.NAV.submit`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * Reopen a timesheet (e.g., after rejection to make edits).
+   */
+  async reopenTimeSheet(timeSheetId: string): Promise<void> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    await this.customApiFetch(`/timeSheets(${timeSheetId})/Microsoft.NAV.reopen`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * Approve a timesheet (manager action).
+   */
+  async approveTimeSheet(timeSheetId: string): Promise<void> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    await this.customApiFetch(`/timeSheets(${timeSheetId})/Microsoft.NAV.approve`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * Reject a timesheet (manager action).
+   */
+  async rejectTimeSheet(timeSheetId: string): Promise<void> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    await this.customApiFetch(`/timeSheets(${timeSheetId})/Microsoft.NAV.reject`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * Derive a display-friendly status from timesheet FlowFields.
+   */
+  getTimesheetDisplayStatus(
+    timesheet: BCTimeSheet
+  ): 'Open' | 'Partially Submitted' | 'Submitted' | 'Rejected' | 'Approved' | 'Mixed' {
+    const { openExists, submittedExists, rejectedExists, approvedExists } = timesheet;
+
+    // All approved, nothing else
+    if (approvedExists && !openExists && !submittedExists && !rejectedExists) {
+      return 'Approved';
+    }
+    // Any rejected
+    if (rejectedExists) {
+      return 'Rejected';
+    }
+    // All submitted, nothing open
+    if (submittedExists && !openExists) {
+      return 'Submitted';
+    }
+    // Some submitted, some open
+    if (submittedExists && openExists) {
+      return 'Partially Submitted';
+    }
+    // Mix of approved and other states
+    if (approvedExists && (openExists || submittedExists)) {
+      return 'Mixed';
+    }
+    // Default to Open
+    return 'Open';
   }
 
   // Company Information

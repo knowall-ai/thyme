@@ -1,3 +1,3 @@
 export { bcClient } from './bcClient';
 export { projectService } from './projectService';
-export { timeEntryService } from './timeEntryService';
+export { timeEntryService, NoTimesheetError, TimesheetNotEditableError } from './timeEntryService';

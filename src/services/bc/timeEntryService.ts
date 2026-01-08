@@ -1,211 +1,541 @@
 import toast from 'react-hot-toast';
 import { bcClient } from './bcClient';
-import type { TimeEntry, BCJobJournalLine, Project, BCEmployee } from '@/types';
-import { format, parseISO } from 'date-fns';
+import type { TimeEntry, BCTimeSheet, BCTimeSheetLine, BCEmployee } from '@/types';
+import { format, parseISO, getDay, startOfWeek, addDays } from 'date-fns';
 
-// Local storage key for time entries (cached/pending sync)
-const TIME_ENTRIES_KEY = 'thyme_time_entries';
-const JOURNAL_TEMPLATE = 'JOB';
-const JOURNAL_BATCH = 'DEFAULT';
-
-function getLocalEntries(): TimeEntry[] {
-  if (typeof window === 'undefined') return [];
-  const stored = localStorage.getItem(TIME_ENTRIES_KEY);
-  return stored ? JSON.parse(stored) : [];
+// Error thrown when no timesheet exists for the user/week
+export class NoTimesheetError extends Error {
+  constructor(resourceNo: string, weekStart: Date) {
+    super(
+      `No timesheet exists for resource ${resourceNo} for week starting ${format(weekStart, 'yyyy-MM-dd')}. Please contact your manager to create one.`
+    );
+    this.name = 'NoTimesheetError';
+  }
 }
 
-function saveLocalEntries(entries: TimeEntry[]): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(TIME_ENTRIES_KEY, JSON.stringify(entries));
+// Error thrown when timesheet is not editable (e.g., already submitted/approved)
+export class TimesheetNotEditableError extends Error {
+  constructor(status: string) {
+    super(
+      `Timesheet is ${status} and cannot be edited. Please reopen it first if you need to make changes.`
+    );
+    this.name = 'TimesheetNotEditableError';
+  }
 }
 
-function generateId(): string {
-  return `local_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+/**
+ * Get the day index (1-7) for a date within its week.
+ * BC uses: 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 7=Sun
+ */
+function getDayIndex(date: Date): number {
+  const day = getDay(date); // 0=Sun, 1=Mon, ..., 6=Sat
+  return day === 0 ? 7 : day; // Convert to 1=Mon, ..., 7=Sun
 }
 
-function mapTimeEntryToBCLine(
-  entry: TimeEntry,
-  resourceNumber: string,
-  projectCode: string,
-  taskCode: string
-): Omit<BCJobJournalLine, 'id' | 'lineNumber'> {
-  return {
-    journalTemplateName: JOURNAL_TEMPLATE,
-    journalBatchName: JOURNAL_BATCH,
-    postingDate: entry.date,
-    type: 'Resource',
-    number: resourceNumber,
-    jobNumber: projectCode,
-    jobTaskNumber: taskCode,
-    description: entry.notes || 'Time entry from Thyme',
-    quantity: entry.hours,
-    unitOfMeasureCode: 'HOUR',
-  };
+/**
+ * Get the quantity field name for a given day index.
+ */
+function getQuantityField(dayIndex: number): keyof BCTimeSheetLine {
+  return `quantity${dayIndex}` as keyof BCTimeSheetLine;
+}
+
+/**
+ * Convert BC Timesheet Lines to TimeEntry objects.
+ * BC stores one line per project/task with daily quantities (quantity1-7).
+ * We convert to one TimeEntry per day per project/task.
+ */
+function bcLinesToTimeEntries(
+  lines: BCTimeSheetLine[],
+  timesheet: BCTimeSheet,
+  userId: string
+): TimeEntry[] {
+  const entries: TimeEntry[] = [];
+  const weekStart = parseISO(timesheet.startingDate);
+
+  for (const line of lines) {
+    if (line.type !== 'Job' || !line.jobNo || !line.jobTaskNo) {
+      continue; // Skip non-job lines
+    }
+
+    // Create an entry for each day that has hours
+    for (let dayIndex = 1; dayIndex <= 7; dayIndex++) {
+      const quantityField = getQuantityField(dayIndex);
+      const hours = (line[quantityField] as number) || 0;
+
+      if (hours > 0) {
+        const entryDate = addDays(weekStart, dayIndex - 1); // dayIndex 1 = Monday = weekStart
+
+        entries.push({
+          id: `${line.id}_${dayIndex}`, // Composite ID: lineId_dayIndex
+          projectId: line.jobNo,
+          taskId: line.jobTaskNo,
+          userId,
+          date: format(entryDate, 'yyyy-MM-dd'),
+          hours,
+          notes: line.description || undefined,
+          isBillable: true, // BC timesheets are typically billable
+          isRunning: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          bcTimeSheetLineId: line.id,
+          bcTimeSheetNo: line.timeSheetNo,
+          lineStatus: line.status,
+        });
+      }
+    }
+  }
+
+  return entries;
+}
+
+/**
+ * Parse composite entry ID to get line ID and day index.
+ */
+function parseEntryId(entryId: string): { lineId: string; dayIndex: number } | null {
+  const lastUnderscore = entryId.lastIndexOf('_');
+  if (lastUnderscore === -1) return null;
+
+  const lineId = entryId.substring(0, lastUnderscore);
+  const dayIndex = parseInt(entryId.substring(lastUnderscore + 1), 10);
+
+  if (isNaN(dayIndex) || dayIndex < 1 || dayIndex > 7) return null;
+
+  return { lineId, dayIndex };
 }
 
 export const timeEntryService = {
-  // Get entries for a date range
-  async getEntries(startDate: Date, endDate: Date, userId: string): Promise<TimeEntry[]> {
-    // Get local entries
-    const localEntries = getLocalEntries().filter((entry) => {
-      const entryDate = parseISO(entry.date);
-      return entry.userId === userId && entryDate >= startDate && entryDate <= endDate;
-    });
+  /**
+   * Current timesheet for the active week (cached per fetch).
+   */
+  _currentTimesheet: null as BCTimeSheet | null,
+  _currentTimesheetLines: [] as BCTimeSheetLine[],
 
-    return localEntries;
+  /**
+   * Get the timesheet for a user and week.
+   * Throws NoTimesheetError if no timesheet exists.
+   */
+  async getTimesheet(resourceNo: string, weekStart: Date): Promise<BCTimeSheet> {
+    const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+    const timesheets = await bcClient.getTimeSheets(resourceNo, weekStartStr);
+
+    if (timesheets.length === 0) {
+      throw new NoTimesheetError(resourceNo, weekStart);
+    }
+
+    return timesheets[0];
   },
 
-  // Get entries for a specific week
+  /**
+   * Get entries for a date range.
+   * Fetches from BC Timesheet API.
+   */
+  async getEntries(startDate: Date, endDate: Date, userId: string): Promise<TimeEntry[]> {
+    // Get the user's resource number
+    const resource = await bcClient.getResourceByEmail(userId);
+    if (!resource) {
+      toast.error('Could not find your resource record in Business Central.');
+      return [];
+    }
+
+    // Get the week start (BC timesheets are weekly)
+    const weekStart = startOfWeek(startDate, { weekStartsOn: 1 }); // Monday
+
+    try {
+      const timesheet = await this.getTimesheet(resource.number, weekStart);
+      const lines = await bcClient.getTimeSheetLines(timesheet.number);
+
+      // Cache for later operations
+      this._currentTimesheet = timesheet;
+      this._currentTimesheetLines = lines;
+
+      return bcLinesToTimeEntries(lines, timesheet, userId);
+    } catch (error) {
+      if (error instanceof NoTimesheetError) {
+        // Clear cache
+        this._currentTimesheet = null;
+        this._currentTimesheetLines = [];
+        throw error;
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Get entries for a specific week.
+   */
   async getWeekEntries(weekStart: Date, userId: string): Promise<TimeEntry[]> {
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
     return this.getEntries(weekStart, weekEnd, userId);
   },
 
-  // Create a new time entry
+  /**
+   * Get the current timesheet (must call getEntries first).
+   */
+  getCurrentTimesheet(): BCTimeSheet | null {
+    return this._currentTimesheet;
+  },
+
+  /**
+   * Check if current timesheet is editable.
+   */
+  isTimesheetEditable(): boolean {
+    if (!this._currentTimesheet) return false;
+    const status = bcClient.getTimesheetDisplayStatus(this._currentTimesheet);
+    return status === 'Open' || status === 'Rejected';
+  },
+
+  /**
+   * Create a new time entry.
+   * Saves directly to BC Timesheet Lines.
+   */
   async createEntry(
-    entry: Omit<TimeEntry, 'id' | 'createdAt' | 'updatedAt' | 'syncStatus'>
+    entry: Omit<
+      TimeEntry,
+      'id' | 'createdAt' | 'updatedAt' | 'bcTimeSheetLineId' | 'bcTimeSheetNo' | 'lineStatus'
+    >
   ): Promise<TimeEntry> {
-    const newEntry: TimeEntry = {
-      ...entry,
-      id: generateId(),
+    if (!this._currentTimesheet) {
+      throw new Error('No timesheet loaded. Please refresh the page.');
+    }
+
+    // Check if timesheet is editable
+    if (!this.isTimesheetEditable()) {
+      const status = bcClient.getTimesheetDisplayStatus(this._currentTimesheet);
+      throw new TimesheetNotEditableError(status);
+    }
+
+    const entryDate = parseISO(entry.date);
+    const dayIndex = getDayIndex(entryDate);
+
+    // Check if a line already exists for this project/task
+    const existingLine = this._currentTimesheetLines.find(
+      (line) => line.jobNo === entry.projectId && line.jobTaskNo === entry.taskId
+    );
+
+    if (existingLine) {
+      // Update existing line
+      const quantityField = getQuantityField(dayIndex);
+      const currentHours = (existingLine[quantityField] as number) || 0;
+      const newHours = currentHours + entry.hours;
+
+      const updatedLine = await bcClient.updateTimeSheetLine(
+        existingLine.id,
+        { [quantityField]: newHours },
+        existingLine['@odata.etag'] || '*'
+      );
+
+      // Update cache
+      const lineIndex = this._currentTimesheetLines.findIndex((l) => l.id === existingLine.id);
+      if (lineIndex >= 0) {
+        this._currentTimesheetLines[lineIndex] = updatedLine;
+      }
+
+      return {
+        id: `${updatedLine.id}_${dayIndex}`,
+        projectId: entry.projectId,
+        taskId: entry.taskId,
+        userId: entry.userId,
+        date: entry.date,
+        hours: entry.hours,
+        notes: entry.notes,
+        isBillable: entry.isBillable,
+        isRunning: entry.isRunning,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        bcTimeSheetLineId: updatedLine.id,
+        bcTimeSheetNo: updatedLine.timeSheetNo,
+        lineStatus: updatedLine.status,
+      };
+    } else {
+      // Create new line
+      const newLine = await bcClient.createTimeSheetLine({
+        timeSheetNo: this._currentTimesheet.number,
+        type: 'Job',
+        jobNo: entry.projectId,
+        jobTaskNo: entry.taskId,
+        description: entry.notes || undefined,
+        [getQuantityField(dayIndex)]: entry.hours,
+      });
+
+      // Update cache
+      this._currentTimesheetLines.push(newLine);
+
+      return {
+        id: `${newLine.id}_${dayIndex}`,
+        projectId: entry.projectId,
+        taskId: entry.taskId,
+        userId: entry.userId,
+        date: entry.date,
+        hours: entry.hours,
+        notes: entry.notes,
+        isBillable: entry.isBillable,
+        isRunning: entry.isRunning,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        bcTimeSheetLineId: newLine.id,
+        bcTimeSheetNo: newLine.timeSheetNo,
+        lineStatus: newLine.status,
+      };
+    }
+  },
+
+  /**
+   * Update an existing entry.
+   */
+  async updateEntry(entryId: string, updates: Partial<TimeEntry>): Promise<TimeEntry | null> {
+    if (!this._currentTimesheet) {
+      throw new Error('No timesheet loaded. Please refresh the page.');
+    }
+
+    if (!this.isTimesheetEditable()) {
+      const status = bcClient.getTimesheetDisplayStatus(this._currentTimesheet);
+      throw new TimesheetNotEditableError(status);
+    }
+
+    const parsed = parseEntryId(entryId);
+    if (!parsed) {
+      throw new Error('Invalid entry ID format.');
+    }
+
+    const { lineId, dayIndex } = parsed;
+    const line = this._currentTimesheetLines.find((l) => l.id === lineId);
+
+    if (!line) {
+      throw new Error('Timesheet line not found.');
+    }
+
+    const bcUpdates: Record<string, unknown> = {};
+
+    if (updates.hours !== undefined) {
+      bcUpdates[getQuantityField(dayIndex)] = updates.hours;
+    }
+
+    if (updates.notes !== undefined) {
+      bcUpdates.description = updates.notes;
+    }
+
+    const updatedLine = await bcClient.updateTimeSheetLine(
+      lineId,
+      bcUpdates,
+      line['@odata.etag'] || '*'
+    );
+
+    // Update cache
+    const lineIndex = this._currentTimesheetLines.findIndex((l) => l.id === lineId);
+    if (lineIndex >= 0) {
+      this._currentTimesheetLines[lineIndex] = updatedLine;
+    }
+
+    const entryDate = updates.date
+      ? parseISO(updates.date)
+      : addDays(parseISO(this._currentTimesheet.startingDate), dayIndex - 1);
+
+    return {
+      id: entryId,
+      projectId: updatedLine.jobNo || '',
+      taskId: updatedLine.jobTaskNo || '',
+      userId: '', // Will be filled by caller
+      date: format(entryDate, 'yyyy-MM-dd'),
+      hours: (updatedLine[getQuantityField(dayIndex)] as number) || 0,
+      notes: updatedLine.description,
+      isBillable: true,
+      isRunning: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      syncStatus: 'pending',
+      bcTimeSheetLineId: updatedLine.id,
+      bcTimeSheetNo: updatedLine.timeSheetNo,
+      lineStatus: updatedLine.status,
     };
-
-    const entries = getLocalEntries();
-    entries.push(newEntry);
-    saveLocalEntries(entries);
-
-    return newEntry;
   },
 
-  // Update an existing entry
-  async updateEntry(entryId: string, updates: Partial<TimeEntry>): Promise<TimeEntry | null> {
-    const entries = getLocalEntries();
-    const index = entries.findIndex((e) => e.id === entryId);
-
-    if (index === -1) return null;
-
-    entries[index] = {
-      ...entries[index],
-      ...updates,
-      updatedAt: new Date().toISOString(),
-      syncStatus: 'pending',
-    };
-
-    saveLocalEntries(entries);
-    return entries[index];
-  },
-
-  // Delete an entry
+  /**
+   * Delete an entry.
+   * Sets the hours for that day to 0. If all days are 0, deletes the line.
+   */
   async deleteEntry(entryId: string): Promise<boolean> {
-    const entries = getLocalEntries();
-    const index = entries.findIndex((e) => e.id === entryId);
+    if (!this._currentTimesheet) {
+      throw new Error('No timesheet loaded. Please refresh the page.');
+    }
 
-    if (index === -1) return false;
+    if (!this.isTimesheetEditable()) {
+      const status = bcClient.getTimesheetDisplayStatus(this._currentTimesheet);
+      throw new TimesheetNotEditableError(status);
+    }
 
-    entries.splice(index, 1);
-    saveLocalEntries(entries);
-    return true;
-  },
+    const parsed = parseEntryId(entryId);
+    if (!parsed) {
+      throw new Error('Invalid entry ID format.');
+    }
 
-  // Sync pending entries to Business Central
-  async syncToBusinessCentral(
-    resourceNumber: string,
-    projects: Project[]
-  ): Promise<{ synced: number; failed: number }> {
-    const entries = getLocalEntries();
-    const pendingEntries = entries.filter((e) => e.syncStatus === 'pending');
-    let synced = 0;
-    let failed = 0;
+    const { lineId, dayIndex } = parsed;
+    const line = this._currentTimesheetLines.find((l) => l.id === lineId);
 
-    for (const entry of pendingEntries) {
-      try {
-        const project = projects.find((p) => p.id === entry.projectId);
-        const task = project?.tasks.find((t) => t.id === entry.taskId);
+    if (!line) {
+      throw new Error('Timesheet line not found.');
+    }
 
-        if (!project || !task) {
-          failed++;
-          continue;
+    // Check if this is the only day with hours
+    let otherDaysHaveHours = false;
+    for (let i = 1; i <= 7; i++) {
+      if (i !== dayIndex) {
+        const hours = (line[getQuantityField(i)] as number) || 0;
+        if (hours > 0) {
+          otherDaysHaveHours = true;
+          break;
         }
-
-        const bcLine = mapTimeEntryToBCLine(entry, resourceNumber, project.code, task.code);
-
-        const createdLine = await bcClient.createJobJournalLine(bcLine);
-
-        // Update local entry with BC reference
-        entry.bcJobJournalLineId = createdLine.id;
-        entry.syncStatus = 'synced';
-        synced++;
-      } catch {
-        entry.syncStatus = 'error';
-        failed++;
       }
     }
 
-    saveLocalEntries(entries);
+    if (otherDaysHaveHours) {
+      // Just zero out this day
+      await bcClient.updateTimeSheetLine(
+        lineId,
+        { [getQuantityField(dayIndex)]: 0 },
+        line['@odata.etag'] || '*'
+      );
 
-    // Show user-friendly notifications for sync results
-    if (synced > 0 && failed === 0) {
-      toast.success(
-        `Successfully synced ${synced} time ${synced === 1 ? 'entry' : 'entries'} to Business Central`
-      );
-    } else if (synced > 0 && failed > 0) {
-      toast.error(
-        `Synced ${synced} ${synced === 1 ? 'entry' : 'entries'}, but ${failed} failed. Check console for details.`
-      );
-    } else if (failed > 0) {
-      toast.error(
-        `Failed to sync ${failed} time ${failed === 1 ? 'entry' : 'entries'}. Please try again.`
-      );
+      // Update cache - set the quantity for this day to 0
+      const lineIndex = this._currentTimesheetLines.findIndex((l) => l.id === lineId);
+      if (lineIndex >= 0) {
+        const cachedLine = this._currentTimesheetLines[lineIndex];
+        const quantityKey = getQuantityField(dayIndex);
+        (cachedLine as unknown as Record<string, number | undefined>)[quantityKey] = 0;
+      }
+    } else {
+      // Delete the entire line
+      await bcClient.deleteTimeSheetLine(lineId, line['@odata.etag'] || '*');
+
+      // Remove from cache
+      this._currentTimesheetLines = this._currentTimesheetLines.filter((l) => l.id !== lineId);
     }
 
-    return { synced, failed };
+    return true;
   },
 
-  // Copy entries from previous week
+  /**
+   * Submit timesheet for approval.
+   */
+  async submitTimesheet(): Promise<void> {
+    if (!this._currentTimesheet) {
+      throw new Error('No timesheet loaded. Please refresh the page.');
+    }
+
+    await bcClient.submitTimeSheet(this._currentTimesheet.id);
+    toast.success('Timesheet submitted for approval.');
+
+    // Refresh timesheet to get updated status
+    this._currentTimesheet = await bcClient.getTimeSheet(this._currentTimesheet.id);
+  },
+
+  /**
+   * Reopen timesheet for editing.
+   */
+  async reopenTimesheet(): Promise<void> {
+    if (!this._currentTimesheet) {
+      throw new Error('No timesheet loaded. Please refresh the page.');
+    }
+
+    await bcClient.reopenTimeSheet(this._currentTimesheet.id);
+    toast.success('Timesheet reopened for editing.');
+
+    // Refresh timesheet to get updated status
+    this._currentTimesheet = await bcClient.getTimeSheet(this._currentTimesheet.id);
+  },
+
+  /**
+   * Copy entries from previous week.
+   * Creates new lines in the current timesheet based on previous week's entries.
+   */
   async copyFromPreviousWeek(
     previousWeekStart: Date,
     currentWeekStart: Date,
     userId: string
   ): Promise<TimeEntry[]> {
-    const previousEntries = await this.getWeekEntries(previousWeekStart, userId);
+    // Get the user's resource number
+    const resource = await bcClient.getResourceByEmail(userId);
+    if (!resource) {
+      throw new Error('Could not find your resource record in Business Central.');
+    }
+
+    // Get previous week's timesheet
+    let previousTimesheet: BCTimeSheet;
+    try {
+      previousTimesheet = await this.getTimesheet(resource.number, previousWeekStart);
+    } catch {
+      toast.error('No timesheet found for previous week.');
+      return [];
+    }
+
+    const previousLines = await bcClient.getTimeSheetLines(previousTimesheet.number);
+
+    if (!this._currentTimesheet) {
+      throw new Error('No current timesheet loaded.');
+    }
+
+    if (!this.isTimesheetEditable()) {
+      const status = bcClient.getTimesheetDisplayStatus(this._currentTimesheet);
+      throw new TimesheetNotEditableError(status);
+    }
+
     const newEntries: TimeEntry[] = [];
 
-    for (const entry of previousEntries) {
-      // Calculate offset (days from previous week start)
-      const entryDate = parseISO(entry.date);
-      const dayOffset = (entryDate.getTime() - previousWeekStart.getTime()) / (1000 * 60 * 60 * 24);
+    for (const prevLine of previousLines) {
+      if (prevLine.type !== 'Job' || !prevLine.jobNo || !prevLine.jobTaskNo) {
+        continue;
+      }
 
-      // Create new date in current week
-      const newDate = new Date(currentWeekStart);
-      newDate.setDate(newDate.getDate() + dayOffset);
+      // Check if this project/task already exists in current week
+      const existingLine = this._currentTimesheetLines.find(
+        (l) => l.jobNo === prevLine.jobNo && l.jobTaskNo === prevLine.jobTaskNo
+      );
 
-      const newEntry = await this.createEntry({
-        projectId: entry.projectId,
-        taskId: entry.taskId,
-        userId: entry.userId,
-        date: format(newDate, 'yyyy-MM-dd'),
-        hours: entry.hours,
-        notes: entry.notes,
-        isBillable: entry.isBillable,
-        isRunning: false,
+      if (existingLine) {
+        continue; // Skip - already have entries for this project/task
+      }
+
+      // Create new line with same daily pattern
+      const newLine = await bcClient.createTimeSheetLine({
+        timeSheetNo: this._currentTimesheet.number,
+        type: 'Job',
+        jobNo: prevLine.jobNo,
+        jobTaskNo: prevLine.jobTaskNo,
+        description: prevLine.description,
+        quantity1: prevLine.quantity1,
+        quantity2: prevLine.quantity2,
+        quantity3: prevLine.quantity3,
+        quantity4: prevLine.quantity4,
+        quantity5: prevLine.quantity5,
+        quantity6: prevLine.quantity6,
+        quantity7: prevLine.quantity7,
       });
 
-      newEntries.push(newEntry);
+      this._currentTimesheetLines.push(newLine);
+
+      // Convert to TimeEntry objects
+      const lineEntries = bcLinesToTimeEntries([newLine], this._currentTimesheet, userId);
+      newEntries.push(...lineEntries);
+    }
+
+    if (newEntries.length > 0) {
+      toast.success(`Copied ${newEntries.length} entries from previous week.`);
+    } else {
+      toast.error('No entries to copy from previous week.');
     }
 
     return newEntries;
   },
 
-  // Calculate total hours for a set of entries
+  /**
+   * Calculate total hours for a set of entries.
+   */
   calculateTotalHours(entries: TimeEntry[]): number {
     return entries.reduce((sum, entry) => sum + entry.hours, 0);
   },
 
-  // Get daily totals
+  /**
+   * Get daily totals.
+   */
   getDailyTotals(entries: TimeEntry[]): { [date: string]: number } {
     return entries.reduce(
       (totals, entry) => {
@@ -216,47 +546,22 @@ export const timeEntryService = {
     );
   },
 
-  // Get entries for a teammate from Business Central
-  // This fetches job journal lines (unposted/pending time entries) for a specific employee
+  /**
+   * Get entries for a teammate from Business Central.
+   */
   async getTeammateEntries(weekStart: Date, teammate: BCEmployee): Promise<TimeEntry[]> {
     try {
-      // Get resource by employee email to find their resource number
+      // Get resource by employee email
       const resource = teammate.email ? await bcClient.getResourceByEmail(teammate.email) : null;
 
       if (!resource) {
-        // If no resource found, we can't fetch their entries
         return [];
       }
 
-      // Fetch job journal lines for this resource
-      const lines = await bcClient.getJobJournalLines(JOURNAL_TEMPLATE, JOURNAL_BATCH);
+      const timesheet = await this.getTimesheet(resource.number, weekStart);
+      const lines = await bcClient.getTimeSheetLines(timesheet.number);
 
-      // Filter by resource number and date range
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6);
-
-      const filteredLines = lines.filter((line) => {
-        if (line.number !== resource.number) return false;
-        const lineDate = parseISO(line.postingDate);
-        return lineDate >= weekStart && lineDate <= weekEnd;
-      });
-
-      // Map BC job journal lines to TimeEntry format
-      return filteredLines.map((line) => ({
-        id: line.id || `bc_${line.lineNumber}`,
-        projectId: line.jobNumber,
-        taskId: line.jobTaskNumber,
-        userId: teammate.id,
-        date: line.postingDate,
-        hours: line.quantity,
-        notes: line.description,
-        isBillable: true,
-        isRunning: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        bcJobJournalLineId: line.id,
-        syncStatus: 'synced' as const,
-      }));
+      return bcLinesToTimeEntries(lines, timesheet, teammate.id);
     } catch {
       return [];
     }

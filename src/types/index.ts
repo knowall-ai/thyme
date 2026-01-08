@@ -100,6 +100,53 @@ export interface BCJobJournalLine {
   totalPrice?: number;
 }
 
+// BC Timesheet types (from Thyme BC Extension)
+export interface BCTimeSheet {
+  id: string;
+  number: string;
+  resourceNo: string;
+  resourceName?: string;
+  startingDate: string;
+  endingDate: string;
+  approverUserId?: string;
+  // Status FlowFields - individual lines have statuses, these aggregate
+  openExists: boolean;
+  submittedExists: boolean;
+  rejectedExists: boolean;
+  approvedExists: boolean;
+  '@odata.etag'?: string;
+}
+
+export interface BCTimeSheetLine {
+  id: string;
+  timeSheetNo: string;
+  lineNo: number;
+  type: 'Resource' | 'Job' | 'Absence' | 'Assembly Order' | 'Service';
+  jobNo?: string;
+  jobTaskNo?: string;
+  description?: string;
+  // Daily quantities (Mon-Sun)
+  quantity1?: number;
+  quantity2?: number;
+  quantity3?: number;
+  quantity4?: number;
+  quantity5?: number;
+  quantity6?: number;
+  quantity7?: number;
+  totalQuantity: number;
+  status: 'Open' | 'Submitted' | 'Rejected' | 'Approved';
+  '@odata.etag'?: string;
+}
+
+// Derived timesheet status for UI display
+export type TimesheetDisplayStatus =
+  | 'Open'
+  | 'Partially Submitted'
+  | 'Submitted'
+  | 'Rejected'
+  | 'Approved'
+  | 'Mixed';
+
 // Application types
 export interface Project {
   id: string;
@@ -133,9 +180,10 @@ export interface TimeEntry {
   startTime?: string; // ISO timestamp for running timer
   createdAt: string;
   updatedAt: string;
-  // Synced from BC
-  bcJobJournalLineId?: string;
-  syncStatus: 'pending' | 'synced' | 'error';
+  // BC Timesheet reference
+  bcTimeSheetLineId?: string;
+  bcTimeSheetNo?: string;
+  lineStatus?: 'Open' | 'Submitted' | 'Rejected' | 'Approved';
 }
 
 export interface TimerState {
