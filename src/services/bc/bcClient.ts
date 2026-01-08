@@ -348,9 +348,17 @@ class BusinessCentralClient {
   }
 
   async getResourceByEmail(email: string): Promise<BCResource | null> {
-    const filter = `email eq '${email}'`;
-    const resources = await this.getResources(filter);
-    return resources[0] || null;
+    try {
+      const filter = `email eq '${email}'`;
+      const resources = await this.getResources(filter);
+      return resources[0] || null;
+    } catch (error) {
+      // BC returns 404 when no resources match the filter
+      if (error instanceof Error && error.message.includes('404')) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   // Job Journal Lines (Time Entries)

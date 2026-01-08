@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { TimeEntry, WeekData, BCEmployee, BCTimeSheet, TimesheetDisplayStatus } from '@/types';
 import {
   timeEntryService,
+  NoResourceError,
   NoTimesheetError,
   TimesheetNotEditableError,
   bcClient,
@@ -18,6 +19,8 @@ interface TimeEntriesStore {
   currentTimesheet: BCTimeSheet | null;
   timesheetStatus: TimesheetDisplayStatus | null;
   noTimesheetExists: boolean;
+  noResourceExists: boolean;
+  userEmail: string | null;
 
   // Entry operations
   fetchWeekEntries: (userId: string, weekStart?: Date) => Promise<void>;
@@ -60,6 +63,8 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
   currentTimesheet: null,
   timesheetStatus: null,
   noTimesheetExists: false,
+  noResourceExists: false,
+  userEmail: null,
 
   fetchWeekEntries: async (userId: string, weekStart?: Date) => {
     const week = weekStart || get().currentWeekStart;
@@ -68,6 +73,8 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
       error: null,
       currentWeekStart: week,
       noTimesheetExists: false,
+      noResourceExists: false,
+      userEmail: userId,
     });
 
     try {
@@ -81,14 +88,26 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
         timesheetStatus: status,
         isLoading: false,
         noTimesheetExists: false,
+        noResourceExists: false,
       });
     } catch (error) {
-      if (error instanceof NoTimesheetError) {
+      if (error instanceof NoResourceError) {
+        set({
+          entries: [],
+          currentTimesheet: null,
+          timesheetStatus: null,
+          noTimesheetExists: false,
+          noResourceExists: true,
+          isLoading: false,
+          error: error.message,
+        });
+      } else if (error instanceof NoTimesheetError) {
         set({
           entries: [],
           currentTimesheet: null,
           timesheetStatus: null,
           noTimesheetExists: true,
+          noResourceExists: false,
           isLoading: false,
           error: error.message,
         });
@@ -173,6 +192,8 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
       currentTimesheet: null,
       timesheetStatus: null,
       noTimesheetExists: false,
+      noResourceExists: false,
+      userEmail: null,
     });
   },
 

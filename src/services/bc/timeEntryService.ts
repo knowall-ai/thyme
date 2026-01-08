@@ -3,6 +3,19 @@ import { bcClient } from './bcClient';
 import type { TimeEntry, BCTimeSheet, BCTimeSheetLine, BCEmployee } from '@/types';
 import { format, parseISO, getDay, startOfWeek, addDays } from 'date-fns';
 
+// Error thrown when no resource record exists in BC for the user
+export class NoResourceError extends Error {
+  userEmail: string;
+
+  constructor(userEmail: string) {
+    super(
+      `No Resource record found in Business Central for email "${userEmail}". A Resource record must be created before you can use Thyme.`
+    );
+    this.name = 'NoResourceError';
+    this.userEmail = userEmail;
+  }
+}
+
 // Error thrown when no timesheet exists for the user/week
 export class NoTimesheetError extends Error {
   constructor(resourceNo: string, weekStart: Date) {
@@ -133,8 +146,7 @@ export const timeEntryService = {
     // Get the user's resource number
     const resource = await bcClient.getResourceByEmail(userId);
     if (!resource) {
-      toast.error('Could not find your resource record in Business Central.');
-      return [];
+      throw new NoResourceError(userId);
     }
 
     // Get the week start (BC timesheets are weekly)
@@ -150,7 +162,7 @@ export const timeEntryService = {
 
       return bcLinesToTimeEntries(lines, timesheet, userId);
     } catch (error) {
-      if (error instanceof NoTimesheetError) {
+      if (error instanceof NoTimesheetError || error instanceof NoResourceError) {
         // Clear cache
         this._currentTimesheet = null;
         this._currentTimesheetLines = [];

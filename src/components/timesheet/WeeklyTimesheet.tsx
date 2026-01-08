@@ -9,6 +9,7 @@ import {
   PaperAirplaneIcon,
   ArrowPathIcon,
   ExclamationTriangleIcon,
+  UserCircleIcon,
 } from '@heroicons/react/24/outline';
 import { useTimeEntriesStore, useProjectsStore, useTeammateStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
@@ -44,6 +45,8 @@ export function WeeklyTimesheet() {
     currentTimesheet,
     timesheetStatus,
     noTimesheetExists,
+    noResourceExists,
+    userEmail: storeUserEmail,
     fetchWeekEntries,
     fetchTeammateEntries,
     navigateToWeek,
@@ -157,6 +160,58 @@ export function WeeklyTimesheet() {
   };
 
   const totalHours = getTotalHours();
+
+  // No resource record exists state
+  if (noResourceExists && !isViewingTeammate) {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <WeekNavigation
+            currentWeekStart={currentWeekStart}
+            onPrevious={() => navigateToWeek('prev')}
+            onNext={() => navigateToWeek('next')}
+            onToday={goToCurrentWeek}
+            onDateSelect={goToDate}
+          />
+        </div>
+
+        {/* No Resource Message */}
+        <Card variant="bordered" className="p-8">
+          <div className="flex flex-col items-center justify-center text-center">
+            <UserCircleIcon className="mb-4 h-12 w-12 text-red-500" />
+            <h3 className="mb-2 text-lg font-semibold text-white">Resource Record Not Found</h3>
+            <p className="mb-4 max-w-md text-dark-300">
+              No Resource record was found in Business Central for your email address. A Resource
+              record is required before you can enter time.
+            </p>
+
+            <div className="mb-4 rounded-lg border border-dark-700 bg-dark-900 px-4 py-3">
+              <p className="text-sm text-dark-400">
+                Your email: <span className="font-medium text-white">{storeUserEmail || userEmail}</span>
+              </p>
+            </div>
+
+            <div className="max-w-lg text-left">
+              <p className="mb-2 text-sm font-medium text-dark-300">
+                To resolve this, ask your Business Central administrator to:
+              </p>
+              <ol className="list-inside list-decimal space-y-1 text-sm text-dark-400">
+                <li>Open Business Central</li>
+                <li>Navigate to <span className="font-medium text-dark-200">Resources</span></li>
+                <li>Create a new Resource record (Type: Person)</li>
+                <li>
+                  Set the <span className="font-medium text-dark-200">Search E-Mail</span> field to{' '}
+                  <span className="font-medium text-thyme-400">{storeUserEmail || userEmail}</span>
+                </li>
+                <li>Save the Resource record</li>
+              </ol>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   // No timesheet exists state
   if (noTimesheetExists && !isViewingTeammate) {
