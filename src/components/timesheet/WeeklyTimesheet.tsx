@@ -20,7 +20,7 @@ import { TimeEntryCell } from './TimeEntryCell';
 import { TimeEntryModal } from './TimeEntryModal';
 import type { TimeEntry, TimesheetDisplayStatus } from '@/types';
 import { getWeekDays, formatDate, isDayToday, formatTime } from '@/utils';
-import { getBCHomeUrl, getBCResourcesListUrl } from '@/utils/bcUrls';
+import { getBCResourcesListUrl } from '@/utils/bcUrls';
 import { getRandomQuote } from '@/config/quotes';
 
 // Status badge colors
@@ -229,7 +229,21 @@ export function WeeklyTimesheet() {
 
               <div className="mt-4 flex justify-center">
                 <a
-                  href={`mailto:?subject=Thyme%20Setup%3A%20Resource%20Record%20Needed&body=Hi%2C%0D%0A%0D%0AI%20need%20a%20Resource%20record%20set%20up%20in%20Business%20Central%20so%20I%20can%20use%20Thyme%20for%20time%20tracking.%0D%0A%0D%0APlease%20create%20or%20update%20a%20Resource%20with%20the%20following%20settings%3A%0D%0A%0D%0A1.%20Open%20Resources%20in%20Business%20Central%0D%0A2.%20Create%20or%20edit%20a%20Resource%20record%20with%20Type%3A%20Person%0D%0A3.%20Set%20Base%20Unit%20of%20Measure%20to%20HOUR%0D%0A4.%20Enable%20Use%20Time%20Sheet%0D%0A5.%20Set%20Time%20Sheet%20Owner%20User%20ID%20to%20my%20BC%20User%20ID%0D%0A6.%20Set%20Time%20Sheet%20Approver%20User%20ID%20to%20the%20approver%0D%0A7.%20Save%20the%20Resource%20record%0D%0A%0D%0AThank%20you!`}
+                  href={`mailto:?subject=${encodeURIComponent('Thyme Setup: Resource Record Needed')}&body=${encodeURIComponent(`Hi,
+
+I need a Resource record set up in Business Central so I can use Thyme for time tracking.
+
+Please create or update a Resource with the following settings:
+
+1. Open Resources in Business Central
+2. Create or edit a Resource record with Type: Person
+3. Set Base Unit of Measure to HOUR
+4. Enable Use Time Sheet
+5. Set Time Sheet Owner User ID to my BC User ID
+6. Set Time Sheet Approver User ID to the approver
+7. Save the Resource record
+
+Thank you!`)}`}
                   className="inline-flex items-center gap-2 rounded-md bg-thyme-600 px-4 py-2 text-sm font-medium text-white hover:bg-thyme-500"
                 >
                   <EnvelopeIcon className="h-4 w-4" />
@@ -245,6 +259,13 @@ export function WeeklyTimesheet() {
 
   // No timesheet exists state
   if (noTimesheetExists && !isViewingTeammate) {
+    const weekStartStr = format(currentWeekStart, 'MMM d');
+    const weekEndStr = format(
+      new Date(currentWeekStart.getTime() + 6 * 24 * 60 * 60 * 1000),
+      'MMM d, yyyy'
+    );
+    const weekStartDate = format(currentWeekStart, 'yyyy-MM-dd');
+
     return (
       <div className="space-y-6">
         {/* Header */}
@@ -264,16 +285,66 @@ export function WeeklyTimesheet() {
             <ExclamationTriangleIcon className="mb-4 h-12 w-12 text-yellow-500" />
             <h3 className="mb-2 text-lg font-semibold text-white">No Timesheet Available</h3>
             <p className="mb-4 max-w-md text-dark-300">
-              There is no timesheet created for this week. Please contact your manager or timesheet
-              administrator to create one for you.
+              There is no timesheet created for the week of {weekStartStr} - {weekEndStr}. A
+              timesheet must be created before you can enter time.
             </p>
-            <p className="text-sm text-dark-500">
-              Week: {format(currentWeekStart, 'MMM d')} -{' '}
-              {format(
-                new Date(currentWeekStart.getTime() + 6 * 24 * 60 * 60 * 1000),
-                'MMM d, yyyy'
-              )}
-            </p>
+
+            <div className="max-w-lg text-left">
+              <p className="mb-2 text-sm font-medium text-dark-300">
+                To resolve this, ask your timesheet manager to:
+              </p>
+              <ol className="list-inside list-decimal space-y-2 text-sm text-dark-400">
+                <li>
+                  Open your{' '}
+                  <a
+                    href={getBCResourcesListUrl()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-thyme-400 underline hover:text-thyme-300"
+                  >
+                    Resource
+                  </a>{' '}
+                  in Business Central
+                </li>
+                <li>
+                  Click <span className="font-medium text-dark-200">Create Time Sheets...</span>
+                </li>
+                <li>
+                  Set <span className="font-medium text-dark-200">Starting Date</span> to{' '}
+                  <span className="font-medium text-dark-200">{weekStartStr}</span>
+                </li>
+                <li>
+                  Set <span className="font-medium text-dark-200">No. of Periods</span> (e.g., 1 for
+                  one week)
+                </li>
+                <li>
+                  Click <span className="font-medium text-dark-200">OK</span> to create the
+                  timesheet
+                </li>
+              </ol>
+
+              <div className="mt-4 flex justify-center">
+                <a
+                  href={`mailto:?subject=${encodeURIComponent(`Thyme: Timesheet Needed for Week of ${weekStartStr}`)}&body=${encodeURIComponent(`Hi,
+
+I need a timesheet created in Business Central for the week of ${weekStartStr} - ${weekEndStr} so I can enter my time in Thyme.
+
+Please create a timesheet using the following steps:
+
+1. Open my Resource in Business Central
+2. Click Create Time Sheets...
+3. Set Starting Date to ${weekStartDate}
+4. Set No. of Periods to 1
+5. Click OK
+
+Thank you!`)}`}
+                  className="inline-flex items-center gap-2 rounded-md bg-thyme-600 px-4 py-2 text-sm font-medium text-white hover:bg-thyme-500"
+                >
+                  <EnvelopeIcon className="h-4 w-4" />
+                  Email request to manager
+                </a>
+              </div>
+            </div>
           </div>
         </Card>
       </div>
@@ -366,7 +437,19 @@ export function WeeklyTimesheet() {
               </Button>
             )}
             {timesheetStatus === 'Submitted' && (
-              <span className="text-sm text-dark-400">Awaiting approval</span>
+              <>
+                <span className="text-sm text-dark-400">Awaiting approval</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleReopenTimesheet}
+                  disabled={isSubmitting}
+                >
+                  <ArrowPathIcon className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Recall</span>
+                  <span className="sm:hidden">Recall</span>
+                </Button>
+              </>
             )}
             {timesheetStatus === 'Approved' && (
               <span className="text-sm text-green-400">Timesheet approved</span>
