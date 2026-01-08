@@ -19,6 +19,7 @@ import { TimeEntryCell } from './TimeEntryCell';
 import { TimeEntryModal } from './TimeEntryModal';
 import type { TimeEntry, TimesheetDisplayStatus } from '@/types';
 import { getWeekDays, formatDate, isDayToday, formatTime } from '@/utils';
+import { getBCHomeUrl, getBCResourcesListUrl } from '@/utils/bcUrls';
 import { getRandomQuote } from '@/config/quotes';
 
 // Status badge colors
@@ -197,8 +198,28 @@ export function WeeklyTimesheet() {
                 To resolve this, ask your Business Central administrator to:
               </p>
               <ol className="list-inside list-decimal space-y-1 text-sm text-dark-400">
-                <li>Open Business Central</li>
-                <li>Navigate to <span className="font-medium text-dark-200">Resources</span></li>
+                <li>
+                  Open{' '}
+                  <a
+                    href={getBCHomeUrl()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-thyme-400 underline hover:text-thyme-300"
+                  >
+                    Business Central
+                  </a>
+                </li>
+                <li>
+                  Navigate to{' '}
+                  <a
+                    href={getBCResourcesListUrl()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-thyme-400 underline hover:text-thyme-300"
+                  >
+                    Resources
+                  </a>
+                </li>
                 <li>Create a new Resource record (Type: Person)</li>
                 <li>
                   Set the <span className="font-medium text-dark-200">Search E-Mail</span> field to{' '}
