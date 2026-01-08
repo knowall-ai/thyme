@@ -348,19 +348,54 @@ class BusinessCentralClient {
   }
 
   /**
+   * Get the current logged-in user's BC User info.
+   * Uses the Thyme BC Extension's /currentUser endpoint.
+   */
+  async getCurrentUser(): Promise<{
+    userSecurityId: string;
+    userName: string;
+    fullName: string;
+    authenticationEmail: string;
+  } | null> {
+    try {
+      const response = await this.customApiFetch<{
+        value: Array<{
+          userSecurityId: string;
+          userName: string;
+          fullName: string;
+          state: string;
+          authenticationEmail: string;
+          contactEmail: string;
+          licenseType: string;
+        }>;
+      }>('/currentUser');
+      return response.value[0] || null;
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('404')) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Find a resource for the current user.
-   * TODO: Once thyme-bc-extension#15 is implemented:
-   * 1. Get current user's BC User ID from auth context
-   * 2. Query: /resources?$filter=timeSheetOwnerUserId eq '{bcUserId}'
-   *
-   * For now, returns the first Person resource (temporary for single-user testing).
+   * 1. Gets current user's BC User ID via /currentUser
+   * 2. Filters resources by timeSheetOwnerUserId
    */
   async getResourceForCurrentUser(): Promise<BCResource | null> {
     try {
-      // TODO: Implement proper matching via custom API (thyme-bc-extension#15)
-      // For now, return first Person resource as temporary workaround
-      const resources = await this.getResources();
-      return resources[0] || null;
+      // Get current user's BC User ID
+      const currentUser = await this.getCurrentUser();
+      if (!currentUser) {
+        return null;
+      }
+
+      // Find resource where timeSheetOwnerUserId matches current user
+      const response = await this.customApiFetch<PaginatedResponse<BCResource>>(
+        `/resources?$filter=timeSheetOwnerUserId eq '${currentUser.userName}'`
+      );
+      return response.value[0] || null;
     } catch (error) {
       if (error instanceof Error && error.message.includes('404')) {
         return null;
@@ -371,7 +406,6 @@ class BusinessCentralClient {
 
   /**
    * @deprecated Use getResourceForCurrentUser() instead.
-   * This method name is misleading - we don't actually match by email.
    */
   async getResourceByEmail(_email: string): Promise<BCResource | null> {
     return this.getResourceForCurrentUser();

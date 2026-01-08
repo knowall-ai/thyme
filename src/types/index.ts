@@ -28,9 +28,14 @@ export interface BCCompany {
 export interface BCResource {
   id: string;
   number: string;
-  displayName: string;
+  name: string; // BC field name (displayName alias)
+  displayName?: string; // For compatibility
   type: 'Person' | 'Machine';
-  email?: string;
+  baseUnitOfMeasure?: string;
+  useTimeSheet?: boolean;
+  timeSheetOwnerUserId?: string;
+  timeSheetApproverUserId?: string;
+  searchName?: string;
 }
 
 export interface BCJob {
