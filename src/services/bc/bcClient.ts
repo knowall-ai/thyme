@@ -11,6 +11,7 @@ import type {
   BCResource,
   BCTimeSheet,
   BCTimeSheetLine,
+  BCTimeSheetDetail,
   PaginatedResponse,
 } from '@/types';
 
@@ -348,52 +349,31 @@ class BusinessCentralClient {
   }
 
   /**
-   * Get the current logged-in user's BC User info.
-   * Uses the Thyme BC Extension's /currentUser endpoint.
+   * Derive the BC User ID from an Azure AD username (UPN).
+   * Azure AD UPN is typically "ben.weeks@domain.com"
+   * BC User ID is typically "BEN.WEEKS" (uppercase, before @)
    */
-  async getCurrentUser(): Promise<{
-    userSecurityId: string;
-    userName: string;
-    fullName: string;
-    authenticationEmail: string;
-  } | null> {
-    try {
-      const response = await this.customApiFetch<{
-        value: Array<{
-          userSecurityId: string;
-          userName: string;
-          fullName: string;
-          state: string;
-          authenticationEmail: string;
-          contactEmail: string;
-          licenseType: string;
-        }>;
-      }>('/currentUser');
-      return response.value[0] || null;
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('404')) {
-        return null;
-      }
-      throw error;
-    }
+  deriveBCUserId(azureAdUsername: string): string {
+    // Extract the part before @ and uppercase it
+    const localPart = azureAdUsername.split('@')[0];
+    return localPart.toUpperCase();
   }
 
   /**
    * Find a resource for the current user.
-   * 1. Gets current user's BC User ID via /currentUser
-   * 2. Filters resources by timeSheetOwnerUserId
+   * @param azureAdUsername - The user's Azure AD username (UPN), e.g., "ben.weeks@domain.com"
+   *
+   * Derives the BC User ID from the Azure AD username and filters resources
+   * by timeSheetOwnerUserId.
    */
-  async getResourceForCurrentUser(): Promise<BCResource | null> {
+  async getResourceForCurrentUser(azureAdUsername: string): Promise<BCResource | null> {
     try {
-      // Get current user's BC User ID
-      const currentUser = await this.getCurrentUser();
-      if (!currentUser) {
-        return null;
-      }
+      // Derive BC User ID from Azure AD username
+      const bcUserId = this.deriveBCUserId(azureAdUsername);
 
-      // Find resource where timeSheetOwnerUserId matches current user
+      // Find resource where timeSheetOwnerUserId matches
       const response = await this.customApiFetch<PaginatedResponse<BCResource>>(
-        `/resources?$filter=timeSheetOwnerUserId eq '${currentUser.userName}'`
+        `/resources?$filter=timeSheetOwnerUserId eq '${bcUserId}'`
       );
       return response.value[0] || null;
     } catch (error) {
@@ -405,10 +385,10 @@ class BusinessCentralClient {
   }
 
   /**
-   * @deprecated Use getResourceForCurrentUser() instead.
+   * @deprecated Use getResourceForCurrentUser(azureAdUsername) instead.
    */
-  async getResourceByEmail(_email: string): Promise<BCResource | null> {
-    return this.getResourceForCurrentUser();
+  async getResourceByEmail(email: string): Promise<BCResource | null> {
+    return this.getResourceForCurrentUser(email);
   }
 
   // Job Journal Lines (Time Entries)
@@ -479,6 +459,12 @@ class BusinessCentralClient {
     }
 
     const url = `${this.customApiBaseUrl}${endpoint}`;
+
+    // Debug logging
+    if (options.body) {
+      console.log('[BC API] POST/PATCH body:', options.body);
+    }
+
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -491,15 +477,27 @@ class BusinessCentralClient {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('[BC API] Error response:', errorText);
       throw new Error(`BC API Error (${response.status}): ${errorText}`);
     }
 
-    // Handle 204 No Content
+    // Handle 204 No Content or empty body
     if (response.status === 204) {
       return {} as T;
     }
 
-    return response.json();
+    // Check for empty body (some BC actions return 200 with no content)
+    const text = await response.text();
+    if (!text || text.trim() === '') {
+      return {} as T;
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error('[BC API] Failed to parse JSON response:', text);
+      throw new Error(`BC API: Invalid JSON response: ${text.substring(0, 100)}`);
+    }
   }
 
   /**
@@ -571,10 +569,12 @@ class BusinessCentralClient {
       throw new Error('Thyme BC Extension is not installed.');
     }
 
-    return this.customApiFetch<BCTimeSheetLine>('/timeSheetLines', {
+    const result = await this.customApiFetch<BCTimeSheetLine>('/timeSheetLines', {
       method: 'POST',
       body: JSON.stringify(line),
     });
+    console.log('[BC API] createTimeSheetLine response:', JSON.stringify(result));
+    return result;
   }
 
   /**
@@ -613,6 +613,68 @@ class BusinessCentralClient {
       headers: {
         'If-Match': etag,
       },
+    });
+  }
+
+  // ============================================
+  // Timesheet Details API
+  // ============================================
+
+  /**
+   * Get timesheet details for a specific line.
+   */
+  async getTimeSheetDetails(timeSheetNo: string, lineNo: number): Promise<BCTimeSheetDetail[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    const escapedNo = timeSheetNo.replace(/'/g, "''");
+    const filter = encodeURIComponent(
+      `timeSheetNo eq '${escapedNo}' and timeSheetLineNo eq ${lineNo}`
+    );
+    const response = await this.customApiFetch<PaginatedResponse<BCTimeSheetDetail>>(
+      `/timeSheetDetails?$filter=${filter}`
+    );
+    return response.value;
+  }
+
+  /**
+   * Get all timesheet details for a timesheet (across all lines).
+   */
+  async getAllTimeSheetDetails(timeSheetNo: string): Promise<BCTimeSheetDetail[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    const escapedNo = timeSheetNo.replace(/'/g, "''");
+    const filter = encodeURIComponent(`timeSheetNo eq '${escapedNo}'`);
+    const response = await this.customApiFetch<PaginatedResponse<BCTimeSheetDetail>>(
+      `/timeSheetDetails?$filter=${filter}`
+    );
+    return response.value;
+  }
+
+  /**
+   * Set hours for a specific date on a timesheet line.
+   * Uses the bound action on /timeSheetLines.
+   * @param lineId - The GUID of the timesheet line (id field, not lineNo)
+   * @param entryDate - The date to set hours for (ISO format YYYY-MM-DD)
+   * @param hours - The number of hours to set
+   */
+  async setHoursForDate(lineId: string, entryDate: string, hours: number): Promise<void> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    const url = `/timeSheetLines(${lineId})/Microsoft.NAV.setHoursForDate`;
+    console.log('[BC API] setHoursForDate URL:', url);
+
+    await this.customApiFetch(url, {
+      method: 'POST',
+      body: JSON.stringify({ entryDate, hours }),
     });
   }
 

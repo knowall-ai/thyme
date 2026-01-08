@@ -130,16 +130,18 @@ export interface BCTimeSheetLine {
   jobNo?: string;
   jobTaskNo?: string;
   description?: string;
-  // Daily quantities (Mon-Sun)
-  quantity1?: number;
-  quantity2?: number;
-  quantity3?: number;
-  quantity4?: number;
-  quantity5?: number;
-  quantity6?: number;
-  quantity7?: number;
   totalQuantity: number;
   status: 'Open' | 'Submitted' | 'Rejected' | 'Approved';
+  '@odata.etag'?: string;
+}
+
+// Time Sheet Detail - individual date/quantity records
+export interface BCTimeSheetDetail {
+  id: string;
+  timeSheetNo: string;
+  timeSheetLineNo: number;
+  date: string; // ISO date format YYYY-MM-DD
+  quantity: number;
   '@odata.etag'?: string;
 }
 
@@ -173,7 +175,7 @@ export interface Task {
 }
 
 export interface TimeEntry {
-  id: string;
+  id: string; // Composite ID: {lineId}_{date}
   projectId: string;
   taskId: string;
   userId: string;
@@ -185,7 +187,7 @@ export interface TimeEntry {
   startTime?: string; // ISO timestamp for running timer
   createdAt: string;
   updatedAt: string;
-  // BC Timesheet reference
+  // BC Timesheet Line reference
   bcTimeSheetLineId?: string;
   bcTimeSheetNo?: string;
   lineStatus?: 'Open' | 'Submitted' | 'Rejected' | 'Approved';
