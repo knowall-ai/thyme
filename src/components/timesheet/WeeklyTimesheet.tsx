@@ -10,6 +10,7 @@ import {
   ArrowPathIcon,
   ExclamationTriangleIcon,
   UserCircleIcon,
+  EnvelopeIcon,
 } from '@heroicons/react/24/outline';
 import { useTimeEntriesStore, useProjectsStore, useTeammateStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
@@ -183,34 +184,17 @@ export function WeeklyTimesheet() {
             <UserCircleIcon className="mb-4 h-12 w-12 text-red-500" />
             <h3 className="mb-2 text-lg font-semibold text-white">Resource Record Not Found</h3>
             <p className="mb-4 max-w-md text-dark-300">
-              No Resource record was found in Business Central for your email address. A Resource
-              record is required before you can enter time.
+              No Resource record was found in Business Central for your account. A Resource record
+              is required before you can enter time.
             </p>
-
-            <div className="mb-4 rounded-lg border border-dark-700 bg-dark-900 px-4 py-3">
-              <p className="text-sm text-dark-400">
-                Your email: <span className="font-medium text-white">{storeUserEmail || userEmail}</span>
-              </p>
-            </div>
 
             <div className="max-w-lg text-left">
               <p className="mb-2 text-sm font-medium text-dark-300">
                 To resolve this, ask your Business Central administrator to:
               </p>
-              <ol className="list-inside list-decimal space-y-1 text-sm text-dark-400">
+              <ol className="list-inside list-decimal space-y-2 text-sm text-dark-400">
                 <li>
                   Open{' '}
-                  <a
-                    href={getBCHomeUrl()}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-medium text-thyme-400 underline hover:text-thyme-300"
-                  >
-                    Business Central
-                  </a>
-                </li>
-                <li>
-                  Navigate to{' '}
                   <a
                     href={getBCResourcesListUrl()}
                     target="_blank"
@@ -218,15 +202,40 @@ export function WeeklyTimesheet() {
                     className="font-medium text-thyme-400 underline hover:text-thyme-300"
                   >
                     Resources
-                  </a>
+                  </a>{' '}
+                  in Business Central
                 </li>
-                <li>Create a new Resource record (Type: Person)</li>
                 <li>
-                  Set the <span className="font-medium text-dark-200">Search E-Mail</span> field to{' '}
-                  <span className="font-medium text-thyme-400">{storeUserEmail || userEmail}</span>
+                  Create or edit a Resource record with{' '}
+                  <span className="font-medium text-dark-200">Type: Person</span>
+                </li>
+                <li>
+                  Set <span className="font-medium text-dark-200">Base Unit of Measure</span> to{' '}
+                  <span className="font-medium text-dark-200">HOUR</span>
+                </li>
+                <li>
+                  Enable <span className="font-medium text-dark-200">Use Time Sheet</span>
+                </li>
+                <li>
+                  Set <span className="font-medium text-dark-200">Time Sheet Owner User ID</span> to
+                  the employee&apos;s BC User ID
+                </li>
+                <li>
+                  Set <span className="font-medium text-dark-200">Time Sheet Approver User ID</span>{' '}
+                  to the approver
                 </li>
                 <li>Save the Resource record</li>
               </ol>
+
+              <div className="mt-4 flex justify-center">
+                <a
+                  href={`mailto:?subject=Thyme%20Setup%3A%20Resource%20Record%20Needed&body=Hi%2C%0D%0A%0D%0AI%20need%20a%20Resource%20record%20set%20up%20in%20Business%20Central%20so%20I%20can%20use%20Thyme%20for%20time%20tracking.%0D%0A%0D%0APlease%20create%20or%20update%20a%20Resource%20with%20the%20following%20settings%3A%0D%0A%0D%0A1.%20Open%20Resources%20in%20Business%20Central%0D%0A2.%20Create%20or%20edit%20a%20Resource%20record%20with%20Type%3A%20Person%0D%0A3.%20Set%20Base%20Unit%20of%20Measure%20to%20HOUR%0D%0A4.%20Enable%20Use%20Time%20Sheet%0D%0A5.%20Set%20Time%20Sheet%20Owner%20User%20ID%20to%20my%20BC%20User%20ID%0D%0A6.%20Set%20Time%20Sheet%20Approver%20User%20ID%20to%20the%20approver%0D%0A7.%20Save%20the%20Resource%20record%0D%0A%0D%0AThank%20you!`}
+                  className="inline-flex items-center gap-2 rounded-md bg-thyme-600 px-4 py-2 text-sm font-medium text-white hover:bg-thyme-500"
+                >
+                  <EnvelopeIcon className="h-4 w-4" />
+                  Email request to manager
+                </a>
+              </div>
             </div>
           </div>
         </Card>

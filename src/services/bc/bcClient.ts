@@ -347,18 +347,34 @@ class BusinessCentralClient {
     return this.fetch<BCResource>(`/resources(${resourceId})`);
   }
 
-  async getResourceByEmail(email: string): Promise<BCResource | null> {
+  /**
+   * Find a resource for the current user.
+   * TODO: Once thyme-bc-extension#15 is implemented:
+   * 1. Get current user's BC User ID from auth context
+   * 2. Query: /resources?$filter=timeSheetOwnerUserId eq '{bcUserId}'
+   *
+   * For now, returns the first Person resource (temporary for single-user testing).
+   */
+  async getResourceForCurrentUser(): Promise<BCResource | null> {
     try {
-      const filter = `email eq '${email}'`;
-      const resources = await this.getResources(filter);
+      // TODO: Implement proper matching via custom API (thyme-bc-extension#15)
+      // For now, return first Person resource as temporary workaround
+      const resources = await this.getResources();
       return resources[0] || null;
     } catch (error) {
-      // BC returns 404 when no resources match the filter
       if (error instanceof Error && error.message.includes('404')) {
         return null;
       }
       throw error;
     }
+  }
+
+  /**
+   * @deprecated Use getResourceForCurrentUser() instead.
+   * This method name is misleading - we don't actually match by email.
+   */
+  async getResourceByEmail(_email: string): Promise<BCResource | null> {
+    return this.getResourceForCurrentUser();
   }
 
   // Job Journal Lines (Time Entries)
