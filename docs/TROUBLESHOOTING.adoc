@@ -47,4 +47,7 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | BC API returns 404 on endpoint
 | Verify the endpoint exists in BC API v2.0; some entities use different names (e.g., `projects` not `jobs`)
 
+| Production auth fails with "AADSTS900144: client_id missing"
+| `NEXT_PUBLIC_*` env vars are baked in at build time in Next.js, not runtime. Add them as GitHub secrets and include in the build step of `deploy-production.yml` workflow. Azure App Service settings alone won't work for client-side variables.
+
 |===
