@@ -28,9 +28,14 @@ export interface BCCompany {
 export interface BCResource {
   id: string;
   number: string;
-  displayName: string;
+  name: string; // BC field name (displayName alias)
+  displayName?: string; // For compatibility
   type: 'Person' | 'Machine';
-  email?: string;
+  baseUnitOfMeasure?: string;
+  useTimeSheet?: boolean;
+  timeSheetOwnerUserId?: string;
+  timeSheetApproverUserId?: string;
+  searchName?: string;
 }
 
 export interface BCJob {
@@ -147,6 +152,55 @@ export interface BCJobJournalLine {
   totalPrice?: number;
 }
 
+// BC Timesheet types (from Thyme BC Extension)
+export interface BCTimeSheet {
+  id: string;
+  number: string;
+  resourceNo: string;
+  resourceName?: string;
+  startingDate: string;
+  endingDate: string;
+  approverUserId?: string;
+  // Status FlowFields - individual lines have statuses, these aggregate
+  openExists: boolean;
+  submittedExists: boolean;
+  rejectedExists: boolean;
+  approvedExists: boolean;
+  '@odata.etag'?: string;
+}
+
+export interface BCTimeSheetLine {
+  id: string;
+  timeSheetNo: string;
+  lineNo: number;
+  type: 'Resource' | 'Job' | 'Absence' | 'Assembly Order' | 'Service';
+  jobNo?: string;
+  jobTaskNo?: string;
+  description?: string;
+  totalQuantity: number;
+  status: 'Open' | 'Submitted' | 'Rejected' | 'Approved';
+  '@odata.etag'?: string;
+}
+
+// Time Sheet Detail - individual date/quantity records
+export interface BCTimeSheetDetail {
+  id: string;
+  timeSheetNo: string;
+  timeSheetLineNo: number;
+  date: string; // ISO date format YYYY-MM-DD
+  quantity: number;
+  '@odata.etag'?: string;
+}
+
+// Derived timesheet status for UI display
+export type TimesheetDisplayStatus =
+  | 'Open'
+  | 'Partially Submitted'
+  | 'Submitted'
+  | 'Rejected'
+  | 'Approved'
+  | 'Mixed';
+
 // Application types
 export interface Project {
   id: string;
@@ -189,7 +243,7 @@ export interface Task {
 }
 
 export interface TimeEntry {
-  id: string;
+  id: string; // Composite ID: {lineId}_{date}
   projectId: string;
   taskId: string;
   userId: string;
@@ -201,9 +255,10 @@ export interface TimeEntry {
   startTime?: string; // ISO timestamp for running timer
   createdAt: string;
   updatedAt: string;
-  // Synced from BC
-  bcJobJournalLineId?: string;
-  syncStatus: 'pending' | 'synced' | 'error';
+  // BC Timesheet Line reference
+  bcTimeSheetLineId?: string;
+  bcTimeSheetNo?: string;
+  lineStatus?: 'Open' | 'Submitted' | 'Rejected' | 'Approved';
 }
 
 export interface TimerState {

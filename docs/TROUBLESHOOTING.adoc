@@ -47,4 +47,22 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | BC API returns 404 on endpoint
 | Verify the endpoint exists in BC API v2.0; some entities use different names (e.g., `projects` not `jobs`)
 
+| Production auth fails with "AADSTS900144: client_id missing"
+| `NEXT_PUBLIC_*` env vars are baked in at build time in Next.js, not runtime. Add them as GitHub secrets and include in the build step of `deploy-production.yml` workflow. Azure App Service settings alone won't work for client-side variables.
+
+| "No Timesheet Available" message shown
+| A timesheet must be created in BC before users can enter time for a week. Contact your timesheet manager to create timesheets for you. See Issue #61 for manager timesheet creation feature.
+
+| "Thyme BC Extension is not installed" error
+| The Timesheet API requires the Thyme BC Extension to be installed. Install from https://github.com/knowall-ai/thyme-bc-extension
+
+| Timesheet shows as read-only
+| Timesheets become read-only once submitted for approval. If rejected, click "Reopen for Editing" to make changes.
+
+| Time entries not saving
+| Ensure you have an Open or Rejected timesheet for the week. Submitted and Approved timesheets cannot be edited.
+
+| "Could not find your resource record" error
+| Your user account must have a matching Resource record in BC with a valid email address. Contact your BC administrator.
+
 |===

@@ -10,8 +10,12 @@ const BC_TENANT_ID = process.env.NEXT_PUBLIC_AZURE_TENANT_ID || '';
 const BC_PAGES = {
   jobList: 89, // Jobs (Projects) list
   customerList: 22, // Customer list
+  resourceList: 77, // Resource list
   job: 88, // Single job card
   customer: 21, // Customer card
+  resource: 76, // Resource card
+  timeSheetManager: 955, // Time Sheet Manager (for creating timesheets)
+  timeSheets: 973, // Time Sheets list (user's own)
 };
 
 /**
@@ -76,4 +80,28 @@ export function getBCJobUrl(jobNumber: string, companyName?: string): string {
  */
 export function getBCCustomerUrl(customerNumber: string): string {
   return `${getBCBaseUrl()}/?page=${BC_PAGES.customer}&filter='No.' IS '${encodeURIComponent(customerNumber)}'`;
+}
+
+/**
+ * Generate a URL to open the Resources list in Business Central
+ * @param companyName - Optional company name to include in the URL
+ */
+export function getBCResourcesListUrl(companyName?: string): string {
+  return getBCPageUrl(BC_PAGES.resourceList, companyName);
+}
+
+/**
+ * Generate a URL to open the Time Sheet Manager in Business Central
+ * This is where managers can create timesheets for their team members.
+ * @param companyName - Optional company name to include in the URL
+ */
+export function getBCTimeSheetManagerUrl(companyName?: string): string {
+  return getBCPageUrl(BC_PAGES.timeSheetManager, companyName);
+}
+
+/**
+ * Get the base Business Central URL (for linking to BC home)
+ */
+export function getBCHomeUrl(): string {
+  return getBCBaseUrl();
 }

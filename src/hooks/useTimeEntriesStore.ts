@@ -1,6 +1,12 @@
 import { create } from 'zustand';
-import type { TimeEntry, WeekData, BCEmployee } from '@/types';
-import { timeEntryService } from '@/services/bc';
+import type { TimeEntry, WeekData, BCEmployee, BCTimeSheet, TimesheetDisplayStatus } from '@/types';
+import {
+  timeEntryService,
+  NoResourceError,
+  NoTimesheetError,
+  TimesheetNotEditableError,
+  bcClient,
+} from '@/services/bc';
 import { getWeekStart, getWeekEnd } from '@/utils';
 
 interface TimeEntriesStore {
@@ -9,18 +15,38 @@ interface TimeEntriesStore {
   isLoading: boolean;
   error: string | null;
 
+  // Timesheet state
+  currentTimesheet: BCTimeSheet | null;
+  timesheetStatus: TimesheetDisplayStatus | null;
+  noTimesheetExists: boolean;
+  noResourceExists: boolean;
+  userEmail: string | null;
+
+  // Entry operations
   fetchWeekEntries: (userId: string, weekStart?: Date) => Promise<void>;
   fetchTeammateEntries: (teammate: BCEmployee, weekStart?: Date) => Promise<void>;
   addEntry: (
-    entry: Omit<TimeEntry, 'id' | 'createdAt' | 'updatedAt' | 'syncStatus'>
+    entry: Omit<
+      TimeEntry,
+      'id' | 'createdAt' | 'updatedAt' | 'bcTimeSheetLineId' | 'bcTimeSheetNo' | 'lineStatus'
+    >
   ) => Promise<TimeEntry>;
   updateEntry: (entryId: string, updates: Partial<TimeEntry>) => Promise<void>;
   deleteEntry: (entryId: string) => Promise<void>;
   clearEntries: () => void;
   copyPreviousWeek: (userId: string) => Promise<void>;
+
+  // Week navigation
   navigateToWeek: (direction: 'prev' | 'next') => void;
   goToCurrentWeek: () => void;
   goToDate: (date: Date) => void;
+
+  // Timesheet operations
+  submitTimesheet: () => Promise<void>;
+  reopenTimesheet: () => Promise<void>;
+  isTimesheetEditable: () => boolean;
+
+  // Computed values
   getWeekData: () => WeekData;
   getEntriesForDay: (date: string) => TimeEntry[];
   getTotalHours: () => number;
@@ -33,16 +59,62 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
   isLoading: false,
   error: null,
 
+  // Timesheet state
+  currentTimesheet: null,
+  timesheetStatus: null,
+  noTimesheetExists: false,
+  noResourceExists: false,
+  userEmail: null,
+
   fetchWeekEntries: async (userId: string, weekStart?: Date) => {
     const week = weekStart || get().currentWeekStart;
-    set({ isLoading: true, error: null, currentWeekStart: week });
+    set({
+      isLoading: true,
+      error: null,
+      currentWeekStart: week,
+      noTimesheetExists: false,
+      noResourceExists: false,
+      userEmail: userId,
+    });
 
     try {
       const entries = await timeEntryService.getWeekEntries(week, userId);
-      set({ entries, isLoading: false });
+      const timesheet = timeEntryService.getCurrentTimesheet();
+      const status = timesheet ? bcClient.getTimesheetDisplayStatus(timesheet) : null;
+
+      set({
+        entries,
+        currentTimesheet: timesheet,
+        timesheetStatus: status,
+        isLoading: false,
+        noTimesheetExists: false,
+        noResourceExists: false,
+      });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to fetch entries';
-      set({ error: message, isLoading: false });
+      if (error instanceof NoResourceError) {
+        set({
+          entries: [],
+          currentTimesheet: null,
+          timesheetStatus: null,
+          noTimesheetExists: false,
+          noResourceExists: true,
+          isLoading: false,
+          error: error.message,
+        });
+      } else if (error instanceof NoTimesheetError) {
+        set({
+          entries: [],
+          currentTimesheet: null,
+          timesheetStatus: null,
+          noTimesheetExists: true,
+          noResourceExists: false,
+          isLoading: false,
+          error: error.message,
+        });
+      } else {
+        const message = error instanceof Error ? error.message : 'Failed to fetch entries';
+        set({ error: message, isLoading: false });
+      }
     }
   },
 
@@ -65,8 +137,12 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
       set((state) => ({ entries: [...state.entries, entry] }));
       return entry;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to add entry';
-      set({ error: message });
+      if (error instanceof TimesheetNotEditableError) {
+        set({ error: error.message });
+      } else {
+        const message = error instanceof Error ? error.message : 'Failed to add entry';
+        set({ error: message });
+      }
       throw error;
     }
   },
@@ -76,12 +152,16 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
       const updated = await timeEntryService.updateEntry(entryId, updates);
       if (updated) {
         set((state) => ({
-          entries: state.entries.map((e) => (e.id === entryId ? updated : e)),
+          entries: state.entries.map((e) => (e.id === entryId ? { ...e, ...updated } : e)),
         }));
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to update entry';
-      set({ error: message });
+      if (error instanceof TimesheetNotEditableError) {
+        set({ error: error.message });
+      } else {
+        const message = error instanceof Error ? error.message : 'Failed to update entry';
+        set({ error: message });
+      }
       throw error;
     }
   },
@@ -95,14 +175,26 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
         }));
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to delete entry';
-      set({ error: message });
+      if (error instanceof TimesheetNotEditableError) {
+        set({ error: error.message });
+      } else {
+        const message = error instanceof Error ? error.message : 'Failed to delete entry';
+        set({ error: message });
+      }
       throw error;
     }
   },
 
   clearEntries: () => {
-    set({ entries: [], error: null });
+    set({
+      entries: [],
+      error: null,
+      currentTimesheet: null,
+      timesheetStatus: null,
+      noTimesheetExists: false,
+      noResourceExists: false,
+      userEmail: null,
+    });
   },
 
   copyPreviousWeek: async (userId: string) => {
@@ -122,8 +214,12 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
         isLoading: false,
       }));
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to copy entries';
-      set({ error: message, isLoading: false });
+      if (error instanceof TimesheetNotEditableError) {
+        set({ error: error.message, isLoading: false });
+      } else {
+        const message = error instanceof Error ? error.message : 'Failed to copy entries';
+        set({ error: message, isLoading: false });
+      }
       throw error;
     }
   },
@@ -142,6 +238,46 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
 
   goToDate: (date: Date) => {
     set({ currentWeekStart: getWeekStart(date) });
+  },
+
+  submitTimesheet: async () => {
+    try {
+      set({ isLoading: true });
+      await timeEntryService.submitTimesheet();
+      const timesheet = timeEntryService.getCurrentTimesheet();
+      const status = timesheet ? bcClient.getTimesheetDisplayStatus(timesheet) : null;
+      set({
+        currentTimesheet: timesheet,
+        timesheetStatus: status,
+        isLoading: false,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to submit timesheet';
+      set({ error: message, isLoading: false });
+      throw error;
+    }
+  },
+
+  reopenTimesheet: async () => {
+    try {
+      set({ isLoading: true });
+      await timeEntryService.reopenTimesheet();
+      const timesheet = timeEntryService.getCurrentTimesheet();
+      const status = timesheet ? bcClient.getTimesheetDisplayStatus(timesheet) : null;
+      set({
+        currentTimesheet: timesheet,
+        timesheetStatus: status,
+        isLoading: false,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to reopen timesheet';
+      set({ error: message, isLoading: false });
+      throw error;
+    }
+  },
+
+  isTimesheetEditable: () => {
+    return timeEntryService.isTimesheetEditable();
   },
 
   getWeekData: () => {
