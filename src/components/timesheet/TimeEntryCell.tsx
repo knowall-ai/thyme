@@ -29,12 +29,14 @@ export function TimeEntryCell({
   const totalHours = entries.reduce((sum, e) => sum + e.hours, 0);
 
   const getProjectColor = (projectId: string) => {
-    const project = projects.find((p) => p.id === projectId);
+    // projectId is now a job code (e.g., "PR00030"), not a GUID
+    const project = projects.find((p) => p.code === projectId);
     return project?.color || '#9ca3af';
   };
 
   const getProjectName = (projectId: string) => {
-    const project = projects.find((p) => p.id === projectId);
+    // projectId is now a job code (e.g., "PR00030"), not a GUID
+    const project = projects.find((p) => p.code === projectId);
     return project?.name || 'Unknown';
   };
 
