@@ -8,23 +8,24 @@ interface LayoutProps {
   children: ReactNode;
 }
 
+const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || '0.0.0';
+
 export function Layout({ children }: LayoutProps) {
   return (
-    <div className="min-h-screen bg-dark-950">
+    <div className="flex min-h-screen flex-col bg-dark-950">
       {/* Background effects */}
       <div className="pointer-events-none fixed inset-0 bg-grid-pattern bg-grid opacity-10" />
 
-      <div className="relative z-10">
+      <div className="relative z-10 flex flex-1 flex-col">
         <ExtensionBanner />
         <Header />
-        <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">{children}</main>
-        <footer className="mt-auto border-t border-dark-800 bg-dark-900/50">
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
+          {children}
+        </main>
+        <footer className="border-t border-dark-800 bg-dark-900/50">
           <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-center gap-2 text-sm text-dark-500">
-              <span>Thyme</span>
-              <span>-</span>
-              <span>Time Tracking for Business Central</span>
-              <span>by</span>
+            <p className="text-center text-sm text-dark-500">
+              Thyme v{appVersion} - Time Tracking for Business Central by{' '}
               <a
                 href="https://knowall.ai"
                 target="_blank"
@@ -33,7 +34,7 @@ export function Layout({ children }: LayoutProps) {
               >
                 KnowAll.ai
               </a>
-            </div>
+            </p>
           </div>
         </footer>
       </div>
