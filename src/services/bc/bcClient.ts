@@ -460,8 +460,8 @@ class BusinessCentralClient {
 
     const url = `${this.customApiBaseUrl}${endpoint}`;
 
-    // Debug logging
-    if (options.body) {
+    // Debug logging (development only)
+    if (process.env.NODE_ENV === 'development' && options.body) {
       console.log('[BC API] POST/PATCH body:', options.body);
     }
 
@@ -477,7 +477,9 @@ class BusinessCentralClient {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('[BC API] Error response:', errorText);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[BC API] Error response:', errorText);
+      }
       throw new Error(`BC API Error (${response.status}): ${errorText}`);
     }
 
@@ -573,7 +575,9 @@ class BusinessCentralClient {
       method: 'POST',
       body: JSON.stringify(line),
     });
-    console.log('[BC API] createTimeSheetLine response:', JSON.stringify(result));
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[BC API] createTimeSheetLine response:', JSON.stringify(result));
+    }
     return result;
   }
 
@@ -670,7 +674,9 @@ class BusinessCentralClient {
     }
 
     const url = `/timeSheetLines(${lineId})/Microsoft.NAV.setHoursForDate`;
-    console.log('[BC API] setHoursForDate URL:', url);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[BC API] setHoursForDate URL:', url);
+    }
 
     await this.customApiFetch(url, {
       method: 'POST',

@@ -336,22 +336,21 @@ export const timeEntryService = {
       }
     }
 
+    // Return only updated fields - userId is preserved from original entry by store
     return {
       id: entryId,
       projectId: line.jobNo || '',
       taskId: line.jobTaskNo || '',
-      userId: '', // Will be filled by caller
       date: date,
       hours: updates.hours ?? 0,
       notes: updates.notes ?? line.description,
       isBillable: true,
       isRunning: false,
-      createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       bcTimeSheetLineId: line.id,
       bcTimeSheetNo: line.timeSheetNo,
       lineStatus: line.status,
-    };
+    } as TimeEntry;
   },
 
   /**
@@ -603,7 +602,17 @@ export const timeEntryService = {
       ]);
 
       return bcDataToTimeEntries(lines, details, timesheet, teammate.id);
-    } catch {
+    } catch (error) {
+      // Log error for debugging but don't expose to user
+      // This can fail for various reasons: no timesheet, no resource, network issues
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to get teammate entries:', {
+          weekStart,
+          teammateId: teammate.id,
+          teammateEmail: teammate.email,
+          error,
+        });
+      }
       return [];
     }
   },

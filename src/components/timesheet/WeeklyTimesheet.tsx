@@ -28,7 +28,7 @@ const statusColors: Record<TimesheetDisplayStatus, string> = {
   Open: 'bg-blue-500/20 text-blue-400',
   'Partially Submitted': 'bg-yellow-500/20 text-yellow-400',
   Submitted: 'bg-purple-500/20 text-purple-400',
-  Rejected: 'bg-red-500/20 text-red-400',
+  Rejected: 'bg-amber-500/20 text-amber-400',
   Approved: 'bg-green-500/20 text-green-400',
   Mixed: 'bg-orange-500/20 text-orange-400',
 };
@@ -48,7 +48,6 @@ export function WeeklyTimesheet() {
     timesheetStatus,
     noTimesheetExists,
     noResourceExists,
-    userEmail: storeUserEmail,
     fetchWeekEntries,
     fetchTeammateEntries,
     navigateToWeek,
@@ -446,8 +445,8 @@ Thank you!`)}`}
                   disabled={isSubmitting}
                 >
                   <ArrowPathIcon className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Recall</span>
-                  <span className="sm:hidden">Recall</span>
+                  <span className="hidden sm:inline">Reopen</span>
+                  <span className="sm:hidden">Reopen</span>
                 </Button>
               </>
             )}
