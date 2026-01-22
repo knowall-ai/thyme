@@ -38,6 +38,7 @@ class BusinessCentralClient {
   private _companyId: string;
   private _environment: BCEnvironmentType;
   private _extensionInstalled: boolean | null = null;
+  private _extensionCheckPromise: Promise<boolean> | null = null;
 
   constructor() {
     // Try to load from localStorage, fall back to env vars
@@ -92,6 +93,15 @@ class BusinessCentralClient {
     return this._environment;
   }
 
+  get tenantId(): string {
+    if (!BC_TENANT_ID) {
+      throw new Error(
+        'BusinessCentralClient: tenantId is not set. Configure NEXT_PUBLIC_AZURE_TENANT_ID.'
+      );
+    }
+    return BC_TENANT_ID;
+  }
+
   setCompany(companyId: string, environment: BCEnvironmentType): void {
     const companyChanged = this._companyId !== companyId;
     const envChanged = this._environment !== environment;
@@ -105,6 +115,7 @@ class BusinessCentralClient {
       }
       // Reset extension cache when company/environment changes
       this._extensionInstalled = null;
+      this._extensionCheckPromise = null;
     }
   }
 
@@ -179,6 +190,27 @@ class BusinessCentralClient {
       return this._extensionInstalled;
     }
 
+    // If a check is already in progress, return that promise to deduplicate requests
+    if (this._extensionCheckPromise !== null) {
+      return this._extensionCheckPromise;
+    }
+
+    // Create the check promise and store it for deduplication
+    this._extensionCheckPromise = this._doExtensionCheck();
+
+    try {
+      const result = await this._extensionCheckPromise;
+      return result;
+    } finally {
+      // Clear the pending promise after completion
+      this._extensionCheckPromise = null;
+    }
+  }
+
+  /**
+   * Internal method to perform the actual extension check.
+   */
+  private async _doExtensionCheck(): Promise<boolean> {
     try {
       const token = await getBCAccessToken();
       if (!token) {
@@ -209,6 +241,7 @@ class BusinessCentralClient {
    */
   resetExtensionCache(): void {
     this._extensionInstalled = null;
+    this._extensionCheckPromise = null;
   }
 
   private async fetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -334,18 +367,30 @@ class BusinessCentralClient {
     return this.fetch<BCJobTask>(`/jobTasks(${jobTaskId})`);
   }
 
-  // Resources (Users/Employees)
+  // Resources (Users/Employees) - uses custom Thyme API
   async getResources(filter?: string): Promise<BCResource[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      // Import dynamically to avoid circular dependency
+      const { ExtensionNotInstalledError } = await import('./timeEntryService');
+      throw new ExtensionNotInstalledError();
+    }
+
     let endpoint = "/resources?$filter=type eq 'Person'";
     if (filter) {
       endpoint += ` and ${filter}`;
     }
-    const response = await this.fetch<PaginatedResponse<BCResource>>(endpoint);
+    const response = await this.customApiFetch<PaginatedResponse<BCResource>>(endpoint);
     return response.value;
   }
 
   async getResource(resourceId: string): Promise<BCResource> {
-    return this.fetch<BCResource>(`/resources(${resourceId})`);
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      const { ExtensionNotInstalledError } = await import('./timeEntryService');
+      throw new ExtensionNotInstalledError();
+    }
+    return this.customApiFetch<BCResource>(`/resources(${resourceId})`);
   }
 
   /**
