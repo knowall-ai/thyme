@@ -17,3 +17,6 @@ export { TeamsBotBanner } from './TeamsBotBanner';
 
 export { DatePicker } from './DatePicker';
 export type { DatePickerProps } from './DatePicker';
+
+export { WeekNavigation } from './WeekNavigation';
+export type { WeekNavigationProps } from './WeekNavigation';

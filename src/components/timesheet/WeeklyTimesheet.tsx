@@ -15,8 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useTimeEntriesStore, useProjectsStore, useTeammateStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
-import { Button, Card } from '@/components/ui';
-import { WeekNavigation } from './WeekNavigation';
+import { Button, Card, WeekNavigation } from '@/components/ui';
 import { TimeEntryCell } from './TimeEntryCell';
 import { TimeEntryModal } from './TimeEntryModal';
 import type { TimeEntry, TimesheetDisplayStatus } from '@/types';
