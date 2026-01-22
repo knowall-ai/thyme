@@ -2,7 +2,7 @@
 
 import { AuthenticatedTemplate, UnauthenticatedTemplate } from '@/services/auth';
 import { Layout } from '@/components/layout';
-import { TeamList } from '@/components/team';
+import { TeamList, ZaplieBanner } from '@/components/team';
 
 function TeamContent() {
   return (
@@ -12,6 +12,7 @@ function TeamContent() {
           <h1 className="text-2xl font-bold text-white">Team</h1>
           <p className="mt-1 text-dark-400">View your team&apos;s timesheet progress</p>
         </div>
+        <ZaplieBanner />
         <TeamList />
       </div>
     </Layout>
