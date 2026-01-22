@@ -67,7 +67,7 @@ export function WeeklyTimesheet() {
     isTimesheetEditable,
   } = useTimeEntriesStore();
 
-  const { projects, error: projectsError, fetchProjects } = useProjectsStore();
+  const { projects, isLoading: projectsLoading, error: projectsError, fetchProjects } = useProjectsStore();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -635,7 +635,7 @@ Thank you!`)}`}
         </div>
 
         {/* Entries Grid */}
-        {isLoading ? (
+        {isLoading || projectsLoading ? (
           <div className="flex h-64 items-center justify-center">
             <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-knowall-green"></div>
           </div>
@@ -663,7 +663,7 @@ Thank you!`)}`}
         )}
 
         {/* Empty State */}
-        {!isLoading && entries.length === 0 && !noTimesheetExists && (
+        {!isLoading && !projectsLoading && entries.length === 0 && !noTimesheetExists && (
           <div className="py-12 text-center">
             {isViewingTeammate ? (
               <>

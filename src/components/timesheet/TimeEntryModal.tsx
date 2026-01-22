@@ -29,6 +29,14 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
   const [taskId, setTaskId] = useState('');
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
+
+  // When hours is 24, minutes must be 0
+  const handleHoursChange = (value: string) => {
+    setHours(value);
+    if (parseInt(value) >= 24) {
+      setMinutes('0');
+    }
+  };
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [extensionInstalled, setExtensionInstalled] = useState<boolean | null>(null);
@@ -281,17 +289,19 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
             min="0"
             max="24"
             value={hours}
-            onChange={(e) => setHours(e.target.value)}
+            onChange={(e) => handleHoursChange(e.target.value)}
             placeholder="0"
           />
           <Input
             label="Minutes"
             type="number"
             min="0"
-            max="59"
+            max="45"
+            step="15"
             value={minutes}
             onChange={(e) => setMinutes(e.target.value)}
             placeholder="0"
+            disabled={parseInt(hours) >= 24}
           />
         </div>
 
