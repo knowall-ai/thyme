@@ -53,7 +53,9 @@ function getBCResourceUrl(
   // BC Web Client URL format: opens the Resource Card (page 76) filtered to this resource
   // Note: BC expects the company display name, not the GUID
   const encodedCompany = encodeURIComponent(companyName);
-  const filter = encodeURIComponent(`No. IS '${resourceNumber}'`);
+  // Escape single quotes in resource number for OData filter syntax (double them per OData standard)
+  const escapedResourceNumber = resourceNumber.replace(/'/g, "''");
+  const filter = encodeURIComponent(`No. IS '${escapedResourceNumber}'`);
   return `https://businesscentral.dynamics.com/${tenantId}/${environment}/?company=${encodedCompany}&page=76&filter=Resource.${filter}`;
 }
 
@@ -106,7 +108,9 @@ export function TeamList() {
       setError(null);
       setExtensionNotInstalled(false);
       try {
-        // Get all person resources (type eq 'Person' filter is already in bcClient)
+        // Get all person resources. Note: bcClient.getResources always applies
+        // a hardcoded "type eq 'Person'" filter internally, and any additional
+        // filters passed to it are AND-ed with that condition (they cannot override it).
         const resources = await bcClient.getResources();
 
         // Also check if current user has a resource record
@@ -147,14 +151,25 @@ export function TeamList() {
                     const line = lines.find((l) => l.lineNo === detail.timeSheetLineNo);
                     if (line && line.type === 'Job') {
                       totalHours += detail.quantity;
-                      // All job entries are considered billable for now
+                      // TODO: Currently all job entries are considered billable; update when BC exposes billable vs non-billable job types
                       billableHours += detail.quantity;
                     }
                   }
                 }
               }
-            } catch {
-              // Resource might not have a timesheet for this week - that's OK
+            } catch (error) {
+              // Resource might not have a timesheet for this week - that's OK.
+              // Log the error in development so unexpected failures are not silently ignored.
+              if (process.env.NODE_ENV === 'development') {
+                // eslint-disable-next-line no-console
+                console.error(
+                  'Failed to fetch timesheet data for resource',
+                  resource.number,
+                  'for week starting',
+                  currentWeekStart.toISOString().split('T')[0],
+                  error
+                );
+              }
             }
 
             const nonBillableHours = totalHours - billableHours;
@@ -189,14 +204,37 @@ export function TeamList() {
         setMembers(membersWithHours);
 
         // Fetch profile photos for members with UPNs (don't block initial render)
-        membersWithHours.forEach(async (member) => {
-          if (member.userPrincipalName) {
-            const photoUrl = await getUserProfilePhoto(member.userPrincipalName);
-            if (photoUrl) {
-              setMembers((prev) => prev.map((m) => (m.id === member.id ? { ...m, photoUrl } : m)));
+        void (async () => {
+          try {
+            const photoUpdates = await Promise.all(
+              membersWithHours.map(async (member) => {
+                if (!member.userPrincipalName) {
+                  return null;
+                }
+                const photoUrl = await getUserProfilePhoto(member.userPrincipalName);
+                if (!photoUrl) {
+                  return null;
+                }
+                return { id: member.id, photoUrl };
+              })
+            );
+
+            const validUpdates = photoUpdates.filter(
+              (update): update is { id: string; photoUrl: string } => update !== null
+            );
+
+            if (validUpdates.length > 0) {
+              setMembers((prev) =>
+                prev.map((member) => {
+                  const update = validUpdates.find((u) => u.id === member.id);
+                  return update ? { ...member, photoUrl: update.photoUrl } : member;
+                })
+              );
             }
+          } catch {
+            // Ignore photo loading errors to avoid impacting main data load
           }
-        });
+        })();
       } catch (err) {
         if (err instanceof ExtensionNotInstalledError) {
           setExtensionNotInstalled(true);
@@ -320,6 +358,32 @@ export function TeamList() {
     );
   };
 
+  // Get aria-sort value for accessible sortable headers
+  const getAriaSort = (field: SortField): 'ascending' | 'descending' | 'none' => {
+    if (sortField !== field) return 'none';
+    return sortDirection === 'asc' ? 'ascending' : 'descending';
+  };
+
+  // Get utilization status text for accessibility
+  const getUtilizationStatus = (utilization: number): string => {
+    if (utilization >= teamConfig.utilization.thresholds.high) {
+      return 'on target';
+    } else if (utilization >= teamConfig.utilization.thresholds.low) {
+      return 'moderate';
+    }
+    return 'low - needs attention';
+  };
+
+  // Get billable status text for accessibility
+  const getBillableStatus = (billablePercent: number): string => {
+    if (billablePercent >= teamConfig.billable.thresholds.high) {
+      return 'high';
+    } else if (billablePercent >= teamConfig.billable.thresholds.low) {
+      return 'moderate';
+    }
+    return 'low';
+  };
+
   // Extension not installed state
   if (extensionNotInstalled) {
     return (
@@ -420,7 +484,11 @@ export function TeamList() {
             <Card variant="bordered" className="p-4">
               <p className="mb-2 text-sm text-dark-400">Hours Breakdown</p>
               <div className="flex items-center gap-4">
-                <div className="h-20 w-20 shrink-0">
+                <div
+                  className="h-20 w-20 shrink-0"
+                  role="img"
+                  aria-label={`Billable vs non-billable hours. Billable: ${totals.billableHours.toFixed(1)} hours. Non-billable: ${totals.nonBillableHours.toFixed(1)} hours.`}
+                >
                   <Pie data={displayPieData} options={pieOptions} />
                 </div>
                 <div className="text-sm">
@@ -462,6 +530,10 @@ export function TeamList() {
                     <th
                       className="cursor-pointer px-4 py-3 text-left text-sm font-medium text-dark-300 hover:text-dark-100"
                       onClick={() => handleSort('name')}
+                      role="columnheader"
+                      aria-sort={getAriaSort('name')}
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSort('name')}
                     >
                       <div className="flex items-center gap-1">
                         Employee
@@ -472,6 +544,10 @@ export function TeamList() {
                     <th
                       className="cursor-pointer px-4 py-3 text-right text-sm font-medium text-dark-300 hover:text-dark-100"
                       onClick={() => handleSort('totalHours')}
+                      role="columnheader"
+                      aria-sort={getAriaSort('totalHours')}
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSort('totalHours')}
                     >
                       <div className="flex items-center justify-end gap-1">
                         Hours
@@ -481,6 +557,10 @@ export function TeamList() {
                     <th
                       className="cursor-pointer px-4 py-3 text-right text-sm font-medium text-dark-300 hover:text-dark-100"
                       onClick={() => handleSort('utilization')}
+                      role="columnheader"
+                      aria-sort={getAriaSort('utilization')}
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSort('utilization')}
                     >
                       <div className="flex items-center justify-end gap-1">
                         Utilization
@@ -493,6 +573,10 @@ export function TeamList() {
                     <th
                       className="cursor-pointer px-4 py-3 text-right text-sm font-medium text-dark-300 hover:text-dark-100"
                       onClick={() => handleSort('billablePercent')}
+                      role="columnheader"
+                      aria-sort={getAriaSort('billablePercent')}
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSort('billablePercent')}
                     >
                       <div className="flex items-center justify-end gap-1">
                         Billable %
@@ -539,27 +623,36 @@ export function TeamList() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <span className="text-dark-300">{member.role}</span>
-                          <a
-                            href={getBCResourceUrl(
-                              bcClient.tenantId,
-                              bcClient.environment,
-                              selectedCompany?.name || '',
-                              member.number
-                            )}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-dark-400 hover:text-knowall-green"
-                            title="Open in Business Central"
-                          >
-                            <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-                          </a>
+                          {selectedCompany?.name && (
+                            <a
+                              href={getBCResourceUrl(
+                                bcClient.tenantId,
+                                bcClient.environment,
+                                selectedCompany.name,
+                                member.number
+                              )}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-dark-400 hover:text-knowall-green"
+                              title="Open in Business Central"
+                            >
+                              <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                            </a>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right text-dark-100">
                         {member.totalHours.toFixed(1)}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex flex-col gap-1">
+                        <div
+                          className="flex flex-col gap-1"
+                          role="meter"
+                          aria-valuenow={member.utilization}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-label={`Utilization ${member.utilization.toFixed(0)}% - ${getUtilizationStatus(member.utilization)}`}
+                        >
                           <span className="text-sm font-medium text-dark-100">
                             {member.utilization.toFixed(0)}%
                           </span>
@@ -580,6 +673,7 @@ export function TeamList() {
                             'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
                             getBillableColor(member.billablePercent)
                           )}
+                          aria-label={`Billable percentage ${member.billablePercent.toFixed(0)}% - ${getBillableStatus(member.billablePercent)}`}
                         >
                           {member.billablePercent.toFixed(0)}%
                         </span>

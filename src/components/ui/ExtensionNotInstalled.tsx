@@ -3,6 +3,9 @@
 import { ExclamationTriangleIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 import { Card } from './Card';
 
+// Single source of truth for the extension GitHub URL
+const EXTENSION_GITHUB_URL = 'https://github.com/knowall-ai/thyme-bc-extension';
+
 interface ExtensionNotInstalledProps {
   /** Optional custom message to display */
   message?: string;
@@ -22,7 +25,7 @@ export function ExtensionNotInstalled({ message }: ExtensionNotInstalledProps) {
 I need the Thyme BC Extension installed in Business Central so I can use Thyme for time tracking.
 
 Please download and install the extension from:
-https://github.com/knowall-ai/thyme-bc-extension
+${EXTENSION_GITHUB_URL}
 
 Thank you!`);
 
@@ -41,7 +44,7 @@ Thank you!`);
             <li>
               Download the latest Thyme BC Extension from{' '}
               <a
-                href="https://github.com/knowall-ai/thyme-bc-extension"
+                href={EXTENSION_GITHUB_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-medium text-thyme-400 underline hover:text-thyme-300"

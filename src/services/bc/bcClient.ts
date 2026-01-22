@@ -94,6 +94,11 @@ class BusinessCentralClient {
   }
 
   get tenantId(): string {
+    if (!BC_TENANT_ID) {
+      throw new Error(
+        'BusinessCentralClient: tenantId is not set. Configure NEXT_PUBLIC_AZURE_TENANT_ID.'
+      );
+    }
     return BC_TENANT_ID;
   }
 

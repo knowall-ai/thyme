@@ -40,8 +40,12 @@ export interface TeamConfig {
 export const teamConfig: TeamConfig = {
   utilization: {
     thresholds: {
-      low: 20, // Below 20% is red
-      high: 80, // Above 80% is green, 20-80% is amber
+      // For a professional services company, high utilization is the goal (billing time to clients).
+      // Low utilization (under 20%) indicates underutilized/unbilled resources - shown as red.
+      // High utilization (80%+) is the target state - shown as green.
+      // This is intentional for the business model where maximizing billable hours is desirable.
+      low: 20, // Below 20% is red (underutilized)
+      high: 80, // Above 80% is green (target utilization), 20-80% is amber
     },
     colors: {
       low: 'bg-red-500',
