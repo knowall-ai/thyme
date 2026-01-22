@@ -65,4 +65,7 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | "Could not find your resource record" error
 | Your user account must have a matching Resource record in BC with a valid email address. Contact your BC administrator.
 
+| "Resource Record Not Found" but BC extension check passes
+| The extension's `/resources` API endpoint may not exist. This happens when using an older extension version or when the extension isn't fully installed. Reinstall the latest Thyme BC Extension from https://github.com/knowall-ai/thyme-bc-extension
+
 |===

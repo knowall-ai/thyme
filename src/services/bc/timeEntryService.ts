@@ -22,6 +22,17 @@ export class NoResourceError extends Error {
   }
 }
 
+// Error thrown when the BC extension is not installed or outdated
+export class ExtensionNotInstalledError extends Error {
+  constructor() {
+    super(
+      'The Thyme BC Extension is not installed or is outdated. ' +
+        'Please install the latest version from https://github.com/knowall-ai/thyme-bc-extension'
+    );
+    this.name = 'ExtensionNotInstalledError';
+  }
+}
+
 // Error thrown when no timesheet exists for the user/week
 export class NoTimesheetError extends Error {
   constructor(resourceNo: string, weekStart: Date) {
@@ -203,7 +214,7 @@ export const timeEntryService = {
 
   /**
    * Create a new time entry.
-   * Creates a timesheet line if needed, then sets hours for the date.
+   * Always creates a new timesheet line - users edit existing entries to add hours to the same line.
    */
   async createEntry(
     entry: Omit<
@@ -221,50 +232,30 @@ export const timeEntryService = {
       throw new TimesheetNotEditableError(status);
     }
 
-    // Check if a line already exists for this project/task
-    let line = this._currentTimesheetLines.find(
-      (l) => l.jobNo === entry.projectId && l.jobTaskNo === entry.taskId
-    );
+    // Always create a new line - BC allows multiple lines for the same project/task
+    // Each line can have its own description (notes)
+    const line = await bcClient.createTimeSheetLine({
+      timeSheetNo: this._currentTimesheet.number,
+      type: 'Job',
+      jobNo: entry.projectId,
+      jobTaskNo: entry.taskId,
+      description: entry.notes || undefined,
+    });
 
-    if (!line) {
-      // Create new line for this project/task
-      line = await bcClient.createTimeSheetLine({
-        timeSheetNo: this._currentTimesheet.number,
-        type: 'Job',
-        jobNo: entry.projectId,
-        jobTaskNo: entry.taskId,
-        description: entry.notes || undefined,
-      });
+    // Update cache
+    this._currentTimesheetLines.push(line);
 
-      // Update cache
-      this._currentTimesheetLines.push(line);
-    }
+    // Set hours for the date
+    await bcClient.setHoursForDate(line.id, entry.date, entry.hours);
 
-    // Check if hours already exist for this line and date
-    const existingDetail = this._currentTimesheetDetails.find(
-      (d) => d.timeSheetLineNo === line!.lineNo && d.date === entry.date
-    );
-
-    // Calculate new hours (add to existing if any)
-    const existingHours = existingDetail?.quantity || 0;
-    const newHours = existingHours + entry.hours;
-
-    // Set hours for the date using the bound action
-    await bcClient.setHoursForDate(line.id, entry.date, newHours);
-
-    // Update the detail cache
-    if (existingDetail) {
-      existingDetail.quantity = newHours;
-    } else {
-      // Add a new detail to cache
-      this._currentTimesheetDetails.push({
-        id: `temp_${line.id}_${entry.date}`, // Temporary ID, will be refreshed on next load
-        timeSheetNo: this._currentTimesheet.number,
-        timeSheetLineNo: line.lineNo,
-        date: entry.date,
-        quantity: newHours,
-      });
-    }
+    // Add detail to cache
+    this._currentTimesheetDetails.push({
+      id: `temp_${line.id}_${entry.date}`,
+      timeSheetNo: this._currentTimesheet.number,
+      timeSheetLineNo: line.lineNo,
+      date: entry.date,
+      quantity: entry.hours,
+    });
 
     return {
       id: createEntryId(line.id, entry.date),
@@ -272,7 +263,7 @@ export const timeEntryService = {
       taskId: entry.taskId,
       userId: entry.userId,
       date: entry.date,
-      hours: newHours,
+      hours: entry.hours,
       notes: entry.notes,
       isBillable: entry.isBillable,
       isRunning: entry.isRunning,

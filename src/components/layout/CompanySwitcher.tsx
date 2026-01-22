@@ -8,6 +8,7 @@ import {
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { useCompanyStore, useProjectsStore, useTimeEntriesStore, useTimerStore } from '@/hooks';
+import { useAuth } from '@/services/auth';
 import { cn } from '@/utils';
 import type { BCCompany, BCEnvironmentType } from '@/types';
 
@@ -35,8 +36,10 @@ export function CompanySwitcher() {
     getEnvironments,
   } = useCompanyStore();
   const { fetchProjects, clearProjects } = useProjectsStore();
-  const { clearEntries } = useTimeEntriesStore();
+  const { clearEntries, fetchWeekEntries } = useTimeEntriesStore();
   const { isRunning: timerIsRunning, reset: resetTimer } = useTimerStore();
+  const { account } = useAuth();
+  const userEmail = account?.username || '';
 
   // Fetch companies on mount (Zustand actions are stable, empty dependency is intentional)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -96,6 +99,10 @@ export function CompanySwitcher() {
     clearEntries();
     clearProjects();
     await fetchProjects();
+    // Re-fetch timesheet entries for the new company
+    if (userEmail) {
+      fetchWeekEntries(userEmail);
+    }
   };
 
   const toggleEnvExpanded = (env: BCEnvironmentType) => {

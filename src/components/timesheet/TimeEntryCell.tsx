@@ -88,8 +88,8 @@ export function TimeEntryCell({
         ))}
       </div>
 
-      {/* Add button - only show when not in read-only mode */}
-      {!readOnly && (isHovered || entries.length === 0) && (
+      {/* Add button - always visible when not in read-only mode */}
+      {!readOnly && (
         <button
           onClick={() => onAddEntry(date)}
           className={cn(

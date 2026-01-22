@@ -5,4 +5,5 @@ export {
   NoResourceError,
   NoTimesheetError,
   TimesheetNotEditableError,
+  ExtensionNotInstalledError,
 } from './timeEntryService';

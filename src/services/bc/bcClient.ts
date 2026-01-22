@@ -378,6 +378,14 @@ class BusinessCentralClient {
       return response.value[0] || null;
     } catch (error) {
       if (error instanceof Error && error.message.includes('404')) {
+        // Check if the endpoint itself doesn't exist (extension not installed/outdated)
+        // vs no resource found for the user
+        if (error.message.includes('No HTTP resource was found')) {
+          // Import dynamically to avoid circular dependency
+          const { ExtensionNotInstalledError } = await import('./timeEntryService');
+          throw new ExtensionNotInstalledError();
+        }
+        // Otherwise, no resource found for user
         return null;
       }
       throw error;
@@ -477,8 +485,13 @@ class BusinessCentralClient {
 
     if (!response.ok) {
       const errorText = await response.text();
+      // Only log unexpected errors in development (skip expected 404s for missing endpoints)
       if (process.env.NODE_ENV === 'development') {
-        console.error('[BC API] Error response:', errorText);
+        const isExpected404 =
+          response.status === 404 && errorText.includes('No HTTP resource was found');
+        if (!isExpected404) {
+          console.error('[BC API] Error response:', errorText);
+        }
       }
       throw new Error(`BC API Error (${response.status}): ${errorText}`);
     }

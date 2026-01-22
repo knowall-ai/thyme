@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { format } from 'date-fns';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { format, parseISO } from 'date-fns';
 import toast from 'react-hot-toast';
 import {
   DocumentDuplicateIcon,
@@ -19,7 +20,7 @@ import { WeekNavigation } from './WeekNavigation';
 import { TimeEntryCell } from './TimeEntryCell';
 import { TimeEntryModal } from './TimeEntryModal';
 import type { TimeEntry, TimesheetDisplayStatus } from '@/types';
-import { getWeekDays, formatDate, isDayToday, formatTime } from '@/utils';
+import { getWeekDays, formatDate, isDayToday, formatTime, getWeekStart } from '@/utils';
 import { getBCResourcesListUrl } from '@/utils/bcUrls';
 import { getRandomQuote } from '@/config/quotes';
 
@@ -40,6 +41,10 @@ export function WeeklyTimesheet() {
   const { selectedTeammate } = useTeammateStore();
   const isViewingTeammate = selectedTeammate !== null;
 
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [urlInitialized, setUrlInitialized] = useState(false);
+
   const {
     entries,
     currentWeekStart,
@@ -48,6 +53,7 @@ export function WeeklyTimesheet() {
     timesheetStatus,
     noTimesheetExists,
     noResourceExists,
+    extensionNotInstalled,
     fetchWeekEntries,
     fetchTeammateEntries,
     navigateToWeek,
@@ -74,14 +80,72 @@ export function WeeklyTimesheet() {
   // Determine if editing is allowed
   const canEdit = !isViewingTeammate && isTimesheetEditable();
 
-  // Fetch data on mount and when week or teammate changes
+  // Effect 1: Initialize from URL on mount (runs synchronously before paint)
+  // Read directly from window.location for reliable access on initial render
+  useLayoutEffect(() => {
+    if (urlInitialized) return;
+
+    // Read week param directly from URL (more reliable than useSearchParams on mount)
+    const urlParams = new URLSearchParams(window.location.search);
+    const weekParam = urlParams.get('week');
+
+    if (weekParam) {
+      try {
+        const date = parseISO(weekParam);
+        if (!isNaN(date.getTime())) {
+          const urlWeekStart = getWeekStart(date);
+          const currentWeekStr = format(currentWeekStart, 'yyyy-MM-dd');
+          const urlWeekStr = format(urlWeekStart, 'yyyy-MM-dd');
+
+          // Navigate if URL week differs from current store value
+          if (urlWeekStr !== currentWeekStr) {
+            goToDate(date);
+            // Don't set initialized yet - wait for store to update
+            return;
+          }
+        }
+      } catch {
+        // Invalid date, ignore
+      }
+    }
+
+    // URL matches store or no URL param - mark as initialized
+    setUrlInitialized(true);
+  }, [urlInitialized, currentWeekStart, goToDate]);
+
+  // Effect 2: Sync URL when week changes (after initialization)
   useEffect(() => {
+    // Don't update URL until initialization is complete
+    if (!urlInitialized) return;
+
+    const weekStr = format(currentWeekStart, 'yyyy-MM-dd');
+    const weekParam = searchParams.get('week');
+
+    if (weekStr !== weekParam) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('week', weekStr);
+      router.replace(`?${params.toString()}`, { scroll: false });
+    }
+  }, [urlInitialized, currentWeekStart, searchParams, router]);
+
+  // Fetch data on mount and when week or teammate changes
+  // Wait for URL initialization to avoid fetching wrong week first
+  useEffect(() => {
+    if (!urlInitialized) return;
+
     if (selectedTeammate) {
       fetchTeammateEntries(selectedTeammate, currentWeekStart);
     } else if (userEmail) {
       fetchWeekEntries(userEmail, currentWeekStart);
     }
-  }, [userEmail, currentWeekStart, fetchWeekEntries, fetchTeammateEntries, selectedTeammate]);
+  }, [
+    urlInitialized,
+    userEmail,
+    currentWeekStart,
+    fetchWeekEntries,
+    fetchTeammateEntries,
+    selectedTeammate,
+  ]);
 
   useEffect(() => {
     fetchProjects();
@@ -161,6 +225,76 @@ export function WeeklyTimesheet() {
   };
 
   const totalHours = getTotalHours();
+
+  // Extension not installed state
+  if (extensionNotInstalled && !isViewingTeammate) {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <WeekNavigation
+            currentWeekStart={currentWeekStart}
+            onPrevious={() => navigateToWeek('prev')}
+            onNext={() => navigateToWeek('next')}
+            onToday={goToCurrentWeek}
+            onDateSelect={goToDate}
+          />
+        </div>
+
+        {/* Extension Not Installed Message */}
+        <Card variant="bordered" className="p-8">
+          <div className="flex flex-col items-center justify-center text-center">
+            <ExclamationTriangleIcon className="mb-4 h-12 w-12 text-yellow-500" />
+            <h3 className="mb-2 text-lg font-semibold text-white">
+              Thyme BC Extension Not Installed
+            </h3>
+            <p className="mb-4 max-w-md text-dark-300">
+              The Thyme Business Central Extension is not installed or is outdated for this company.
+              The extension is required for timesheet functionality.
+            </p>
+
+            <div className="max-w-lg text-left">
+              <p className="mb-2 text-sm font-medium text-dark-300">
+                To resolve this, ask your Business Central administrator to:
+              </p>
+              <ol className="list-inside list-decimal space-y-2 text-sm text-dark-400">
+                <li>
+                  Download the latest Thyme BC Extension from{' '}
+                  <a
+                    href="https://github.com/knowall-ai/thyme-bc-extension"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-thyme-400 underline hover:text-thyme-300"
+                  >
+                    GitHub
+                  </a>
+                </li>
+                <li>Install the extension in Business Central for this company</li>
+                <li>Refresh this page after installation</li>
+              </ol>
+
+              <div className="mt-4 flex justify-center">
+                <a
+                  href={`mailto:?subject=${encodeURIComponent('Thyme Setup: BC Extension Installation Needed')}&body=${encodeURIComponent(`Hi,
+
+I need the Thyme BC Extension installed in Business Central so I can use Thyme for time tracking.
+
+Please download and install the extension from:
+https://github.com/knowall-ai/thyme-bc-extension
+
+Thank you!`)}`}
+                  className="inline-flex items-center gap-2 rounded-md bg-thyme-600 px-4 py-2 text-sm font-medium text-white hover:bg-thyme-500"
+                >
+                  <EnvelopeIcon className="h-4 w-4" />
+                  Email request to administrator
+                </a>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   // No resource record exists state
   if (noResourceExists && !isViewingTeammate) {

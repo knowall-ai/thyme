@@ -1,0 +1,19 @@
+= Thyme FAQs
+:toc:
+
+== Time Entry Behaviour
+
+=== Why does adding a new time entry create a separate line in Business Central?
+
+When you add a new time entry in Thyme, it always creates a new timesheet line in Business Central, even if you select the same project and task as an existing entry.
+
+*Reason:* Business Central allows multiple timesheet lines for the same project and task combination, each with its own description (notes). This design enables you to:
+
+* Record different activities on the same project/task with distinct notes
+* Track time for the same work across different days with separate descriptions
+* Maintain detailed audit trails of what was worked on
+
+*To add hours to an existing line:* Click on the existing entry to edit it, then adjust the hours. This keeps all time on the same line with the same description.
+
+*Example:*
+If you worked on "Project A - Development" for 2 hours in the morning doing "Bug fixes" and 3 hours in the afternoon doing "Code review", you would have two separate lines in Business Central - each with its own notes describing the work done.

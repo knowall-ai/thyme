@@ -5,6 +5,7 @@ import {
   NoResourceError,
   NoTimesheetError,
   TimesheetNotEditableError,
+  ExtensionNotInstalledError,
   bcClient,
 } from '@/services/bc';
 import { getWeekStart, getWeekEnd } from '@/utils';
@@ -20,6 +21,7 @@ interface TimeEntriesStore {
   timesheetStatus: TimesheetDisplayStatus | null;
   noTimesheetExists: boolean;
   noResourceExists: boolean;
+  extensionNotInstalled: boolean;
   userEmail: string | null;
 
   // Entry operations
@@ -64,6 +66,7 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
   timesheetStatus: null,
   noTimesheetExists: false,
   noResourceExists: false,
+  extensionNotInstalled: false,
   userEmail: null,
 
   fetchWeekEntries: async (userId: string, weekStart?: Date) => {
@@ -74,6 +77,7 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
       currentWeekStart: week,
       noTimesheetExists: false,
       noResourceExists: false,
+      extensionNotInstalled: false,
       userEmail: userId,
     });
 
@@ -89,15 +93,28 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
         isLoading: false,
         noTimesheetExists: false,
         noResourceExists: false,
+        extensionNotInstalled: false,
       });
     } catch (error) {
-      if (error instanceof NoResourceError) {
+      if (error instanceof ExtensionNotInstalledError) {
+        set({
+          entries: [],
+          currentTimesheet: null,
+          timesheetStatus: null,
+          noTimesheetExists: false,
+          noResourceExists: false,
+          extensionNotInstalled: true,
+          isLoading: false,
+          error: error.message,
+        });
+      } else if (error instanceof NoResourceError) {
         set({
           entries: [],
           currentTimesheet: null,
           timesheetStatus: null,
           noTimesheetExists: false,
           noResourceExists: true,
+          extensionNotInstalled: false,
           isLoading: false,
           error: error.message,
         });
@@ -108,6 +125,7 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
           timesheetStatus: null,
           noTimesheetExists: true,
           noResourceExists: false,
+          extensionNotInstalled: false,
           isLoading: false,
           error: error.message,
         });
@@ -134,7 +152,18 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
   addEntry: async (entryData) => {
     try {
       const entry = await timeEntryService.createEntry(entryData);
-      set((state) => ({ entries: [...state.entries, entry] }));
+      // BC aggregates hours on the same line/date, so update existing entry if ID matches
+      set((state) => {
+        const existingIndex = state.entries.findIndex((e) => e.id === entry.id);
+        if (existingIndex >= 0) {
+          // Update existing entry
+          const newEntries = [...state.entries];
+          newEntries[existingIndex] = entry;
+          return { entries: newEntries };
+        }
+        // Add new entry
+        return { entries: [...state.entries, entry] };
+      });
       return entry;
     } catch (error) {
       if (error instanceof TimesheetNotEditableError) {
@@ -193,6 +222,7 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
       timesheetStatus: null,
       noTimesheetExists: false,
       noResourceExists: false,
+      extensionNotInstalled: false,
       userEmail: null,
     });
   },
