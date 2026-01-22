@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Card } from '@/components/ui';
+import { Card, ExtensionNotInstalled } from '@/components/ui';
+import { ExtensionNotInstalledError, NoTimesheetError } from '@/services/bc';
 import {
   ChartBarIcon,
   CalendarIcon,
@@ -52,9 +53,10 @@ export function ReportsPanel() {
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [extensionNotInstalled, setExtensionNotInstalled] = useState(false);
 
   const { account } = useAuth();
-  const userId = account?.localAccountId || '';
+  const userEmail = account?.username || '';
   const { projects, fetchProjects } = useProjectsStore();
 
   // Calculate date range boundaries
@@ -95,17 +97,23 @@ export function ReportsPanel() {
 
   // Fetch entries when date range or user changes
   useEffect(() => {
-    if (!userId) return;
+    if (!userEmail) return;
 
     const fetchEntries = async () => {
       setIsLoading(true);
       setError(null);
+      setExtensionNotInstalled(false);
       try {
-        const data = await timeEntryService.getEntries(startDate, endDate, userId);
+        const data = await timeEntryService.getEntries(startDate, endDate, userEmail);
         setEntries(data);
       } catch (err) {
-        console.error('Failed to fetch entries for reports:', err);
-        setError('Failed to load report data');
+        if (err instanceof ExtensionNotInstalledError) {
+          setExtensionNotInstalled(true);
+        } else if (!(err instanceof NoTimesheetError)) {
+          // NoTimesheetError is expected when no timesheet exists - not an error
+          console.error('Failed to fetch entries for reports:', err);
+          setError('Failed to load report data');
+        }
         setEntries([]);
       } finally {
         setIsLoading(false);
@@ -113,7 +121,7 @@ export function ReportsPanel() {
     };
 
     fetchEntries();
-  }, [userId, startDate, endDate]);
+  }, [userEmail, startDate, endDate]);
 
   // Fetch projects on mount
   useEffect(() => {
@@ -147,7 +155,7 @@ export function ReportsPanel() {
 
     return Array.from(projectMap.entries())
       .map(([projectId, data]) => {
-        const project = projects.find((p) => p.id === projectId);
+        const project = projects.find((p) => p.code === projectId);
         return {
           projectId,
           projectName: project?.name || 'Unknown Project',
@@ -187,6 +195,13 @@ export function ReportsPanel() {
     dateRange === 'week'
       ? isSameWeek(referenceDate, new Date(), { weekStartsOn: 1 })
       : isSameMonth(referenceDate, new Date());
+
+  // Extension not installed state
+  if (extensionNotInstalled) {
+    return (
+      <ExtensionNotInstalled message="The Thyme Business Central Extension is required to view reports. Please ask your administrator to install the extension." />
+    );
+  }
 
   return (
     <div className="space-y-6">
