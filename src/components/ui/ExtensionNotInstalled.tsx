@@ -30,9 +30,7 @@ Thank you!`);
     <Card variant="bordered" className="p-8">
       <div className="flex flex-col items-center justify-center text-center">
         <ExclamationTriangleIcon className="mb-4 h-12 w-12 text-yellow-500" />
-        <h3 className="mb-2 text-lg font-semibold text-white">
-          Thyme BC Extension Not Installed
-        </h3>
+        <h3 className="mb-2 text-lg font-semibold text-white">Thyme BC Extension Not Installed</h3>
         <p className="mb-4 max-w-md text-dark-300">{message || defaultMessage}</p>
 
         <div className="max-w-lg text-left">

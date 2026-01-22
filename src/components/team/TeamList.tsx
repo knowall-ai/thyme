@@ -193,9 +193,7 @@ export function TeamList() {
           if (member.userPrincipalName) {
             const photoUrl = await getUserProfilePhoto(member.userPrincipalName);
             if (photoUrl) {
-              setMembers((prev) =>
-                prev.map((m) => (m.id === member.id ? { ...m, photoUrl } : m))
-              );
+              setMembers((prev) => prev.map((m) => (m.id === member.id ? { ...m, photoUrl } : m)));
             }
           }
         });
@@ -370,9 +368,7 @@ export function TeamList() {
         <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
           <ExclamationTriangleIcon className="h-5 w-5 shrink-0 text-amber-500" />
           <div className="text-sm">
-            <p className="font-medium text-amber-400">
-              You don&apos;t have a Resource record
-            </p>
+            <p className="font-medium text-amber-400">You don&apos;t have a Resource record</p>
             <p className="mt-1 text-dark-300">
               Your account ({userEmail}) doesn&apos;t have a matching Resource record in Business
               Central. You won&apos;t be able to track time until your administrator creates a
@@ -430,11 +426,15 @@ export function TeamList() {
                 <div className="text-sm">
                   <div className="flex items-center gap-2">
                     <span className="h-3 w-3 shrink-0 rounded-full bg-green-500"></span>
-                    <span className="text-dark-300">Billable: {totals.billableHours.toFixed(1)}h</span>
+                    <span className="text-dark-300">
+                      Billable: {totals.billableHours.toFixed(1)}h
+                    </span>
                   </div>
                   <div className="mt-1 flex items-center gap-2">
                     <span className="h-3 w-3 shrink-0 rounded-full bg-slate-500"></span>
-                    <span className="text-dark-300">Non-billable: {totals.nonBillableHours.toFixed(1)}h</span>
+                    <span className="text-dark-300">
+                      Non-billable: {totals.nonBillableHours.toFixed(1)}h
+                    </span>
                   </div>
                 </div>
               </div>
@@ -468,9 +468,7 @@ export function TeamList() {
                         <SortIcon field="name" />
                       </div>
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-dark-300">
-                      Code
-                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-dark-300">Code</th>
                     <th
                       className="cursor-pointer px-4 py-3 text-right text-sm font-medium text-dark-300 hover:text-dark-100"
                       onClick={() => handleSort('totalHours')}

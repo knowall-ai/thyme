@@ -66,7 +66,12 @@ export function WeeklyTimesheet() {
     isTimesheetEditable,
   } = useTimeEntriesStore();
 
-  const { projects, isLoading: projectsLoading, error: projectsError, fetchProjects } = useProjectsStore();
+  const {
+    projects,
+    isLoading: projectsLoading,
+    error: projectsError,
+    fetchProjects,
+  } = useProjectsStore();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
