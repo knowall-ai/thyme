@@ -20,3 +20,5 @@ export type { DatePickerProps } from './DatePicker';
 
 export { WeekNavigation } from './WeekNavigation';
 export type { WeekNavigationProps } from './WeekNavigation';
+
+export { ExtensionNotInstalled } from './ExtensionNotInstalled';

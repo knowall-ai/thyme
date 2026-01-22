@@ -76,3 +76,53 @@ function blobToDataUrl(blob: Blob): Promise<string> {
     reader.readAsDataURL(blob);
   });
 }
+
+// Cache for user photos by UPN
+const userPhotoCache = new Map<string, { url: string | null; timestamp: number }>();
+
+/**
+ * Fetches a user's profile photo by their User Principal Name (UPN).
+ * Returns a data URL that can be used directly in img src.
+ * Returns null if no photo is available or on error.
+ */
+export async function getUserProfilePhoto(userPrincipalName: string): Promise<string | null> {
+  const cacheKey = userPrincipalName.toLowerCase();
+  const cached = userPhotoCache.get(cacheKey);
+
+  // Return cached result if still valid
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION_MS) {
+    return cached.url;
+  }
+
+  try {
+    const accessToken = await getGraphAccessToken();
+    if (!accessToken) {
+      return null;
+    }
+
+    const response = await fetch(
+      `${GRAPH_API_BASE}/users/${encodeURIComponent(userPrincipalName)}/photo/$value`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      // Cache null for users without photos
+      userPhotoCache.set(cacheKey, { url: null, timestamp: Date.now() });
+      return null;
+    }
+
+    const blob = await response.blob();
+    const dataUrl = await blobToDataUrl(blob);
+
+    // Cache the result
+    userPhotoCache.set(cacheKey, { url: dataUrl, timestamp: Date.now() });
+
+    return dataUrl;
+  } catch {
+    return null;
+  }
+}
