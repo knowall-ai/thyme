@@ -61,6 +61,9 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
   pendingHours: 0,
 
   // Fetch pending approvals
+  // TODO: Consider server-side filtering if the API supports OData $filter
+  // to improve performance for large datasets. Currently using client-side
+  // filtering which fetches all data then filters locally.
   fetchPendingApprovals: async () => {
     set({ isLoading: true, error: null });
     try {
@@ -71,7 +74,7 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
       let filtered = approvals;
 
       if (filters.employeeId) {
-        filtered = filtered.filter((a) => a.resourceNumber === filters.employeeId);
+        filtered = filtered.filter((a) => a.resourceNo === filters.employeeId);
       }
       if (filters.startDate) {
         filtered = filtered.filter((a) => a.startingDate >= filters.startDate!);
@@ -81,7 +84,7 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
       }
 
       const pendingCount = filtered.length;
-      const pendingHours = filtered.reduce((sum, sheet) => sum + sheet.totalQuantity, 0);
+      const pendingHours = filtered.reduce((sum, sheet) => sum + (sheet.totalQuantity || 0), 0);
 
       set({
         pendingApprovals: filtered,
@@ -131,10 +134,11 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
   },
 
   // Approve a time sheet
-  approveTimeSheet: async (timeSheetId: string, comment?: string) => {
+  // Note: The BC API doesn't support comments on approval currently
+  approveTimeSheet: async (timeSheetId: string, _comment?: string) => {
     set({ isProcessing: true, error: null });
     try {
-      await bcClient.approveTimeSheet(timeSheetId, comment);
+      await bcClient.approveTimeSheet(timeSheetId);
       // Refresh the list
       await get().fetchPendingApprovals();
       set({ isProcessing: false, selectedTimeSheet: null, selectedLines: [] });
@@ -147,10 +151,11 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
   },
 
   // Reject a time sheet
-  rejectTimeSheet: async (timeSheetId: string, comment: string) => {
+  // Note: The BC API doesn't support comments on rejection currently
+  rejectTimeSheet: async (timeSheetId: string, _comment: string) => {
     set({ isProcessing: true, error: null });
     try {
-      await bcClient.rejectTimeSheet(timeSheetId, comment);
+      await bcClient.rejectTimeSheet(timeSheetId);
       // Refresh the list
       await get().fetchPendingApprovals();
       set({ isProcessing: false, selectedTimeSheet: null, selectedLines: [] });
@@ -202,40 +207,76 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
     }
   },
 
-  // Bulk approve
-  bulkApprove: async (timeSheetIds: string[], comment?: string) => {
+  // Bulk approve with partial success handling
+  // Note: The BC API doesn't support comments on approval currently
+  bulkApprove: async (timeSheetIds: string[], _comment?: string) => {
     set({ isProcessing: true, error: null });
-    try {
-      // Process approvals sequentially to avoid rate limiting
-      for (const id of timeSheetIds) {
-        await bcClient.approveTimeSheet(id, comment);
-      }
-      await get().fetchPendingApprovals();
-      set({ isProcessing: false });
-      return true;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to bulk approve';
-      set({ error: message, isProcessing: false });
+    const succeeded: string[] = [];
+    const failed: string[] = [];
+
+    // Process in small concurrent batches to balance performance and rate limiting
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < timeSheetIds.length; i += BATCH_SIZE) {
+      const batch = timeSheetIds.slice(i, i + BATCH_SIZE);
+      const results = await Promise.allSettled(batch.map((id) => bcClient.approveTimeSheet(id)));
+
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          succeeded.push(batch[index]);
+        } else {
+          failed.push(batch[index]);
+        }
+      });
+    }
+
+    await get().fetchPendingApprovals();
+    set({ isProcessing: false });
+
+    if (failed.length > 0) {
+      const errorMsg =
+        succeeded.length > 0
+          ? `Partially completed: ${succeeded.length} approved, ${failed.length} failed`
+          : `Failed to approve ${failed.length} timesheet(s)`;
+      set({ error: errorMsg });
       return false;
     }
+    return true;
   },
 
-  // Bulk reject
-  bulkReject: async (timeSheetIds: string[], comment: string) => {
+  // Bulk reject with partial success handling
+  // Note: The BC API doesn't support comments on rejection currently
+  bulkReject: async (timeSheetIds: string[], _comment: string) => {
     set({ isProcessing: true, error: null });
-    try {
-      // Process rejections sequentially to avoid rate limiting
-      for (const id of timeSheetIds) {
-        await bcClient.rejectTimeSheet(id, comment);
-      }
-      await get().fetchPendingApprovals();
-      set({ isProcessing: false });
-      return true;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to bulk reject';
-      set({ error: message, isProcessing: false });
+    const succeeded: string[] = [];
+    const failed: string[] = [];
+
+    // Process in small concurrent batches to balance performance and rate limiting
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < timeSheetIds.length; i += BATCH_SIZE) {
+      const batch = timeSheetIds.slice(i, i + BATCH_SIZE);
+      const results = await Promise.allSettled(batch.map((id) => bcClient.rejectTimeSheet(id)));
+
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          succeeded.push(batch[index]);
+        } else {
+          failed.push(batch[index]);
+        }
+      });
+    }
+
+    await get().fetchPendingApprovals();
+    set({ isProcessing: false });
+
+    if (failed.length > 0) {
+      const errorMsg =
+        succeeded.length > 0
+          ? `Partially completed: ${succeeded.length} rejected, ${failed.length} failed`
+          : `Failed to reject ${failed.length} timesheet(s)`;
+      set({ error: errorMsg });
       return false;
     }
+    return true;
   },
 
   // Check approval permission

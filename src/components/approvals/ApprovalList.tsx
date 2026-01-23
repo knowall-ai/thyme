@@ -42,15 +42,19 @@ export function ApprovalList() {
   const [linesCache, setLinesCache] = useState<Record<string, BCTimeSheetLine[]>>({});
 
   // Fetch permissions and approvals on mount and when company changes
+  // Note: Zustand actions are stable references, but ESLint doesn't know that.
+  // We intentionally omit them from deps to avoid infinite re-renders.
   useEffect(() => {
     checkApprovalPermission();
-  }, [selectedCompany, checkApprovalPermission]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCompany]);
 
   useEffect(() => {
     if (permissionChecked && isApprover) {
       fetchPendingApprovals();
     }
-  }, [permissionChecked, isApprover, selectedCompany, fetchPendingApprovals]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [permissionChecked, isApprover, selectedCompany]);
 
   // Update lines cache when selectedLines changes
   useEffect(() => {
@@ -101,9 +105,13 @@ export function ApprovalList() {
 
   const handleApprove = useCallback(
     async (timeSheetId: string, comment?: string) => {
+      // Find the timesheet to get employee name for better error messages
+      const timeSheet = pendingApprovals.find((a) => a.id === timeSheetId);
+      const employeeName = timeSheet?.resourceName || 'Unknown';
+
       const success = await approveTimeSheet(timeSheetId, comment);
       if (success) {
-        toast.success('Timesheet approved successfully');
+        toast.success(`Timesheet for ${employeeName} approved`);
         setSelectedIds((prev) => {
           const next = new Set(prev);
           next.delete(timeSheetId);
@@ -113,17 +121,21 @@ export function ApprovalList() {
           setExpandedId(null);
         }
       } else {
-        toast.error('Failed to approve timesheet');
+        toast.error(`Failed to approve timesheet for ${employeeName}`);
       }
     },
-    [approveTimeSheet, expandedId]
+    [approveTimeSheet, expandedId, pendingApprovals]
   );
 
   const handleReject = useCallback(
     async (timeSheetId: string, comment: string) => {
+      // Find the timesheet to get employee name for better error messages
+      const timeSheet = pendingApprovals.find((a) => a.id === timeSheetId);
+      const employeeName = timeSheet?.resourceName || 'Unknown';
+
       const success = await rejectTimeSheet(timeSheetId, comment);
       if (success) {
-        toast.success('Timesheet rejected');
+        toast.success(`Timesheet for ${employeeName} rejected`);
         setSelectedIds((prev) => {
           const next = new Set(prev);
           next.delete(timeSheetId);
@@ -133,39 +145,43 @@ export function ApprovalList() {
           setExpandedId(null);
         }
       } else {
-        toast.error('Failed to reject timesheet');
+        toast.error(`Failed to reject timesheet for ${employeeName}`);
       }
     },
-    [rejectTimeSheet, expandedId]
+    [rejectTimeSheet, expandedId, pendingApprovals]
   );
 
   const handleBulkApprove = useCallback(async () => {
     if (selectedIds.size === 0) return;
 
+    const count = selectedIds.size;
     const success = await bulkApprove(Array.from(selectedIds));
     if (success) {
-      toast.success(`${selectedIds.size} timesheets approved`);
+      toast.success(`${count} timesheet${count > 1 ? 's' : ''} approved`);
       setSelectedIds(new Set());
       setExpandedId(null);
     } else {
-      toast.error('Failed to approve some timesheets');
+      // Error message is set in the store with partial success details
+      toast.error(error || 'Failed to approve some timesheets');
     }
-  }, [selectedIds, bulkApprove]);
+  }, [selectedIds, bulkApprove, error]);
 
   const handleBulkReject = useCallback(async () => {
     if (selectedIds.size === 0 || !bulkRejectReason.trim()) return;
 
+    const count = selectedIds.size;
     const success = await bulkReject(Array.from(selectedIds), bulkRejectReason.trim());
     if (success) {
-      toast.success(`${selectedIds.size} timesheets rejected`);
+      toast.success(`${count} timesheet${count > 1 ? 's' : ''} rejected`);
       setSelectedIds(new Set());
       setExpandedId(null);
       setShowBulkRejectModal(false);
       setBulkRejectReason('');
     } else {
-      toast.error('Failed to reject some timesheets');
+      // Error message is set in the store with partial success details
+      toast.error(error || 'Failed to reject some timesheets');
     }
-  }, [selectedIds, bulkRejectReason, bulkReject]);
+  }, [selectedIds, bulkRejectReason, bulkReject, error]);
 
   // Permission check loading state
   if (!permissionChecked) {
@@ -275,12 +291,15 @@ export function ApprovalList() {
           {/* Select all checkbox */}
           <div className="flex items-center gap-2">
             <input
+              id="approval-select-all"
               type="checkbox"
               checked={selectedIds.size === pendingApprovals.length && pendingApprovals.length > 0}
               onChange={handleSelectAll}
               className="h-4 w-4 rounded border-dark-600 bg-dark-700 text-thyme-500 focus:ring-thyme-500"
             />
-            <span className="text-sm text-dark-400">Select all</span>
+            <label htmlFor="approval-select-all" className="text-sm text-dark-400">
+              Select all
+            </label>
           </div>
 
           {/* Approval cards */}

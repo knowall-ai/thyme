@@ -11,8 +11,38 @@ import {
   UserIcon,
 } from '@heroicons/react/24/outline';
 import { Card, Button } from '@/components/ui';
-import type { BCTimeSheet, BCTimeSheetLine } from '@/types';
+import type { BCTimeSheet, BCTimeSheetLine, TimesheetDisplayStatus } from '@/types';
 import { cn } from '@/utils';
+
+/**
+ * Derive a display-friendly status from timesheet FlowFields.
+ */
+function getTimesheetDisplayStatus(timesheet: BCTimeSheet): TimesheetDisplayStatus {
+  const { openExists, submittedExists, rejectedExists, approvedExists } = timesheet;
+
+  // All approved, nothing else
+  if (approvedExists && !openExists && !submittedExists && !rejectedExists) {
+    return 'Approved';
+  }
+  // Any rejected
+  if (rejectedExists) {
+    return 'Rejected';
+  }
+  // All submitted, nothing open
+  if (submittedExists && !openExists) {
+    return 'Submitted';
+  }
+  // Some submitted, some open
+  if (submittedExists && openExists) {
+    return 'Partially Submitted';
+  }
+  // Mix of approved and other states
+  if (approvedExists && (openExists || submittedExists)) {
+    return 'Mixed';
+  }
+  // Default to Open
+  return 'Open';
+}
 
 interface ApprovalCardProps {
   timeSheet: BCTimeSheet;
@@ -69,6 +99,7 @@ export function ApprovalCard({
           type="checkbox"
           checked={isSelected}
           onChange={onToggleSelect}
+          aria-label={`Select timesheet for ${timeSheet.resourceName}`}
           className="h-4 w-4 rounded border-dark-600 bg-dark-700 text-thyme-500 focus:ring-thyme-500"
         />
 
@@ -90,20 +121,30 @@ export function ApprovalCard({
         </div>
 
         {/* Status badge */}
-        <span
-          className={cn(
-            'rounded-full px-2 py-1 text-xs font-medium',
-            timeSheet.status === 'Submitted' && 'bg-amber-500/20 text-amber-400',
-            timeSheet.status === 'Approved' && 'bg-thyme-500/20 text-thyme-400',
-            timeSheet.status === 'Rejected' && 'bg-red-500/20 text-red-400'
-          )}
-        >
-          {timeSheet.status}
-        </span>
+        {(() => {
+          const displayStatus = getTimesheetDisplayStatus(timeSheet);
+          return (
+            <span
+              className={cn(
+                'rounded-full px-2 py-1 text-xs font-medium',
+                displayStatus === 'Submitted' && 'bg-amber-500/20 text-amber-400',
+                displayStatus === 'Partially Submitted' && 'bg-amber-500/20 text-amber-400',
+                displayStatus === 'Approved' && 'bg-thyme-500/20 text-thyme-400',
+                displayStatus === 'Rejected' && 'bg-red-500/20 text-red-400',
+                displayStatus === 'Mixed' && 'bg-blue-500/20 text-blue-400',
+                displayStatus === 'Open' && 'bg-dark-500/20 text-dark-400'
+              )}
+            >
+              {displayStatus}
+            </span>
+          );
+        })()}
 
         {/* Expand button */}
         <button
           onClick={onToggleExpand}
+          aria-label={isExpanded ? 'Collapse timesheet details' : 'Expand timesheet details'}
+          aria-expanded={isExpanded}
           className="rounded-lg p-2 text-dark-400 hover:bg-dark-700 hover:text-white"
         >
           {isExpanded ? (
@@ -123,11 +164,11 @@ export function ApprovalCard({
               lines.map((line) => (
                 <div key={line.id} className="flex items-center justify-between px-4 py-3">
                   <div>
-                    <p className="text-sm text-white">{line.description}</p>
-                    {line.jobNumber && (
+                    <p className="text-sm text-white">{line.description || 'No description'}</p>
+                    {line.jobNo && (
                       <p className="text-xs text-dark-400">
-                        Project: {line.jobNumber}
-                        {line.jobTaskNumber && ` / Task: ${line.jobTaskNumber}`}
+                        Project: {line.jobNo}
+                        {line.jobTaskNo && ` / Task: ${line.jobTaskNo}`}
                       </p>
                     )}
                   </div>

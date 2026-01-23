@@ -32,6 +32,9 @@ const THYME_API_PUBLISHER = 'knowall';
 const THYME_API_GROUP = 'thyme';
 const THYME_API_VERSION = 'v1.0';
 
+// Valid TimeSheetStatus values for whitelist validation
+const VALID_TIMESHEET_STATUSES = ['Open', 'Submitted', 'Rejected', 'Approved', 'Posted'] as const;
+
 // Available environments to query
 const BC_ENVIRONMENTS: BCEnvironmentType[] = ['sandbox', 'production'];
 
@@ -243,6 +246,45 @@ class BusinessCentralClient {
   resetExtensionCache(): void {
     this._extensionInstalled = null;
     this._extensionCheckPromise = null;
+  }
+
+  // ============================================
+  // OData Input Sanitization Helpers
+  // ============================================
+
+  /**
+   * Sanitize a string value for use in OData filters.
+   * Escapes single quotes to prevent injection attacks.
+   */
+  private sanitizeODataString(value: string): string {
+    return value.replace(/'/g, "''");
+  }
+
+  /**
+   * Validate and sanitize a date string for OData filters.
+   * Only allows ISO date format (YYYY-MM-DD).
+   * @throws Error if the date format is invalid
+   */
+  private sanitizeDateInput(date: string): string {
+    const trimmed = date.trim();
+    const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!isoDateRegex.test(trimmed)) {
+      throw new Error('Invalid date format for OData filter. Expected YYYY-MM-DD.');
+    }
+    return trimmed;
+  }
+
+  /**
+   * Validate a TimeSheetStatus value against allowed values.
+   * @throws Error if the status is not valid
+   */
+  private validateTimeSheetStatus(status: string): TimeSheetStatus {
+    if (!VALID_TIMESHEET_STATUSES.includes(status as TimeSheetStatus)) {
+      throw new Error(
+        `Invalid timesheet status: ${status}. Expected one of: ${VALID_TIMESHEET_STATUSES.join(', ')}`
+      );
+    }
+    return status as TimeSheetStatus;
   }
 
   private async fetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -893,88 +935,61 @@ class BusinessCentralClient {
     return response.value[0] || null;
   }
 
-  // Time Sheets (requires Thyme BC Extension)
-
-  /**
-   * Get time sheets with optional filtering.
-   * Requires thyme-bc-extension with Time Sheet API endpoints.
-   * @see https://github.com/knowall-ai/thyme-bc-extension
-   */
-  async getTimeSheets(filter?: string): Promise<BCTimeSheet[]> {
-    let endpoint = '/timeSheets';
-    if (filter) {
-      endpoint += `?$filter=${encodeURIComponent(filter)}`;
-    }
-    const response = await this.fetchCustomApi<PaginatedResponse<BCTimeSheet>>(endpoint);
-    return response.value;
-  }
+  // ============================================
+  // Approval Workflow API (requires Thyme BC Extension)
+  // ============================================
 
   /**
    * Get time sheets pending approval for the current user.
-   * The API filters by the current user's approver resource.
+   * Filters for timesheets where submittedExists is true and not yet approved.
    */
   async getPendingApprovals(): Promise<BCTimeSheet[]> {
-    const filter = "status eq 'Submitted'";
-    return this.getTimeSheets(filter);
-  }
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
 
-  /**
-   * Get a specific time sheet by ID.
-   */
-  async getTimeSheet(timeSheetId: string): Promise<BCTimeSheet> {
-    return this.fetchCustomApi<BCTimeSheet>(`/timeSheets(${timeSheetId})`);
-  }
-
-  /**
-   * Get time sheet lines for a specific time sheet.
-   */
-  async getTimeSheetLines(timeSheetNumber: string): Promise<BCTimeSheetLine[]> {
-    const filter = `timeSheetNumber eq '${timeSheetNumber}'`;
-    const endpoint = `/timeSheetLines?$filter=${encodeURIComponent(filter)}`;
-    const response = await this.fetchCustomApi<PaginatedResponse<BCTimeSheetLine>>(endpoint);
+    // Filter for submitted but not approved timesheets
+    const filter = 'submittedExists eq true and approvedExists eq false';
+    const endpoint = `/timeSheets?$filter=${encodeURIComponent(filter)}`;
+    const response = await this.customApiFetch<PaginatedResponse<BCTimeSheet>>(endpoint);
     return response.value;
-  }
-
-  /**
-   * Approve a time sheet.
-   * This triggers the BC approval workflow.
-   */
-  async approveTimeSheet(timeSheetId: string, comment?: string): Promise<void> {
-    await this.fetchCustomApi(`/timeSheets(${timeSheetId})/approve`, {
-      method: 'POST',
-      body: JSON.stringify({ comment: comment || '' }),
-    });
-  }
-
-  /**
-   * Reject a time sheet.
-   * This triggers the BC rejection workflow and sends notification to the submitter.
-   */
-  async rejectTimeSheet(timeSheetId: string, comment: string): Promise<void> {
-    await this.fetchCustomApi(`/timeSheets(${timeSheetId})/reject`, {
-      method: 'POST',
-      body: JSON.stringify({ comment }),
-    });
   }
 
   /**
    * Approve specific time sheet lines.
+   * Uses the approveLines bound action on timeSheetLines.
    */
   async approveTimeSheetLines(lineIds: string[], comment?: string): Promise<void> {
-    await this.fetchCustomApi('/timeSheetLines/approveMultiple', {
-      method: 'POST',
-      body: JSON.stringify({ lineIds, comment: comment || '' }),
-    });
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    // Approve each line individually using the bound action
+    for (const lineId of lineIds) {
+      await this.customApiFetch(`/timeSheetLines(${lineId})/Microsoft.NAV.approve`, {
+        method: 'POST',
+      });
+    }
   }
 
   /**
    * Reject specific time sheet lines.
+   * Uses the rejectLines bound action on timeSheetLines.
    */
   async rejectTimeSheetLines(lineIds: string[], comment: string): Promise<void> {
-    await this.fetchCustomApi('/timeSheetLines/rejectMultiple', {
-      method: 'POST',
-      body: JSON.stringify({ lineIds, comment }),
-    });
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    // Reject each line individually using the bound action
+    for (const lineId of lineIds) {
+      await this.customApiFetch(`/timeSheetLines(${lineId})/Microsoft.NAV.reject`, {
+        method: 'POST',
+      });
+    }
   }
 
   /**
@@ -983,7 +998,13 @@ class BusinessCentralClient {
    */
   async checkApprovalPermission(): Promise<{ isApprover: boolean; resourceNumber?: string }> {
     try {
-      const response = await this.fetchCustomApi<{ isApprover: boolean; resourceNumber?: string }>(
+      const extensionInstalled = await this.isExtensionInstalled();
+      if (!extensionInstalled) {
+        return { isApprover: false };
+      }
+
+      // Try to fetch approval permissions endpoint
+      const response = await this.customApiFetch<{ isApprover: boolean; resourceNumber?: string }>(
         '/approvalPermissions'
       );
       return response;
@@ -1003,35 +1024,14 @@ class BusinessCentralClient {
     try {
       const pendingSheets = await this.getPendingApprovals();
       const pendingCount = pendingSheets.length;
-      const pendingHours = pendingSheets.reduce((sum, sheet) => sum + sheet.totalQuantity, 0);
+      const pendingHours = pendingSheets.reduce(
+        (sum, sheet) => sum + (sheet.totalQuantity || 0),
+        0
+      );
       return { pendingCount, pendingHours };
     } catch {
       return { pendingCount: 0, pendingHours: 0 };
     }
-  }
-
-  /**
-   * Get time sheets filtered by status.
-   */
-  async getTimeSheetsByStatus(status: TimeSheetStatus): Promise<BCTimeSheet[]> {
-    const filter = `status eq '${status}'`;
-    return this.getTimeSheets(filter);
-  }
-
-  /**
-   * Get time sheets for a specific resource (employee).
-   */
-  async getTimeSheetsByResource(resourceNumber: string): Promise<BCTimeSheet[]> {
-    const filter = `resourceNumber eq '${resourceNumber}'`;
-    return this.getTimeSheets(filter);
-  }
-
-  /**
-   * Get time sheets within a date range.
-   */
-  async getTimeSheetsInRange(startDate: string, endDate: string): Promise<BCTimeSheet[]> {
-    const filter = `startingDate ge ${startDate} and endingDate le ${endDate}`;
-    return this.getTimeSheets(filter);
   }
 }
 

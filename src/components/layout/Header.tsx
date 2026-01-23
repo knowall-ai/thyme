@@ -48,11 +48,14 @@ export function Header() {
   const { isApprover, permissionChecked, checkApprovalPermission } = useApprovalStore();
 
   // Check approval permissions on mount and when company changes
+  // Note: Zustand actions are stable references, but ESLint doesn't know that.
+  // We intentionally omit them from deps to avoid infinite re-renders.
   useEffect(() => {
     if (isAuthenticated) {
       checkApprovalPermission();
     }
-  }, [isAuthenticated, selectedCompany, checkApprovalPermission]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, selectedCompany]);
 
   // Filter navigation items based on permissions
   const visibleNavigation = useMemo(() => {

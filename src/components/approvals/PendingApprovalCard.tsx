@@ -18,16 +18,20 @@ export function PendingApprovalCard() {
   } = useApprovalStore();
 
   // Check permissions on mount and when company changes
+  // Note: Zustand actions are stable references, but ESLint doesn't know that.
+  // We intentionally omit them from deps to avoid infinite re-renders.
   useEffect(() => {
     checkApprovalPermission();
-  }, [selectedCompany, checkApprovalPermission]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCompany]);
 
   // Refresh stats when user is an approver
   useEffect(() => {
     if (permissionChecked && isApprover) {
       refreshStats();
     }
-  }, [permissionChecked, isApprover, selectedCompany, refreshStats]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [permissionChecked, isApprover, selectedCompany]);
 
   // Don't show if not an approver or still checking
   if (!permissionChecked || !isApprover) {
