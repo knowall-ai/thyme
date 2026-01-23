@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -14,7 +14,7 @@ import {
   ClipboardDocumentCheckIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth, useProfilePhoto } from '@/services/auth';
-import { useApprovalStore, useCompanyStore } from '@/hooks';
+import { useCompanyStore } from '@/hooks';
 import { cn } from '@/utils';
 import { ThymeLogo } from '@/components/icons';
 import { CompanySwitcher } from './CompanySwitcher';
@@ -23,51 +23,38 @@ interface NavItem {
   name: string;
   href: string;
   icon: typeof ClockIcon;
-  requiresApprover?: boolean;
 }
 
 const navigation: NavItem[] = [
   { name: 'Time', href: '/', icon: ClockIcon },
   { name: 'Projects', href: '/projects', icon: FolderIcon },
   { name: 'Team', href: '/team', icon: UserGroupIcon },
-  {
-    name: 'Approvals',
-    href: '/approvals',
-    icon: ClipboardDocumentCheckIcon,
-    requiresApprover: true,
-  },
+  { name: 'Approvals', href: '/approvals', icon: ClipboardDocumentCheckIcon },
   { name: 'Reports', href: '/reports', icon: ChartBarIcon },
-  { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
 ];
 
 export function Header() {
   const pathname = usePathname();
   const { account, logout, isAuthenticated } = useAuth();
   const { photoUrl } = useProfilePhoto(isAuthenticated);
-  const { selectedCompany } = useCompanyStore();
-  const { isApprover, permissionChecked, checkApprovalPermission } = useApprovalStore();
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  // selectedCompany used for context but not directly in render
+  useCompanyStore();
 
-  // Check approval permissions on mount and when company changes
-  // Note: Zustand actions are stable references, but ESLint doesn't know that.
-  // We intentionally omit them from deps to avoid infinite re-renders.
+  // Close dropdown when clicking outside
   useEffect(() => {
-    if (isAuthenticated) {
-      checkApprovalPermission();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, selectedCompany]);
-
-  // Filter navigation items based on permissions
-  const visibleNavigation = useMemo(() => {
-    return navigation.filter((item) => {
-      if (item.requiresApprover) {
-        return permissionChecked && isApprover;
+    function handleClickOutside(event: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
       }
-      return true;
-    });
-  }, [permissionChecked, isApprover]);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleLogout = async () => {
+    setIsUserMenuOpen(false);
     try {
       await logout();
     } catch {
@@ -98,7 +85,7 @@ export function Header() {
 
             {/* Navigation */}
             <nav className="hidden sm:ml-8 sm:flex sm:space-x-1">
-              {visibleNavigation.map((item) => {
+              {navigation.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.href);
                 return (
@@ -120,43 +107,77 @@ export function Header() {
             </nav>
           </div>
 
-          {/* User Menu */}
-          <div className="flex items-center gap-4">
+          {/* Right side: Settings, Company, User Menu */}
+          <div className="flex items-center gap-2">
+            {/* Settings icon */}
+            <Link
+              href="/settings"
+              className={cn(
+                'hidden rounded-lg p-2 transition-colors sm:block',
+                isActive('/settings')
+                  ? 'bg-knowall-green/10 text-knowall-green'
+                  : 'text-dark-400 hover:bg-dark-800 hover:text-white'
+              )}
+              title="Settings"
+            >
+              <Cog6ToothIcon className="h-5 w-5" />
+            </Link>
+
             {account && (
-              <div className="flex items-center gap-3">
+              <>
                 <CompanySwitcher />
-                <div className="hidden text-right sm:block">
-                  <p className="text-sm font-medium text-white">{account.name}</p>
-                  <p className="text-xs text-dark-400">{account.username}</p>
+
+                {/* User dropdown */}
+                <div className="relative" ref={userMenuRef}>
+                  <button
+                    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                    className="flex items-center gap-2 rounded-lg p-1 transition-colors hover:bg-dark-800"
+                  >
+                    {photoUrl ? (
+                      <img
+                        src={photoUrl}
+                        alt={
+                          account.name ? `${account.name}'s profile photo` : 'User profile photo'
+                        }
+                        className="h-9 w-9 rounded-full border border-knowall-green/30 object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-knowall-green/30 bg-knowall-green/20">
+                        <span className="text-sm font-medium text-knowall-green">
+                          {account.name
+                            ?.trim()
+                            .split(/\s+/)
+                            .filter(Boolean)
+                            .map((part) => (part ? Array.from(part)[0] : ''))
+                            .join('')
+                            .toUpperCase()
+                            .slice(0, 2)}
+                        </span>
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Dropdown menu */}
+                  {isUserMenuOpen && (
+                    <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border border-dark-700 bg-dark-800 py-1 shadow-lg">
+                      {/* User info */}
+                      <div className="border-b border-dark-700 px-4 py-3">
+                        <p className="text-sm font-medium text-white">{account.name}</p>
+                        <p className="text-xs text-dark-400">{account.username}</p>
+                      </div>
+
+                      {/* Sign out */}
+                      <button
+                        onClick={handleLogout}
+                        className="flex w-full items-center gap-2 px-4 py-2 text-sm text-dark-300 transition-colors hover:bg-dark-700 hover:text-white"
+                      >
+                        <ArrowRightOnRectangleIcon className="h-4 w-4" />
+                        Sign out
+                      </button>
+                    </div>
+                  )}
                 </div>
-                {photoUrl ? (
-                  <img
-                    src={photoUrl}
-                    alt={account.name ? `${account.name}'s profile photo` : 'User profile photo'}
-                    className="h-10 w-10 rounded-full border border-knowall-green/30 object-cover"
-                  />
-                ) : (
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-knowall-green/30 bg-knowall-green/20">
-                    <span className="text-sm font-medium text-knowall-green">
-                      {account.name
-                        ?.trim()
-                        .split(/\s+/)
-                        .filter(Boolean)
-                        .map((part) => (part ? Array.from(part)[0] : ''))
-                        .join('')
-                        .toUpperCase()
-                        .slice(0, 2)}
-                    </span>
-                  </div>
-                )}
-                <button
-                  onClick={handleLogout}
-                  className="rounded-lg p-2 text-dark-400 transition-colors hover:bg-dark-800 hover:text-white"
-                  title="Sign out"
-                >
-                  <ArrowRightOnRectangleIcon className="h-5 w-5" />
-                </button>
-              </div>
+              </>
             )}
           </div>
         </div>
@@ -165,7 +186,7 @@ export function Header() {
       {/* Mobile Navigation */}
       <nav className="border-t border-dark-700 sm:hidden">
         <div className="flex justify-around">
-          {visibleNavigation.map((item) => {
+          {navigation.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
             return (
@@ -182,6 +203,17 @@ export function Header() {
               </Link>
             );
           })}
+          {/* Settings in mobile nav */}
+          <Link
+            href="/settings"
+            className={cn(
+              'flex flex-col items-center gap-1 px-4 py-3 text-xs font-medium transition-colors',
+              isActive('/settings') ? 'text-knowall-green' : 'text-dark-400 hover:text-white'
+            )}
+          >
+            <Cog6ToothIcon className="h-5 w-5" />
+            Settings
+          </Link>
         </div>
       </nav>
     </header>

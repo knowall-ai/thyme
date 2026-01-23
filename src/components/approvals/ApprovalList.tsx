@@ -1,17 +1,33 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
-import { CheckIcon, XMarkIcon, ClockIcon } from '@heroicons/react/24/outline';
-import { Card, Button, Modal } from '@/components/ui';
+import { format, parseISO } from 'date-fns';
+import {
+  CheckIcon,
+  XMarkIcon,
+  ClockIcon,
+  CalendarDaysIcon,
+  UserIcon,
+} from '@heroicons/react/24/outline';
+import { Card, Button } from '@/components/ui';
 import { ApprovalCard } from './ApprovalCard';
 import { ApprovalFilters } from './ApprovalFilters';
 import { useApprovalStore, useCompanyStore } from '@/hooks';
-import type { BCTimeSheet, BCTimeSheetLine } from '@/types';
+import { useAuth } from '@/services/auth';
+import { getUserProfilePhoto } from '@/services/auth/graphService';
+import { bcClient } from '@/services/bc/bcClient';
+import { cn } from '@/utils';
+import type { BCTimeSheet, BCTimeSheetLine, BCJob, BCJobTask } from '@/types';
+
+type GroupBy = 'none' | 'week' | 'person';
 
 export function ApprovalList() {
   const { selectedCompany } = useCompanyStore();
+  const { account } = useAuth();
+  const emailDomain = account?.username?.split('@')[1] || '';
   const {
+    allApprovals,
     pendingApprovals,
     selectedTimeSheet,
     selectedLines,
@@ -30,16 +46,91 @@ export function ApprovalList() {
     clearFilters,
     approveTimeSheet,
     rejectTimeSheet,
-    bulkApprove,
-    bulkReject,
     checkApprovalPermission,
   } = useApprovalStore();
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [showBulkRejectModal, setShowBulkRejectModal] = useState(false);
-  const [bulkRejectReason, setBulkRejectReason] = useState('');
   const [linesCache, setLinesCache] = useState<Record<string, BCTimeSheetLine[]>>({});
+  const [photosCache, setPhotosCache] = useState<Record<string, string | null>>({});
+  const [jobsCache, setJobsCache] = useState<Record<string, BCJob>>({});
+  const [tasksCache, setTasksCache] = useState<Record<string, BCJobTask[]>>({});
+  const [groupBy, setGroupBy] = useState<GroupBy>('week');
+
+  // Calculate actual pending hours from lines cache
+  const actualPendingHours = useMemo(() => {
+    let total = 0;
+    pendingApprovals.forEach((ts) => {
+      const lines = linesCache[ts.id];
+      if (lines && lines.length > 0) {
+        total += lines.reduce((sum, line) => sum + (line.totalQuantity || 0), 0);
+      } else {
+        // Fallback to timeSheet.totalQuantity if lines not loaded
+        total += ts.totalQuantity || 0;
+      }
+    });
+    return total;
+  }, [pendingApprovals, linesCache]);
+
+  // Group approvals based on selected grouping
+  const groupedApprovals = useMemo(() => {
+    if (groupBy === 'none') {
+      return [{ key: 'all', label: '', items: pendingApprovals }];
+    }
+
+    const groups = new Map<string, BCTimeSheet[]>();
+
+    pendingApprovals.forEach((timeSheet) => {
+      let key: string;
+      let label: string;
+
+      if (groupBy === 'week') {
+        // Group by week starting date
+        key = timeSheet.startingDate;
+        try {
+          const startDate = parseISO(timeSheet.startingDate);
+          const endDate = parseISO(timeSheet.endingDate);
+          label = `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d, yyyy')}`;
+        } catch {
+          label = timeSheet.startingDate;
+        }
+      } else {
+        // Group by person
+        key = timeSheet.resourceNo;
+        label = timeSheet.resourceName || timeSheet.resourceNo;
+      }
+
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+      groups.get(key)!.push(timeSheet);
+    });
+
+    // Convert to array and sort
+    return Array.from(groups.entries())
+      .map(([key, items]) => {
+        let label: string;
+        if (groupBy === 'week') {
+          try {
+            const startDate = parseISO(items[0].startingDate);
+            const endDate = parseISO(items[0].endingDate);
+            label = `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d, yyyy')}`;
+          } catch {
+            label = key;
+          }
+        } else {
+          label = items[0].resourceName || key;
+        }
+        return { key, label, items };
+      })
+      .sort((a, b) => {
+        if (groupBy === 'week') {
+          // Sort by date descending (newest first)
+          return b.key.localeCompare(a.key);
+        }
+        // Sort by name ascending
+        return a.label.localeCompare(b.label);
+      });
+  }, [pendingApprovals, groupBy]);
 
   // Fetch permissions and approvals on mount and when company changes
   // Note: Zustand actions are stable references, but ESLint doesn't know that.
@@ -66,6 +157,105 @@ export function ApprovalList() {
     }
   }, [selectedTimeSheet, selectedLines]);
 
+  // Pre-fetch lines for all pending timesheets to show hours/billable %
+  useEffect(() => {
+    async function prefetchLines() {
+      for (const timeSheet of pendingApprovals) {
+        if (!linesCache[timeSheet.id]) {
+          try {
+            const lines = await bcClient.getTimeSheetLines(timeSheet.number);
+            setLinesCache((prev) => ({
+              ...prev,
+              [timeSheet.id]: lines,
+            }));
+          } catch {
+            // Silently fail - will show fallback
+          }
+        }
+      }
+    }
+    if (pendingApprovals.length > 0) {
+      prefetchLines();
+    }
+  }, [pendingApprovals, linesCache]);
+
+  // Pre-fetch profile photos for all unique resources
+  useEffect(() => {
+    async function prefetchPhotos() {
+      const uniqueEmails = new Set<string>();
+      pendingApprovals.forEach((ts) => {
+        if (ts.resourceEmail && emailDomain) {
+          const email = `${ts.resourceEmail}@${emailDomain}`;
+          if (!photosCache[email]) {
+            uniqueEmails.add(email);
+          }
+        }
+      });
+
+      for (const email of uniqueEmails) {
+        try {
+          const photo = await getUserProfilePhoto(email);
+          setPhotosCache((prev) => ({ ...prev, [email]: photo }));
+        } catch {
+          setPhotosCache((prev) => ({ ...prev, [email]: null }));
+        }
+      }
+    }
+    if (pendingApprovals.length > 0 && emailDomain) {
+      prefetchPhotos();
+    }
+  }, [pendingApprovals, emailDomain, photosCache]);
+
+  // Pre-fetch job and task names for lines
+  useEffect(() => {
+    async function prefetchJobData() {
+      // Collect unique job numbers from all lines
+      const uniqueJobNos = new Set<string>();
+      Object.values(linesCache).forEach((lines) => {
+        lines.forEach((line) => {
+          if (line.jobNo && !jobsCache[line.jobNo]) {
+            uniqueJobNos.add(line.jobNo);
+          }
+        });
+      });
+
+      if (uniqueJobNos.size === 0) return;
+
+      // Fetch all jobs and filter for the ones we need
+      try {
+        const allJobs = await bcClient.getJobs();
+        const jobMap: Record<string, BCJob> = {};
+        allJobs.forEach((job) => {
+          if (uniqueJobNos.has(job.number)) {
+            jobMap[job.number] = job;
+          }
+        });
+        setJobsCache((prev) => ({ ...prev, ...jobMap }));
+
+        // Fetch tasks for each job
+        for (const jobNo of uniqueJobNos) {
+          if (!tasksCache[jobNo]) {
+            try {
+              const tasks = await bcClient.getJobTasks(jobNo);
+              setTasksCache((prev) => ({ ...prev, [jobNo]: tasks }));
+            } catch {
+              // Silently fail - will show fallback
+            }
+          }
+        }
+      } catch {
+        // Silently fail - will show fallback (job codes)
+      }
+    }
+
+    const hasLinesWithJobs = Object.values(linesCache).some((lines) =>
+      lines.some((line) => line.jobNo)
+    );
+    if (hasLinesWithJobs) {
+      prefetchJobData();
+    }
+  }, [linesCache, jobsCache, tasksCache]);
+
   const handleToggleExpand = useCallback(
     async (timeSheet: BCTimeSheet) => {
       if (expandedId === timeSheet.id) {
@@ -83,26 +273,6 @@ export function ApprovalList() {
     [expandedId, linesCache, fetchTimeSheetLines, selectTimeSheet]
   );
 
-  const handleToggleSelect = useCallback((id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  }, []);
-
-  const handleSelectAll = useCallback(() => {
-    if (selectedIds.size === pendingApprovals.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(pendingApprovals.map((a) => a.id)));
-    }
-  }, [selectedIds.size, pendingApprovals]);
-
   const handleApprove = useCallback(
     async (timeSheetId: string, comment?: string) => {
       // Find the timesheet to get employee name for better error messages
@@ -112,11 +282,6 @@ export function ApprovalList() {
       const success = await approveTimeSheet(timeSheetId, comment);
       if (success) {
         toast.success(`Timesheet for ${employeeName} approved`);
-        setSelectedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(timeSheetId);
-          return next;
-        });
         if (expandedId === timeSheetId) {
           setExpandedId(null);
         }
@@ -136,11 +301,6 @@ export function ApprovalList() {
       const success = await rejectTimeSheet(timeSheetId, comment);
       if (success) {
         toast.success(`Timesheet for ${employeeName} rejected`);
-        setSelectedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(timeSheetId);
-          return next;
-        });
         if (expandedId === timeSheetId) {
           setExpandedId(null);
         }
@@ -150,38 +310,6 @@ export function ApprovalList() {
     },
     [rejectTimeSheet, expandedId, pendingApprovals]
   );
-
-  const handleBulkApprove = useCallback(async () => {
-    if (selectedIds.size === 0) return;
-
-    const count = selectedIds.size;
-    const success = await bulkApprove(Array.from(selectedIds));
-    if (success) {
-      toast.success(`${count} timesheet${count > 1 ? 's' : ''} approved`);
-      setSelectedIds(new Set());
-      setExpandedId(null);
-    } else {
-      // Error message is set in the store with partial success details
-      toast.error(error || 'Failed to approve some timesheets');
-    }
-  }, [selectedIds, bulkApprove, error]);
-
-  const handleBulkReject = useCallback(async () => {
-    if (selectedIds.size === 0 || !bulkRejectReason.trim()) return;
-
-    const count = selectedIds.size;
-    const success = await bulkReject(Array.from(selectedIds), bulkRejectReason.trim());
-    if (success) {
-      toast.success(`${count} timesheet${count > 1 ? 's' : ''} rejected`);
-      setSelectedIds(new Set());
-      setExpandedId(null);
-      setShowBulkRejectModal(false);
-      setBulkRejectReason('');
-    } else {
-      // Error message is set in the store with partial success details
-      toast.error(error || 'Failed to reject some timesheets');
-    }
-  }, [selectedIds, bulkRejectReason, bulkReject, error]);
 
   // Permission check loading state
   if (!permissionChecked) {
@@ -237,139 +365,161 @@ export function ApprovalList() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card variant="bordered" className="p-4">
-          <p className="text-sm text-dark-400">Pending Approvals</p>
-          <p className="mt-1 text-2xl font-bold text-amber-500">{pendingCount}</p>
+          <p className="text-sm text-dark-400">
+            {pendingApprovals.length !== allApprovals.length
+              ? `Matching Timesheets (${allApprovals.length} total)`
+              : 'Pending Approvals'}
+          </p>
+          <p className="mt-1 text-2xl font-bold text-amber-500">{pendingApprovals.length}</p>
         </Card>
         <Card variant="bordered" className="p-4">
-          <p className="text-sm text-dark-400">Total Hours Pending</p>
+          <p className="text-sm text-dark-400">
+            {pendingApprovals.length !== allApprovals.length
+              ? 'Filtered Hours'
+              : 'Total Hours Pending'}
+          </p>
           <p className="mt-1 flex items-center gap-2 text-2xl font-bold text-dark-100">
             <ClockIcon className="h-6 w-6" />
-            {pendingHours.toFixed(1)}
+            {actualPendingHours.toFixed(1)}
           </p>
         </Card>
       </div>
 
-      {/* Filters */}
-      <ApprovalFilters
-        filters={filters}
-        onFilterChange={setFilters}
-        onClearFilters={clearFilters}
-      />
+      {/* Filters and Grouping */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <ApprovalFilters
+          filters={filters}
+          onFilterChange={setFilters}
+          onClearFilters={clearFilters}
+          allTimesheets={allApprovals}
+        />
 
-      {/* Bulk actions */}
-      {selectedIds.size > 0 && (
-        <div className="flex items-center gap-4 rounded-lg border border-thyme-600/30 bg-thyme-900/20 p-4">
-          <span className="text-sm text-dark-300">
-            {selectedIds.size} timesheet{selectedIds.size > 1 ? 's' : ''} selected
-          </span>
-          <div className="flex-1" />
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={isProcessing}
-            onClick={() => setShowBulkRejectModal(true)}
+        {/* Group by toggle */}
+        <div className="flex items-center gap-1 rounded-lg border border-dark-600 bg-dark-800 p-1">
+          <button
+            onClick={() => setGroupBy(groupBy === 'week' ? 'none' : 'week')}
+            className={cn(
+              'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+              groupBy === 'week'
+                ? 'bg-thyme-600 text-white'
+                : 'text-dark-400 hover:bg-dark-700 hover:text-white'
+            )}
+            title="Group by week"
           >
-            <XMarkIcon className="mr-1 h-4 w-4" />
-            Reject Selected
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            disabled={isProcessing}
-            isLoading={isProcessing}
-            onClick={handleBulkApprove}
+            <CalendarDaysIcon className="h-4 w-4" />
+            By Week
+          </button>
+          <button
+            onClick={() => setGroupBy(groupBy === 'person' ? 'none' : 'person')}
+            className={cn(
+              'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+              groupBy === 'person'
+                ? 'bg-thyme-600 text-white'
+                : 'text-dark-400 hover:bg-dark-700 hover:text-white'
+            )}
+            title="Group by person"
           >
-            <CheckIcon className="mr-1 h-4 w-4" />
-            Approve Selected
-          </Button>
+            <UserIcon className="h-4 w-4" />
+            By Person
+          </button>
         </div>
-      )}
+      </div>
 
       {/* Approval list */}
       {pendingApprovals.length > 0 ? (
         <div className="space-y-4">
-          {/* Select all checkbox */}
-          <div className="flex items-center gap-2">
-            <input
-              id="approval-select-all"
-              type="checkbox"
-              checked={selectedIds.size === pendingApprovals.length && pendingApprovals.length > 0}
-              onChange={handleSelectAll}
-              className="h-4 w-4 rounded border-dark-600 bg-dark-700 text-thyme-500 focus:ring-thyme-500"
-            />
-            <label htmlFor="approval-select-all" className="text-sm text-dark-400">
-              Select all
-            </label>
-          </div>
+          {/* Grouped approval cards */}
+          {groupedApprovals.map((group) => (
+            <div key={group.key} className="space-y-3">
+              {/* Group header (only show if grouping is active) */}
+              {groupBy !== 'none' && (
+                <div className="flex items-center gap-2 border-b border-dark-700 pb-2">
+                  {groupBy === 'week' ? (
+                    <CalendarDaysIcon className="h-8 w-8 text-thyme-500" />
+                  ) : (
+                    // Show profile photo for person group
+                    (() => {
+                      const firstTs = group.items[0];
+                      const email =
+                        firstTs?.resourceEmail && emailDomain
+                          ? `${firstTs.resourceEmail}@${emailDomain}`
+                          : null;
+                      const photo = email ? photosCache[email] : null;
+                      return photo ? (
+                        <img
+                          src={photo}
+                          alt={group.label}
+                          className="h-8 w-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <UserIcon className="h-8 w-8 text-thyme-500" />
+                      );
+                    })()
+                  )}
+                  <h3 className="text-sm font-semibold text-white">{group.label}</h3>
+                  <span className="text-xs text-dark-400">
+                    ({group.items.length} timesheet{group.items.length !== 1 ? 's' : ''})
+                  </span>
+                </div>
+              )}
 
-          {/* Approval cards */}
-          {pendingApprovals.map((timeSheet) => (
-            <ApprovalCard
-              key={timeSheet.id}
-              timeSheet={timeSheet}
-              lines={linesCache[timeSheet.id] || []}
-              isExpanded={expandedId === timeSheet.id}
-              isProcessing={isProcessing}
-              isSelected={selectedIds.has(timeSheet.id)}
-              onToggleExpand={() => handleToggleExpand(timeSheet)}
-              onToggleSelect={() => handleToggleSelect(timeSheet.id)}
-              onApprove={(comment) => handleApprove(timeSheet.id, comment)}
-              onReject={(comment) => handleReject(timeSheet.id, comment)}
-            />
+              {/* Approval cards in this group */}
+              {group.items.map((timeSheet) => (
+                <ApprovalCard
+                  key={timeSheet.id}
+                  timeSheet={timeSheet}
+                  lines={linesCache[timeSheet.id] || []}
+                  isExpanded={expandedId === timeSheet.id}
+                  isProcessing={isProcessing}
+                  onToggleExpand={() => handleToggleExpand(timeSheet)}
+                  onApprove={(comment) => handleApprove(timeSheet.id, comment)}
+                  onReject={(comment) => handleReject(timeSheet.id, comment)}
+                  hidePerson={groupBy === 'person'}
+                  hideWeek={groupBy === 'week'}
+                  resourceEmail={
+                    timeSheet.resourceEmail && emailDomain
+                      ? `${timeSheet.resourceEmail}@${emailDomain}`
+                      : undefined
+                  }
+                  jobsCache={jobsCache}
+                  tasksCache={tasksCache}
+                />
+              ))}
+            </div>
           ))}
         </div>
       ) : (
         <Card variant="bordered" className="p-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-thyme-500/20">
-            <CheckIcon className="h-8 w-8 text-thyme-500" />
-          </div>
-          <h3 className="text-lg font-semibold text-white">All Caught Up!</h3>
-          <p className="mt-2 text-dark-400">There are no timesheets pending your approval.</p>
+          {/* Check if we have any approvals at all vs just filtered to nothing */}
+          {allApprovals.length > 0 ? (
+            // Filters are hiding results
+            <>
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-dark-700">
+                <CalendarDaysIcon className="h-8 w-8 text-dark-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-white">No Matching Timesheets</h3>
+              <p className="mt-2 text-dark-400">
+                No timesheets match your current filters. Try adjusting or clearing your filters.
+              </p>
+              <button
+                onClick={clearFilters}
+                className="mt-4 text-thyme-500 underline hover:text-thyme-400"
+              >
+                Clear filters
+              </button>
+            </>
+          ) : (
+            // Truly no pending approvals
+            <>
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-thyme-500/20">
+                <CheckIcon className="h-8 w-8 text-thyme-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-white">All Caught Up!</h3>
+              <p className="mt-2 text-dark-400">There are no timesheets pending your approval.</p>
+            </>
+          )}
         </Card>
       )}
-
-      {/* Bulk reject modal */}
-      <Modal
-        isOpen={showBulkRejectModal}
-        onClose={() => {
-          setShowBulkRejectModal(false);
-          setBulkRejectReason('');
-        }}
-        title={`Reject ${selectedIds.size} Timesheet${selectedIds.size > 1 ? 's' : ''}`}
-      >
-        <div className="space-y-4">
-          <p className="text-dark-300">
-            Please provide a reason for rejecting the selected timesheets. This will be sent to the
-            employees.
-          </p>
-          <textarea
-            value={bulkRejectReason}
-            onChange={(e) => setBulkRejectReason(e.target.value)}
-            placeholder="Rejection reason..."
-            className="w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-white placeholder-dark-400 focus:border-thyme-500 focus:outline-none focus:ring-1 focus:ring-thyme-500"
-            rows={4}
-          />
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setShowBulkRejectModal(false);
-                setBulkRejectReason('');
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              disabled={!bulkRejectReason.trim() || isProcessing}
-              isLoading={isProcessing}
-              onClick={handleBulkReject}
-            >
-              Reject Timesheets
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }

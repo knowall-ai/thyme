@@ -123,6 +123,7 @@ export interface BCTimeSheet {
   number: string;
   resourceNo: string;
   resourceName?: string;
+  resourceEmail?: string; // Azure AD UPN for fetching profile photo
   startingDate: string;
   endingDate: string;
   approverUserId?: string;
@@ -178,11 +179,10 @@ export interface ApprovalAction {
 }
 
 export interface ApprovalFilters {
-  employeeId?: string;
+  resourceId?: string;
   startDate?: string;
   endDate?: string;
-  projectId?: string;
-  status?: TimeSheetStatus;
+  status?: TimesheetDisplayStatus;
 }
 
 // Application types

@@ -1,115 +1,114 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { FunnelIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { useMemo } from 'react';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Button, Select, DatePicker } from '@/components/ui';
-import { bcClient } from '@/services/bc/bcClient';
-import type { ApprovalFilters as FilterType, BCEmployee, SelectOption } from '@/types';
+import type {
+  ApprovalFilters as FilterType,
+  BCTimeSheet,
+  SelectOption,
+  TimesheetDisplayStatus,
+} from '@/types';
 
 interface ApprovalFiltersProps {
   filters: FilterType;
   onFilterChange: (filters: Partial<FilterType>) => void;
   onClearFilters: () => void;
+  /** All timesheets (unfiltered) to derive resource options from */
+  allTimesheets: BCTimeSheet[];
 }
 
-export function ApprovalFilters({ filters, onFilterChange, onClearFilters }: ApprovalFiltersProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [employees, setEmployees] = useState<BCEmployee[]>([]);
-  const [isLoadingEmployees, setIsLoadingEmployees] = useState(false);
-
-  useEffect(() => {
-    async function fetchEmployees() {
-      setIsLoadingEmployees(true);
-      try {
-        const data = await bcClient.getEmployees("status eq 'Active'");
-        setEmployees(data);
-      } catch (error) {
-        console.error('Failed to fetch employees:', error);
-      } finally {
-        setIsLoadingEmployees(false);
+export function ApprovalFilters({
+  filters,
+  onFilterChange,
+  onClearFilters,
+  allTimesheets,
+}: ApprovalFiltersProps) {
+  // Derive unique resources from the timesheets
+  const resourceOptions: SelectOption[] = useMemo(() => {
+    const resourceMap = new Map<string, string>();
+    allTimesheets.forEach((ts) => {
+      if (ts.resourceNo && !resourceMap.has(ts.resourceNo)) {
+        resourceMap.set(ts.resourceNo, ts.resourceName || ts.resourceNo);
       }
-    }
-    fetchEmployees();
-  }, []);
+    });
+    const options = Array.from(resourceMap.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    return [{ value: '', label: 'All Resources' }, ...options];
+  }, [allTimesheets]);
 
-  const employeeOptions: SelectOption[] = [
-    { value: '', label: 'All Employees' },
-    ...employees.map((emp) => ({
-      value: emp.number,
-      label: emp.displayName,
-    })),
+  const statusOptions: SelectOption[] = [
+    { value: '', label: 'All Statuses' },
+    { value: 'Submitted', label: 'Submitted' },
+    { value: 'Partially Submitted', label: 'Partially Submitted' },
+    { value: 'Open', label: 'Open' },
+    { value: 'Rejected', label: 'Rejected' },
+    { value: 'Approved', label: 'Approved' },
+    { value: 'Mixed', label: 'Mixed' },
   ];
 
   const hasActiveFilters =
-    filters.employeeId || filters.startDate || filters.endDate || filters.projectId;
+    filters.resourceId || filters.startDate || filters.endDate || filters.status;
 
   return (
-    <div className="space-y-4">
-      {/* Filter toggle button */}
-      <div className="flex items-center justify-between">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="flex items-center gap-2"
-        >
-          <FunnelIcon className="h-4 w-4" />
-          Filters
-          {hasActiveFilters && (
-            <span className="ml-1 rounded-full bg-thyme-500 px-1.5 py-0.5 text-xs font-medium text-dark-900">
-              Active
-            </span>
-          )}
-        </Button>
-
-        {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={onClearFilters}>
-            <XMarkIcon className="mr-1 h-4 w-4" />
-            Clear filters
-          </Button>
-        )}
+    <div className="flex flex-wrap items-end gap-3">
+      {/* Resource filter */}
+      <div className="min-w-[160px]">
+        <label className="mb-1 block text-xs font-medium text-dark-400">Resource</label>
+        <Select
+          options={resourceOptions}
+          value={filters.resourceId || ''}
+          onChange={(e) => onFilterChange({ resourceId: e.target.value || undefined })}
+        />
       </div>
 
-      {/* Filter controls */}
-      {isExpanded && (
-        <div className="grid grid-cols-1 gap-4 rounded-lg border border-dark-700 bg-dark-800/50 p-4 md:grid-cols-3">
-          {/* Employee filter */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-dark-300">Employee</label>
-            <Select
-              options={employeeOptions}
-              value={filters.employeeId || ''}
-              onChange={(e) => onFilterChange({ employeeId: e.target.value || undefined })}
-              disabled={isLoadingEmployees}
-            />
-          </div>
+      {/* Status filter */}
+      <div className="min-w-[160px]">
+        <label className="mb-1 block text-xs font-medium text-dark-400">Status</label>
+        <Select
+          options={statusOptions}
+          value={filters.status || ''}
+          onChange={(e) =>
+            onFilterChange({
+              status: (e.target.value as TimesheetDisplayStatus) || undefined,
+            })
+          }
+        />
+      </div>
 
-          {/* Start date filter */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-dark-300">From Date</label>
-            <DatePicker
-              selectedDate={filters.startDate ? new Date(filters.startDate) : undefined}
-              onDateSelect={(date: Date) =>
-                onFilterChange({
-                  startDate: date.toISOString().split('T')[0],
-                })
-              }
-            />
-          </div>
+      {/* Start date filter */}
+      <div className="min-w-[140px]">
+        <label className="mb-1 block text-xs font-medium text-dark-400">From</label>
+        <DatePicker
+          selectedDate={filters.startDate ? new Date(filters.startDate) : undefined}
+          onDateSelect={(date: Date) =>
+            onFilterChange({
+              startDate: date.toISOString().split('T')[0],
+            })
+          }
+        />
+      </div>
 
-          {/* End date filter */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-dark-300">To Date</label>
-            <DatePicker
-              selectedDate={filters.endDate ? new Date(filters.endDate) : undefined}
-              onDateSelect={(date: Date) =>
-                onFilterChange({
-                  endDate: date.toISOString().split('T')[0],
-                })
-              }
-            />
-          </div>
-        </div>
+      {/* End date filter */}
+      <div className="min-w-[140px]">
+        <label className="mb-1 block text-xs font-medium text-dark-400">To</label>
+        <DatePicker
+          selectedDate={filters.endDate ? new Date(filters.endDate) : undefined}
+          onDateSelect={(date: Date) =>
+            onFilterChange({
+              endDate: date.toISOString().split('T')[0],
+            })
+          }
+        />
+      </div>
+
+      {/* Clear filters button */}
+      {hasActiveFilters && (
+        <Button variant="ghost" size="sm" onClick={onClearFilters} className="mb-0.5">
+          <XMarkIcon className="mr-1 h-4 w-4" />
+          Clear
+        </Button>
       )}
     </div>
   );

@@ -953,7 +953,44 @@ class BusinessCentralClient {
     const filter = 'submittedExists eq true and approvedExists eq false';
     const endpoint = `/timeSheets?$filter=${encodeURIComponent(filter)}`;
     const response = await this.customApiFetch<PaginatedResponse<BCTimeSheet>>(endpoint);
-    return response.value;
+    const timeSheets = response.value;
+
+    // Fetch resources to populate resourceName and resourceEmail
+    if (timeSheets.length > 0) {
+      try {
+        const resources = await this.getResources();
+        const resourceMap = new Map(
+          resources.map((r) => [r.number, { name: r.name, ownerId: r.timeSheetOwnerUserId }])
+        );
+
+        // Populate resourceName and prepare for email lookup
+        timeSheets.forEach((ts) => {
+          const resource = resourceMap.get(ts.resourceNo);
+          if (resource) {
+            if (!ts.resourceName) {
+              ts.resourceName = resource.name || ts.resourceNo;
+            }
+            // Store the BC user ID - will be converted to email in the UI
+            if (resource.ownerId) {
+              // BC User ID is uppercase (e.g., "BEN.WEEKS")
+              // Store as-is, UI will add domain
+              ts.resourceEmail = resource.ownerId.toLowerCase();
+            }
+          } else if (!ts.resourceName) {
+            ts.resourceName = ts.resourceNo;
+          }
+        });
+      } catch {
+        // If resource lookup fails, fall back to resourceNo as name
+        timeSheets.forEach((ts) => {
+          if (!ts.resourceName) {
+            ts.resourceName = ts.resourceNo;
+          }
+        });
+      }
+    }
+
+    return timeSheets;
   }
 
   /**
@@ -994,7 +1031,7 @@ class BusinessCentralClient {
 
   /**
    * Check if the current user has approval permissions.
-   * Returns the resource number if the user is an approver.
+   * Attempts to fetch pending approvals - if successful, user is an approver.
    */
   async checkApprovalPermission(): Promise<{ isApprover: boolean; resourceNumber?: string }> {
     try {
@@ -1003,13 +1040,13 @@ class BusinessCentralClient {
         return { isApprover: false };
       }
 
-      // Try to fetch approval permissions endpoint
-      const response = await this.customApiFetch<{ isApprover: boolean; resourceNumber?: string }>(
-        '/approvalPermissions'
-      );
-      return response;
+      // Try to fetch pending approvals - if this succeeds without error, user has approval access
+      // BC will return 403 or similar if user doesn't have permission
+      await this.getPendingApprovals();
+      // If we got here without error, the user can access the approvals endpoint
+      return { isApprover: true };
     } catch {
-      // If endpoint doesn't exist or fails, assume no approval permission
+      // If fetching fails (403, 401, etc.), user doesn't have approval permission
       return { isApprover: false };
     }
   }

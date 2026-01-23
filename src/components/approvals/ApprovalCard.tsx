@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
 import {
   CheckIcon,
@@ -9,9 +9,17 @@ import {
   ChevronUpIcon,
   ClockIcon,
   UserIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 import { Card, Button } from '@/components/ui';
-import type { BCTimeSheet, BCTimeSheetLine, TimesheetDisplayStatus } from '@/types';
+import { getUserProfilePhoto } from '@/services/auth/graphService';
+import type {
+  BCTimeSheet,
+  BCTimeSheetLine,
+  TimesheetDisplayStatus,
+  BCJob,
+  BCJobTask,
+} from '@/types';
 import { cn } from '@/utils';
 
 /**
@@ -49,11 +57,19 @@ interface ApprovalCardProps {
   lines: BCTimeSheetLine[];
   isExpanded: boolean;
   isProcessing: boolean;
-  isSelected: boolean;
   onToggleExpand: () => void;
-  onToggleSelect: () => void;
   onApprove: (comment?: string) => void;
   onReject: (comment: string) => void;
+  /** Hide person name when grouped by person (shown in group header) */
+  hidePerson?: boolean;
+  /** Hide week dates when grouped by week (shown in group header) */
+  hideWeek?: boolean;
+  /** Resource email for fetching profile photo */
+  resourceEmail?: string;
+  /** Cache of jobs for displaying job names */
+  jobsCache?: Record<string, BCJob>;
+  /** Cache of tasks per job for displaying task names */
+  tasksCache?: Record<string, BCJobTask[]>;
 }
 
 export function ApprovalCard({
@@ -61,14 +77,25 @@ export function ApprovalCard({
   lines,
   isExpanded,
   isProcessing,
-  isSelected,
   onToggleExpand,
-  onToggleSelect,
   onApprove,
   onReject,
+  hidePerson,
+  hideWeek,
+  resourceEmail,
+  jobsCache = {},
+  tasksCache = {},
 }: ApprovalCardProps) {
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectForm, setShowRejectForm] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+
+  // Fetch profile photo
+  useEffect(() => {
+    if (resourceEmail) {
+      getUserProfilePhoto(resourceEmail).then(setPhotoUrl);
+    }
+  }, [resourceEmail]);
 
   const formatDate = (dateString: string) => {
     try {
@@ -76,6 +103,29 @@ export function ApprovalCard({
     } catch {
       return dateString;
     }
+  };
+
+  // Calculate totals from lines (more reliable than timeSheet.totalQuantity)
+  const totalHours = lines.reduce((sum, line) => sum + (line.totalQuantity || 0), 0);
+  const billableHours = lines
+    .filter((line) => line.type === 'Job')
+    .reduce((sum, line) => sum + (line.totalQuantity || 0), 0);
+  const billablePercent = totalHours > 0 ? Math.round((billableHours / totalHours) * 100) : 0;
+
+  // Use timeSheet.totalQuantity as fallback if lines not loaded yet
+  const displayHours = totalHours || timeSheet.totalQuantity || 0;
+
+  // Helper to get job name from cache
+  const getJobName = (jobNo: string): string => {
+    const job = jobsCache[jobNo];
+    return job?.description || jobNo;
+  };
+
+  // Helper to get task name from cache
+  const getTaskName = (jobNo: string, taskNo: string): string => {
+    const tasks = tasksCache[jobNo];
+    const task = tasks?.find((t) => t.jobTaskNo === taskNo);
+    return task?.description || taskNo;
   };
 
   const handleApprove = () => {
@@ -94,28 +144,47 @@ export function ApprovalCard({
     <Card variant="bordered" className="overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-4 p-4">
-        {/* Checkbox for bulk selection */}
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={onToggleSelect}
-          aria-label={`Select timesheet for ${timeSheet.resourceName}`}
-          className="h-4 w-4 rounded border-dark-600 bg-dark-700 text-thyme-500 focus:ring-thyme-500"
-        />
-
-        {/* Employee info */}
+        {/* Employee/Week info */}
         <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <UserIcon className="h-5 w-5 text-dark-400" />
-            <span className="font-medium text-white">{timeSheet.resourceName}</span>
-          </div>
-          <div className="mt-1 flex items-center gap-4 text-sm text-dark-400">
-            <span>
-              {formatDate(timeSheet.startingDate)} - {formatDate(timeSheet.endingDate)}
-            </span>
+          {!hidePerson && (
+            <div className="flex items-center gap-2">
+              {photoUrl ? (
+                <img
+                  src={photoUrl}
+                  alt={timeSheet.resourceName || 'User'}
+                  className="h-8 w-8 rounded-full object-cover"
+                />
+              ) : (
+                <UserIcon className="h-5 w-5 text-dark-400" />
+              )}
+              <span className="font-medium text-white">{timeSheet.resourceName}</span>
+            </div>
+          )}
+          {hidePerson && !hideWeek && (
+            <div className="flex items-center gap-2">
+              <CalendarDaysIcon className="h-8 w-8 text-thyme-500" />
+              <span className="font-medium text-white">
+                {formatDate(timeSheet.startingDate)} - {formatDate(timeSheet.endingDate)}
+              </span>
+            </div>
+          )}
+          <div
+            className={cn(
+              'flex items-center gap-4 text-sm text-dark-400',
+              (!hidePerson || (hidePerson && !hideWeek)) && 'mt-1'
+            )}
+          >
+            {!hideWeek && !hidePerson && (
+              <span>
+                {formatDate(timeSheet.startingDate)} - {formatDate(timeSheet.endingDate)}
+              </span>
+            )}
             <span className="flex items-center gap-1">
               <ClockIcon className="h-4 w-4" />
-              {timeSheet.totalQuantity} hours
+              {displayHours} hours
+              {lines.length > 0 && (
+                <span className="text-dark-500">({billablePercent}% billable)</span>
+              )}
             </span>
           </div>
         </div>
@@ -139,6 +208,34 @@ export function ApprovalCard({
             </span>
           );
         })()}
+
+        {/* Action buttons - always visible */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isProcessing}
+            onClick={() => {
+              setShowRejectForm(true);
+              if (!isExpanded) {
+                onToggleExpand();
+              }
+            }}
+          >
+            <XMarkIcon className="mr-1 h-4 w-4" />
+            Reject
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={isProcessing}
+            isLoading={isProcessing}
+            onClick={handleApprove}
+          >
+            <CheckIcon className="mr-1 h-4 w-4" />
+            Approve
+          </Button>
+        </div>
 
         {/* Expand button */}
         <button
@@ -167,8 +264,8 @@ export function ApprovalCard({
                     <p className="text-sm text-white">{line.description || 'No description'}</p>
                     {line.jobNo && (
                       <p className="text-xs text-dark-400">
-                        Project: {line.jobNo}
-                        {line.jobTaskNo && ` / Task: ${line.jobTaskNo}`}
+                        {getJobName(line.jobNo)}
+                        {line.jobTaskNo && ` / ${getTaskName(line.jobNo, line.jobTaskNo)}`}
                       </p>
                     )}
                   </div>
@@ -199,55 +296,31 @@ export function ApprovalCard({
             </div>
           )}
 
-          {/* Action buttons */}
-          <div className="flex items-center justify-end gap-2 border-t border-dark-700 p-4">
-            {showRejectForm ? (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setShowRejectForm(false);
-                    setRejectReason('');
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  disabled={!rejectReason.trim() || isProcessing}
-                  isLoading={isProcessing}
-                  onClick={handleReject}
-                >
-                  <XMarkIcon className="mr-1 h-4 w-4" />
-                  Confirm Reject
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={isProcessing}
-                  onClick={() => setShowRejectForm(true)}
-                >
-                  <XMarkIcon className="mr-1 h-4 w-4" />
-                  Reject
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  disabled={isProcessing}
-                  isLoading={isProcessing}
-                  onClick={handleApprove}
-                >
-                  <CheckIcon className="mr-1 h-4 w-4" />
-                  Approve
-                </Button>
-              </>
-            )}
-          </div>
+          {/* Reject confirmation buttons (only shown when reject form is active) */}
+          {showRejectForm && (
+            <div className="flex items-center justify-end gap-2 border-t border-dark-700 p-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setShowRejectForm(false);
+                  setRejectReason('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                disabled={!rejectReason.trim() || isProcessing}
+                isLoading={isProcessing}
+                onClick={handleReject}
+              >
+                <XMarkIcon className="mr-1 h-4 w-4" />
+                Confirm Reject
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </Card>

@@ -1,10 +1,43 @@
 import { create } from 'zustand';
-import type { BCTimeSheet, BCTimeSheetLine, ApprovalFilters } from '@/types';
+import type {
+  BCTimeSheet,
+  BCTimeSheetLine,
+  ApprovalFilters,
+  TimesheetDisplayStatus,
+} from '@/types';
 import { bcClient } from '@/services/bc/bcClient';
+
+/**
+ * Derive a display-friendly status from timesheet FlowFields.
+ * Shared between store filtering and ApprovalCard display.
+ */
+function getTimesheetDisplayStatus(timesheet: BCTimeSheet): TimesheetDisplayStatus {
+  const { openExists, submittedExists, rejectedExists, approvedExists } = timesheet;
+
+  // All approved, nothing else
+  if (approvedExists && !openExists && !submittedExists && !rejectedExists) {
+    return 'Approved';
+  }
+  // Any rejected
+  if (rejectedExists) {
+    return 'Rejected';
+  }
+  // All submitted, nothing open
+  if (submittedExists && !openExists) {
+    return 'Submitted';
+  }
+  // Some submitted, some open
+  if (submittedExists && openExists) {
+    return 'Partially Submitted';
+  }
+  // Default to Open
+  return 'Open';
+}
 
 interface ApprovalStore {
   // State
-  pendingApprovals: BCTimeSheet[];
+  allApprovals: BCTimeSheet[]; // Unfiltered list for deriving filter options
+  pendingApprovals: BCTimeSheet[]; // Filtered list for display
   selectedTimeSheet: BCTimeSheet | null;
   selectedLines: BCTimeSheetLine[];
   filters: ApprovalFilters;
@@ -45,6 +78,7 @@ interface ApprovalStore {
 
 export const useApprovalStore = create<ApprovalStore>((set, get) => ({
   // Initial state
+  allApprovals: [],
   pendingApprovals: [],
   selectedTimeSheet: null,
   selectedLines: [],
@@ -73,8 +107,8 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
       const { filters } = get();
       let filtered = approvals;
 
-      if (filters.employeeId) {
-        filtered = filtered.filter((a) => a.resourceNo === filters.employeeId);
+      if (filters.resourceId) {
+        filtered = filtered.filter((a) => a.resourceNo === filters.resourceId);
       }
       if (filters.startDate) {
         filtered = filtered.filter((a) => a.startingDate >= filters.startDate!);
@@ -82,11 +116,15 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
       if (filters.endDate) {
         filtered = filtered.filter((a) => a.endingDate <= filters.endDate!);
       }
+      if (filters.status) {
+        filtered = filtered.filter((a) => getTimesheetDisplayStatus(a) === filters.status);
+      }
 
       const pendingCount = filtered.length;
       const pendingHours = filtered.reduce((sum, sheet) => sum + (sheet.totalQuantity || 0), 0);
 
       set({
+        allApprovals: approvals,
         pendingApprovals: filtered,
         pendingCount,
         pendingHours,
@@ -94,7 +132,7 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch pending approvals';
-      set({ error: message, isLoading: false, pendingApprovals: [] });
+      set({ error: message, isLoading: false, allApprovals: [], pendingApprovals: [] });
     }
   },
 
