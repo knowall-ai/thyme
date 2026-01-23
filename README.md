@@ -17,7 +17,7 @@ A modern time tracking web application that integrates with Microsoft Dynamics 3
 
 | Layer    | Technology                   |
 | -------- | ---------------------------- |
-| Frontend | React 18, Next.js 14         |
+| Frontend | React 19, Next.js 15         |
 | Styling  | Tailwind CSS                 |
 | State    | Zustand                      |
 | Auth     | MSAL.js (Microsoft Entra ID) |

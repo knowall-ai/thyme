@@ -11,12 +11,14 @@ import type {
   BCResource,
   BCTimeSheet,
   BCTimeSheetLine,
+  BCTimeSheetDetail,
   TimeSheetStatus,
   PaginatedResponse,
 } from '@/types';
 
 const BC_BASE_URL =
   process.env.NEXT_PUBLIC_BC_BASE_URL || 'https://api.businesscentral.dynamics.com/v2.0';
+const BC_TENANT_ID = process.env.NEXT_PUBLIC_AZURE_TENANT_ID || '';
 const BC_DEFAULT_ENVIRONMENT =
   (process.env.NEXT_PUBLIC_BC_ENVIRONMENT as BCEnvironmentType) || 'production';
 const BC_DEFAULT_COMPANY_ID = process.env.NEXT_PUBLIC_BC_COMPANY_ID || '';
@@ -37,6 +39,7 @@ class BusinessCentralClient {
   private _companyId: string;
   private _environment: BCEnvironmentType;
   private _extensionInstalled: boolean | null = null;
+  private _extensionCheckPromise: Promise<boolean> | null = null;
 
   constructor() {
     // Try to load from localStorage, fall back to env vars
@@ -56,17 +59,21 @@ class BusinessCentralClient {
     return { companyId: BC_DEFAULT_COMPANY_ID, environment: BC_DEFAULT_ENVIRONMENT };
   }
 
+  private get tenantPath(): string {
+    return BC_TENANT_ID ? `${BC_TENANT_ID}/` : '';
+  }
+
   private get baseUrl(): string {
     if (!this._companyId) {
       throw new Error(
         'BusinessCentralClient: companyId is not set. Select a company or configure NEXT_PUBLIC_BC_COMPANY_ID.'
       );
     }
-    return `${BC_BASE_URL}/${this._environment}/api/v2.0/companies(${this._companyId})`;
+    return `${BC_BASE_URL}/${this.tenantPath}${this._environment}/api/v2.0/companies(${this._companyId})`;
   }
 
   private get apiBaseUrl(): string {
-    return `${BC_BASE_URL}/${this._environment}/api/v2.0`;
+    return `${BC_BASE_URL}/${this.tenantPath}${this._environment}/api/v2.0`;
   }
 
   private get customApiBaseUrl(): string {
@@ -75,7 +82,7 @@ class BusinessCentralClient {
         'BusinessCentralClient: companyId is not set. Select a company or configure NEXT_PUBLIC_BC_COMPANY_ID.'
       );
     }
-    return `${BC_BASE_URL}/${this._environment}/api/${THYME_API_PUBLISHER}/${THYME_API_GROUP}/${THYME_API_VERSION}/companies(${this._companyId})`;
+    return `${BC_BASE_URL}/${this.tenantPath}${this._environment}/api/${THYME_API_PUBLISHER}/${THYME_API_GROUP}/${THYME_API_VERSION}/companies(${this._companyId})`;
   }
 
   // Company management
@@ -85,6 +92,15 @@ class BusinessCentralClient {
 
   get environment(): BCEnvironmentType {
     return this._environment;
+  }
+
+  get tenantId(): string {
+    if (!BC_TENANT_ID) {
+      throw new Error(
+        'BusinessCentralClient: tenantId is not set. Configure NEXT_PUBLIC_AZURE_TENANT_ID.'
+      );
+    }
+    return BC_TENANT_ID;
   }
 
   setCompany(companyId: string, environment: BCEnvironmentType): void {
@@ -100,6 +116,7 @@ class BusinessCentralClient {
       }
       // Reset extension cache when company/environment changes
       this._extensionInstalled = null;
+      this._extensionCheckPromise = null;
     }
   }
 
@@ -115,7 +132,8 @@ class BusinessCentralClient {
       throw new Error('Failed to get Business Central access token');
     }
 
-    const url = `${BC_BASE_URL}/${environment}/api/v2.0/companies`;
+    const tenantPath = BC_TENANT_ID ? `${BC_TENANT_ID}/` : '';
+    const url = `${BC_BASE_URL}/${tenantPath}${environment}/api/v2.0/companies`;
     const response = await fetch(url, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -173,6 +191,27 @@ class BusinessCentralClient {
       return this._extensionInstalled;
     }
 
+    // If a check is already in progress, return that promise to deduplicate requests
+    if (this._extensionCheckPromise !== null) {
+      return this._extensionCheckPromise;
+    }
+
+    // Create the check promise and store it for deduplication
+    this._extensionCheckPromise = this._doExtensionCheck();
+
+    try {
+      const result = await this._extensionCheckPromise;
+      return result;
+    } finally {
+      // Clear the pending promise after completion
+      this._extensionCheckPromise = null;
+    }
+  }
+
+  /**
+   * Internal method to perform the actual extension check.
+   */
+  private async _doExtensionCheck(): Promise<boolean> {
     try {
       const token = await getBCAccessToken();
       if (!token) {
@@ -203,6 +242,7 @@ class BusinessCentralClient {
    */
   resetExtensionCache(): void {
     this._extensionInstalled = null;
+    this._extensionCheckPromise = null;
   }
 
   private async fetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -326,40 +366,117 @@ class BusinessCentralClient {
     return this.fetch<BCJob>(`/jobs(${jobId})`);
   }
 
-  // Job Tasks - BC API v2.0 doesn't expose job tasks in standard endpoints
-  // This requires a custom API page to be created in BC
-  async getJobTasks(_jobNumber: string): Promise<BCJobTask[]> {
-    // Standard BC API v2.0 doesn't have job tasks endpoint
-    // Options to enable this:
-    // 1. Create a custom API page in BC that exposes Job Tasks
-    // 2. Use BC's OData v4 endpoint with $expand (if supported)
-    // For now, return empty array - tasks must be added via custom BC API
-    console.warn('Job tasks endpoint not available in standard BC API v2.0');
-    return [];
+  // Job Tasks - requires Thyme BC Extension
+  async getJobTasks(jobNumber: string): Promise<BCJobTask[]> {
+    // Check if extension is installed
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      return [];
+    }
+
+    try {
+      const token = await getBCAccessToken();
+      if (!token) return [];
+
+      // Escape single quotes in jobNumber for OData filter syntax
+      const escapedJobNumber = jobNumber.replace(/'/g, "''");
+      const filter = `jobNo eq '${escapedJobNumber}'`;
+      const url = `${this.customApiBaseUrl}/jobTasks?$filter=${encodeURIComponent(filter)}`;
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) return [];
+
+      const data = await response.json();
+      return data.value || [];
+    } catch {
+      return [];
+    }
   }
 
   async getJobTask(jobTaskId: string): Promise<BCJobTask> {
     return this.fetch<BCJobTask>(`/jobTasks(${jobTaskId})`);
   }
 
-  // Resources (Users/Employees)
+  // Resources (Users/Employees) - uses custom Thyme API
   async getResources(filter?: string): Promise<BCResource[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      // Import dynamically to avoid circular dependency
+      const { ExtensionNotInstalledError } = await import('./timeEntryService');
+      throw new ExtensionNotInstalledError();
+    }
+
     let endpoint = "/resources?$filter=type eq 'Person'";
     if (filter) {
       endpoint += ` and ${filter}`;
     }
-    const response = await this.fetch<PaginatedResponse<BCResource>>(endpoint);
+    const response = await this.customApiFetch<PaginatedResponse<BCResource>>(endpoint);
     return response.value;
   }
 
   async getResource(resourceId: string): Promise<BCResource> {
-    return this.fetch<BCResource>(`/resources(${resourceId})`);
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      const { ExtensionNotInstalledError } = await import('./timeEntryService');
+      throw new ExtensionNotInstalledError();
+    }
+    return this.customApiFetch<BCResource>(`/resources(${resourceId})`);
   }
 
+  /**
+   * Derive the BC User ID from an Azure AD username (UPN).
+   * Azure AD UPN is typically "ben.weeks@domain.com"
+   * BC User ID is typically "BEN.WEEKS" (uppercase, before @)
+   */
+  deriveBCUserId(azureAdUsername: string): string {
+    // Extract the part before @ and uppercase it
+    const localPart = azureAdUsername.split('@')[0];
+    return localPart.toUpperCase();
+  }
+
+  /**
+   * Find a resource for the current user.
+   * @param azureAdUsername - The user's Azure AD username (UPN), e.g., "ben.weeks@domain.com"
+   *
+   * Derives the BC User ID from the Azure AD username and filters resources
+   * by timeSheetOwnerUserId.
+   */
+  async getResourceForCurrentUser(azureAdUsername: string): Promise<BCResource | null> {
+    try {
+      // Derive BC User ID from Azure AD username
+      const bcUserId = this.deriveBCUserId(azureAdUsername);
+
+      // Find resource where timeSheetOwnerUserId matches
+      const response = await this.customApiFetch<PaginatedResponse<BCResource>>(
+        `/resources?$filter=timeSheetOwnerUserId eq '${bcUserId}'`
+      );
+      return response.value[0] || null;
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('404')) {
+        // Check if the endpoint itself doesn't exist (extension not installed/outdated)
+        // vs no resource found for the user
+        if (error.message.includes('No HTTP resource was found')) {
+          // Import dynamically to avoid circular dependency
+          const { ExtensionNotInstalledError } = await import('./timeEntryService');
+          throw new ExtensionNotInstalledError();
+        }
+        // Otherwise, no resource found for user
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * @deprecated Use getResourceForCurrentUser(azureAdUsername) instead.
+   */
   async getResourceByEmail(email: string): Promise<BCResource | null> {
-    const filter = `email eq '${email}'`;
-    const resources = await this.getResources(filter);
-    return resources[0] || null;
+    return this.getResourceForCurrentUser(email);
   }
 
   // Job Journal Lines (Time Entries)
@@ -416,6 +533,336 @@ class BusinessCentralClient {
         method: 'POST',
       }
     );
+  }
+
+  // ============================================
+  // Timesheet API (requires Thyme BC Extension)
+  // ============================================
+
+  private async customApiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const token = await getBCAccessToken();
+
+    if (!token) {
+      throw new Error('Failed to get Business Central access token');
+    }
+
+    const url = `${this.customApiBaseUrl}${endpoint}`;
+
+    // Debug logging (development only)
+    if (process.env.NODE_ENV === 'development' && options.body) {
+      console.log('[BC API] POST/PATCH body:', options.body);
+    }
+
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      // Only log unexpected errors in development (skip expected 404s for missing endpoints)
+      if (process.env.NODE_ENV === 'development') {
+        const isExpected404 =
+          response.status === 404 && errorText.includes('No HTTP resource was found');
+        if (!isExpected404) {
+          console.error('[BC API] Error response:', errorText);
+        }
+      }
+      throw new Error(`BC API Error (${response.status}): ${errorText}`);
+    }
+
+    // Handle 204 No Content or empty body
+    if (response.status === 204) {
+      return {} as T;
+    }
+
+    // Check for empty body (some BC actions return 200 with no content)
+    const text = await response.text();
+    if (!text || text.trim() === '') {
+      return {} as T;
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error('[BC API] Failed to parse JSON response:', text);
+      throw new Error(`BC API: Invalid JSON response: ${text.substring(0, 100)}`);
+    }
+  }
+
+  /**
+   * Get timesheets, optionally filtered by resource number and/or date.
+   * @param resourceNo - Filter by resource number (employee)
+   * @param startingDate - Filter by week starting date (YYYY-MM-DD)
+   */
+  async getTimeSheets(resourceNo?: string, startingDate?: string): Promise<BCTimeSheet[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error(
+        'Thyme BC Extension is not installed. Timesheet functionality requires the extension.'
+      );
+    }
+
+    const filters: string[] = [];
+    if (resourceNo) {
+      const escaped = resourceNo.replace(/'/g, "''");
+      filters.push(`resourceNo eq '${escaped}'`);
+    }
+    if (startingDate) {
+      filters.push(`startingDate eq ${startingDate}`);
+    }
+
+    let endpoint = '/timeSheets';
+    if (filters.length > 0) {
+      endpoint += `?$filter=${encodeURIComponent(filters.join(' and '))}`;
+    }
+
+    const response = await this.customApiFetch<PaginatedResponse<BCTimeSheet>>(endpoint);
+    return response.value;
+  }
+
+  /**
+   * Get a specific timesheet by ID.
+   */
+  async getTimeSheet(timeSheetId: string): Promise<BCTimeSheet> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    return this.customApiFetch<BCTimeSheet>(`/timeSheets(${timeSheetId})`);
+  }
+
+  /**
+   * Get lines for a specific timesheet.
+   */
+  async getTimeSheetLines(timeSheetNo: string): Promise<BCTimeSheetLine[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    const escaped = timeSheetNo.replace(/'/g, "''");
+    const endpoint = `/timeSheetLines?$filter=${encodeURIComponent(`timeSheetNo eq '${escaped}'`)}`;
+    const response = await this.customApiFetch<PaginatedResponse<BCTimeSheetLine>>(endpoint);
+    return response.value;
+  }
+
+  /**
+   * Create a new timesheet line (time entry).
+   */
+  async createTimeSheetLine(
+    line: Omit<BCTimeSheetLine, 'id' | 'lineNo' | 'totalQuantity' | 'status' | '@odata.etag'>
+  ): Promise<BCTimeSheetLine> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    const result = await this.customApiFetch<BCTimeSheetLine>('/timeSheetLines', {
+      method: 'POST',
+      body: JSON.stringify(line),
+    });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[BC API] createTimeSheetLine response:', JSON.stringify(result));
+    }
+    return result;
+  }
+
+  /**
+   * Update an existing timesheet line.
+   */
+  async updateTimeSheetLine(
+    lineId: string,
+    updates: Partial<BCTimeSheetLine>,
+    etag: string
+  ): Promise<BCTimeSheetLine> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    return this.customApiFetch<BCTimeSheetLine>(`/timeSheetLines(${lineId})`, {
+      method: 'PATCH',
+      headers: {
+        'If-Match': etag,
+      },
+      body: JSON.stringify(updates),
+    });
+  }
+
+  /**
+   * Delete a timesheet line.
+   */
+  async deleteTimeSheetLine(lineId: string, etag: string): Promise<void> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    await this.customApiFetch(`/timeSheetLines(${lineId})`, {
+      method: 'DELETE',
+      headers: {
+        'If-Match': etag,
+      },
+    });
+  }
+
+  // ============================================
+  // Timesheet Details API
+  // ============================================
+
+  /**
+   * Get timesheet details for a specific line.
+   */
+  async getTimeSheetDetails(timeSheetNo: string, lineNo: number): Promise<BCTimeSheetDetail[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    const escapedNo = timeSheetNo.replace(/'/g, "''");
+    const filter = encodeURIComponent(
+      `timeSheetNo eq '${escapedNo}' and timeSheetLineNo eq ${lineNo}`
+    );
+    const response = await this.customApiFetch<PaginatedResponse<BCTimeSheetDetail>>(
+      `/timeSheetDetails?$filter=${filter}`
+    );
+    return response.value;
+  }
+
+  /**
+   * Get all timesheet details for a timesheet (across all lines).
+   */
+  async getAllTimeSheetDetails(timeSheetNo: string): Promise<BCTimeSheetDetail[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    const escapedNo = timeSheetNo.replace(/'/g, "''");
+    const filter = encodeURIComponent(`timeSheetNo eq '${escapedNo}'`);
+    const response = await this.customApiFetch<PaginatedResponse<BCTimeSheetDetail>>(
+      `/timeSheetDetails?$filter=${filter}`
+    );
+    return response.value;
+  }
+
+  /**
+   * Set hours for a specific date on a timesheet line.
+   * Uses the bound action on /timeSheetLines.
+   * @param lineId - The GUID of the timesheet line (id field, not lineNo)
+   * @param entryDate - The date to set hours for (ISO format YYYY-MM-DD)
+   * @param hours - The number of hours to set
+   */
+  async setHoursForDate(lineId: string, entryDate: string, hours: number): Promise<void> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    const url = `/timeSheetLines(${lineId})/Microsoft.NAV.setHoursForDate`;
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[BC API] setHoursForDate URL:', url);
+    }
+
+    await this.customApiFetch(url, {
+      method: 'POST',
+      body: JSON.stringify({ entryDate, hours }),
+    });
+  }
+
+  /**
+   * Submit a timesheet for approval.
+   */
+  async submitTimeSheet(timeSheetId: string): Promise<void> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    await this.customApiFetch(`/timeSheets(${timeSheetId})/Microsoft.NAV.submit`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * Reopen a timesheet (e.g., after rejection to make edits).
+   */
+  async reopenTimeSheet(timeSheetId: string): Promise<void> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    await this.customApiFetch(`/timeSheets(${timeSheetId})/Microsoft.NAV.reopen`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * Approve a timesheet (manager action).
+   */
+  async approveTimeSheet(timeSheetId: string): Promise<void> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    await this.customApiFetch(`/timeSheets(${timeSheetId})/Microsoft.NAV.approve`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * Reject a timesheet (manager action).
+   */
+  async rejectTimeSheet(timeSheetId: string): Promise<void> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    await this.customApiFetch(`/timeSheets(${timeSheetId})/Microsoft.NAV.reject`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * Derive a display-friendly status from timesheet FlowFields.
+   */
+  getTimesheetDisplayStatus(
+    timesheet: BCTimeSheet
+  ): 'Open' | 'Partially Submitted' | 'Submitted' | 'Rejected' | 'Approved' | 'Mixed' {
+    const { openExists, submittedExists, rejectedExists, approvedExists } = timesheet;
+
+    // All approved, nothing else
+    if (approvedExists && !openExists && !submittedExists && !rejectedExists) {
+      return 'Approved';
+    }
+    // Any rejected
+    if (rejectedExists) {
+      return 'Rejected';
+    }
+    // All submitted, nothing open
+    if (submittedExists && !openExists) {
+      return 'Submitted';
+    }
+    // Some submitted, some open
+    if (submittedExists && openExists) {
+      return 'Partially Submitted';
+    }
+    // Mix of approved and other states
+    if (approvedExists && (openExists || submittedExists)) {
+      return 'Mixed';
+    }
+    // Default to Open
+    return 'Open';
   }
 
   // Company Information

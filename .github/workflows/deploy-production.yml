@@ -1,0 +1,147 @@
+name: Deploy to Production
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  deploy-production:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get release info
+        id: release
+        run: |
+          echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          echo "sha=${GITHUB_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm run test -- --run
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Build application
+        run: npm run build
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_AZURE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_AZURE_CLIENT_ID }}
+          NEXT_PUBLIC_AZURE_TENANT_ID: ${{ secrets.NEXT_PUBLIC_AZURE_TENANT_ID }}
+          NEXT_PUBLIC_AZURE_REDIRECT_URI: ${{ secrets.NEXT_PUBLIC_AZURE_REDIRECT_URI }}
+          NEXT_PUBLIC_BC_BASE_URL: ${{ secrets.NEXT_PUBLIC_BC_BASE_URL }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+
+      - name: Prepare standalone deployment
+        run: |
+          cp -r public .next/standalone/
+          cp -r .next/static .next/standalone/.next/
+          echo "Standalone deployment package prepared"
+
+      - name: Create GitHub deployment
+        id: create_deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = '${{ steps.release.outputs.tag }}';
+            const url = 'https://thyme.knowall.ai';
+
+            // Create deployment
+            const { data: deployment } = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: '${{ github.sha }}',
+              environment: 'production',
+              description: `Deploy ${tag} to production`,
+              auto_merge: false,
+              required_contexts: [],
+              payload: {
+                tag: tag,
+                deployer: '${{ github.actor }}'
+              }
+            });
+
+            core.setOutput('deployment_id', deployment.id);
+            core.setOutput('url', url);
+
+            // Mark deployment as in progress
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: deployment.id,
+              state: 'in_progress',
+              environment_url: url,
+              description: 'Deployment in progress'
+            });
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Azure App Service
+        id: deploy
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+          package: .next/standalone
+          startup-command: 'node server.js'
+
+      - name: Update deployment status
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deploymentId = '${{ steps.create_deployment.outputs.deployment_id }}';
+            const url = '${{ steps.create_deployment.outputs.url }}';
+            const success = '${{ job.status }}' === 'success';
+            const tag = '${{ steps.release.outputs.tag }}';
+
+            // Update deployment status
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: deploymentId,
+              state: success ? 'success' : 'failure',
+              environment_url: url,
+              description: success ? `${tag} deployed successfully` : 'Deployment failed'
+            });
+
+            if (success) {
+              core.summary.addHeading('Production Deployment Complete! 🚀', 2);
+              core.summary.addRaw(`\n**Version:** ${tag}\n`);
+              core.summary.addRaw(`**URL:** ${url}\n`);
+              core.summary.addRaw(`**Commit:** \`${{ github.sha }}\`\n`);
+              await core.summary.write();
+
+              console.log(`✅ ${tag} deployed to production: ${url}`);
+            }

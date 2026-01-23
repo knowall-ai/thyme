@@ -9,19 +9,20 @@ let initializationPromise: Promise<void> | null = null;
 
 export async function initializeMsal(): Promise<void> {
   if (!initializationPromise) {
-    initializationPromise = msalInstance.initialize().then(() => {
-      // Handle redirect response
-      msalInstance.handleRedirectPromise().then((response) => {
-        if (response) {
-          msalInstance.setActiveAccount(response.account);
-        } else {
-          // Account selection logic
-          const accounts = msalInstance.getAllAccounts();
-          if (accounts.length > 0) {
-            msalInstance.setActiveAccount(accounts[0]);
-          }
+    initializationPromise = (async () => {
+      await msalInstance.initialize();
+
+      // Handle redirect response - must await before allowing app to proceed
+      const response = await msalInstance.handleRedirectPromise();
+      if (response) {
+        msalInstance.setActiveAccount(response.account);
+      } else {
+        // Account selection logic
+        const accounts = msalInstance.getAllAccounts();
+        if (accounts.length > 0) {
+          msalInstance.setActiveAccount(accounts[0]);
         }
-      });
+      }
 
       // Listen for sign-in events
       msalInstance.addEventCallback((event) => {
@@ -30,7 +31,7 @@ export async function initializeMsal(): Promise<void> {
           msalInstance.setActiveAccount(account);
         }
       });
-    });
+    })();
   }
   return initializationPromise;
 }

@@ -1,10 +1,11 @@
 'use client';
 
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import { Button, DatePicker } from '@/components/ui';
+import { Button } from './Button';
+import { DatePicker } from './DatePicker';
 import { formatWeekRange, getWeekStart, isSameDayAs } from '@/utils';
 
-interface WeekNavigationProps {
+export interface WeekNavigationProps {
   currentWeekStart: Date;
   onPrevious: () => void;
   onNext: () => void;

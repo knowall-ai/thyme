@@ -26,8 +26,8 @@ export function useProfilePhoto(isAuthenticated: boolean) {
         if (isMounted) {
           setPhotoUrl(url);
         }
-      } catch (error) {
-        console.error('Failed to fetch profile photo:', error);
+      } catch {
+        // Silently fail - profile photo is non-critical
       } finally {
         if (isMounted) {
           setIsLoading(false);

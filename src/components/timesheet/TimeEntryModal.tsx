@@ -29,6 +29,14 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
   const [taskId, setTaskId] = useState('');
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
+
+  // When hours is 24, minutes must be 0
+  const handleHoursChange = (value: string) => {
+    setHours(value);
+    if (parseInt(value) >= 24) {
+      setMinutes('0');
+    }
+  };
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [extensionInstalled, setExtensionInstalled] = useState<boolean | null>(null);
@@ -70,11 +78,14 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
   useEffect(() => {
     if (isOpen) {
       if (entry) {
-        // Editing existing entry - find the project to get customer
-        const project = projects.find((p) => p.id === entry.projectId);
+        // Editing existing entry - entry.projectId is a job code (e.g., "PR00030"), not a GUID
+        const project = projects.find((p) => p.code === entry.projectId);
         setCustomerId(project?.customerName || 'Unknown');
-        setProjectId(entry.projectId);
-        setTaskId(entry.taskId);
+        // Use project.id (GUID) for form state since dropdown options use GUIDs
+        setProjectId(project?.id || '');
+        // Find task by code and use its id
+        const task = project?.tasks.find((t) => t.code === entry.taskId);
+        setTaskId(task?.id || '');
         const h = Math.floor(entry.hours);
         const m = Math.round((entry.hours - h) * 60);
         setHours(h.toString());
@@ -138,13 +149,22 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
     const project = projects.find((p) => p.id === projectId);
     const task = project?.tasks.find((t) => t.id === taskId);
 
+    if (!project || !task) {
+      toast.error('Please select a valid project and task.');
+      return;
+    }
+
+    // Use project.code and task.code for BC API (job numbers, not GUIDs)
+    const jobNo = project.code;
+    const jobTaskNo = task.code;
+
     setIsSubmitting(true);
     try {
       if (entry) {
         // Update existing entry
         await updateEntry(entry.id, {
-          projectId,
-          taskId,
+          projectId: jobNo,
+          taskId: jobTaskNo,
           hours: totalHours,
           notes,
           isBillable: task?.isBillable ?? true,
@@ -152,8 +172,8 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
       } else {
         // Create new entry
         await addEntry({
-          projectId,
-          taskId,
+          projectId: jobNo,
+          taskId: jobTaskNo,
           userId,
           date,
           hours: totalHours,
@@ -164,8 +184,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
       }
       toast.success(entry ? 'Time entry updated' : 'Time entry saved');
       onClose();
-    } catch (error) {
-      console.error('Failed to save entry:', error);
+    } catch {
       toast.error('Failed to save time entry. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -184,8 +203,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
       await deleteEntry(entry.id);
       toast.success('Time entry deleted');
       onClose();
-    } catch (error) {
-      console.error('Failed to delete entry:', error);
+    } catch {
       toast.error('Failed to delete time entry. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -271,17 +289,19 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
             min="0"
             max="24"
             value={hours}
-            onChange={(e) => setHours(e.target.value)}
+            onChange={(e) => handleHoursChange(e.target.value)}
             placeholder="0"
           />
           <Input
             label="Minutes"
             type="number"
             min="0"
-            max="59"
+            max="45"
+            step="15"
             value={minutes}
             onChange={(e) => setMinutes(e.target.value)}
             placeholder="0"
+            disabled={parseInt(hours) >= 24}
           />
         </div>
 

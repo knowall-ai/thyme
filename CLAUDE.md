@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Thyme is a time tracking application that integrates with Microsoft Dynamics 365 Business Central. Built with Next.js 14, MSAL authentication, and Tailwind CSS.
+Thyme is a time tracking application that integrates with Microsoft Dynamics 365 Business Central. Built with Next.js 15, MSAL authentication, and Tailwind CSS.
 
 ## Key Directories
 
@@ -52,6 +52,22 @@ This validates:
 - Production build (`npm run build`)
 
 CI/CD runs these checks automatically on every PR via GitHub Actions.
+
+## Release Workflow
+
+The app version is displayed in the footer (from `package.json` via `NEXT_PUBLIC_APP_VERSION`).
+
+To create a release:
+
+```bash
+npm version patch   # Bug fix: 1.2.0 → 1.2.1
+npm version minor   # New feature: 1.2.0 → 1.3.0
+npm version major   # Breaking change: 1.2.0 → 2.0.0
+
+git push && git push --tags  # Deploy to production
+```
+
+The `npm version` command updates `package.json`, creates a commit, and creates a git tag. Pushing the tag triggers the production deployment workflow.
 
 ## Troubleshooting Documentation
 

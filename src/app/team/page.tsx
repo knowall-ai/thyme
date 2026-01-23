@@ -2,7 +2,7 @@
 
 import { AuthenticatedTemplate, UnauthenticatedTemplate } from '@/services/auth';
 import { Layout } from '@/components/layout';
-import { TeamList } from '@/components/team';
+import { TeamList, ZaplieBanner } from '@/components/team';
 import { PendingApprovalCard } from '@/components/approvals';
 
 function TeamContent() {
@@ -14,6 +14,7 @@ function TeamContent() {
           <p className="mt-1 text-dark-400">View your team&apos;s timesheet progress</p>
         </div>
         <PendingApprovalCard />
+        <ZaplieBanner />
         <TeamList />
       </div>
     </Layout>

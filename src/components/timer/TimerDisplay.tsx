@@ -21,10 +21,7 @@ export function TimerDisplay({ onStartTimer }: TimerDisplayProps) {
   const currentTask = currentProject?.tasks.find((t) => t.id === timer.taskId);
 
   const handleStop = async () => {
-    const entry = await timer.stop();
-    if (entry) {
-      console.log('Timer stopped, entry created:', entry);
-    }
+    await timer.stop();
   };
 
   if (!timer.isRunning) {

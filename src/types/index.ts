@@ -28,9 +28,14 @@ export interface BCCompany {
 export interface BCResource {
   id: string;
   number: string;
-  displayName: string;
+  name: string; // BC field name (displayName alias)
+  displayName?: string; // For compatibility
   type: 'Person' | 'Machine';
-  email?: string;
+  baseUnitOfMeasure?: string;
+  useTimeSheet?: boolean;
+  timeSheetOwnerUserId?: string;
+  timeSheetApproverUserId?: string;
+  searchName?: string;
 }
 
 export interface BCJob {
@@ -100,48 +105,58 @@ export interface BCJobJournalLine {
   totalPrice?: number;
 }
 
-// Time Sheet types for approval workflow
+// Time Sheet status types
 export type TimeSheetStatus = 'Open' | 'Submitted' | 'Rejected' | 'Approved' | 'Posted';
 
+// Derived timesheet status for UI display
+export type TimesheetDisplayStatus =
+  | 'Open'
+  | 'Partially Submitted'
+  | 'Submitted'
+  | 'Rejected'
+  | 'Approved'
+  | 'Mixed';
+
+// BC Timesheet types (from Thyme BC Extension)
 export interface BCTimeSheet {
   id: string;
   number: string;
-  resourceNumber: string;
-  resourceName: string;
+  resourceNo: string;
+  resourceName?: string;
   startingDate: string;
   endingDate: string;
-  status: TimeSheetStatus;
-  totalQuantity: number;
-  submittedBy?: string;
-  submittedDateTime?: string;
-  approverResourceNumber?: string;
-  approverName?: string;
-  lastModifiedDateTime?: string;
+  approverUserId?: string;
+  // Status FlowFields - individual lines have statuses, these aggregate
+  openExists: boolean;
+  submittedExists: boolean;
+  rejectedExists: boolean;
+  approvedExists: boolean;
+  // Computed fields for approval workflow
+  totalQuantity?: number;
+  '@odata.etag'?: string;
 }
 
 export interface BCTimeSheetLine {
   id: string;
-  timeSheetNumber: string;
-  lineNumber: number;
+  timeSheetNo: string;
+  lineNo: number;
   type: 'Resource' | 'Job' | 'Absence' | 'Assembly Order' | 'Service';
-  jobNumber?: string;
-  jobTaskNumber?: string;
-  description: string;
-  status: TimeSheetStatus;
+  jobNo?: string;
+  jobTaskNo?: string;
+  description?: string;
   totalQuantity: number;
-  approvedQuantity?: number;
-  approverComment?: string;
-  lastModifiedDateTime?: string;
-  // Daily detail entries
-  details?: BCTimeSheetLineDetail[];
+  status: 'Open' | 'Submitted' | 'Rejected' | 'Approved';
+  '@odata.etag'?: string;
 }
 
-export interface BCTimeSheetLineDetail {
+// Time Sheet Detail - individual date/quantity records
+export interface BCTimeSheetDetail {
   id: string;
-  timeSheetLineId: string;
-  date: string;
+  timeSheetNo: string;
+  timeSheetLineNo: number;
+  date: string; // ISO date format YYYY-MM-DD
   quantity: number;
-  posted: boolean;
+  '@odata.etag'?: string;
 }
 
 // Approval workflow types
@@ -191,7 +206,7 @@ export interface Task {
 }
 
 export interface TimeEntry {
-  id: string;
+  id: string; // Composite ID: {lineId}_{date}
   projectId: string;
   taskId: string;
   userId: string;
@@ -203,9 +218,10 @@ export interface TimeEntry {
   startTime?: string; // ISO timestamp for running timer
   createdAt: string;
   updatedAt: string;
-  // Synced from BC
-  bcJobJournalLineId?: string;
-  syncStatus: 'pending' | 'synced' | 'error';
+  // BC Timesheet Line reference
+  bcTimeSheetLineId?: string;
+  bcTimeSheetNo?: string;
+  lineStatus?: 'Open' | 'Submitted' | 'Rejected' | 'Approved';
 }
 
 export interface TimerState {
