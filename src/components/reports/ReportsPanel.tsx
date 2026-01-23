@@ -10,6 +10,9 @@ import {
   DocumentArrowDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  UsersIcon,
+  ChevronDownIcon,
+  UserIcon,
 } from '@heroicons/react/24/outline';
 import {
   format,
@@ -26,10 +29,10 @@ import {
   isSameMonth,
 } from 'date-fns';
 import { useAuth } from '@/services/auth';
-import { useProjectsStore } from '@/hooks';
-import { timeEntryService } from '@/services/bc';
-import { formatTime } from '@/utils';
-import type { TimeEntry } from '@/types';
+import { useProjectsStore, useCompanyStore } from '@/hooks';
+import { timeEntryService, bcClient } from '@/services/bc';
+import { cn, formatTime } from '@/utils';
+import type { TimeEntry, BCResource } from '@/types';
 
 type DateRange = 'week' | 'month';
 
@@ -45,6 +48,7 @@ interface DayBreakdown {
   date: string;
   label: string;
   hours: number;
+  billableHours: number;
 }
 
 export function ReportsPanel() {
@@ -54,10 +58,15 @@ export function ReportsPanel() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [extensionNotInstalled, setExtensionNotInstalled] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<BCResource | 'everyone' | null>(null);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [resources, setResources] = useState<BCResource[]>([]);
+  const [isLoadingResources, setIsLoadingResources] = useState(false);
 
   const { account } = useAuth();
-  const userEmail = account?.username || '';
+  const currentUserEmail = account?.username || '';
   const { projects, fetchProjects } = useProjectsStore();
+  const { selectedCompany } = useCompanyStore();
 
   // Calculate date range boundaries
   const { startDate, endDate } = useMemo(() => {
@@ -95,33 +104,84 @@ export function ReportsPanel() {
     setReferenceDate(new Date());
   };
 
-  // Fetch entries when date range or user changes
+  // Fetch resources on mount and when company changes
   useEffect(() => {
-    if (!userEmail) return;
+    const fetchResources = async () => {
+      setIsLoadingResources(true);
+      try {
+        // Get all person resources (same as Team page)
+        const data = await bcClient.getResources();
+        setResources(data);
+      } catch (err) {
+        console.error('Failed to fetch resources:', err);
+        setResources([]);
+      } finally {
+        setIsLoadingResources(false);
+      }
+    };
+    fetchResources();
+  }, [selectedCompany]);
 
-    const fetchEntries = async () => {
+  // Set default to 'everyone' once resources are loaded
+  useEffect(() => {
+    if (selectedMember === null && resources.length > 0) {
+      setSelectedMember('everyone');
+    }
+  }, [resources, selectedMember]);
+
+  // Get the resource timeSheetOwnerUserId(s) to fetch based on selection
+  const getResourceUserIds = (): string[] => {
+    if (selectedMember === 'everyone') {
+      return resources
+        .map((r) => r.timeSheetOwnerUserId)
+        .filter((id): id is string => !!id);
+    } else if (selectedMember) {
+      return selectedMember.timeSheetOwnerUserId ? [selectedMember.timeSheetOwnerUserId] : [];
+    }
+    return [];
+  };
+
+  // Fetch entries when date range or selected member changes
+  useEffect(() => {
+    const userIds = getResourceUserIds();
+    if (userIds.length === 0 && selectedMember !== null) {
+      setEntries([]);
+      return;
+    }
+
+    const fetchAllEntries = async () => {
       setIsLoading(true);
       setError(null);
       setExtensionNotInstalled(false);
       try {
-        const data = await timeEntryService.getEntries(startDate, endDate, userEmail);
-        setEntries(data);
-      } catch (err) {
-        if (err instanceof ExtensionNotInstalledError) {
-          setExtensionNotInstalled(true);
-        } else if (!(err instanceof NoTimesheetError)) {
-          // NoTimesheetError is expected when no timesheet exists - not an error
-          console.error('Failed to fetch entries for reports:', err);
-          setError('Failed to load report data');
+        // Fetch entries for all selected resources
+        const allEntries: TimeEntry[] = [];
+        for (const userId of userIds) {
+          try {
+            const data = await timeEntryService.getEntries(startDate, endDate, userId);
+            allEntries.push(...data);
+          } catch (err) {
+            if (err instanceof ExtensionNotInstalledError) {
+              setExtensionNotInstalled(true);
+              break;
+            } else if (!(err instanceof NoTimesheetError)) {
+              // Log but continue for other users
+              console.error(`Failed to fetch entries for ${userId}:`, err);
+            }
+          }
         }
+        setEntries(allEntries);
+      } catch (err) {
+        console.error('Failed to fetch entries for reports:', err);
+        setError('Failed to load report data');
         setEntries([]);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchEntries();
-  }, [userEmail, startDate, endDate]);
+    fetchAllEntries();
+  }, [selectedMember, resources, startDate, endDate]);
 
   // Fetch projects on mount
   useEffect(() => {
@@ -167,21 +227,44 @@ export function ReportsPanel() {
       .sort((a, b) => b.hours - a.hours);
   }, [entries, projects]);
 
-  // Calculate daily breakdown
+  // Calculate daily breakdown with billable/unbillable split
   const dailyBreakdown = useMemo((): DayBreakdown[] => {
     const days = eachDayOfInterval({ start: startDate, end: endDate });
-    const dailyTotals = timeEntryService.getDailyTotals(entries);
 
-    return days.map((day) => ({
-      date: format(day, 'yyyy-MM-dd'),
-      label: format(day, 'EEE, MMM d'),
-      hours: dailyTotals[format(day, 'yyyy-MM-dd')] || 0,
-    }));
+    // Calculate totals and billable hours per day
+    const dailyData = entries.reduce(
+      (acc, entry) => {
+        if (!acc[entry.date]) {
+          acc[entry.date] = { hours: 0, billableHours: 0 };
+        }
+        acc[entry.date].hours += entry.hours;
+        if (entry.isBillable) {
+          acc[entry.date].billableHours += entry.hours;
+        }
+        return acc;
+      },
+      {} as { [date: string]: { hours: number; billableHours: number } }
+    );
+
+    return days.map((day) => {
+      const dateStr = format(day, 'yyyy-MM-dd');
+      const data = dailyData[dateStr] || { hours: 0, billableHours: 0 };
+      return {
+        date: dateStr,
+        label: format(day, 'EEE, MMM d'),
+        hours: data.hours,
+        billableHours: data.billableHours,
+      };
+    });
   }, [entries, startDate, endDate]);
 
   // Find max hours for bar chart scaling
   const maxProjectHours = Math.max(...projectHours.map((p) => p.hours), 1);
-  const maxDailyHours = Math.max(...dailyBreakdown.map((d) => d.hours), 1);
+  // Daily capacity based on selected resources (8 hours per resource per day)
+  const resourceCount = selectedMember === 'everyone' ? resources.length : 1;
+  const dailyCapacity = resourceCount * 8;
+  // Use the greater of capacity or max hours to ensure bars fit
+  const maxDailyHours = Math.max(...dailyBreakdown.map((d) => d.hours), dailyCapacity);
 
   const getDateRangeLabel = () => {
     if (dateRange === 'week') {
@@ -234,27 +317,105 @@ export function ReportsPanel() {
             <CalendarIcon className="ml-2 h-5 w-5 text-dark-400" />
             <span className="text-dark-100">{getDateRangeLabel()}</span>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setDateRange('week')}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                dateRange === 'week'
-                  ? 'bg-thyme-600 text-white'
-                  : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
-              }`}
-            >
-              This Week
-            </button>
-            <button
-              onClick={() => setDateRange('month')}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                dateRange === 'month'
-                  ? 'bg-thyme-600 text-white'
-                  : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
-              }`}
-            >
-              This Month
-            </button>
+          <div className="flex items-center gap-4">
+            {/* Team Member Filter */}
+            <div className="relative">
+              <button
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className={cn(
+                  'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
+                  'border border-dark-600 bg-dark-700 hover:border-dark-500 hover:bg-dark-600',
+                  isFilterOpen && 'border-thyme-500'
+                )}
+              >
+                <UsersIcon className="h-4 w-4 text-dark-400" />
+                <span className="text-dark-200">
+                  {selectedMember === 'everyone'
+                    ? 'Everyone'
+                    : selectedMember
+                      ? selectedMember.name
+                      : 'Loading...'}
+                </span>
+                <ChevronDownIcon
+                  className={cn('h-4 w-4 text-dark-400 transition-transform', isFilterOpen && 'rotate-180')}
+                />
+              </button>
+
+              {isFilterOpen && (
+                <div className="absolute right-0 z-50 mt-2 w-64 rounded-lg border border-dark-600 bg-dark-800 shadow-xl">
+                  <div className="border-b border-dark-600 px-4 py-3">
+                    <h3 className="text-sm font-medium text-white">Filter by Resource</h3>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto py-1">
+                    {/* Everyone option */}
+                    <button
+                      onClick={() => {
+                        setSelectedMember('everyone');
+                        setIsFilterOpen(false);
+                      }}
+                      className={cn(
+                        'flex w-full items-center gap-3 px-4 py-2 text-left text-sm hover:bg-dark-700',
+                        selectedMember === 'everyone' && 'bg-dark-700'
+                      )}
+                    >
+                      <UsersIcon className="h-5 w-5 text-thyme-500" />
+                      <span className="text-dark-200">Everyone</span>
+                    </button>
+
+                    {/* Individual resources */}
+                    {isLoadingResources ? (
+                      <div className="px-4 py-3 text-center text-sm text-dark-400">Loading...</div>
+                    ) : (
+                      resources.map((resource) => (
+                        <button
+                          key={resource.id}
+                          onClick={() => {
+                            setSelectedMember(resource);
+                            setIsFilterOpen(false);
+                          }}
+                          className={cn(
+                            'flex w-full items-center gap-3 px-4 py-2 text-left text-sm hover:bg-dark-700',
+                            selectedMember !== 'everyone' &&
+                              selectedMember?.id === resource.id &&
+                              'bg-dark-700'
+                          )}
+                        >
+                          <UserIcon className="h-5 w-5 text-dark-400" />
+                          <div className="flex-1 truncate">
+                            <div className="text-dark-200">{resource.name}</div>
+                            <div className="text-xs text-dark-500">{resource.number}</div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Week/Month Toggle */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDateRange('week')}
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                  dateRange === 'week'
+                    ? 'bg-thyme-600 text-white'
+                    : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
+                }`}
+              >
+                This Week
+              </button>
+              <button
+                onClick={() => setDateRange('month')}
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                  dateRange === 'month'
+                    ? 'bg-thyme-600 text-white'
+                    : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
+                }`}
+              >
+                This Month
+              </button>
+            </div>
           </div>
         </div>
       </Card>
@@ -381,7 +542,19 @@ export function ReportsPanel() {
 
       {/* Daily Breakdown */}
       <Card variant="bordered" className="p-6">
-        <h2 className="mb-6 text-lg font-semibold text-white">Daily Breakdown</h2>
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-white">Daily Breakdown</h2>
+          <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-3 rounded-sm bg-thyme-600" />
+              <span className="text-dark-300">Billable</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-3 rounded-sm bg-slate-500" />
+              <span className="text-dark-300">Unbillable</span>
+            </div>
+          </div>
+        </div>
         {isLoading ? (
           <div className="py-12 text-center text-dark-400">
             <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-dark-600 border-t-thyme-500"></div>
@@ -404,29 +577,57 @@ export function ReportsPanel() {
           </div>
         ) : (
           <div className="space-y-3">
-            {dailyBreakdown.map((day) => (
-              <div key={day.date} className="flex items-center gap-4">
-                <span className="w-28 text-sm text-dark-400">{day.label}</span>
-                <div className="relative h-6 flex-1 overflow-hidden rounded bg-dark-700">
-                  {day.hours > 0 && (
-                    <div
-                      className="absolute left-0 top-0 flex h-full items-center rounded bg-thyme-600 px-2 transition-all duration-500"
-                      style={{
-                        width: `${(day.hours / maxDailyHours) * 100}%`,
-                        minWidth: '24px',
-                      }}
-                    >
-                      <span className="text-xs font-medium text-white">
-                        {formatTime(day.hours)}
-                      </span>
-                    </div>
-                  )}
+            {dailyBreakdown.map((day) => {
+              const unbillableHours = day.hours - day.billableHours;
+              const billableWidth = (day.billableHours / maxDailyHours) * 100;
+              const unbillableWidth = (unbillableHours / maxDailyHours) * 100;
+
+              return (
+                <div key={day.date} className="flex items-center gap-4">
+                  <span className="w-28 text-sm text-dark-400">{day.label}</span>
+                  <div className="relative h-6 flex-1 overflow-hidden rounded bg-dark-700">
+                    {day.hours > 0 && (
+                      <div className="absolute left-0 top-0 flex h-full">
+                        {/* Billable segment */}
+                        {day.billableHours > 0 && (
+                          <div
+                            className="flex h-full items-center bg-thyme-600 px-2 transition-all duration-500"
+                            style={{
+                              width: `${billableWidth}%`,
+                              minWidth: day.billableHours > 0 ? '24px' : '0',
+                            }}
+                          >
+                            <span className="text-xs font-medium text-white">
+                              {formatTime(day.billableHours)}
+                            </span>
+                          </div>
+                        )}
+                        {/* Unbillable segment */}
+                        {unbillableHours > 0 && (
+                          <div
+                            className="flex h-full items-center bg-slate-500 px-2 transition-all duration-500"
+                            style={{
+                              width: `${unbillableWidth}%`,
+                              minWidth: unbillableHours > 0 ? '24px' : '0',
+                            }}
+                          >
+                            <span className="text-xs font-medium text-white">
+                              {formatTime(unbillableHours)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <span className="w-32 text-right text-xs text-dark-300">
+                    <span className="text-thyme-400">{formatTime(day.billableHours)}</span>
+                    {' + '}
+                    <span className="text-slate-400">{formatTime(unbillableHours)}</span>
+                    <span className="text-dark-500"> / {dailyCapacity}h</span>
+                  </span>
                 </div>
-                <span className="w-16 text-right text-sm font-medium text-dark-100">
-                  {day.hours > 0 ? formatTime(day.hours) : '-'}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </Card>
