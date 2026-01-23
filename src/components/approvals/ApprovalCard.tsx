@@ -20,37 +20,7 @@ import type {
   BCJob,
   BCJobTask,
 } from '@/types';
-import { cn } from '@/utils';
-
-/**
- * Derive a display-friendly status from timesheet FlowFields.
- */
-function getTimesheetDisplayStatus(timesheet: BCTimeSheet): TimesheetDisplayStatus {
-  const { openExists, submittedExists, rejectedExists, approvedExists } = timesheet;
-
-  // All approved, nothing else
-  if (approvedExists && !openExists && !submittedExists && !rejectedExists) {
-    return 'Approved';
-  }
-  // Any rejected
-  if (rejectedExists) {
-    return 'Rejected';
-  }
-  // All submitted, nothing open
-  if (submittedExists && !openExists) {
-    return 'Submitted';
-  }
-  // Some submitted, some open
-  if (submittedExists && openExists) {
-    return 'Partially Submitted';
-  }
-  // Mix of approved and other states
-  if (approvedExists && (openExists || submittedExists)) {
-    return 'Mixed';
-  }
-  // Default to Open
-  return 'Open';
-}
+import { cn, getTimesheetDisplayStatus } from '@/utils';
 
 interface ApprovalCardProps {
   timeSheet: BCTimeSheet;

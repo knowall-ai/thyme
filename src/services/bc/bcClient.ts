@@ -13,8 +13,10 @@ import type {
   BCTimeSheetLine,
   BCTimeSheetDetail,
   TimeSheetStatus,
+  TimesheetDisplayStatus,
   PaginatedResponse,
 } from '@/types';
+import { getTimesheetDisplayStatus } from '@/utils';
 
 const BC_BASE_URL =
   process.env.NEXT_PUBLIC_BC_BASE_URL || 'https://api.businesscentral.dynamics.com/v2.0';
@@ -877,34 +879,10 @@ class BusinessCentralClient {
 
   /**
    * Derive a display-friendly status from timesheet FlowFields.
+   * Delegates to shared utility function.
    */
-  getTimesheetDisplayStatus(
-    timesheet: BCTimeSheet
-  ): 'Open' | 'Partially Submitted' | 'Submitted' | 'Rejected' | 'Approved' | 'Mixed' {
-    const { openExists, submittedExists, rejectedExists, approvedExists } = timesheet;
-
-    // All approved, nothing else
-    if (approvedExists && !openExists && !submittedExists && !rejectedExists) {
-      return 'Approved';
-    }
-    // Any rejected
-    if (rejectedExists) {
-      return 'Rejected';
-    }
-    // All submitted, nothing open
-    if (submittedExists && !openExists) {
-      return 'Submitted';
-    }
-    // Some submitted, some open
-    if (submittedExists && openExists) {
-      return 'Partially Submitted';
-    }
-    // Mix of approved and other states
-    if (approvedExists && (openExists || submittedExists)) {
-      return 'Mixed';
-    }
-    // Default to Open
-    return 'Open';
+  getTimesheetDisplayStatus(timesheet: BCTimeSheet): TimesheetDisplayStatus {
+    return getTimesheetDisplayStatus(timesheet);
   }
 
   // Company Information

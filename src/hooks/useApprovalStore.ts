@@ -1,42 +1,7 @@
 import { create } from 'zustand';
-import type {
-  BCTimeSheet,
-  BCTimeSheetLine,
-  ApprovalFilters,
-  TimesheetDisplayStatus,
-} from '@/types';
+import type { BCTimeSheet, BCTimeSheetLine, ApprovalFilters } from '@/types';
 import { bcClient } from '@/services/bc/bcClient';
-
-/**
- * Derive a display-friendly status from timesheet FlowFields.
- * Shared between store filtering and ApprovalCard display.
- */
-function getTimesheetDisplayStatus(timesheet: BCTimeSheet): TimesheetDisplayStatus {
-  const { openExists, submittedExists, rejectedExists, approvedExists } = timesheet;
-
-  // All approved, nothing else
-  if (approvedExists && !openExists && !submittedExists && !rejectedExists) {
-    return 'Approved';
-  }
-  // Any rejected
-  if (rejectedExists) {
-    return 'Rejected';
-  }
-  // All submitted, nothing open
-  if (submittedExists && !openExists) {
-    return 'Submitted';
-  }
-  // Some submitted, some open
-  if (submittedExists && openExists) {
-    return 'Partially Submitted';
-  }
-  // Mix of approved and other states
-  if (approvedExists && (openExists || submittedExists)) {
-    return 'Mixed';
-  }
-  // Default to Open
-  return 'Open';
-}
+import { getTimesheetDisplayStatus } from '@/utils';
 
 interface ApprovalStore {
   // State
