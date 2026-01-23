@@ -123,7 +123,7 @@ export interface BCTimeSheet {
   number: string;
   resourceNo: string;
   resourceName?: string;
-  resourceEmail?: string; // Azure AD UPN for fetching profile photo
+  resourceEmail?: string; // BC resource email (may differ from Azure AD UPN)
   startingDate: string;
   endingDate: string;
   approverUserId?: string;

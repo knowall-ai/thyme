@@ -10,7 +10,7 @@ import {
   CalendarDaysIcon,
   UserIcon,
 } from '@heroicons/react/24/outline';
-import { Card, Button } from '@/components/ui';
+import { Card } from '@/components/ui';
 import { ApprovalCard } from './ApprovalCard';
 import { ApprovalFilters } from './ApprovalFilters';
 import { useApprovalStore, useCompanyStore } from '@/hooks';
@@ -37,8 +37,6 @@ export function ApprovalList() {
     error,
     isApprover,
     permissionChecked,
-    pendingCount,
-    pendingHours,
     fetchPendingApprovals,
     fetchTimeSheetLines,
     selectTimeSheet,
@@ -80,24 +78,7 @@ export function ApprovalList() {
     const groups = new Map<string, BCTimeSheet[]>();
 
     pendingApprovals.forEach((timeSheet) => {
-      let key: string;
-      let label: string;
-
-      if (groupBy === 'week') {
-        // Group by week starting date
-        key = timeSheet.startingDate;
-        try {
-          const startDate = parseISO(timeSheet.startingDate);
-          const endDate = parseISO(timeSheet.endingDate);
-          label = `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d, yyyy')}`;
-        } catch {
-          label = timeSheet.startingDate;
-        }
-      } else {
-        // Group by person
-        key = timeSheet.resourceNo;
-        label = timeSheet.resourceName || timeSheet.resourceNo;
-      }
+      const key = groupBy === 'week' ? timeSheet.startingDate : timeSheet.resourceNo;
 
       if (!groups.has(key)) {
         groups.set(key, []);

@@ -171,7 +171,7 @@ export function ApprovalCard({
           <div
             className={cn(
               'flex items-center gap-4 text-sm text-dark-400',
-              (!hidePerson || (hidePerson && !hideWeek)) && 'mt-1'
+              (!hidePerson || !hideWeek) && 'mt-1'
             )}
           >
             {!hideWeek && !hidePerson && (

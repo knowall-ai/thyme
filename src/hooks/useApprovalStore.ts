@@ -30,6 +30,10 @@ function getTimesheetDisplayStatus(timesheet: BCTimeSheet): TimesheetDisplayStat
   if (submittedExists && openExists) {
     return 'Partially Submitted';
   }
+  // Mix of approved and other states
+  if (approvedExists && (openExists || submittedExists)) {
+    return 'Mixed';
+  }
   // Default to Open
   return 'Open';
 }
