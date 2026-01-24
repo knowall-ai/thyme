@@ -112,3 +112,24 @@ Uses MSAL with redirect flow (not popup). Key files:
 - `src/services/auth/AuthProvider.tsx` - MSAL setup and hooks
 - `src/services/auth/msalConfig.ts` - Configuration
 - `src/services/auth/tokenService.ts` - Token acquisition
+
+### Azure AD Redirect URIs
+
+The redirect URI is determined dynamically using `window.location.origin`, so it works on any port. The Azure AD app registration (Thyme - Time Tracking) must have the redirect URI registered as a SPA redirect.
+
+**Registered SPA Redirect URIs:**
+
+- `http://localhost:3000` - Default local dev
+- `http://localhost:3001` - Alternate local dev port
+- `https://thyme.knowall.ai` - Production
+- `https://slot1-4.thyme.knowall.ai` - Staging slots
+
+To check or update redirect URIs:
+
+```bash
+# View current redirect URIs
+az ad app show --id "44c618b5-89c3-4673-92ec-f7afb4e403bf" --query "spa.redirectUris"
+
+# Add a new redirect URI (replace with full list)
+az ad app update --id "44c618b5-89c3-4673-92ec-f7afb4e403bf" --spa-redirect-uris "http://localhost:3000" "http://localhost:3001" "https://thyme.knowall.ai"
+```
