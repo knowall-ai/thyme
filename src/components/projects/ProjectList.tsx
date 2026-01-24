@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   MagnifyingGlassIcon,
   StarIcon as StarOutlineIcon,
   FunnelIcon,
   ArrowsUpDownIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import { Card, Input, Select } from '@/components/ui';
@@ -24,6 +26,7 @@ interface ProjectListProps {
 }
 
 export function ProjectList({ onSelectProject }: ProjectListProps) {
+  const router = useRouter();
   const {
     isLoading,
     searchQuery,
@@ -38,6 +41,15 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
   const [filterBy, setFilterBy] = useState<FilterOption>('all');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
   const [customerFilter, setCustomerFilter] = useState<CustomerFilter>('all');
+
+  const handleProjectClick = (project: Project) => {
+    if (onSelectProject) {
+      onSelectProject(project);
+    } else {
+      // Navigate to project details page
+      router.push(`/projects/${encodeURIComponent(project.code)}`);
+    }
+  };
 
   useEffect(() => {
     fetchProjects();
@@ -216,11 +228,8 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
               <Card
                 key={project.id}
                 variant="bordered"
-                className={cn(
-                  'cursor-pointer p-4 transition-shadow hover:shadow-md',
-                  onSelectProject && 'hover:border-thyme-300'
-                )}
-                onClick={() => onSelectProject?.(project)}
+                className="cursor-pointer p-4 transition-all hover:border-thyme-500/50 hover:shadow-md"
+                onClick={() => handleProjectClick(project)}
               >
                 <div className="flex items-start gap-3">
                   {/* Color indicator */}
@@ -256,7 +265,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-thyme-400"
+                      className="rounded p-1 text-gray-400 transition-colors hover:bg-dark-600 hover:text-thyme-400"
                       title="Open in Business Central"
                     >
                       <ArrowTopRightOnSquareIcon className="h-5 w-5" />
@@ -268,7 +277,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
                         e.stopPropagation();
                         toggleFavorite(project.id);
                       }}
-                      className="rounded p-1 transition-colors hover:bg-gray-100"
+                      className="rounded p-1 transition-colors hover:bg-dark-600"
                     >
                       {project.isFavorite ? (
                         <StarSolidIcon className="h-5 w-5 text-amber-400" />
@@ -276,6 +285,9 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
                         <StarOutlineIcon className="h-5 w-5 text-gray-400" />
                       )}
                     </button>
+
+                    {/* Navigate indicator */}
+                    <ChevronRightIcon className="h-5 w-5 text-gray-500" />
                   </div>
                 </div>
               </Card>
