@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { Card } from '@/components/ui';
 import { cn, getBCResourceUrl, getBCJobTaskUrl } from '@/utils';
@@ -273,9 +273,8 @@ function TaskBreakdownTable({
             const isExpanded = expanded[item.taskNo];
 
             return (
-              <>
+              <Fragment key={item.taskNo}>
                 <tr
-                  key={item.taskNo}
                   className={cn(
                     'transition-colors',
                     hasDetails && 'cursor-pointer hover:bg-dark-700/50'
@@ -364,7 +363,7 @@ function TaskBreakdownTable({
                       </td>
                     </tr>
                   ))}
-              </>
+              </Fragment>
             );
           })}
         </tbody>

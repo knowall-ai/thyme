@@ -1,14 +1,15 @@
 'use client';
 
+import { use } from 'react';
 import { AuthenticatedTemplate, UnauthenticatedTemplate } from '@/services/auth';
 import { Layout } from '@/components/layout';
 import { ProjectDetails } from '@/components/projects/ProjectDetails';
 
 interface ProjectDetailsPageProps {
-  params: { projectNumber: string };
+  params: Promise<{ projectNumber: string }>;
 }
 
-function ProjectDetailsContent({ params }: ProjectDetailsPageProps) {
+function ProjectDetailsContent({ params }: { params: { projectNumber: string } }) {
   return (
     <Layout>
       <ProjectDetails params={params} />
@@ -17,13 +18,14 @@ function ProjectDetailsContent({ params }: ProjectDetailsPageProps) {
 }
 
 export default function ProjectDetailsPage({ params }: ProjectDetailsPageProps) {
+  const resolvedParams = use(params);
   return (
     <>
       <UnauthenticatedTemplate>
         <meta httpEquiv="refresh" content="0;url=/" />
       </UnauthenticatedTemplate>
       <AuthenticatedTemplate>
-        <ProjectDetailsContent params={params} />
+        <ProjectDetailsContent params={resolvedParams} />
       </AuthenticatedTemplate>
     </>
   );
