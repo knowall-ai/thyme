@@ -68,4 +68,7 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | "Resource Record Not Found" but BC extension check passes
 | The extension's `/resources` API endpoint may not exist. This happens when using an older extension version or when the extension isn't fully installed. Reinstall the latest Thyme BC Extension from https://github.com/knowall-ai/thyme-bc-extension
 
+| "No Approval Access" on Timesheet Approvals page
+| To approve timesheets, configure the approver in Business Central: (1) *Make user a Time Sheet Admin:* Search for "User Setup" → find your user (or create a new entry) → check the "Time Sheet Admin" checkbox. This allows the user to approve any timesheet. (2) *Or link approver to specific resources:* Search for "Resources" → open each Resource Card for employees you manage → set "Time Sheet Approver User ID" to your BC user ID. This allows you to approve only timesheets for those specific resources.
+
 |===

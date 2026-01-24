@@ -12,8 +12,11 @@ import type {
   BCTimeSheet,
   BCTimeSheetLine,
   BCTimeSheetDetail,
+  TimeSheetStatus,
+  TimesheetDisplayStatus,
   PaginatedResponse,
 } from '@/types';
+import { getTimesheetDisplayStatus } from '@/utils';
 
 const BC_BASE_URL =
   process.env.NEXT_PUBLIC_BC_BASE_URL || 'https://api.businesscentral.dynamics.com/v2.0';
@@ -30,6 +33,9 @@ const ENVIRONMENT_STORAGE_KEY = 'thyme_selected_environment';
 const THYME_API_PUBLISHER = 'knowall';
 const THYME_API_GROUP = 'thyme';
 const THYME_API_VERSION = 'v1.0';
+
+// Valid TimeSheetStatus values for whitelist validation
+const VALID_TIMESHEET_STATUSES = ['Open', 'Submitted', 'Rejected', 'Approved', 'Posted'] as const;
 
 // Available environments to query
 const BC_ENVIRONMENTS: BCEnvironmentType[] = ['sandbox', 'production'];
@@ -244,6 +250,45 @@ class BusinessCentralClient {
     this._extensionCheckPromise = null;
   }
 
+  // ============================================
+  // OData Input Sanitization Helpers
+  // ============================================
+
+  /**
+   * Sanitize a string value for use in OData filters.
+   * Escapes single quotes to prevent injection attacks.
+   */
+  private sanitizeODataString(value: string): string {
+    return value.replace(/'/g, "''");
+  }
+
+  /**
+   * Validate and sanitize a date string for OData filters.
+   * Only allows ISO date format (YYYY-MM-DD).
+   * @throws Error if the date format is invalid
+   */
+  private sanitizeDateInput(date: string): string {
+    const trimmed = date.trim();
+    const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!isoDateRegex.test(trimmed)) {
+      throw new Error('Invalid date format for OData filter. Expected YYYY-MM-DD.');
+    }
+    return trimmed;
+  }
+
+  /**
+   * Validate a TimeSheetStatus value against allowed values.
+   * @throws Error if the status is not valid
+   */
+  private validateTimeSheetStatus(status: string): TimeSheetStatus {
+    if (!VALID_TIMESHEET_STATUSES.includes(status as TimeSheetStatus)) {
+      throw new Error(
+        `Invalid timesheet status: ${status}. Expected one of: ${VALID_TIMESHEET_STATUSES.join(', ')}`
+      );
+    }
+    return status as TimeSheetStatus;
+  }
+
   private async fetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const token = await getBCAccessToken();
 
@@ -265,6 +310,40 @@ class BusinessCentralClient {
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`BC API Error (${response.status}): ${errorText}`);
+    }
+
+    // Handle 204 No Content
+    if (response.status === 204) {
+      return {} as T;
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Fetch from custom Thyme BC Extension API
+   */
+  private async fetchCustomApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const token = await getBCAccessToken();
+
+    if (!token) {
+      throw new Error('Failed to get Business Central access token');
+    }
+
+    const url = `${this.customApiBaseUrl}${endpoint}`;
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`BC Custom API Error (${response.status}): ${errorText}`);
     }
 
     // Handle 204 No Content
@@ -800,34 +879,10 @@ class BusinessCentralClient {
 
   /**
    * Derive a display-friendly status from timesheet FlowFields.
+   * Delegates to shared utility function.
    */
-  getTimesheetDisplayStatus(
-    timesheet: BCTimeSheet
-  ): 'Open' | 'Partially Submitted' | 'Submitted' | 'Rejected' | 'Approved' | 'Mixed' {
-    const { openExists, submittedExists, rejectedExists, approvedExists } = timesheet;
-
-    // All approved, nothing else
-    if (approvedExists && !openExists && !submittedExists && !rejectedExists) {
-      return 'Approved';
-    }
-    // Any rejected
-    if (rejectedExists) {
-      return 'Rejected';
-    }
-    // All submitted, nothing open
-    if (submittedExists && !openExists) {
-      return 'Submitted';
-    }
-    // Some submitted, some open
-    if (submittedExists && openExists) {
-      return 'Partially Submitted';
-    }
-    // Mix of approved and other states
-    if (approvedExists && (openExists || submittedExists)) {
-      return 'Mixed';
-    }
-    // Default to Open
-    return 'Open';
+  getTimesheetDisplayStatus(timesheet: BCTimeSheet): TimesheetDisplayStatus {
+    return getTimesheetDisplayStatus(timesheet);
   }
 
   // Company Information
@@ -856,6 +911,142 @@ class BusinessCentralClient {
       }>
     >('/companyInformation');
     return response.value[0] || null;
+  }
+
+  // ============================================
+  // Approval Workflow API (requires Thyme BC Extension)
+  // ============================================
+
+  /**
+   * Get time sheets pending approval for the current user.
+   * Filters for timesheets where submittedExists is true and not yet approved.
+   */
+  async getPendingApprovals(): Promise<BCTimeSheet[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    // Filter for submitted but not approved timesheets
+    const filter = 'submittedExists eq true and approvedExists eq false';
+    const endpoint = `/timeSheets?$filter=${encodeURIComponent(filter)}`;
+    const response = await this.customApiFetch<PaginatedResponse<BCTimeSheet>>(endpoint);
+    const timeSheets = response.value;
+
+    // Fetch resources to populate resourceName and resourceEmail
+    if (timeSheets.length > 0) {
+      try {
+        const resources = await this.getResources();
+        const resourceMap = new Map(
+          resources.map((r) => [r.number, { name: r.name, ownerId: r.timeSheetOwnerUserId }])
+        );
+
+        // Populate resourceName and prepare for email lookup
+        timeSheets.forEach((ts) => {
+          const resource = resourceMap.get(ts.resourceNo);
+          if (resource) {
+            if (!ts.resourceName) {
+              ts.resourceName = resource.name || ts.resourceNo;
+            }
+            // Store the BC user ID - will be converted to email in the UI
+            if (resource.ownerId) {
+              // BC User ID is uppercase (e.g., "BEN.WEEKS")
+              // Store as-is, UI will add domain
+              ts.resourceEmail = resource.ownerId.toLowerCase();
+            }
+          } else if (!ts.resourceName) {
+            ts.resourceName = ts.resourceNo;
+          }
+        });
+      } catch {
+        // If resource lookup fails, fall back to resourceNo as name
+        timeSheets.forEach((ts) => {
+          if (!ts.resourceName) {
+            ts.resourceName = ts.resourceNo;
+          }
+        });
+      }
+    }
+
+    return timeSheets;
+  }
+
+  /**
+   * Approve specific time sheet lines.
+   * Uses the approveLines bound action on timeSheetLines.
+   */
+  async approveTimeSheetLines(lineIds: string[], comment?: string): Promise<void> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    // Approve each line individually using the bound action
+    for (const lineId of lineIds) {
+      await this.customApiFetch(`/timeSheetLines(${lineId})/Microsoft.NAV.approve`, {
+        method: 'POST',
+      });
+    }
+  }
+
+  /**
+   * Reject specific time sheet lines.
+   * Uses the rejectLines bound action on timeSheetLines.
+   */
+  async rejectTimeSheetLines(lineIds: string[], comment: string): Promise<void> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    // Reject each line individually using the bound action
+    for (const lineId of lineIds) {
+      await this.customApiFetch(`/timeSheetLines(${lineId})/Microsoft.NAV.reject`, {
+        method: 'POST',
+      });
+    }
+  }
+
+  /**
+   * Check if the current user has approval permissions.
+   * Attempts to fetch pending approvals - if successful, user is an approver.
+   */
+  async checkApprovalPermission(): Promise<{ isApprover: boolean; resourceNumber?: string }> {
+    try {
+      const extensionInstalled = await this.isExtensionInstalled();
+      if (!extensionInstalled) {
+        return { isApprover: false };
+      }
+
+      // Try to fetch pending approvals - if this succeeds without error, user has approval access
+      // BC will return 403 or similar if user doesn't have permission
+      await this.getPendingApprovals();
+      // If we got here without error, the user can access the approvals endpoint
+      return { isApprover: true };
+    } catch {
+      // If fetching fails (403, 401, etc.), user doesn't have approval permission
+      return { isApprover: false };
+    }
+  }
+
+  /**
+   * Get approval statistics for the dashboard KPI.
+   */
+  async getApprovalStats(): Promise<{
+    pendingCount: number;
+    pendingHours: number;
+  }> {
+    try {
+      const pendingSheets = await this.getPendingApprovals();
+      const pendingCount = pendingSheets.length;
+      const pendingHours = pendingSheets.reduce(
+        (sum, sheet) => sum + (sheet.totalQuantity || 0),
+        0
+      );
+      return { pendingCount, pendingHours };
+    } catch {
+      return { pendingCount: 0, pendingHours: 0 };
+    }
   }
 }
 

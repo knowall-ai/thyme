@@ -95,15 +95,22 @@ export function DatePicker({ selectedDate, onDateSelect, className }: DatePicker
 
   return (
     <div ref={containerRef} className={cn('relative', className)}>
-      <Button
-        variant="outline"
-        size="icon"
+      <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Open date picker"
         aria-expanded={isOpen}
+        className={cn(
+          'flex h-10 w-full items-center gap-2 rounded-lg border border-dark-600 bg-dark-700 px-3 text-sm transition-colors',
+          'hover:border-dark-500 focus:border-thyme-500 focus:outline-none focus:ring-1 focus:ring-thyme-500',
+          selectedDate ? 'text-white' : 'text-dark-400'
+        )}
       >
-        <CalendarIcon className="h-5 w-5" />
-      </Button>
+        <CalendarIcon className="h-4 w-4 shrink-0 text-dark-400" />
+        <span className="truncate">
+          {selectedDate ? format(selectedDate, 'MMM d, yyyy') : 'Select date'}
+        </span>
+      </button>
 
       {isOpen && (
         <div

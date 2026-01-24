@@ -5,4 +5,5 @@ export { useProjectDetailsStore } from './useProjectDetailsStore';
 export { useTimeEntriesStore } from './useTimeEntriesStore';
 export { useSettingsStore } from './useSettingsStore';
 export { useTeammateStore } from './useTeammateStore';
+export { useApprovalStore } from './useApprovalStore';
 export { useTimer } from './useTimer';

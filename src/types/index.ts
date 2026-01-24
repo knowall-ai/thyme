@@ -105,12 +105,25 @@ export interface BCJobJournalLine {
   totalPrice?: number;
 }
 
+// Time Sheet status types
+export type TimeSheetStatus = 'Open' | 'Submitted' | 'Rejected' | 'Approved' | 'Posted';
+
+// Derived timesheet status for UI display
+export type TimesheetDisplayStatus =
+  | 'Open'
+  | 'Partially Submitted'
+  | 'Submitted'
+  | 'Rejected'
+  | 'Approved'
+  | 'Mixed';
+
 // BC Timesheet types (from Thyme BC Extension)
 export interface BCTimeSheet {
   id: string;
   number: string;
   resourceNo: string;
   resourceName?: string;
+  resourceEmail?: string; // BC resource email (may differ from Azure AD UPN)
   startingDate: string;
   endingDate: string;
   approverUserId?: string;
@@ -119,6 +132,8 @@ export interface BCTimeSheet {
   submittedExists: boolean;
   rejectedExists: boolean;
   approvedExists: boolean;
+  // Computed fields for approval workflow
+  totalQuantity?: number;
   '@odata.etag'?: string;
 }
 
@@ -145,14 +160,30 @@ export interface BCTimeSheetDetail {
   '@odata.etag'?: string;
 }
 
-// Derived timesheet status for UI display
-export type TimesheetDisplayStatus =
-  | 'Open'
-  | 'Partially Submitted'
-  | 'Submitted'
-  | 'Rejected'
-  | 'Approved'
-  | 'Mixed';
+// Approval workflow types
+export interface PendingApproval {
+  id: string;
+  timeSheet: BCTimeSheet;
+  lines: BCTimeSheetLine[];
+  totalHours: number;
+  submittedDate: string;
+  employeeName: string;
+  employeeEmail?: string;
+}
+
+export interface ApprovalAction {
+  timeSheetId: string;
+  lineIds?: string[]; // If empty, applies to all lines
+  action: 'approve' | 'reject';
+  comment?: string;
+}
+
+export interface ApprovalFilters {
+  resourceId?: string;
+  startDate?: string;
+  endDate?: string;
+  status?: TimesheetDisplayStatus;
+}
 
 // Application types
 export interface Project {

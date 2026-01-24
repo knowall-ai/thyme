@@ -132,9 +132,7 @@ export function ReportsPanel() {
   // Get the resource timeSheetOwnerUserId(s) to fetch based on selection
   const getResourceUserIds = (): string[] => {
     if (selectedMember === 'everyone') {
-      return resources
-        .map((r) => r.timeSheetOwnerUserId)
-        .filter((id): id is string => !!id);
+      return resources.map((r) => r.timeSheetOwnerUserId).filter((id): id is string => !!id);
     } else if (selectedMember) {
       return selectedMember.timeSheetOwnerUserId ? [selectedMember.timeSheetOwnerUserId] : [];
     }
@@ -337,7 +335,10 @@ export function ReportsPanel() {
                       : 'Loading...'}
                 </span>
                 <ChevronDownIcon
-                  className={cn('h-4 w-4 text-dark-400 transition-transform', isFilterOpen && 'rotate-180')}
+                  className={cn(
+                    'h-4 w-4 text-dark-400 transition-transform',
+                    isFilterOpen && 'rotate-180'
+                  )}
                 />
               </button>
 
