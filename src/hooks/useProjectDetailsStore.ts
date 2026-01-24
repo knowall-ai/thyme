@@ -14,11 +14,13 @@ interface ProjectDetailsStore {
   // UI State
   chartView: 'weekly' | 'progress';
   tableGroupBy: 'task' | 'team';
+  showCosts: boolean; // Toggle for internal costs visibility (Budget Cost, Actual Cost)
 
   // Actions
   fetchProjectDetails: (projectNumber: string) => Promise<void>;
   setChartView: (view: 'weekly' | 'progress') => void;
   setTableGroupBy: (groupBy: 'task' | 'team') => void;
+  setShowCosts: (show: boolean) => void;
   clearProject: () => void;
 }
 
@@ -32,6 +34,7 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
   error: null,
   chartView: 'weekly',
   tableGroupBy: 'task',
+  showCosts: false, // Internal costs hidden by default
 
   fetchProjectDetails: async (projectNumber: string) => {
     // Don't refetch if we already have this project
@@ -55,12 +58,29 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
       } catch (analyticsError) {
         // Don't fail the whole page if analytics fails
         console.error('Failed to load analytics:', analyticsError);
+        const emptyBreakdown = { resource: 0, item: 0, glAccount: 0, total: 0 };
         set({
           analytics: {
+            billingMode: 'Not Set',
+            hoursSpent: 0,
+            hoursPlanned: 0,
+            hoursThisWeek: 0,
+            hoursPosted: 0,
+            hoursUnposted: 0,
+            budgetCost: 0,
+            budgetCostBreakdown: emptyBreakdown,
+            actualCost: 0,
+            actualCostBreakdown: emptyBreakdown,
+            unpostedCost: 0,
+            billablePrice: 0,
+            billablePriceBreakdown: emptyBreakdown,
+            invoicedPrice: 0,
+            invoicedPriceBreakdown: emptyBreakdown,
+            unpostedBillable: 0,
             totalHours: 0,
             billableHours: 0,
             nonBillableHours: 0,
-            hoursThisWeek: 0,
+            budgetHours: 0,
             teamMemberCount: 0,
             weeklyData: [],
             taskBreakdown: [],
@@ -78,6 +98,8 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
   setChartView: (view) => set({ chartView: view }),
 
   setTableGroupBy: (groupBy) => set({ tableGroupBy: groupBy }),
+
+  setShowCosts: (show) => set({ showCosts: show }),
 
   clearProject: () =>
     set({

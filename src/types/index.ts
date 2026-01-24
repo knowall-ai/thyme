@@ -36,6 +36,11 @@ export interface BCResource {
   timeSheetOwnerUserId?: string;
   timeSheetApproverUserId?: string;
   searchName?: string;
+  // Invoicing fields (from Resource Card)
+  directUnitCost?: number;
+  indirectCostPercent?: number;
+  unitCost?: number; // Internal cost per hour
+  unitPrice?: number; // Customer billing rate per hour
 }
 
 export interface BCJob {
@@ -53,6 +58,11 @@ export interface BCProject {
   id: string;
   number: string;
   displayName: string;
+  billToCustomerNo?: string;
+  billToCustomerName?: string;
+  status?: 'Open' | 'Completed' | 'Planning';
+  startingDate?: string;
+  endingDate?: string;
   lastModifiedDateTime?: string;
 }
 
@@ -85,6 +95,26 @@ export interface BCJobTask {
   jobTaskType: 'Posting' | 'Heading' | 'Total' | 'Begin-Total' | 'End-Total';
 }
 
+// Job Planning Line - budget/planned hours from BC Job Planning Lines table
+export interface BCJobPlanningLine {
+  id: string;
+  jobNo: string;
+  jobTaskNo: string;
+  lineNo: number;
+  planningDate: string;
+  lineType: 'Budget' | 'Billable' | 'Both Budget and Billable';
+  type: 'Resource' | 'Item' | 'G/L Account';
+  number: string; // The "No." field - resource/item/GL account number
+  description: string;
+  quantity: number;
+  unitCost: number;
+  unitPrice: number;
+  totalCost: number;
+  totalPrice: number;
+  lastModifiedDateTime: string;
+  '@odata.etag'?: string;
+}
+
 export interface BCJobJournalLine {
   id?: string;
   journalTemplateName: string;
@@ -103,6 +133,20 @@ export interface BCJobJournalLine {
   totalCost?: number;
   unitPrice?: number;
   totalPrice?: number;
+}
+
+// Time Entry - from Job Ledger Entry via Thyme BC Extension
+// Represents posted time entries with actual cost and invoiced price
+export interface BCTimeEntry {
+  id: string;
+  jobNo: string;
+  jobTaskNo: string;
+  resourceNo: string;
+  quantity: number; // Hours posted
+  totalCost: number; // Internal: actual cost (quantity × unitCost)
+  totalPrice: number; // Customer: invoiced price (quantity × unitPrice)
+  postingDate: string;
+  description?: string;
 }
 
 // Time Sheet status types
@@ -195,6 +239,12 @@ export interface Project {
   status: 'active' | 'completed' | 'archived';
   isFavorite: boolean;
   tasks: Task[];
+  // Dates from BC Job
+  startDate?: string; // ISO date string or undefined
+  endDate?: string; // ISO date string or undefined
+  // Analytics data (loaded separately)
+  totalHours?: number;
+  budgetHours?: number;
 }
 
 export interface Task {

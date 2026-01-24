@@ -14,6 +14,7 @@ const BC_PAGES = {
   job: 88, // Single job card
   customer: 21, // Customer card
   resource: 76, // Resource card
+  jobTaskLines: 1002, // Job Task Lines subpage
   timeSheetManager: 955, // Time Sheet Manager (for creating timesheets)
   timeSheets: 973, // Time Sheets list (user's own)
 };
@@ -104,4 +105,34 @@ export function getBCTimeSheetManagerUrl(companyName?: string): string {
  */
 export function getBCHomeUrl(): string {
   return getBCBaseUrl();
+}
+
+/**
+ * Generate a URL to open a specific resource card in Business Central
+ * @param resourceNo - The resource number
+ * @param companyName - Optional company name to include in the URL
+ */
+export function getBCResourceUrl(resourceNo: string, companyName?: string): string {
+  const baseUrl = getBCBaseUrl();
+  let url = `${baseUrl}/?`;
+  if (companyName) {
+    url += `company=${encodeURIComponent(companyName)}&`;
+  }
+  // Escape single quotes in resourceNo for BC filter syntax
+  const escapedResourceNo = resourceNo.replace(/'/g, "''");
+  url += `page=${BC_PAGES.resource}&filter=${encodeURIComponent(`'No.' IS '${escapedResourceNo}'`)}`;
+  return url;
+}
+
+/**
+ * Generate a URL to open a specific job task in Business Central
+ * Opens the Job Card page filtered to the specific job, where the task can be found
+ * @param jobNumber - The job/project number
+ * @param taskNo - The task number (for reference, BC shows all tasks on the job card)
+ * @param companyName - Optional company name to include in the URL
+ */
+export function getBCJobTaskUrl(jobNumber: string, taskNo: string, companyName?: string): string {
+  // Job tasks are viewed on the Job Card page (page 88), so we open the job
+  // The task lines are shown in a subpage on the job card
+  return getBCJobUrl(jobNumber, companyName);
 }
