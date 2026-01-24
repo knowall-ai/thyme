@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { ProjectHeader } from './ProjectHeader';
 import { ProjectKPICards } from './ProjectKPICards';
@@ -8,11 +8,11 @@ import { ProjectCharts } from './ProjectCharts';
 import { ProjectTasksTable } from './ProjectTasksTable';
 
 interface ProjectDetailsProps {
-  params: Promise<{ projectNumber: string }>;
+  params: { projectNumber: string };
 }
 
 export function ProjectDetails({ params }: ProjectDetailsProps) {
-  const { projectNumber } = use(params);
+  const { projectNumber } = params;
   const { project, isLoading, error, fetchProjectDetails } = useProjectDetailsStore();
 
   useEffect(() => {

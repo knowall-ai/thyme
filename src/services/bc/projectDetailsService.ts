@@ -73,25 +73,24 @@ export const projectDetailsService = {
    * Fetch project details and tasks by project number
    */
   async getProjectDetails(projectNumber: string): Promise<{ project: Project; tasks: Task[] }> {
-    // Fetch the project from BC - use jobs endpoint which has more details
-    const jobs = await bcClient.getJobs(`number eq '${projectNumber.replace(/'/g, "''")}'`);
+    // Fetch all projects and filter by number (the /jobs endpoint isn't available in all environments)
+    const bcProjects = await bcClient.getProjects();
+    const bcProject = bcProjects.find((p) => p.number === projectNumber);
 
-    if (jobs.length === 0) {
+    if (!bcProject) {
       throw new Error(`Project ${projectNumber} not found`);
     }
 
-    const job = jobs[0];
     const favorites = getFavorites();
 
     const project: Project = {
-      id: job.id,
-      code: job.number,
-      name: job.description,
-      customerName: job.billToCustomerName || 'Unknown',
-      color: PROJECT_COLORS[job.number.charCodeAt(0) % PROJECT_COLORS.length],
-      status:
-        job.status === 'Open' ? 'active' : job.status === 'Completed' ? 'completed' : 'active',
-      isFavorite: favorites.includes(job.id),
+      id: bcProject.id,
+      code: bcProject.number,
+      name: bcProject.displayName,
+      customerName: 'Unknown', // BC API limitation - requires custom API extension
+      color: PROJECT_COLORS[bcProject.number.charCodeAt(0) % PROJECT_COLORS.length],
+      status: 'active', // BC projects API doesn't expose status
+      isFavorite: favorites.includes(bcProject.id),
       tasks: [],
     };
 

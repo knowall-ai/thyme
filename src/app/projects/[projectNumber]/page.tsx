@@ -5,7 +5,7 @@ import { Layout } from '@/components/layout';
 import { ProjectDetails } from '@/components/projects/ProjectDetails';
 
 interface ProjectDetailsPageProps {
-  params: Promise<{ projectNumber: string }>;
+  params: { projectNumber: string };
 }
 
 function ProjectDetailsContent({ params }: ProjectDetailsPageProps) {

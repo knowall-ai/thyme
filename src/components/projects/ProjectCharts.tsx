@@ -120,11 +120,11 @@ function ProgressLineChart({ data }: { data: WeeklyDataPoint[] }) {
   return (
     <div className="h-64">
       <div className="flex h-full flex-col">
-        <div className="relative flex-1">
+        <div className="relative flex-1 overflow-hidden">
           <svg
             viewBox={`0 0 ${width} ${height}`}
             className="h-full w-full"
-            preserveAspectRatio="none"
+            preserveAspectRatio="xMidYMid meet"
           >
             {/* Grid lines */}
             {[0.25, 0.5, 0.75].map((ratio) => (
@@ -159,10 +159,9 @@ function ProgressLineChart({ data }: { data: WeeklyDataPoint[] }) {
                   key={d.week}
                   cx={x}
                   cy={y}
-                  r="3"
+                  r="1.5"
                   fill="currentColor"
                   className="text-thyme-500"
-                  vectorEffect="non-scaling-stroke"
                 >
                   <title>{`${d.cumulative.toFixed(1)} total hours`}</title>
                 </circle>
