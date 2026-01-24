@@ -1,12 +1,22 @@
 import { Configuration, LogLevel, PopupRequest } from '@azure/msal-browser';
 
+// Get redirect URI dynamically from current origin, env var, or fallback
+const getRedirectUri = (): string => {
+  // In browser, use current origin (works with any port)
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  // SSR fallback to env var or default
+  return process.env.NEXT_PUBLIC_AZURE_REDIRECT_URI || 'http://localhost:3000';
+};
+
 // MSAL configuration for Microsoft Entra ID
 export const msalConfig: Configuration = {
   auth: {
     clientId: process.env.NEXT_PUBLIC_AZURE_CLIENT_ID || '',
     authority: `https://login.microsoftonline.com/${process.env.NEXT_PUBLIC_AZURE_TENANT_ID || 'common'}`,
-    redirectUri: process.env.NEXT_PUBLIC_AZURE_REDIRECT_URI || 'http://localhost:3000',
-    postLogoutRedirectUri: process.env.NEXT_PUBLIC_AZURE_REDIRECT_URI || 'http://localhost:3000',
+    redirectUri: getRedirectUri(),
+    postLogoutRedirectUri: getRedirectUri(),
     navigateToLoginRequestUrl: true,
   },
   cache: {
