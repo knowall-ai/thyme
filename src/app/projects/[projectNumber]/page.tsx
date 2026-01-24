@@ -5,13 +5,8 @@ import { AuthenticatedTemplate, UnauthenticatedTemplate } from '@/services/auth'
 import { Layout } from '@/components/layout';
 import { ProjectDetails } from '@/components/projects/ProjectDetails';
 
-// Next.js 15 types params as Promise, but for client components it's still sync at runtime
-// Use a union type to handle both Next.js 14 (object) and 15 (Promise) signatures
-type ParamsType = { projectNumber: string } | Promise<{ projectNumber: string }>;
-
-interface ProjectDetailsPageProps {
-  params: ParamsType;
-}
+// Next.js 15 types params as Promise for page components
+type Params = { projectNumber: string };
 
 function ProjectDetailsContent({ projectNumber }: { projectNumber: string }) {
   return (
@@ -21,9 +16,10 @@ function ProjectDetailsContent({ projectNumber }: { projectNumber: string }) {
   );
 }
 
-export default function ProjectDetailsPage({ params }: ProjectDetailsPageProps) {
-  // Handle both Next.js 14 (sync) and 15 (async) params
-  const resolvedParams = params instanceof Promise ? use(params) : params;
+export default function ProjectDetailsPage({ params }: { params: Promise<Params> }) {
+  // use() unwraps the Promise in Next.js 15
+  // In Next.js 14 (local dev with old node_modules), params may be sync
+  const resolvedParams = 'then' in params ? use(params) : (params as unknown as Params);
 
   return (
     <>
