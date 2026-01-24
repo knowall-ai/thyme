@@ -178,7 +178,6 @@ export function ProjectKPICards() {
     glAccount: 0,
     total: 0,
   };
-  const unpostedCost = analytics?.unpostedCost ?? 0;
   const billablePrice = analytics?.billablePrice ?? 0;
   const billableBreakdown = analytics?.billablePriceBreakdown ?? {
     resource: 0,
@@ -193,7 +192,6 @@ export function ProjectKPICards() {
     glAccount: 0,
     total: 0,
   };
-  const unpostedBillable = analytics?.unpostedBillable ?? 0;
 
   // Helper to format breakdown line
   const formatBreakdownLine = (label: string, value: number, isHidden: boolean) => {
@@ -228,7 +226,6 @@ export function ProjectKPICards() {
       value: showCosts ? formatCurrency(actualCost) : '•••••',
       subLabel: showCosts ? 'From Job Ledger Entry' : 'Hidden',
       breakdown: showCosts ? actualBreakdown : null,
-      unpostedCost: showCosts ? unpostedCost : 0,
       icon: BanknotesIcon,
       color: showCosts
         ? actualCost > budgetCost && budgetCost > 0
@@ -263,10 +260,7 @@ export function ProjectKPICards() {
     {
       label: 'Invoiced Price',
       value: formatCurrency(invoicedPrice),
-      subLabel:
-        unpostedBillable > 0
-          ? `+~${formatCurrency(unpostedBillable)} unposted`
-          : 'From Job Ledger Entry',
+      subLabel: 'From Job Ledger Entry',
       breakdown: invoicedBreakdown,
       icon: CurrencyPoundIcon,
       color: 'text-green-400',
@@ -356,17 +350,7 @@ export function ProjectKPICards() {
                     <div className="mt-1 space-y-0.5 text-xs text-gray-500">
                       <div className="flex justify-between">
                         <span>Resource:</span>
-                        <span>
-                          {formatCurrency(breakdown.resource)}
-                          {'unpostedCost' in kpi &&
-                            typeof kpi.unpostedCost === 'number' &&
-                            kpi.unpostedCost > 0 && (
-                              <span className="text-amber-500">
-                                {' '}
-                                (+~{formatCurrency(kpi.unpostedCost)})
-                              </span>
-                            )}
-                        </span>
+                        <span>{formatCurrency(breakdown.resource)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Item:</span>
