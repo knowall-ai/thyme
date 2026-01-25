@@ -189,7 +189,6 @@ export function ProjectCharts() {
             analytics?.budgetCostBreakdown ?? { resource: 0, item: 0, glAccount: 0, total: 0 }
           }
           hoursSpent={analytics?.hoursSpent ?? 0}
-          hoursPlanned={analytics?.hoursPlanned ?? 0}
           actualCost={analytics?.actualCost ?? 0}
           showCosts={showCosts}
           currencyCode={currencyCode}
@@ -532,7 +531,6 @@ function ProgressLineChart({
   budgetCost,
   budgetCostBreakdown,
   hoursSpent,
-  hoursPlanned,
   actualCost,
   showCosts,
   currencyCode,
@@ -542,7 +540,6 @@ function ProgressLineChart({
   budgetCost: number;
   budgetCostBreakdown: CostBreakdown;
   hoursSpent: number;
-  hoursPlanned: number;
   actualCost: number;
   showCosts: boolean;
   currencyCode: string;
@@ -554,20 +551,14 @@ function ProgressLineChart({
     [data, offsetWeeks]
   );
 
-  // Calculate average cost rate (for estimating cumulative cost from cumulative hours)
-  // Priority: 1) actual cost rate, 2) budget cost rate from planning lines, 3) null (no estimate)
+  // Calculate average cost rate from actual posted timesheet data only
+  // If no actual cost data exists, cost estimation is skipped entirely
   const avgCostRate = useMemo(() => {
-    // First priority: actual cost rate from posted timesheet entries
     if (actualCost > 0 && hoursSpent > 0) {
       return actualCost / hoursSpent;
     }
-    // Second priority: budget cost rate from Job Planning Lines (resource hours)
-    if (budgetCostBreakdown.resource > 0 && hoursPlanned > 0) {
-      return budgetCostBreakdown.resource / hoursPlanned;
-    }
-    // No data available to derive rate - return null to skip cost display
     return null;
-  }, [actualCost, hoursSpent, budgetCostBreakdown.resource, hoursPlanned]);
+  }, [actualCost, hoursSpent]);
 
   // Convert cumulative hours to cumulative cost for display
   // If no rate available, set cost to 0 (chart will show hours only)
