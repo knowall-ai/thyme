@@ -37,14 +37,8 @@ export function PlanResourceModal({
   const [extensionInstalled, setExtensionInstalled] = useState<boolean | null>(null);
 
   // Calculate the week's days based on selected date
-  const weekStart = useMemo(
-    () => startOfWeek(selectedDate, { weekStartsOn: 1 }),
-    [selectedDate]
-  );
-  const weekEnd = useMemo(
-    () => endOfWeek(selectedDate, { weekStartsOn: 1 }),
-    [selectedDate]
-  );
+  const weekStart = useMemo(() => startOfWeek(selectedDate, { weekStartsOn: 1 }), [selectedDate]);
+  const weekEnd = useMemo(() => endOfWeek(selectedDate, { weekStartsOn: 1 }), [selectedDate]);
   const weekDays = useMemo(
     () => eachDayOfInterval({ start: weekStart, end: weekEnd }),
     [weekStart, weekEnd]
@@ -258,9 +252,7 @@ export function PlanResourceModal({
               const isWeekend = day.getDay() === 0 || day.getDay() === 6;
               return (
                 <div key={dateKey} className="flex flex-col items-center">
-                  <span
-                    className={`mb-1 text-xs ${isWeekend ? 'text-dark-500' : 'text-dark-400'}`}
-                  >
+                  <span className={`mb-1 text-xs ${isWeekend ? 'text-dark-500' : 'text-dark-400'}`}>
                     {format(day, 'EEE')}
                   </span>
                   <span
@@ -275,7 +267,7 @@ export function PlanResourceModal({
                     min="0"
                     max="24"
                     step="0.5"
-                    className="border-dark-600 bg-dark-700 text-dark-100 h-8 w-full rounded border px-1 text-right text-sm focus:ring-1 focus:ring-knowall-green focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    className="border-dark-600 bg-dark-700 text-dark-100 focus:ring-knowall-green h-8 w-full [appearance:textfield] rounded border px-1 text-right text-sm focus:ring-1 focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     placeholder="0"
                   />
                 </div>
@@ -285,13 +277,13 @@ export function PlanResourceModal({
         </div>
 
         {/* Total */}
-        <div className="text-dark-300 flex items-center justify-between border-t border-dark-700 pt-3 text-sm">
+        <div className="text-dark-300 border-dark-700 flex items-center justify-between border-t pt-3 text-sm">
           <span>Total Hours</span>
           <span className="text-dark-100 font-medium">{totalHours.toFixed(1)}h</span>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-2 border-t border-dark-700 pt-4">
+        <div className="border-dark-700 flex items-center justify-end gap-2 border-t pt-4">
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>

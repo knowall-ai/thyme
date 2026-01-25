@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   MagnifyingGlassIcon,
@@ -200,47 +200,51 @@ function ResourceRow({
         >
           {/* Avatar and Name - clickable to expand */}
           <div
-            className="flex w-[230px] cursor-pointer items-center gap-2 overflow-hidden py-2 px-3"
+            className="flex w-[230px] cursor-pointer items-center gap-2 overflow-hidden px-3 py-2"
             onClick={onToggleExpand}
             title={member.name}
           >
-          {/* Expand/Collapse chevron */}
-          <button
-            className="text-dark-400 hover:text-dark-200 flex-shrink-0"
-            aria-label={isExpanded ? 'Collapse' : 'Expand'}
-          >
-            {isExpanded ? (
-              <ChevronDownIcon className="h-4 w-4" />
-            ) : (
-              <ChevronRightIcon className="h-4 w-4" />
-            )}
-          </button>
-
-          {member.photoUrl ? (
-            <img
-              src={member.photoUrl}
-              alt={member.name}
-              className="h-8 w-8 shrink-0 rounded-full object-cover"
-            />
-          ) : (
-            <div
-              className={cn(
-                'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium',
-                member.timesheetStatus === 'No Timesheet'
-                  ? 'bg-amber-500/20 text-amber-400'
-                  : 'bg-dark-600 text-dark-200'
-              )}
-              title={
-                member.timesheetStatus === 'No Timesheet' ? 'No timesheet for this week' : undefined
-              }
+            {/* Expand/Collapse chevron */}
+            <button
+              className="text-dark-400 hover:text-dark-200 flex-shrink-0"
+              aria-label={isExpanded ? 'Collapse' : 'Expand'}
             >
-              {member.timesheetStatus === 'No Timesheet' ? '?' : initials}
+              {isExpanded ? (
+                <ChevronDownIcon className="h-4 w-4" />
+              ) : (
+                <ChevronRightIcon className="h-4 w-4" />
+              )}
+            </button>
+
+            {member.photoUrl ? (
+              <img
+                src={member.photoUrl}
+                alt={member.name}
+                className="h-8 w-8 shrink-0 rounded-full object-cover"
+              />
+            ) : (
+              <div
+                className={cn(
+                  'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium',
+                  member.timesheetStatus === 'No Timesheet'
+                    ? 'bg-amber-500/20 text-amber-400'
+                    : 'bg-dark-600 text-dark-200'
+                )}
+                title={
+                  member.timesheetStatus === 'No Timesheet'
+                    ? 'No timesheet for this week'
+                    : undefined
+                }
+              >
+                {member.timesheetStatus === 'No Timesheet' ? '?' : initials}
+              </div>
+            )}
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <p className="text-dark-500 truncate text-[10px]">{member.number}</p>
+              <p className="text-dark-100 truncate text-sm leading-tight font-medium">
+                {member.name}
+              </p>
             </div>
-          )}
-          <div className="min-w-0 flex-1 overflow-hidden">
-            <p className="text-dark-500 truncate text-[10px]">{member.number}</p>
-            <p className="text-dark-100 truncate text-sm font-medium leading-tight">{member.name}</p>
-          </div>
           </div>
         </div>
 
@@ -294,7 +298,7 @@ function ResourceRow({
                 }).length === 0 && (
                   <button
                     onClick={() => onAddPlan(weekGroup.weekStart)}
-                    className="absolute inset-1 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed border-dark-600 text-xs text-dark-500 opacity-0 transition-all group-hover:opacity-100 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green"
+                    className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-1 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-xs opacity-0 transition-all group-hover:opacity-100"
                   >
                     <PlusIcon className="h-3 w-3" />
                     Add
@@ -319,10 +323,7 @@ function ResourceRow({
               ? `${allocation.projectName} - ${allocation.taskName}`
               : allocation.projectName;
             return (
-              <div
-                key={allocation.id}
-                className="hover:bg-dark-700/60 flex w-full items-center"
-              >
+              <div key={allocation.id} className="hover:bg-dark-700/60 flex w-full items-center">
                 {/* Sticky name column - matching parent structure */}
                 <div className="bg-dark-850 sticky left-0 z-10 flex shrink-0">
                   <div
@@ -416,7 +417,7 @@ function ResourceRow({
                   {hoveredWeekStart && isSameDay(hoveredWeekStart, weekGroup.weekStart) && (
                     <button
                       onClick={() => onAddPlan(weekGroup.weekStart)}
-                      className="absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed border-dark-600 text-[10px] text-dark-500 opacity-0 transition-all group-hover:opacity-100 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green"
+                      className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
                     >
                       <PlusIcon className="h-3 w-3" />
                       Add
@@ -517,7 +518,7 @@ function ProjectRow({
           )}
         >
           <div
-            className="flex w-[230px] cursor-pointer items-center gap-2 overflow-hidden py-2 px-3"
+            className="flex w-[230px] cursor-pointer items-center gap-2 overflow-hidden px-3 py-2"
             onClick={onToggleExpand}
             title={project.name}
           >
@@ -540,7 +541,9 @@ function ProjectRow({
               {project.customerName && (
                 <p className="text-dark-500 truncate text-[10px]">{project.customerName}</p>
               )}
-              <p className="text-dark-100 truncate text-sm font-medium leading-tight">{project.name}</p>
+              <p className="text-dark-100 truncate text-sm leading-tight font-medium">
+                {project.name}
+              </p>
             </div>
           </div>
         </div>
@@ -593,7 +596,7 @@ function ProjectRow({
                 }).length === 0 && (
                   <button
                     onClick={() => onAddPlan(weekGroup.weekStart)}
-                    className="absolute inset-1 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed border-dark-600 text-xs text-dark-500 opacity-0 transition-all group-hover:opacity-100 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green"
+                    className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-1 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-xs opacity-0 transition-all group-hover:opacity-100"
                   >
                     <PlusIcon className="h-3 w-3" />
                     Add
@@ -701,7 +704,7 @@ function ProjectRow({
                   {hoveredWeekStart && isSameDay(hoveredWeekStart, weekGroup.weekStart) && (
                     <button
                       onClick={() => onAddPlan(weekGroup.weekStart)}
-                      className="absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed border-dark-600 text-[10px] text-dark-500 opacity-0 transition-all group-hover:opacity-100 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green"
+                      className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
                     >
                       <PlusIcon className="h-3 w-3" />
                       Add
@@ -761,8 +764,6 @@ export function PlanPanel() {
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
   const [selectedProjectForPlan, setSelectedProjectForPlan] = useState<PlanProject | null>(null);
 
-  const containerRef = useRef<HTMLDivElement>(null);
-
   // Show 3 weeks in regular view, 6 weeks in fullscreen
   const effectiveWeeksToShow = isFullscreen ? 6 : 3;
 
@@ -777,7 +778,8 @@ export function PlanPanel() {
   // Group days by week for header
   const headerWeekGroups = useMemo(() => {
     const groups: { weekStart: Date; weekNumber: number; month: string; days: Date[] }[] = [];
-    let currentGroup: { weekStart: Date; weekNumber: number; month: string; days: Date[] } | null = null;
+    let currentGroup: { weekStart: Date; weekNumber: number; month: string; days: Date[] } | null =
+      null;
 
     for (const day of allDays) {
       const dayOfWeek = day.getDay();
@@ -837,10 +839,7 @@ export function PlanPanel() {
   }, [selectedCompany, currentWeekStart, effectiveWeeksToShow, emailDomain, fetchTeamData]);
 
   // Create a stable key for tracking when team members change
-  const teamMemberIds = useMemo(
-    () => teamMembers.map((m) => m.id).join(','),
-    [teamMembers]
-  );
+  const teamMemberIds = useMemo(() => teamMembers.map((m) => m.id).join(','), [teamMembers]);
 
   // Fetch profile photos when team members change
   useEffect(() => {
@@ -995,7 +994,7 @@ export function PlanPanel() {
 
   // Main content
   const planContent = (
-    <div ref={containerRef} className={cn('space-y-4', isFullscreen && 'flex h-full flex-col')}>
+    <div className={cn('space-y-4', isFullscreen && 'flex h-full flex-col')}>
       {/* Header Row */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -1070,7 +1069,6 @@ export function PlanPanel() {
         </div>
       </div>
 
-
       {/* Calendar Grid */}
       <Card
         variant="bordered"
@@ -1098,9 +1096,7 @@ export function PlanPanel() {
                     {weekGroup.month}
                   </span>
                   {/* Week number centered */}
-                  <span className="text-dark-300 text-xs font-medium">
-                    {weekGroup.weekNumber}
-                  </span>
+                  <span className="text-dark-300 text-xs font-medium">{weekGroup.weekNumber}</span>
                 </div>
               ))}
             </div>
@@ -1130,13 +1126,22 @@ export function PlanPanel() {
                       isWeekStart && index > 0 && 'border-l-2'
                     )}
                   >
-                    <span className={cn('text-[10px]', dayIsWeekend ? 'text-dark-500' : 'text-dark-400')}>
+                    <span
+                      className={cn(
+                        'text-[10px]',
+                        dayIsWeekend ? 'text-dark-500' : 'text-dark-400'
+                      )}
+                    >
                       {format(day, 'EEE')}
                     </span>
                     <span
                       className={cn(
                         'text-xs font-medium',
-                        dayIsToday ? 'text-knowall-green' : dayIsWeekend ? 'text-dark-400' : 'text-dark-200'
+                        dayIsToday
+                          ? 'text-knowall-green'
+                          : dayIsWeekend
+                            ? 'text-dark-400'
+                            : 'text-dark-200'
                       )}
                     >
                       {format(day, 'd')}
