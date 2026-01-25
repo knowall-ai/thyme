@@ -1,6 +1,7 @@
 export { useCompanyStore } from './useCompanyStore';
 export { useTimerStore } from './useTimerStore';
 export { useProjectsStore } from './useProjectsStore';
+export { useProjectDetailsStore } from './useProjectDetailsStore';
 export { useTimeEntriesStore } from './useTimeEntriesStore';
 export { useSettingsStore } from './useSettingsStore';
 export { useTeammateStore } from './useTeammateStore';

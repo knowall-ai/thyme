@@ -7,11 +7,13 @@ import type {
   BCCustomer,
   BCEmployee,
   BCJobTask,
+  BCJobPlanningLine,
   BCJobJournalLine,
   BCResource,
   BCTimeSheet,
   BCTimeSheetLine,
   BCTimeSheetDetail,
+  BCTimeEntry,
   TimeSheetStatus,
   TimesheetDisplayStatus,
   PaginatedResponse,
@@ -354,18 +356,18 @@ class BusinessCentralClient {
     return response.json();
   }
 
-  // Projects
+  // Projects - uses Thyme BC Extension API for additional fields (billToCustomerName, dates, etc.)
   async getProjects(filter?: string): Promise<BCProject[]> {
     let endpoint = '/projects';
     if (filter) {
       endpoint += `?$filter=${encodeURIComponent(filter)}`;
     }
-    const response = await this.fetch<PaginatedResponse<BCProject>>(endpoint);
+    const response = await this.fetchCustomApi<PaginatedResponse<BCProject>>(endpoint);
     return response.value;
   }
 
   async getProject(projectId: string): Promise<BCProject> {
-    return this.fetch<BCProject>(`/projects(${projectId})`);
+    return this.fetchCustomApi<BCProject>(`/projects(${projectId})`);
   }
 
   // Customers
@@ -444,6 +446,91 @@ class BusinessCentralClient {
 
   async getJobTask(jobTaskId: string): Promise<BCJobTask> {
     return this.fetch<BCJobTask>(`/jobTasks(${jobTaskId})`);
+  }
+
+  // Job Planning Lines - requires Thyme BC Extension v1.6.0+
+  // Provides budget/planned hours data for projects
+  async getJobPlanningLines(jobNumber: string): Promise<BCJobPlanningLine[]> {
+    // Check if extension is installed
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      return [];
+    }
+
+    try {
+      const token = await getBCAccessToken();
+      if (!token) return [];
+
+      // Escape single quotes in jobNumber for OData filter syntax
+      const escapedJobNumber = this.sanitizeODataString(jobNumber);
+      const filter = `jobNo eq '${escapedJobNumber}'`;
+      const url = `${this.customApiBaseUrl}/jobPlanningLines?$filter=${encodeURIComponent(filter)}`;
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        // 404 means the endpoint doesn't exist (extension too old)
+        if (response.status === 404) {
+          console.warn(
+            '[BC API] jobPlanningLines endpoint not found. Upgrade Thyme BC Extension to v1.6.0+.'
+          );
+          return [];
+        }
+        return [];
+      }
+
+      const data = await response.json();
+      return data.value || [];
+    } catch (error) {
+      console.error('[BC API] Error fetching job planning lines:', error);
+      return [];
+    }
+  }
+
+  // Time Entries - requires Thyme BC Extension v1.7.0+
+  // Provides posted time entries from Job Ledger Entry (actual cost and invoiced price)
+  async getTimeEntries(jobNumber: string): Promise<BCTimeEntry[]> {
+    // Check if extension is installed
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      return [];
+    }
+
+    try {
+      const token = await getBCAccessToken();
+      if (!token) return [];
+
+      const escapedJobNumber = this.sanitizeODataString(jobNumber);
+      const filter = `jobNo eq '${escapedJobNumber}'`;
+      const url = `${this.customApiBaseUrl}/timeEntries?$filter=${encodeURIComponent(filter)}`;
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        // 404 means the endpoint doesn't exist (extension too old)
+        if (response.status === 404) {
+          console.warn(
+            '[BC API] timeEntries endpoint not found. Upgrade Thyme BC Extension to v1.7.0+.'
+          );
+          return [];
+        }
+        return [];
+      }
+
+      const data = await response.json();
+      return data.value || [];
+    } catch (error) {
+      console.error('[BC API] Error fetching time entries:', error);
+      return [];
+    }
   }
 
   // Resources (Users/Employees) - uses custom Thyme API

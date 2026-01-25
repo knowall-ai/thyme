@@ -1,0 +1,383 @@
+= Business Central Terminology & Cost Tracking
+:toc:
+:toc-title: Contents
+:sectnums:
+
+This document describes how Thyme aligns with Microsoft Dynamics 365 Business Central terminology for project tracking, hours, costs, and revenue.
+
+== Overview
+
+Thyme uses Business Central as the source of truth for project and financial data.
+The Thyme BC Extension exposes several API endpoints that provide this data.
+
+=== Key Principle: Cost vs Price
+
+In Business Central:
+
+* **Cost** = Internal (what it costs the company) - typically hidden from customers
+* **Price** = External/Customer-facing (what the customer pays) - visible in reports
+
+Thyme follows this convention with a toggle to show/hide internal costs.
+
+=== Key Principle: Work Done vs Invoiced
+
+**Important:** Thyme tracks **work done** (costs incurred), not just **amounts invoiced**.
+
+Invoicing timing doesn't reflect project progress:
+
+* Some projects bill upfront
+* Some projects bill at the end
+* Some projects bill in stages
+
+Therefore, the "Spend vs Budget" chart shows **cost of work done** regardless of when invoicing happens.
+
+== Timesheet Workflow
+
+Timesheets in Business Central go through distinct stages:
+
+[source]
+----
+Open → Submitted → Approved → Posted (to Job Ledger Entry)
+                              ↑
+                              Separate action!
+----
+
+[cols="1,3", options="header"]
+|===
+| Stage | Description
+
+| Open
+| Employee is logging hours, timesheet not yet submitted
+
+| Submitted
+| Employee has submitted for approval
+
+| Approved
+| Manager has approved the hours as correct
+
+| Posted
+| Finance has posted to Job Ledger Entry (creates cost/price entries)
+|===
+
+**Critical distinction:**
+
+* **Approval** = Manager says "yes, these hours are correct"
+* **Posting** = Creates actual financial entries in the Job Ledger
+
+After approval, someone (usually finance/admin) must run the **"Post Time Sheets"** batch job or post individually from the Time Sheet Administrator page.
+
+=== Why Hours May Show £0 Cost
+
+If you see hours logged but £0 Actual Cost, this is because:
+
+1. **Hours not posted yet** - Approved timesheets sitting in queue, awaiting posting
+2. **No Resource Unit Cost** - The Resource doesn't have a Unit Cost configured in BC
+3. **No Job Planning Lines** - The task/project doesn't have cost planning lines
+
+Thyme shows this as:
+
+* Hours Spent: 75.0h (from timesheets)
+* Hours Posted: 0.0h (from Job Ledger Entry)
+* Hours Unposted: 75.0h (approved but not yet posted)
+
+== Terminology Mapping
+
+=== Hours Tracking
+
+[cols="2,2,3,2", options="header"]
+|===
+| Thyme UI Label | BC Field | Description | Data Source
+
+| Hours Spent
+| `totalQuantity`
+| Actual hours logged by team members (all statuses)
+| `/timeSheetLines`
+
+| Hours Planned
+| `quantity` (Budget)
+| Budgeted hours from planning (Resource lines only)
+| `/jobPlanningLines` where lineType includes 'Budget'
+
+| Hours Posted
+| `quantity`
+| Hours that have been posted to Job Ledger Entry
+| `/timeEntries`
+
+| Hours Unposted
+| (calculated)
+| Hours Spent - Hours Posted (in timesheets, not yet posted)
+| Calculated
+
+| Hours This Week
+| (calculated)
+| Hours logged in the current week
+| `/timeSheetLines` (filtered by date)
+|===
+
+=== Cost Tracking (Internal - Hideable)
+
+[cols="2,2,3,2", options="header"]
+|===
+| Thyme UI Label | BC Field | Description | Data Source
+
+| Budget Cost
+| `totalCost` (Budget)
+| Internal cost budget (quantity × unitCost)
+| `/jobPlanningLines` where lineType includes 'Budget'
+
+| Actual Cost
+| `totalCost`
+| Actual cost incurred (from posted entries only)
+| `/timeEntries` (Job Ledger Entry)
+
+| Unposted Cost
+| (estimated)
+| Estimated cost of unposted timesheet hours
+| Hours Unposted × average cost rate
+|===
+
+=== Revenue Tracking (Customer-Facing)
+
+[cols="2,2,3,2", options="header"]
+|===
+| Thyme UI Label | BC Field | Description | Data Source
+
+| Billable Price
+| `totalPrice` (Billable)
+| Customer quote/expected revenue
+| `/jobPlanningLines` where lineType includes 'Billable'
+
+| Invoiced Price
+| `totalPrice`
+| Amount actually invoiced to customer
+| `/timeEntries` (Job Ledger Entry)
+
+| Unposted Billable
+| (estimated)
+| Estimated billable for unposted timesheet hours
+| Hours Unposted × average billable rate
+|===
+
+== Line Types (Resource, Item, G/L Account)
+
+Business Central categorises costs/prices by **line type**:
+
+[cols="1,3,2", options="header"]
+|===
+| Type | Description | Examples
+
+| Resource
+| Labour costs - people working on the project
+| Developers, consultants, designers
+
+| Item
+| Physical products or materials
+| Hardware, licenses, equipment
+
+| G/L Account
+| General ledger items - overhead, services
+| Travel, subscriptions, third-party services
+|===
+
+All KPI cards show a breakdown by these three types:
+
+----
+Budget Cost: £2,355.00
+  Resource:    £490.00
+  Item:      £1,865.00
+  G/L Account:   £0.00
+From Job Planning Lines
+----
+
+== Data Sources
+
+=== Timesheet Lines (`/timeSheetLines`)
+
+Provides hours logged by employees in their timesheets.
+
+[cols="1,3", options="header"]
+|===
+| Field | Description
+
+| totalQuantity
+| Sum of hours for the line
+
+| status
+| Open, Submitted, Rejected, Approved
+
+| type
+| Job, Resource, Absence, etc.
+
+| jobNo
+| Project number
+
+| jobTaskNo
+| Task number within the project
+|===
+
+**Note:** Timesheet lines contain **hours only**, not cost data. Cost is calculated when posting using the Resource's Unit Cost.
+
+=== Job Planning Lines (`/jobPlanningLines`)
+
+Provides budget and billable planning data (the "quote").
+
+[cols="1,3", options="header"]
+|===
+| Field | Description
+
+| lineType
+| `Budget`, `Billable`, or `Both Budget and Billable`
+
+| type
+| `Resource`, `Item`, or `G/L Account`
+
+| quantity
+| Planned quantity (hours for Resources)
+
+| unitCost
+| Cost per unit (internal)
+
+| unitPrice
+| Price per unit (customer)
+
+| totalCost
+| quantity × unitCost (internal)
+
+| totalPrice
+| quantity × unitPrice (customer)
+|===
+
+=== Time Entries (`/timeEntries`)
+
+Provides posted/invoiced data from Job Ledger Entry.
+
+[cols="1,3", options="header"]
+|===
+| Field | Description
+
+| quantity
+| Posted hours
+
+| totalCost
+| Actual internal cost incurred
+
+| totalPrice
+| Amount invoiced to customer
+
+| postingDate
+| When the entry was posted
+
+| resourceNo
+| The resource who performed the work
+|===
+
+**Note:** Time entries only contain Resource-type entries (labour). Item and G/L Account entries come from other ledger entries.
+
+== Spend vs Budget Chart
+
+The "Spend vs Budget" chart shows **cost of work done** over time, stacked by type:
+
+[source]
+----
+Budget Line (dashed) ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+
+      ┌─────────────────────────────┐
+      │ G/L Account                 │
+      ├─────────────────────────────┤
+      │ Item                        │
+      ├─────────────────────────────┤
+      │ Resource (Unposted)         │ ← Timesheet hours × rate
+      ├─────────────────────────────┤
+      │ Resource (Posted)           │ ← From Job Ledger Entry
+──────┴─────────────────────────────┴─────────
+     Aug    Sep    Oct    Nov    Dec    Jan
+----
+
+This visualisation shows:
+
+* **Resource (Posted)**: Hours posted to Job Ledger Entry × actual cost
+* **Resource (Unposted)**: Timesheet hours not yet posted × estimated cost rate
+* **Item**: Item costs from Job Ledger Entry
+* **G/L Account**: G/L costs from Job Ledger Entry
+* **Budget Line**: Total budget from Job Planning Lines
+
+=== Future: Forecast Costings
+
+The chart will be extended to show:
+
+* Projected costs based on remaining planned hours
+* Burn rate analysis
+* Completion date estimates
+
+== Visibility Toggle
+
+Thyme provides an "eye" toggle button to show/hide internal costs:
+
+**When Costs Visible:**
+
+* Budget Cost with breakdown (Resource/Item/G/L Account)
+* Actual Cost with breakdown + unposted estimate
+* Billable Price with breakdown
+* Invoiced Price with breakdown
+* Spend vs Budget chart with £ axis
+
+**When Costs Hidden:**
+
+* Hours only (no £ values for internal costs)
+* Billable Price and Invoiced Price still visible (customer-facing)
+* Chart shows hours instead of £
+
+This allows managers to share project status with customers without exposing internal cost data.
+
+== PDF Export
+
+The PDF export creates a customer-friendly report that respects the visibility toggle:
+
+* When costs are hidden, the PDF excludes Budget Cost and Actual Cost
+* Includes: Project details, Hours (Spent/Planned), Revenue (Billable/Invoiced)
+
+== Thyme BC Extension Requirements
+
+[cols="2,3", options="header"]
+|===
+| Feature | Extension Version
+
+| Timesheet API
+| v1.0+
+
+| Job Planning Lines API
+| v1.6.0+
+
+| Time Entries API (Job Ledger)
+| v1.7.0+
+|===
+
+== Troubleshooting
+
+=== Hours show £0 cost
+
+**Cause:** Timesheet hours not yet posted to Job Ledger Entry.
+
+**Solution:** Post the timesheets in BC via Time Sheet Administrator → Post Time Sheets.
+
+=== Budget doesn't match BC Project Card
+
+**Cause:** BC Project Card may show different aggregations or include lines not in the Billable filter.
+
+**Check:**
+
+1. Review Job Planning Lines in BC - filter by lineType
+2. Ensure all line types (Resource, Item, G/L Account) are included
+3. Check for lines with `lineType = Both Budget and Billable`
+
+=== Unposted cost estimate seems wrong
+
+**Cause:** The estimate uses an average rate from posted entries, or falls back to budget rates.
+
+**Solution:** Post some timesheet entries so Thyme can calculate accurate average rates.
+
+== See Also
+
+* link:SOLUTION_DESIGN.adoc[Solution Design] - Architecture overview
+* link:TROUBLESHOOTING.adoc[Troubleshooting] - Common issues and solutions
+* https://github.com/knowall-ai/thyme-bc-extension[Thyme BC Extension] - Business Central extension repository
