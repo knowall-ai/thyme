@@ -965,6 +965,60 @@ class BusinessCentralClient {
   }
 
   /**
+   * Create a new timesheet for a resource.
+   * @param resourceNo - The resource number (employee)
+   * @param startingDate - The week starting date (YYYY-MM-DD, must be a Monday)
+   * @returns The created timesheet
+   */
+  async createTimeSheet(resourceNo: string, startingDate: string): Promise<BCTimeSheet> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    // Validate date format
+    const sanitizedDate = this.sanitizeDateInput(startingDate);
+    const sanitizedResourceNo = this.sanitizeODataString(resourceNo);
+
+    return this.customApiFetch<BCTimeSheet>('/timeSheets', {
+      method: 'POST',
+      body: JSON.stringify({
+        resourceNo: sanitizedResourceNo,
+        startingDate: sanitizedDate,
+      }),
+    });
+  }
+
+  /**
+   * Create timesheets for multiple resources for a given week.
+   * @param resourceNos - Array of resource numbers
+   * @param startingDate - The week starting date (YYYY-MM-DD, must be a Monday)
+   * @returns Array of results with success/failure for each resource
+   */
+  async createTimeSheetsForResources(
+    resourceNos: string[],
+    startingDate: string
+  ): Promise<
+    Array<{ resourceNo: string; success: boolean; timesheet?: BCTimeSheet; error?: string }>
+  > {
+    const results = await Promise.all(
+      resourceNos.map(async (resourceNo) => {
+        try {
+          const timesheet = await this.createTimeSheet(resourceNo, startingDate);
+          return { resourceNo, success: true, timesheet };
+        } catch (error) {
+          return {
+            resourceNo,
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          };
+        }
+      })
+    );
+    return results;
+  }
+
+  /**
    * Derive a display-friendly status from timesheet FlowFields.
    * Delegates to shared utility function.
    */
