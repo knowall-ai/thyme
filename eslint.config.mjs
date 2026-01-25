@@ -3,7 +3,7 @@ import nextConfig from 'eslint-config-next';
 const config = [
   ...nextConfig,
   {
-    ignores: ['node_modules/**', 'public/**'],
+    ignores: ['node_modules/**', 'public/**', '.next/**', '.turbo/**', 'coverage/**'],
   },
   {
     // Downgrade new strict rules to warnings for migration compatibility

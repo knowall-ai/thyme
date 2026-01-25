@@ -260,7 +260,7 @@ export function ApprovalCard({
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 placeholder="Please provide a reason for rejection..."
-                className="border-dark-600 bg-dark-700 placeholder-dark-400 focus:border-thyme-500 focus:ring-thyme-500 w-full rounded-lg border px-3 py-2 text-white focus:ring-1 focus:outline-none"
+                className="border-dark-600 bg-dark-700 placeholder:text-dark-400 focus:border-thyme-500 focus:ring-thyme-500 w-full rounded-lg border px-3 py-2 text-white focus:ring-1 focus:outline-none"
                 rows={3}
               />
             </div>

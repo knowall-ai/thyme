@@ -175,7 +175,7 @@ export function CompanySwitcher() {
                 placeholder="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="border-dark-600 bg-dark-700 placeholder-dark-400 focus:border-knowall-green w-full rounded-md border py-2 pr-3 pl-9 text-sm text-white focus:outline-none"
+                className="border-dark-600 bg-dark-700 placeholder:text-dark-400 focus:border-knowall-green w-full rounded-md border py-2 pr-3 pl-9 text-sm text-white focus:outline-none"
               />
             </div>
           </div>
