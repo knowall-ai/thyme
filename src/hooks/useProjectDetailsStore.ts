@@ -1,12 +1,14 @@
 import { create } from 'zustand';
 import type { Project, Task } from '@/types';
 import { projectDetailsService, type ProjectAnalytics } from '@/services/bc/projectDetailsService';
+import { bcClient } from '@/services/bc/bcClient';
 
 interface ProjectDetailsStore {
   // State
   project: Project | null;
   tasks: Task[];
   analytics: ProjectAnalytics | null;
+  currencyCode: string; // From BC companyInformation
   isLoading: boolean;
   isLoadingAnalytics: boolean;
   error: string | null;
@@ -29,6 +31,7 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
   project: null,
   tasks: [],
   analytics: null,
+  currencyCode: 'GBP', // Default, will be overwritten from BC
   isLoading: false,
   isLoadingAnalytics: false,
   error: null,
@@ -46,9 +49,14 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
     set({ isLoading: true, error: null });
 
     try {
-      // Fetch basic project details and tasks
-      const { project, tasks } = await projectDetailsService.getProjectDetails(projectNumber);
-      set({ project, tasks, isLoading: false });
+      // Fetch basic project details, tasks, and company currency in parallel
+      const [projectData, companyInfo] = await Promise.all([
+        projectDetailsService.getProjectDetails(projectNumber),
+        bcClient.getCompanyInfo().catch(() => null),
+      ]);
+      const { project, tasks } = projectData;
+      const currencyCode = companyInfo?.currencyCode || 'GBP';
+      set({ project, tasks, currencyCode, isLoading: false });
 
       // Fetch analytics (this can take longer)
       set({ isLoadingAnalytics: true });
@@ -106,6 +114,7 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
       project: null,
       tasks: [],
       analytics: null,
+      currencyCode: 'GBP',
       error: null,
     }),
 }));

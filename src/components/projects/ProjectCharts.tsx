@@ -15,16 +15,26 @@ type ChartView = 'weekly' | 'progress';
 
 const WEEKS_TO_SHOW = 24;
 
-// Format currency for chart labels
-function formatCurrencyShort(amount: number): string {
+// Map currency codes to symbols for compact chart labels
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  GBP: '£',
+  USD: '$',
+  EUR: '€',
+  CAD: 'CA$',
+  AUD: 'A$',
+};
+
+// Format currency for chart labels using compact notation
+function formatCurrencyShort(amount: number, currencyCode: string): string {
+  const symbol = CURRENCY_SYMBOLS[currencyCode] || currencyCode;
   if (amount >= 1000) {
-    return `£${(amount / 1000).toFixed(1)}k`;
+    return `${symbol}${(amount / 1000).toFixed(1)}k`;
   }
-  return `£${amount.toFixed(0)}`;
+  return `${symbol}${amount.toFixed(0)}`;
 }
 
 export function ProjectCharts() {
-  const { analytics, isLoadingAnalytics, showCosts } = useProjectDetailsStore();
+  const { analytics, isLoadingAnalytics, showCosts, currencyCode } = useProjectDetailsStore();
   const [chartView, setChartView] = useState<ChartView>('weekly');
   const [offsetWeeks, setOffsetWeeks] = useState(0);
 
@@ -179,8 +189,10 @@ export function ProjectCharts() {
             analytics?.budgetCostBreakdown ?? { resource: 0, item: 0, glAccount: 0, total: 0 }
           }
           hoursSpent={analytics?.hoursSpent ?? 0}
+          hoursPlanned={analytics?.hoursPlanned ?? 0}
           actualCost={analytics?.actualCost ?? 0}
           showCosts={showCosts}
+          currencyCode={currencyCode}
         />
       )}
     </Card>
@@ -520,16 +532,20 @@ function ProgressLineChart({
   budgetCost,
   budgetCostBreakdown,
   hoursSpent,
+  hoursPlanned,
   actualCost,
   showCosts,
+  currencyCode,
 }: {
   data: WeeklyDataPoint[];
   offsetWeeks: number;
   budgetCost: number;
   budgetCostBreakdown: CostBreakdown;
   hoursSpent: number;
+  hoursPlanned: number;
   actualCost: number;
   showCosts: boolean;
+  currencyCode: string;
 }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
@@ -539,21 +555,26 @@ function ProgressLineChart({
   );
 
   // Calculate average cost rate (for estimating cumulative cost from cumulative hours)
-  // Use actual cost rate if available, otherwise use UK industry average as fallback
-  // (£70/hour is typical for professional services; only shown when no actual data exists)
-  const DEFAULT_HOURLY_RATE = 70;
+  // Priority: 1) actual cost rate, 2) budget cost rate from planning lines, 3) null (no estimate)
   const avgCostRate = useMemo(() => {
+    // First priority: actual cost rate from posted timesheet entries
     if (actualCost > 0 && hoursSpent > 0) {
       return actualCost / hoursSpent;
     }
-    return DEFAULT_HOURLY_RATE;
-  }, [actualCost, hoursSpent]);
+    // Second priority: budget cost rate from Job Planning Lines (resource hours)
+    if (budgetCostBreakdown.resource > 0 && hoursPlanned > 0) {
+      return budgetCostBreakdown.resource / hoursPlanned;
+    }
+    // No data available to derive rate - return null to skip cost display
+    return null;
+  }, [actualCost, hoursSpent, budgetCostBreakdown.resource, hoursPlanned]);
 
   // Convert cumulative hours to cumulative cost for display
+  // If no rate available, set cost to 0 (chart will show hours only)
   const displayDataWithCost = useMemo(() => {
     return displayData.map((d) => ({
       ...d,
-      cumulativeCost: d.cumulative * avgCostRate,
+      cumulativeCost: avgCostRate !== null ? d.cumulative * avgCostRate : 0,
     }));
   }, [displayData, avgCostRate]);
 
@@ -593,7 +614,7 @@ function ProgressLineChart({
         {/* Y-axis - £ values */}
         <div className="flex w-12 flex-col justify-between pr-2 text-right text-xs text-gray-500">
           {yAxisLabels.map((label) => (
-            <span key={label}>{showCosts ? formatCurrencyShort(label) : '•••'}</span>
+            <span key={label}>{showCosts ? formatCurrencyShort(label, currencyCode) : '•••'}</span>
           ))}
         </div>
 
@@ -643,7 +664,7 @@ function ProgressLineChart({
                 style={{ top: `${totalBudgetY}%` }}
               >
                 <span className="absolute -top-5 right-0 text-xs text-amber-400">
-                  Budget: {formatCurrencyShort(budgetCost)}
+                  Budget: {formatCurrencyShort(budgetCost, currencyCode)}
                 </span>
               </div>
             </>
@@ -743,9 +764,16 @@ function ProgressLineChart({
                 <div className="text-gray-400">
                   {displayDataWithCost[hoveredIndex].cumulative.toFixed(1)} hours
                 </div>
-                <div className="text-thyme-400">
-                  ~{formatCurrencyShort(displayDataWithCost[hoveredIndex].cumulativeCost)} spent
-                </div>
+                {avgCostRate !== null && (
+                  <div className="text-thyme-400">
+                    ~
+                    {formatCurrencyShort(
+                      displayDataWithCost[hoveredIndex].cumulativeCost,
+                      currencyCode
+                    )}{' '}
+                    spent
+                  </div>
+                )}
               </div>
               {budgetCost > 0 && (
                 <div className="mt-1 border-t border-dark-500 pt-1">
@@ -753,23 +781,24 @@ function ProgressLineChart({
                   {budgetCostBreakdown.resource > 0 && (
                     <div className="flex items-center gap-2 text-blue-400">
                       <span className="inline-block h-2 w-2 rounded-sm bg-blue-500/50" />
-                      Resource: {formatCurrencyShort(budgetCostBreakdown.resource)}
+                      Resource: {formatCurrencyShort(budgetCostBreakdown.resource, currencyCode)}
                     </div>
                   )}
                   {budgetCostBreakdown.item > 0 && (
                     <div className="flex items-center gap-2 text-purple-400">
                       <span className="inline-block h-2 w-2 rounded-sm bg-purple-500/50" />
-                      Item: {formatCurrencyShort(budgetCostBreakdown.item)}
+                      Item: {formatCurrencyShort(budgetCostBreakdown.item, currencyCode)}
                     </div>
                   )}
                   {budgetCostBreakdown.glAccount > 0 && (
                     <div className="flex items-center gap-2 text-amber-400">
                       <span className="inline-block h-2 w-2 rounded-sm bg-amber-500/50" />
-                      G/L Account: {formatCurrencyShort(budgetCostBreakdown.glAccount)}
+                      G/L Account:{' '}
+                      {formatCurrencyShort(budgetCostBreakdown.glAccount, currencyCode)}
                     </div>
                   )}
                   <div className="mt-1 font-medium text-amber-400">
-                    Total: {formatCurrencyShort(budgetCost)}
+                    Total: {formatCurrencyShort(budgetCost, currencyCode)}
                   </div>
                 </div>
               )}

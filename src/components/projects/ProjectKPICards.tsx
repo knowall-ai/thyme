@@ -64,18 +64,28 @@ function InfoTooltip({
   );
 }
 
-// Format currency (assumes GBP for now, but could be made configurable)
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-GB', {
+// Format currency using the company's currency code from BC
+function formatCurrency(amount: number, currencyCode: string): string {
+  // Map currency code to locale for proper formatting
+  const localeMap: Record<string, string> = {
+    GBP: 'en-GB',
+    USD: 'en-US',
+    EUR: 'de-DE',
+    CAD: 'en-CA',
+    AUD: 'en-AU',
+  };
+  const locale = localeMap[currencyCode] || 'en-GB';
+
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency: 'GBP',
+    currency: currencyCode,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);
 }
 
 export function ProjectKPICards() {
-  const { analytics, isLoadingAnalytics, showCosts } = useProjectDetailsStore();
+  const { analytics, isLoadingAnalytics, showCosts, currencyCode } = useProjectDetailsStore();
 
   if (isLoadingAnalytics) {
     return (
@@ -207,7 +217,7 @@ export function ProjectKPICards() {
   const financialKpis = [
     {
       label: 'Budget Cost',
-      value: showCosts ? formatCurrency(budgetCost) : '•••••',
+      value: showCosts ? formatCurrency(budgetCost, currencyCode) : '•••••',
       subLabel: showCosts ? 'From Job Planning Lines' : 'Hidden',
       breakdown: showCosts ? budgetBreakdown : null,
       icon: BanknotesIcon,
@@ -224,7 +234,7 @@ export function ProjectKPICards() {
     },
     {
       label: 'Actual Cost',
-      value: showCosts ? formatCurrency(actualCost) : '•••••',
+      value: showCosts ? formatCurrency(actualCost, currencyCode) : '•••••',
       subLabel: showCosts ? 'From Job Ledger Entry' : 'Hidden',
       breakdown: showCosts ? actualBreakdown : null,
       icon: BanknotesIcon,
@@ -245,7 +255,7 @@ export function ProjectKPICards() {
     },
     {
       label: 'Billable Price',
-      value: formatCurrency(billablePrice),
+      value: formatCurrency(billablePrice, currencyCode),
       subLabel: 'From Job Planning Lines',
       breakdown: billableBreakdown,
       icon: CurrencyPoundIcon,
@@ -260,7 +270,7 @@ export function ProjectKPICards() {
     },
     {
       label: 'Invoiced Price',
-      value: formatCurrency(invoicedPrice),
+      value: formatCurrency(invoicedPrice, currencyCode),
       subLabel: 'From Job Ledger Entry',
       breakdown: invoicedBreakdown,
       icon: CurrencyPoundIcon,
@@ -351,15 +361,15 @@ export function ProjectKPICards() {
                     <div className="mt-1 space-y-0.5 text-xs text-gray-500">
                       <div className="flex justify-between">
                         <span>Resource:</span>
-                        <span>{formatCurrency(breakdown.resource)}</span>
+                        <span>{formatCurrency(breakdown.resource, currencyCode)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Item:</span>
-                        <span>{formatCurrency(breakdown.item)}</span>
+                        <span>{formatCurrency(breakdown.item, currencyCode)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>G/L Account:</span>
-                        <span>{formatCurrency(breakdown.glAccount)}</span>
+                        <span>{formatCurrency(breakdown.glAccount, currencyCode)}</span>
                       </div>
                     </div>
                   )}
