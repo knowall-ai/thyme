@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   MagnifyingGlassIcon,
@@ -270,9 +270,9 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
           </thead>
           <tbody className="divide-y divide-dark-600">
             {Object.entries(groupedProjects).map(([customer, customerProjects]) => (
-              <>
+              <Fragment key={customer}>
                 {/* Customer group header */}
-                <tr key={`header-${customer}`} className="bg-dark-800/50">
+                <tr className="bg-dark-800/50">
                   <td colSpan={6} className="px-4 py-2 text-sm font-medium text-gray-400">
                     {customer}
                   </td>
@@ -288,7 +288,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
                     companyName={selectedCompany?.name}
                   />
                 ))}
-              </>
+              </Fragment>
             ))}
           </tbody>
         </table>

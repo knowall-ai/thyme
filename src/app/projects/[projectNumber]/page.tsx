@@ -17,9 +17,10 @@ function ProjectDetailsContent({ projectNumber }: { projectNumber: string }) {
 }
 
 export default function ProjectDetailsPage({ params }: { params: Promise<Params> }) {
-  // use() unwraps the Promise in Next.js 15
-  // In Next.js 14 (local dev with old node_modules), params may be sync
-  const resolvedParams = 'then' in params ? use(params) : (params as unknown as Params);
+  // Next.js 15 passes params as Promise, Next.js 14 passes plain object
+  // Check for Promise using instanceof (preferred) or thenable duck-typing (fallback)
+  const isPromise = params instanceof Promise || (typeof params === 'object' && 'then' in params);
+  const resolvedParams = isPromise ? use(params as Promise<Params>) : (params as unknown as Params);
 
   return (
     <>

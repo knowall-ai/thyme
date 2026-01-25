@@ -453,9 +453,8 @@ function TeamBreakdownTable({
             const isExpanded = expanded[item.resourceNo];
 
             return (
-              <>
+              <Fragment key={item.resourceNo}>
                 <tr
-                  key={item.resourceNo}
                   className={cn(
                     'transition-colors',
                     hasDetails && 'cursor-pointer hover:bg-dark-700/50'
@@ -538,7 +537,7 @@ function TeamBreakdownTable({
                       <td className="px-3 py-2 text-right text-sm text-gray-500">-</td>
                     </tr>
                   ))}
-              </>
+              </Fragment>
             );
           })}
         </tbody>

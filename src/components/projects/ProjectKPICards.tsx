@@ -11,7 +11,7 @@ import {
   InformationCircleIcon,
 } from '@heroicons/react/24/outline';
 
-// Info tooltip component with styled popup
+// Info tooltip component with styled popup (keyboard accessible)
 function InfoTooltip({
   title,
   description,
@@ -27,15 +27,23 @@ function InfoTooltip({
 
   return (
     <div className="relative">
-      <div
-        className="cursor-help text-gray-600 hover:text-gray-400"
+      <button
+        type="button"
+        className="cursor-help rounded text-gray-600 hover:text-gray-400 focus:outline-none focus:ring-1 focus:ring-thyme-500 focus:ring-offset-1 focus:ring-offset-dark-800"
         onMouseEnter={() => setIsOpen(true)}
         onMouseLeave={() => setIsOpen(false)}
+        onFocus={() => setIsOpen(true)}
+        onBlur={() => setIsOpen(false)}
+        aria-label={`Info: ${title}`}
+        aria-expanded={isOpen}
       >
         <InformationCircleIcon className="h-4 w-4" />
-      </div>
+      </button>
       {isOpen && (
-        <div className="absolute right-0 top-6 z-20 w-64 rounded bg-dark-700 px-3 py-2 text-xs shadow-lg">
+        <div
+          role="tooltip"
+          className="absolute right-0 top-6 z-20 w-64 rounded bg-dark-700 px-3 py-2 text-xs shadow-lg"
+        >
           <div className="font-medium text-white">{title}</div>
           <div className="mt-1 border-t border-dark-500 pt-1">
             <div className="text-gray-300">{description}</div>
@@ -191,13 +199,6 @@ export function ProjectKPICards() {
     item: 0,
     glAccount: 0,
     total: 0,
-  };
-
-  // Helper to format breakdown line
-  const formatBreakdownLine = (label: string, value: number, isHidden: boolean) => {
-    if (isHidden) return null;
-    if (value === 0) return null;
-    return `${label}: ${formatCurrency(value)}`;
   };
 
   // Financial KPIs - 4 cards matching BC structure

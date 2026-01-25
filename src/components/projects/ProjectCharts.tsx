@@ -15,12 +15,6 @@ type ChartView = 'weekly' | 'progress';
 
 const WEEKS_TO_SHOW = 24;
 
-// Project date range (will be populated if BC provides dates)
-interface ProjectDateRange {
-  startDate?: Date;
-  endDate?: Date;
-}
-
 // Format currency for chart labels
 function formatCurrencyShort(amount: number): string {
   if (amount >= 1000) {
@@ -233,26 +227,6 @@ function getISOWeek(date: Date): string {
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
   return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
-}
-
-/**
- * Parse ISO week string to get the Monday of that week
- */
-function parseISOWeek(weekString: string): Date {
-  const match = weekString.match(/(\d{4})-W(\d{2})/);
-  if (!match) return new Date();
-  const [, yearStr, weekStr] = match;
-  const year = parseInt(yearStr);
-  const week = parseInt(weekStr);
-
-  // Get January 4th of the year (always in week 1)
-  const jan4 = new Date(year, 0, 4);
-  // Get the Monday of week 1
-  const week1Monday = getWeekStart(jan4);
-  // Add (week - 1) * 7 days
-  const result = new Date(week1Monday);
-  result.setDate(result.getDate() + (week - 1) * 7);
-  return result;
 }
 
 /**
@@ -565,13 +539,14 @@ function ProgressLineChart({
   );
 
   // Calculate average cost rate (for estimating cumulative cost from cumulative hours)
-  // Use actual cost rate if available, otherwise estimate from budget
+  // Use actual cost rate if available, otherwise use UK industry average as fallback
+  // (£70/hour is typical for professional services; only shown when no actual data exists)
+  const DEFAULT_HOURLY_RATE = 70;
   const avgCostRate = useMemo(() => {
     if (actualCost > 0 && hoursSpent > 0) {
       return actualCost / hoursSpent;
     }
-    // If no actual cost, use a default rate of £70/hour as estimate
-    return 70;
+    return DEFAULT_HOURLY_RATE;
   }, [actualCost, hoursSpent]);
 
   // Convert cumulative hours to cumulative cost for display

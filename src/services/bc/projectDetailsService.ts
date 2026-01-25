@@ -665,6 +665,7 @@ export const projectDetailsService = {
       } else if (hoursPlanned > 0) {
         // Fallback: use resource-only budget rates from planning lines
         // (hoursPlanned only includes resources, so use resource breakdown for accurate rate)
+        // Note: if resource breakdown is 0, avgRate = 0 which is correct (no budget defined)
         const avgBudgetCostRate = budgetCostBreakdown.resource / hoursPlanned;
         const avgBillableRate = billablePriceBreakdown.resource / hoursPlanned;
         unpostedCost = hoursUnposted * avgBudgetCostRate;
