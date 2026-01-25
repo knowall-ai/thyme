@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import type { BCResource, BCTimeSheet, BCTimeSheetLine, TimesheetDisplayStatus } from '@/types';
+import type { BCResource, BCTimeSheet, BCJobPlanningLine, TimesheetDisplayStatus } from '@/types';
 import { bcClient } from '@/services/bc/bcClient';
 import { getTimesheetDisplayStatus } from '@/utils';
-import { addWeeks, startOfWeek, endOfWeek, format } from 'date-fns';
+import { addWeeks, startOfWeek, endOfWeek, format, parseISO, isWithinInterval } from 'date-fns';
 
-// Allocation block representing work on a project
+// Allocation block representing planned work on a project
 export interface AllocationBlock {
   id: string;
   resourceId: string;
@@ -21,9 +21,8 @@ export interface AllocationBlock {
   hoursPerDay: number;
   totalHours: number;
   color: string;
-  timeSheetNo?: string;
-  lineNo?: number;
-  status: 'Open' | 'Submitted' | 'Approved' | 'Rejected';
+  lineType: 'Budget' | 'Billable' | 'Both Budget and Billable';
+  planningLineNo?: number;
 }
 
 export interface PlanTeamMember {
@@ -43,6 +42,7 @@ export interface PlanProject {
   id: string;
   number: string;
   name: string;
+  customerName: string;
   color: string;
   allocations: AllocationBlock[];
   totalHours: number;
@@ -141,7 +141,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   isDragging: false,
   draggedAllocation: null,
 
-  // Fetch team members, timesheets, and allocations for multiple weeks
+  // Fetch team members, timesheets, and planning allocations for multiple weeks
   fetchTeamData: async (weekStart: Date, weeksToShow: number, emailDomain?: string) => {
     set({ isLoading: true, error: null });
     try {
@@ -151,7 +151,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         bcClient.getProjects(),
       ]);
 
-      // Create project color map
+      // Create project color map and resource name map
       const projectColorMap = new Map<string, string>();
       const projectNameMap = new Map<string, string>();
       projectsData.forEach((p, i) => {
@@ -159,92 +159,94 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         projectNameMap.set(p.number, p.displayName || p.number);
       });
 
-      // Calculate date range for multiple weeks
-      const endDate = endOfWeek(addWeeks(weekStart, weeksToShow - 1), { weekStartsOn: 1 });
+      const resourceNameMap = new Map<string, string>();
+      const resourceIdMap = new Map<string, string>();
+      resources.forEach((r: BCResource) => {
+        resourceNameMap.set(r.number, r.name || r.displayName || r.number);
+        resourceIdMap.set(r.number, r.id);
+      });
 
-      // Fetch timesheet data for each resource across all weeks
+      // Calculate date range for multiple weeks
+      const rangeStart = weekStart;
+      const rangeEnd = endOfWeek(addWeeks(weekStart, weeksToShow - 1), { weekStartsOn: 1 });
+
+      // Fetch Job Planning Lines from all projects
       const allAllocations: AllocationBlock[] = [];
-      const membersWithTimesheets = await Promise.all(
+      const resourceAllocationsMap = new Map<string, AllocationBlock[]>();
+
+      // Initialize empty allocations array for each resource
+      resources.forEach((r: BCResource) => {
+        resourceAllocationsMap.set(r.number, []);
+      });
+
+      // Fetch planning lines for each project
+      await Promise.all(
+        projectsData.map(async (project) => {
+          try {
+            const planningLines = await bcClient.getJobPlanningLines(project.number);
+
+            // Filter for Resource type lines within date range
+            const resourceLines = planningLines.filter(
+              (line: BCJobPlanningLine) =>
+                line.type === 'Resource' &&
+                line.quantity > 0 &&
+                isWithinInterval(parseISO(line.planningDate), { start: rangeStart, end: rangeEnd })
+            );
+
+            // Group consecutive planning lines by resource and task into allocation blocks
+            // For now, create one allocation per planning line (they can be merged later)
+            for (const line of resourceLines) {
+              const allocation: AllocationBlock = {
+                id: `${line.jobNo}-${line.jobTaskNo}-${line.lineNo}`,
+                resourceId: resourceIdMap.get(line.number) || line.number,
+                resourceNumber: line.number,
+                resourceName: resourceNameMap.get(line.number) || line.number,
+                projectId: line.jobNo,
+                projectNumber: line.jobNo,
+                projectName: projectNameMap.get(line.jobNo) || line.jobNo,
+                taskId: line.jobTaskNo,
+                taskNumber: line.jobTaskNo,
+                taskName: line.description || line.jobTaskNo,
+                startDate: line.planningDate,
+                endDate: line.planningDate, // Single day for now
+                hoursPerDay: line.quantity,
+                totalHours: line.quantity,
+                color: projectColorMap.get(line.jobNo) || '#6b7280',
+                lineType: line.lineType,
+                planningLineNo: line.lineNo,
+              };
+
+              allAllocations.push(allocation);
+
+              // Add to resource's allocations
+              const resourceAllocs = resourceAllocationsMap.get(line.number);
+              if (resourceAllocs) {
+                resourceAllocs.push(allocation);
+              }
+            }
+          } catch {
+            // Skip projects without planning lines or if API fails
+          }
+        })
+      );
+
+      // Fetch timesheet status for each resource (for "Create Timesheet" functionality)
+      const membersWithData = await Promise.all(
         resources.map(async (resource: BCResource) => {
           const timesheets = new Map<string, BCTimeSheet>();
-          const resourceAllocations: AllocationBlock[] = [];
-          let totalHours = 0;
           let latestStatus: TimesheetDisplayStatus | 'No Timesheet' = 'No Timesheet';
 
-          // Fetch timesheets for each week
-          for (let w = 0; w < weeksToShow; w++) {
-            const weekDate = addWeeks(weekStart, w);
-            const weekStartStr = format(weekDate, 'yyyy-MM-dd');
-
-            try {
-              const weekTimesheets = await bcClient.getTimeSheets(resource.number, weekStartStr);
-              if (weekTimesheets.length > 0) {
-                const ts = weekTimesheets[0];
-                timesheets.set(weekStartStr, ts);
-                totalHours += ts.totalQuantity || 0;
-                latestStatus = getTimesheetDisplayStatus(ts);
-
-                // Fetch timesheet lines to build allocation blocks
-                try {
-                  const lines = await bcClient.getTimeSheetLines(ts.number);
-                  const jobLines = lines.filter(
-                    (line: BCTimeSheetLine) => line.type === 'Job' && line.jobNo
-                  );
-
-                  for (const line of jobLines) {
-                    // Get daily details for this line
-                    try {
-                      const details = await bcClient.getTimeSheetDetails(ts.number, line.lineNo);
-                      const daysWithHours = details.filter((d) => d.quantity > 0);
-
-                      if (daysWithHours.length > 0) {
-                        // Create allocation block from timesheet line
-                        const sortedDays = daysWithHours.sort(
-                          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-                        );
-                        const blockStartDate = sortedDays[0].date;
-                        const blockEndDate = sortedDays[sortedDays.length - 1].date;
-                        const blockTotalHours = daysWithHours.reduce(
-                          (sum, d) => sum + d.quantity,
-                          0
-                        );
-                        const avgHoursPerDay = blockTotalHours / daysWithHours.length;
-
-                        const allocation: AllocationBlock = {
-                          id: `${ts.number}-${line.lineNo}`,
-                          resourceId: resource.id,
-                          resourceNumber: resource.number,
-                          resourceName: resource.name || resource.displayName || resource.number,
-                          projectId: line.jobNo || '',
-                          projectNumber: line.jobNo || '',
-                          projectName: projectNameMap.get(line.jobNo || '') || line.jobNo || '',
-                          taskId: line.jobTaskNo,
-                          taskNumber: line.jobTaskNo,
-                          taskName: line.jobTaskNo,
-                          startDate: blockStartDate,
-                          endDate: blockEndDate,
-                          hoursPerDay: avgHoursPerDay,
-                          totalHours: blockTotalHours,
-                          color: projectColorMap.get(line.jobNo || '') || '#6b7280',
-                          timeSheetNo: ts.number,
-                          lineNo: line.lineNo,
-                          status: line.status,
-                        };
-
-                        resourceAllocations.push(allocation);
-                        allAllocations.push(allocation);
-                      }
-                    } catch {
-                      // Skip if can't get details
-                    }
-                  }
-                } catch {
-                  // Skip if can't get lines
-                }
-              }
-            } catch {
-              // Resource doesn't have a timesheet for this week
+          // Check first week's timesheet status
+          const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+          try {
+            const weekTimesheets = await bcClient.getTimeSheets(resource.number, weekStartStr);
+            if (weekTimesheets.length > 0) {
+              const ts = weekTimesheets[0];
+              timesheets.set(weekStartStr, ts);
+              latestStatus = getTimesheetDisplayStatus(ts);
             }
+          } catch {
+            // Resource doesn't have a timesheet for this week
           }
 
           // Derive UPN for profile photo
@@ -252,6 +254,10 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
           if (resource.timeSheetOwnerUserId && emailDomain) {
             userPrincipalName = `${resource.timeSheetOwnerUserId.toLowerCase()}@${emailDomain}`;
           }
+
+          // Get allocations for this resource
+          const resourceAllocations = resourceAllocationsMap.get(resource.number) || [];
+          const totalHours = resourceAllocations.reduce((sum, a) => sum + a.totalHours, 0);
 
           return {
             id: resource.id,
@@ -268,26 +274,33 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         })
       );
 
-      // Build projects view from allocations
+      // Build projects view - include ALL projects, not just those with allocations
       const projectsMap = new Map<string, PlanProject>();
+
+      // First, add all projects from projectsData
+      projectsData.forEach((p, i) => {
+        projectsMap.set(p.number, {
+          id: p.id,
+          number: p.number,
+          name: p.displayName || p.number,
+          customerName: p.billToCustomerName || '',
+          color: getProjectColor(i),
+          allocations: [],
+          totalHours: 0,
+        });
+      });
+
+      // Then add allocations to their respective projects
       for (const allocation of allAllocations) {
-        if (!projectsMap.has(allocation.projectNumber)) {
-          projectsMap.set(allocation.projectNumber, {
-            id: allocation.projectId,
-            number: allocation.projectNumber,
-            name: allocation.projectName,
-            color: allocation.color,
-            allocations: [],
-            totalHours: 0,
-          });
+        const project = projectsMap.get(allocation.projectNumber);
+        if (project) {
+          project.allocations.push(allocation);
+          project.totalHours += allocation.totalHours;
         }
-        const project = projectsMap.get(allocation.projectNumber)!;
-        project.allocations.push(allocation);
-        project.totalHours += allocation.totalHours;
       }
 
       set({
-        teamMembers: membersWithTimesheets,
+        teamMembers: membersWithData,
         projects: Array.from(projectsMap.values()),
         allAllocations,
         isLoading: false,

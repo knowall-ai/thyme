@@ -5,16 +5,18 @@ import toast from 'react-hot-toast';
 import {
   MagnifyingGlassIcon,
   PlusIcon,
-  CheckIcon,
-  DocumentPlusIcon,
   ArrowsPointingOutIcon,
   XMarkIcon,
   FolderIcon,
   UserGroupIcon,
-  MinusIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ChevronLeftIcon,
 } from '@heroicons/react/24/outline';
-import { Card, Button, WeekNavigation, ExtensionNotInstalled, Select } from '@/components/ui';
-import { usePlanStore, useProjectsStore } from '@/hooks';
+import { Card, Button, ExtensionNotInstalled } from '@/components/ui';
+import { PlanEntryModal } from './PlanEntryModal';
+import { PlanResourceModal } from './PlanResourceModal';
+import { usePlanStore } from '@/hooks';
 import { useCompanyStore } from '@/hooks';
 import { useAuth, getUserProfilePhoto } from '@/services/auth';
 import { ExtensionNotInstalledError } from '@/services/bc';
@@ -26,9 +28,13 @@ import {
   startOfWeek,
   endOfWeek,
   format,
+  getWeek,
   isSameDay,
   isToday,
+  isWeekend,
 } from 'date-fns';
+
+// Day width is now dynamic based on available space
 
 // Allocation Block Component
 interface AllocationBlockProps {
@@ -38,7 +44,6 @@ interface AllocationBlockProps {
   onSelect: () => void;
   onDragStart: () => void;
   onDragEnd: () => void;
-  dayWidth: number;
 }
 
 function AllocationBlockComponent({
@@ -48,7 +53,6 @@ function AllocationBlockComponent({
   onSelect,
   onDragStart,
   onDragEnd,
-  dayWidth,
 }: AllocationBlockProps) {
   const startDate = new Date(allocation.startDate);
   const endDate = new Date(allocation.endDate);
@@ -70,11 +74,12 @@ function AllocationBlockComponent({
     }
   }
 
-  // Calculate position and width
+  // Calculate position and width as percentages
+  const totalDays = days.length;
   const effectiveStartIndex = startIndex === -1 ? 0 : startIndex;
-  const effectiveEndIndex = endIndex === -1 ? days.length - 1 : endIndex;
-  const left = effectiveStartIndex * dayWidth;
-  const width = (effectiveEndIndex - effectiveStartIndex + 1) * dayWidth - 4; // -4 for margins
+  const effectiveEndIndex = endIndex === -1 ? totalDays - 1 : endIndex;
+  const leftPercent = (effectiveStartIndex / totalDays) * 100;
+  const widthPercent = ((effectiveEndIndex - effectiveStartIndex + 1) / totalDays) * 100;
 
   return (
     <div
@@ -83,8 +88,8 @@ function AllocationBlockComponent({
         isSelected && 'ring-2 ring-white ring-offset-1 ring-offset-transparent'
       )}
       style={{
-        left: `${left + 2}px`,
-        width: `${width}px`,
+        left: `calc(${leftPercent}% + 2px)`,
+        width: `calc(${widthPercent}% - 4px)`,
         backgroundColor: allocation.color,
       }}
       onClick={onSelect}
@@ -107,38 +112,36 @@ function AllocationBlockComponent({
   );
 }
 
-// Resource Row Component
+// Resource Row Component with expandable allocations
 interface ResourceRowProps {
   member: PlanTeamMember;
   days: Date[];
-  isSelected: boolean;
-  onToggleSelect: () => void;
   selectedAllocationId: string | null;
   onSelectAllocation: (id: string | null) => void;
   onDragStart: (allocation: AllocationBlock) => void;
   onDragEnd: () => void;
   onDrop: (date: string) => void;
   isDragging: boolean;
-  dayWidth: number;
-  showAssignButton: boolean;
-  onAssign: () => void;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  onAddPlan: (weekStart: Date) => void;
 }
 
 function ResourceRow({
   member,
   days,
-  isSelected,
-  onToggleSelect,
   selectedAllocationId,
   onSelectAllocation,
   onDragStart,
   onDragEnd,
   onDrop,
   isDragging,
-  dayWidth,
-  showAssignButton,
-  onAssign,
+  isExpanded,
+  onToggleExpand,
+  onAddPlan,
 }: ResourceRowProps) {
+  const [hoveredWeekStart, setHoveredWeekStart] = useState<Date | null>(null);
+
   const initials = member.name
     .split(' ')
     .map((n) => n[0])
@@ -156,101 +159,276 @@ function ResourceRow({
     onDrop(format(day, 'yyyy-MM-dd'));
   };
 
+  // Group days by week for "Add plan" button
+  const weekGroups = useMemo(() => {
+    const groups: { weekStart: Date; days: Date[] }[] = [];
+    let currentGroup: { weekStart: Date; days: Date[] } | null = null;
+
+    for (const day of days) {
+      const dayOfWeek = day.getDay();
+      // Monday = 1 starts a new week
+      if (dayOfWeek === 1 || !currentGroup) {
+        if (currentGroup) {
+          groups.push(currentGroup);
+        }
+        currentGroup = { weekStart: day, days: [day] };
+      } else {
+        currentGroup.days.push(day);
+      }
+    }
+    if (currentGroup) {
+      groups.push(currentGroup);
+    }
+    return groups;
+  }, [days]);
+
   return (
-    <div
-      className={cn(
-        'border-dark-700 hover:bg-dark-800/50 flex items-center border-b transition-colors',
-        isSelected && 'bg-knowall-green/5'
-      )}
-    >
-      {/* Checkbox */}
-      <div className="flex w-10 shrink-0 items-center justify-center px-2">
-        <button
-          onClick={onToggleSelect}
+    <div className="border-dark-700 w-full border-b">
+      {/* Main Row */}
+      <div
+        className={cn(
+          'hover:bg-dark-700/60 flex w-full items-center transition-colors',
+          isExpanded && 'bg-dark-800/30'
+        )}
+      >
+        {/* Sticky name column */}
+        <div
           className={cn(
-            'flex h-5 w-5 items-center justify-center rounded border transition-colors',
-            isSelected
-              ? 'border-knowall-green bg-knowall-green text-dark-950'
-              : 'border-dark-500 hover:border-dark-400'
+            'bg-dark-900 sticky left-0 z-10 flex shrink-0 items-center',
+            isExpanded && 'bg-dark-800/30'
           )}
-          aria-label={isSelected ? `Deselect ${member.name}` : `Select ${member.name}`}
         >
-          {isSelected && <CheckIcon className="h-3 w-3" />}
-        </button>
-      </div>
-
-      {/* Avatar and Name */}
-      <div className="flex min-w-[180px] items-center gap-3 py-2 pr-4">
-        {member.photoUrl ? (
-          <img
-            src={member.photoUrl}
-            alt={member.name}
-            className="h-8 w-8 rounded-full object-cover"
-          />
-        ) : (
+          {/* Avatar and Name - clickable to expand */}
           <div
-            className={cn(
-              'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium',
-              member.timesheetStatus === 'No Timesheet'
-                ? 'bg-amber-500/20 text-amber-400'
-                : 'bg-dark-600 text-dark-200'
-            )}
-            title={
-              member.timesheetStatus === 'No Timesheet' ? 'No timesheet for this week' : undefined
-            }
+            className="flex w-[230px] cursor-pointer items-center gap-2 overflow-hidden py-2 px-3"
+            onClick={onToggleExpand}
+            title={member.name}
           >
-            {member.timesheetStatus === 'No Timesheet' ? '?' : initials}
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="text-dark-100 truncate text-sm font-medium">{member.name}</p>
-        </div>
-        {showAssignButton && (
-          <Button variant="ghost" size="sm" onClick={onAssign} className="h-6 px-2 text-xs">
-            <PlusIcon className="h-3 w-3" />
-          </Button>
-        )}
-      </div>
+          {/* Expand/Collapse chevron */}
+          <button
+            className="text-dark-400 hover:text-dark-200 flex-shrink-0"
+            aria-label={isExpanded ? 'Collapse' : 'Expand'}
+          >
+            {isExpanded ? (
+              <ChevronDownIcon className="h-4 w-4" />
+            ) : (
+              <ChevronRightIcon className="h-4 w-4" />
+            )}
+          </button>
 
-      {/* Calendar Grid with Allocations */}
-      <div className="relative flex flex-1" style={{ minHeight: '40px' }}>
-        {/* Day cells */}
-        {days.map((day, index) => {
-          const dayIsToday = isToday(day);
-          return (
-            <div
-              key={day.toISOString()}
-              className={cn(
-                'border-dark-700 h-10 border-l',
-                dayIsToday && 'bg-knowall-green/5',
-                isDragging && 'hover:bg-dark-700/50'
-              )}
-              style={{ width: `${dayWidth}px` }}
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, day)}
+          {member.photoUrl ? (
+            <img
+              src={member.photoUrl}
+              alt={member.name}
+              className="h-8 w-8 shrink-0 rounded-full object-cover"
             />
-          );
-        })}
+          ) : (
+            <div
+              className={cn(
+                'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium',
+                member.timesheetStatus === 'No Timesheet'
+                  ? 'bg-amber-500/20 text-amber-400'
+                  : 'bg-dark-600 text-dark-200'
+              )}
+              title={
+                member.timesheetStatus === 'No Timesheet' ? 'No timesheet for this week' : undefined
+              }
+            >
+              {member.timesheetStatus === 'No Timesheet' ? '?' : initials}
+            </div>
+          )}
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <p className="text-dark-500 truncate text-[10px]">{member.number}</p>
+            <p className="text-dark-100 truncate text-sm font-medium leading-tight">{member.name}</p>
+          </div>
+          </div>
+        </div>
 
-        {/* Allocation blocks */}
-        {member.allocations.map((allocation) => (
-          <AllocationBlockComponent
-            key={allocation.id}
-            allocation={allocation}
-            days={days}
-            isSelected={selectedAllocationId === allocation.id}
-            onSelect={() => onSelectAllocation(allocation.id)}
-            onDragStart={() => onDragStart(allocation)}
-            onDragEnd={onDragEnd}
-            dayWidth={dayWidth}
-          />
-        ))}
+        {/* Calendar Grid with Allocations */}
+        <div className="relative flex flex-1" style={{ minHeight: '40px' }}>
+          {/* Week groups with Add Plan button */}
+          {weekGroups.map((weekGroup) => (
+            <div
+              key={weekGroup.weekStart.toISOString()}
+              className="group relative flex flex-1"
+              onMouseEnter={() => setHoveredWeekStart(weekGroup.weekStart)}
+              onMouseLeave={() => setHoveredWeekStart(null)}
+            >
+              {/* Day cells within this week */}
+              {weekGroup.days.map((day) => {
+                const dayIsToday = isToday(day);
+                const dayIsWeekend = isWeekend(day);
+                const dayStr = format(day, 'yyyy-MM-dd');
+                // Calculate hours for this day
+                const dayHours = member.allocations
+                  .filter((a) => a.startDate === dayStr)
+                  .reduce((sum, a) => sum + a.hoursPerDay, 0);
+                return (
+                  <div
+                    key={day.toISOString()}
+                    className={cn(
+                      'border-dark-700 relative h-10 flex-1 border-l',
+                      dayIsWeekend && 'bg-dark-700/60',
+                      dayIsToday && 'bg-knowall-green/5',
+                      isDragging && 'hover:bg-dark-700/50'
+                    )}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, day)}
+                  >
+                    {/* Daily hours indicator - full width cell */}
+                    {dayHours > 0 && (
+                      <div className="bg-knowall-green/90 text-dark-950 absolute inset-0.5 flex items-center justify-center rounded text-xs font-semibold">
+                        {dayHours % 1 === 0 ? dayHours : dayHours.toFixed(1)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Add Plan button - appears on hover, spans whole week */}
+              {hoveredWeekStart &&
+                isSameDay(hoveredWeekStart, weekGroup.weekStart) &&
+                member.allocations.filter((a) => {
+                  const allocDate = new Date(a.startDate);
+                  return weekGroup.days.some((d) => isSameDay(d, allocDate));
+                }).length === 0 && (
+                  <button
+                    onClick={() => onAddPlan(weekGroup.weekStart)}
+                    className="absolute inset-1 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed border-dark-600 text-xs text-dark-500 opacity-0 transition-all group-hover:opacity-100 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green"
+                  >
+                    <PlusIcon className="h-3 w-3" />
+                    Add
+                  </button>
+                )}
+            </div>
+          ))}
+        </div>
+
+        {/* Total Hours */}
+        <div className="text-dark-300 w-16 shrink-0 px-2 text-right text-sm">
+          {member.totalHours > 0 && `${member.totalHours.toFixed(1)}h`}
+        </div>
       </div>
 
-      {/* Total Hours */}
-      <div className="text-dark-300 w-16 shrink-0 px-2 text-right text-sm">
-        {member.totalHours > 0 ? `${member.totalHours.toFixed(1)}h` : '-'}
-      </div>
+      {/* Expanded Content: Allocations list */}
+      {isExpanded && (
+        <div className="bg-dark-850 border-dark-700 border-t">
+          {/* Existing allocations */}
+          {member.allocations.map((allocation) => {
+            const allocationLabel = allocation.taskName
+              ? `${allocation.projectName} - ${allocation.taskName}`
+              : allocation.projectName;
+            return (
+              <div
+                key={allocation.id}
+                className="hover:bg-dark-700/60 flex w-full items-center"
+              >
+                {/* Sticky name column - matching parent structure */}
+                <div className="bg-dark-850 sticky left-0 z-10 flex shrink-0">
+                  <div
+                    className="flex w-[230px] items-center gap-2 overflow-hidden py-1.5 pr-4 pl-12"
+                    title={allocationLabel}
+                  >
+                    <div
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: allocation.color }}
+                    />
+                    <span className="text-dark-300 truncate text-xs">
+                      {allocation.projectName}
+                      {allocation.taskName && (
+                        <span className="text-dark-500"> - {allocation.taskName}</span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+                {/* Day cells - showing hours for this allocation */}
+                <div className="flex flex-1" style={{ minHeight: '28px' }}>
+                  {days.map((day) => {
+                    const dayIsToday = isToday(day);
+                    const dayIsWeekend = isWeekend(day);
+                    const dayStr = format(day, 'yyyy-MM-dd');
+                    const hasAllocation = allocation.startDate === dayStr;
+                    return (
+                      <div
+                        key={day.toISOString()}
+                        className={cn(
+                          'border-dark-700 relative h-7 flex-1 border-l',
+                          dayIsWeekend && 'bg-dark-700/60',
+                          dayIsToday && 'bg-knowall-green/5'
+                        )}
+                      >
+                        {/* Show hours pill if this allocation is on this day - full width */}
+                        {hasAllocation && (
+                          <div
+                            className="absolute inset-0.5 flex items-center justify-center rounded text-[10px] font-semibold text-white"
+                            style={{ backgroundColor: allocation.color }}
+                          >
+                            {allocation.hoursPerDay % 1 === 0
+                              ? allocation.hoursPerDay
+                              : allocation.hoursPerDay.toFixed(1)}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Total hours */}
+                <div className="text-dark-400 w-16 shrink-0 px-2 text-right text-xs">
+                  {allocation.totalHours.toFixed(1)}h
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Add Project row */}
+          <div className="hover:bg-dark-700/60 flex w-full items-center">
+            <div className="bg-dark-850 sticky left-0 z-10 flex shrink-0">
+              <div className="text-dark-500 w-[230px] py-1.5 pr-4 pl-12 text-xs italic">
+                + Add project
+              </div>
+            </div>
+            <div className="relative flex flex-1" style={{ minHeight: '28px' }}>
+              {/* Week groups with Add Plan button */}
+              {weekGroups.map((weekGroup) => (
+                <div
+                  key={weekGroup.weekStart.toISOString()}
+                  className="group relative flex flex-1"
+                  onMouseEnter={() => setHoveredWeekStart(weekGroup.weekStart)}
+                  onMouseLeave={() => setHoveredWeekStart(null)}
+                >
+                  {/* Day cells within this week */}
+                  {weekGroup.days.map((day) => {
+                    const dayIsToday = isToday(day);
+                    const dayIsWeekend = isWeekend(day);
+                    return (
+                      <div
+                        key={day.toISOString()}
+                        className={cn(
+                          'border-dark-700 h-7 flex-1 border-l',
+                          dayIsWeekend && 'bg-dark-700/60',
+                          dayIsToday && 'bg-knowall-green/5'
+                        )}
+                      />
+                    );
+                  })}
+
+                  {/* Add Plan button - appears on hover */}
+                  {hoveredWeekStart && isSameDay(hoveredWeekStart, weekGroup.weekStart) && (
+                    <button
+                      onClick={() => onAddPlan(weekGroup.weekStart)}
+                      className="absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed border-dark-600 text-[10px] text-dark-500 opacity-0 transition-all group-hover:opacity-100 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green"
+                    >
+                      <PlusIcon className="h-3 w-3" />
+                      Add
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="w-16 shrink-0" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -264,7 +442,9 @@ interface ProjectRowProps {
   onDragStart: (allocation: AllocationBlock) => void;
   onDragEnd: () => void;
   isDragging: boolean;
-  dayWidth: number;
+  onAddPlan: (weekStart: Date) => void;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
 }
 
 function ProjectRow({
@@ -275,8 +455,12 @@ function ProjectRow({
   onDragStart,
   onDragEnd,
   isDragging,
-  dayWidth,
+  onAddPlan,
+  isExpanded,
+  onToggleExpand,
 }: ProjectRowProps) {
+  const [hoveredWeekStart, setHoveredWeekStart] = useState<Date | null>(null);
+
   // Group allocations by resource
   const allocationsByResource = useMemo(() => {
     const map = new Map<string, AllocationBlock[]>();
@@ -290,182 +474,246 @@ function ProjectRow({
     return map;
   }, [project.allocations]);
 
-  return (
-    <div className="border-dark-700 border-b">
-      {/* Project Header */}
-      <div className="bg-dark-800/30 border-dark-700 flex items-center border-b px-4 py-2">
-        <div className="mr-3 h-3 w-3 rounded-full" style={{ backgroundColor: project.color }} />
-        <span className="text-dark-100 font-medium">{project.name}</span>
-        <span className="text-dark-400 ml-2 text-sm">({project.number})</span>
-        <span className="text-dark-300 ml-auto text-sm">{project.totalHours.toFixed(1)}h</span>
-      </div>
+  // Group days into weeks for hover effect
+  const weekGroups = useMemo(() => {
+    const groups: { weekStart: Date; days: Date[] }[] = [];
+    let currentWeek: Date[] = [];
+    let currentWeekStart: Date | null = null;
 
-      {/* Resources under this project */}
-      {Array.from(allocationsByResource.entries()).map(([resourceNumber, allocations]) => (
-        <div key={resourceNumber} className="hover:bg-dark-800/30 flex items-center">
-          <div className="text-dark-300 w-[190px] shrink-0 py-2 pr-4 pl-10 text-sm">
-            {allocations[0].resourceName}
-          </div>
-          <div className="relative flex flex-1" style={{ minHeight: '40px' }}>
-            {days.map((day) => {
-              const dayIsToday = isToday(day);
-              return (
-                <div
-                  key={day.toISOString()}
-                  className={cn(
-                    'border-dark-700 h-10 border-l',
-                    dayIsToday && 'bg-knowall-green/5'
-                  )}
-                  style={{ width: `${dayWidth}px` }}
-                />
-              );
-            })}
-            {allocations.map((allocation) => (
-              <AllocationBlockComponent
-                key={allocation.id}
-                allocation={allocation}
-                days={days}
-                isSelected={selectedAllocationId === allocation.id}
-                onSelect={() => onSelectAllocation(allocation.id)}
-                onDragStart={() => onDragStart(allocation)}
-                onDragEnd={onDragEnd}
-                dayWidth={dayWidth}
-              />
-            ))}
-          </div>
-          <div className="text-dark-300 w-16 shrink-0 px-2 text-right text-sm">
-            {allocations.reduce((sum, a) => sum + a.totalHours, 0).toFixed(1)}h
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+    days.forEach((day) => {
+      const weekStart = startOfWeek(day, { weekStartsOn: 1 });
+      if (!currentWeekStart || weekStart.getTime() !== currentWeekStart.getTime()) {
+        if (currentWeek.length > 0 && currentWeekStart) {
+          groups.push({ weekStart: currentWeekStart, days: currentWeek });
+        }
+        currentWeek = [day];
+        currentWeekStart = weekStart;
+      } else {
+        currentWeek.push(day);
+      }
+    });
 
-// Assign to Project Modal
-interface AssignModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  resourceName: string;
-  resourceNumber: string;
-  onAssign: (projectNumber: string, taskNumber: string, hours: number) => void;
-}
-
-function AssignModal({
-  isOpen,
-  onClose,
-  resourceName,
-  resourceNumber,
-  onAssign,
-}: AssignModalProps) {
-  const { projects, fetchProjects } = useProjectsStore();
-  const [selectedProject, setSelectedProject] = useState('');
-  const [selectedTask, setSelectedTask] = useState('');
-  const [hours, setHours] = useState('8');
-
-  useEffect(() => {
-    if (isOpen && projects.length === 0) {
-      fetchProjects();
-    }
-  }, [isOpen, projects.length, fetchProjects]);
-
-  if (!isOpen) return null;
-
-  const projectOptions = projects.map((p) => ({
-    value: p.code,
-    label: `${p.code} - ${p.name}`,
-  }));
-
-  const selectedProjectData = projects.find((p) => p.code === selectedProject);
-  const taskOptions =
-    selectedProjectData?.tasks?.map((t) => ({
-      value: t.code,
-      label: `${t.code} - ${t.name}`,
-    })) || [];
-
-  const handleSubmit = () => {
-    if (!selectedProject || !selectedTask || !hours) return;
-
-    const parsedHours = parseFloat(hours);
-    if (isNaN(parsedHours) || parsedHours < 0.5 || parsedHours > 24) {
-      return;
+    if (currentWeek.length > 0 && currentWeekStart) {
+      groups.push({ weekStart: currentWeekStart, days: currentWeek });
     }
 
-    onAssign(selectedProject, selectedTask, parsedHours);
-    onClose();
-  };
+    return groups;
+  }, [days]);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="assign-modal-title"
-    >
-      <div className="bg-dark-800 border-dark-700 w-full max-w-md rounded-xl border p-6 shadow-xl">
-        <h3 id="assign-modal-title" className="mb-4 text-lg font-semibold text-white">
-          Assign {resourceName} to Task
-        </h3>
-
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="assign-project" className="text-dark-300 mb-1 block text-sm">
-              Project
-            </label>
-            <Select
-              id="assign-project"
-              value={selectedProject}
-              onChange={(e) => setSelectedProject(e.target.value)}
-              options={projectOptions}
-              placeholder="Select a project..."
-            />
-          </div>
-
-          {selectedProject && (
-            <div>
-              <label htmlFor="assign-task" className="text-dark-300 mb-1 block text-sm">
-                Task
-              </label>
-              <Select
-                id="assign-task"
-                value={selectedTask}
-                onChange={(e) => setSelectedTask(e.target.value)}
-                options={taskOptions}
-                placeholder="Select a task..."
-              />
-            </div>
+    <div className="border-dark-700 w-full border-b">
+      {/* Project Header Row - clickable to expand */}
+      <div
+        className={cn(
+          'hover:bg-dark-700/60 flex w-full items-center transition-colors',
+          isExpanded && 'bg-dark-800/30'
+        )}
+      >
+        {/* Sticky name column */}
+        <div
+          className={cn(
+            'bg-dark-900 sticky left-0 z-10 flex shrink-0 items-center',
+            isExpanded && 'bg-dark-800/30'
           )}
-
-          <div>
-            <label htmlFor="assign-hours" className="text-dark-300 mb-1 block text-sm">
-              Hours per day
-            </label>
-            <input
-              id="assign-hours"
-              type="number"
-              value={hours}
-              onChange={(e) => setHours(e.target.value)}
-              min="0.5"
-              max="24"
-              step="0.5"
-              className="border-dark-600 bg-dark-700 text-dark-100 w-full rounded-lg border px-3 py-2"
+        >
+          <div
+            className="flex w-[230px] cursor-pointer items-center gap-2 overflow-hidden py-2 px-3"
+            onClick={onToggleExpand}
+            title={project.name}
+          >
+            {/* Expand/Collapse chevron */}
+            <button
+              className="text-dark-400 hover:text-dark-200 flex-shrink-0"
+              aria-label={isExpanded ? 'Collapse' : 'Expand'}
+            >
+              {isExpanded ? (
+                <ChevronDownIcon className="h-4 w-4" />
+              ) : (
+                <ChevronRightIcon className="h-4 w-4" />
+              )}
+            </button>
+            <div
+              className="h-3 w-3 shrink-0 rounded-full"
+              style={{ backgroundColor: project.color }}
             />
+            <div className="min-w-0 flex-1 overflow-hidden">
+              {project.customerName && (
+                <p className="text-dark-500 truncate text-[10px]">{project.customerName}</p>
+              )}
+              <p className="text-dark-100 truncate text-sm font-medium leading-tight">{project.name}</p>
+            </div>
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleSubmit}
-            disabled={!selectedProject || !selectedTask || !hours}
-          >
-            Assign
-          </Button>
+        {/* Calendar Grid with daily totals */}
+        <div className="relative flex flex-1" style={{ minHeight: '40px' }}>
+          {weekGroups.map((weekGroup) => (
+            <div
+              key={weekGroup.weekStart.toISOString()}
+              className="group relative flex flex-1"
+              onMouseEnter={() => setHoveredWeekStart(weekGroup.weekStart)}
+              onMouseLeave={() => setHoveredWeekStart(null)}
+            >
+              {weekGroup.days.map((day) => {
+                const dayIsToday = isToday(day);
+                const dayIsWeekend = isWeekend(day);
+                const dayStr = format(day, 'yyyy-MM-dd');
+                // Calculate total hours for this project on this day
+                const dayHours = project.allocations
+                  .filter((a) => a.startDate === dayStr)
+                  .reduce((sum, a) => sum + a.hoursPerDay, 0);
+                return (
+                  <div
+                    key={day.toISOString()}
+                    className={cn(
+                      'border-dark-700 relative h-10 flex-1 border-l',
+                      dayIsWeekend && 'bg-dark-700/60',
+                      dayIsToday && 'bg-knowall-green/5'
+                    )}
+                  >
+                    {/* Daily hours indicator - full width cell */}
+                    {dayHours > 0 && (
+                      <div
+                        className="absolute inset-0.5 flex items-center justify-center rounded text-xs font-semibold text-white"
+                        style={{ backgroundColor: project.color }}
+                      >
+                        {dayHours % 1 === 0 ? dayHours : dayHours.toFixed(1)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Add Plan button - appears on hover when no allocations for this week */}
+              {hoveredWeekStart &&
+                isSameDay(hoveredWeekStart, weekGroup.weekStart) &&
+                project.allocations.filter((a) => {
+                  const allocDate = new Date(a.startDate);
+                  return weekGroup.days.some((d) => isSameDay(d, allocDate));
+                }).length === 0 && (
+                  <button
+                    onClick={() => onAddPlan(weekGroup.weekStart)}
+                    className="absolute inset-1 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed border-dark-600 text-xs text-dark-500 opacity-0 transition-all group-hover:opacity-100 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green"
+                  >
+                    <PlusIcon className="h-3 w-3" />
+                    Add
+                  </button>
+                )}
+            </div>
+          ))}
+        </div>
+
+        {/* Total Hours */}
+        <div className="text-dark-300 w-16 shrink-0 px-2 text-right text-sm">
+          {project.totalHours > 0 && `${project.totalHours.toFixed(1)}h`}
         </div>
       </div>
+
+      {/* Expanded Content: Resources list */}
+      {isExpanded && (
+        <div className="bg-dark-850 border-dark-700 border-t">
+          {/* Resources under this project */}
+          {Array.from(allocationsByResource.entries()).map(([resourceNumber, allocations]) => (
+            <div key={resourceNumber} className="hover:bg-dark-700/60 flex w-full items-center">
+              {/* Sticky name column */}
+              <div className="bg-dark-850 sticky left-0 z-10 flex shrink-0">
+                <div
+                  className="flex w-[230px] items-center gap-2 overflow-hidden py-1.5 pr-4 pl-12"
+                  title={allocations[0].resourceName}
+                >
+                  <span className="text-dark-300 truncate text-xs">
+                    {allocations[0].resourceName}
+                  </span>
+                </div>
+              </div>
+              {/* Day cells - showing hours for this resource */}
+              <div className="flex flex-1" style={{ minHeight: '28px' }}>
+                {days.map((day) => {
+                  const dayIsToday = isToday(day);
+                  const dayIsWeekend = isWeekend(day);
+                  const dayStr = format(day, 'yyyy-MM-dd');
+                  // Get hours for this resource on this day
+                  const dayHours = allocations
+                    .filter((a) => a.startDate === dayStr)
+                    .reduce((sum, a) => sum + a.hoursPerDay, 0);
+                  return (
+                    <div
+                      key={day.toISOString()}
+                      className={cn(
+                        'border-dark-700 relative h-7 flex-1 border-l',
+                        dayIsWeekend && 'bg-dark-700/60',
+                        dayIsToday && 'bg-knowall-green/5'
+                      )}
+                    >
+                      {/* Show hours pill if this resource has hours on this day */}
+                      {dayHours > 0 && (
+                        <div
+                          className="absolute inset-0.5 flex items-center justify-center rounded text-[10px] font-semibold text-white"
+                          style={{ backgroundColor: project.color }}
+                        >
+                          {dayHours % 1 === 0 ? dayHours : dayHours.toFixed(1)}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Total hours */}
+              <div className="text-dark-400 w-16 shrink-0 px-2 text-right text-xs">
+                {allocations.reduce((sum, a) => sum + a.totalHours, 0).toFixed(1)}h
+              </div>
+            </div>
+          ))}
+
+          {/* Add Resource row */}
+          <div className="hover:bg-dark-700/60 flex w-full items-center">
+            <div className="bg-dark-850 sticky left-0 z-10 flex shrink-0">
+              <div className="text-dark-500 w-[230px] py-1.5 pr-4 pl-12 text-xs italic">
+                + Add resource
+              </div>
+            </div>
+            <div className="relative flex flex-1" style={{ minHeight: '28px' }}>
+              {/* Week groups with Add Plan button */}
+              {weekGroups.map((weekGroup) => (
+                <div
+                  key={weekGroup.weekStart.toISOString()}
+                  className="group relative flex flex-1"
+                  onMouseEnter={() => setHoveredWeekStart(weekGroup.weekStart)}
+                  onMouseLeave={() => setHoveredWeekStart(null)}
+                >
+                  {/* Day cells within this week */}
+                  {weekGroup.days.map((day) => {
+                    const dayIsToday = isToday(day);
+                    const dayIsWeekend = isWeekend(day);
+                    return (
+                      <div
+                        key={day.toISOString()}
+                        className={cn(
+                          'border-dark-700 h-7 flex-1 border-l',
+                          dayIsWeekend && 'bg-dark-700/60',
+                          dayIsToday && 'bg-knowall-green/5'
+                        )}
+                      />
+                    );
+                  })}
+
+                  {/* Add Plan button - appears on hover */}
+                  {hoveredWeekStart && isSameDay(hoveredWeekStart, weekGroup.weekStart) && (
+                    <button
+                      onClick={() => onAddPlan(weekGroup.weekStart)}
+                      className="absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed border-dark-600 text-[10px] text-dark-500 opacity-0 transition-all group-hover:opacity-100 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green"
+                    >
+                      <PlusIcon className="h-3 w-3" />
+                      Add
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="w-16 shrink-0" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -481,18 +729,12 @@ export function PlanPanel() {
     projects,
     viewMode,
     isLoading,
-    isCreatingTimesheets,
     error,
-    selectedMemberIds,
     selectedAllocationId,
     isDragging,
     fetchTeamData,
     setCurrentWeekStart,
     setViewMode,
-    toggleMemberSelection,
-    selectAllWithoutTimesheet,
-    clearSelection,
-    createTimesheetsForSelected,
     updateMemberPhoto,
     selectAllocation,
     startDrag,
@@ -507,22 +749,22 @@ export function PlanPanel() {
   const [searchQuery, setSearchQuery] = useState('');
   const [extensionNotInstalled, setExtensionNotInstalled] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [assignModalOpen, setAssignModalOpen] = useState(false);
-  const [assigningResource, setAssigningResource] = useState<{
-    name: string;
-    number: string;
-  } | null>(null);
-  const [zoomLevel, setZoomLevel] = useState(3); // 1-5, where 3 is default
+  const [expandedMemberIds, setExpandedMemberIds] = useState<Set<string>>(new Set());
+  const [expandedProjectIds, setExpandedProjectIds] = useState<Set<string>>(new Set());
+
+  // Modal state for adding plans (Team view)
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+  const [selectedMemberForPlan, setSelectedMemberForPlan] = useState<PlanTeamMember | null>(null);
+  const [selectedDateForPlan, setSelectedDateForPlan] = useState<Date>(new Date());
+
+  // Modal state for adding plans (Projects view)
+  const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
+  const [selectedProjectForPlan, setSelectedProjectForPlan] = useState<PlanProject | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Zoom constants
-  const MIN_ZOOM = 1;
-  const MAX_ZOOM = 5;
-  const ZOOM_DAY_WIDTHS = [20, 35, 50, 70, 100]; // Day width for each zoom level
-
-  // Calculate weeks to show based on fullscreen mode
-  const effectiveWeeksToShow = isFullscreen ? 4 : 1;
+  // Show 3 weeks in regular view, 6 weeks in fullscreen
+  const effectiveWeeksToShow = isFullscreen ? 6 : 3;
 
   // Calculate all days to display
   const allDays = useMemo(() => {
@@ -532,17 +774,33 @@ export function PlanPanel() {
     return eachDayOfInterval({ start: currentWeekStart, end: endDate });
   }, [currentWeekStart, effectiveWeeksToShow]);
 
-  // Calculate day width based on zoom level
-  const dayWidth = ZOOM_DAY_WIDTHS[zoomLevel - 1];
+  // Group days by week for header
+  const headerWeekGroups = useMemo(() => {
+    const groups: { weekStart: Date; weekNumber: number; month: string; days: Date[] }[] = [];
+    let currentGroup: { weekStart: Date; weekNumber: number; month: string; days: Date[] } | null = null;
 
-  // Zoom handlers
-  const handleZoomIn = () => {
-    setZoomLevel((prev) => Math.min(prev + 1, MAX_ZOOM));
-  };
-
-  const handleZoomOut = () => {
-    setZoomLevel((prev) => Math.max(prev - 1, MIN_ZOOM));
-  };
+    for (const day of allDays) {
+      const dayOfWeek = day.getDay();
+      // Monday = 1 starts a new week
+      if (dayOfWeek === 1 || !currentGroup) {
+        if (currentGroup) {
+          groups.push(currentGroup);
+        }
+        currentGroup = {
+          weekStart: day,
+          weekNumber: getWeek(day, { weekStartsOn: 1 }),
+          month: format(day, 'MMM'),
+          days: [day],
+        };
+      } else {
+        currentGroup.days.push(day);
+      }
+    }
+    if (currentGroup) {
+      groups.push(currentGroup);
+    }
+    return groups;
+  }, [allDays]);
 
   // Navigation handlers
   const handlePrevious = () => {
@@ -563,12 +821,6 @@ export function PlanPanel() {
     setCurrentWeekStart(today);
   };
 
-  const handleDateSelect = (date: Date) => {
-    const weekStart = startOfWeek(date, { weekStartsOn: 1 });
-    setLocalWeekStart(weekStart);
-    setCurrentWeekStart(weekStart);
-  };
-
   // Fetch data when company, week, or weeks to show changes
   useEffect(() => {
     async function loadData() {
@@ -584,7 +836,13 @@ export function PlanPanel() {
     loadData();
   }, [selectedCompany, currentWeekStart, effectiveWeeksToShow, emailDomain, fetchTeamData]);
 
-  // Fetch profile photos
+  // Create a stable key for tracking when team members change
+  const teamMemberIds = useMemo(
+    () => teamMembers.map((m) => m.id).join(','),
+    [teamMembers]
+  );
+
+  // Fetch profile photos when team members change
   useEffect(() => {
     if (teamMembers.length === 0) return;
 
@@ -604,7 +862,7 @@ export function PlanPanel() {
     };
 
     void fetchPhotos();
-  }, [teamMembers.length, updateMemberPhoto]);
+  }, [teamMemberIds, teamMembers, updateMemberPhoto]);
 
   // Handle ESC key
   useEffect(() => {
@@ -642,54 +900,49 @@ export function PlanPanel() {
     );
   }, [projects, searchQuery]);
 
-  // Count members without timesheets
-  const membersWithoutTimesheet = useMemo(
-    () => teamMembers.filter((m) => m.timesheetStatus === 'No Timesheet').length,
-    [teamMembers]
-  );
+  // Toggle expanded row (Team view)
+  const toggleMemberExpanded = (memberId: string) => {
+    setExpandedMemberIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(memberId)) {
+        next.delete(memberId);
+      } else {
+        next.add(memberId);
+      }
+      return next;
+    });
+  };
 
-  // Handle create timesheets
-  const handleCreateTimesheets = async () => {
-    const result = await createTimesheetsForSelected();
+  // Toggle expanded row (Projects view)
+  const toggleProjectExpanded = (projectId: string) => {
+    setExpandedProjectIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(projectId)) {
+        next.delete(projectId);
+      } else {
+        next.add(projectId);
+      }
+      return next;
+    });
+  };
 
-    if (result.success > 0 && result.failed === 0) {
-      toast.success(`Created ${result.success} timesheet${result.success > 1 ? 's' : ''}`);
-    } else if (result.success > 0 && result.failed > 0) {
-      toast.success(`Created ${result.success} timesheet${result.success > 1 ? 's' : ''}`);
-      toast.error(`Failed to create ${result.failed} timesheet${result.failed > 1 ? 's' : ''}`);
-    } else if (result.failed > 0) {
-      toast.error(`Failed to create timesheets: ${result.errors.join(', ')}`);
-    }
+  // Open plan entry modal (Team view - select project for a resource)
+  const handleOpenPlanModal = (member: PlanTeamMember, weekStart: Date) => {
+    setSelectedMemberForPlan(member);
+    setSelectedDateForPlan(weekStart);
+    setIsPlanModalOpen(true);
+  };
 
+  // Open plan entry modal (Projects view - select resource for a project)
+  const handleOpenProjectPlanModal = (project: PlanProject, weekStart: Date) => {
+    setSelectedProjectForPlan(project);
+    setSelectedDateForPlan(weekStart);
+    setIsResourceModalOpen(true);
+  };
+
+  // Handle plan modal save
+  const handlePlanSaved = async () => {
     await fetchTeamData(currentWeekStart, effectiveWeeksToShow, emailDomain);
-  };
-
-  // Handle assign
-  const handleOpenAssignModal = (member: PlanTeamMember) => {
-    setAssigningResource({ name: member.name, number: member.number });
-    setAssignModalOpen(true);
-  };
-
-  const handleAssign = async (projectNumber: string, taskNumber: string, hours: number) => {
-    if (!assigningResource) return;
-
-    const success = await createAllocation(
-      assigningResource.number,
-      projectNumber,
-      format(currentWeekStart, 'yyyy-MM-dd'),
-      format(endOfWeek(currentWeekStart, { weekStartsOn: 1 }), 'yyyy-MM-dd'),
-      hours
-    );
-
-    if (success) {
-      toast.success('Assignment created');
-      await fetchTeamData(currentWeekStart, effectiveWeeksToShow, emailDomain);
-    } else {
-      toast.error('Failed to create assignment. BC extension update required.');
-    }
-
-    setAssignModalOpen(false);
-    setAssigningResource(null);
   };
 
   // Handle drop
@@ -708,13 +961,17 @@ export function PlanPanel() {
   if (extensionNotInstalled) {
     return (
       <div className="space-y-6">
-        <WeekNavigation
-          currentWeekStart={currentWeekStart}
-          onPrevious={handlePrevious}
-          onNext={handleNext}
-          onToday={handleToday}
-          onDateSelect={handleDateSelect}
-        />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={handlePrevious}>
+            <ChevronLeftIcon className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleToday}>
+            Today
+          </Button>
+          <Button variant="outline" size="icon" onClick={handleNext}>
+            <ChevronRightIcon className="h-4 w-4" />
+          </Button>
+        </div>
         <ExtensionNotInstalled />
       </div>
     );
@@ -770,18 +1027,18 @@ export function PlanPanel() {
             </button>
           </div>
 
-          {/* Week Navigation */}
-          <WeekNavigation
-            currentWeekStart={currentWeekStart}
-            onPrevious={handlePrevious}
-            onNext={handleNext}
-            onToday={handleToday}
-            onDateSelect={handleDateSelect}
-          />
-
-          {isFullscreen && (
-            <span className="text-dark-400 text-sm">{effectiveWeeksToShow} weeks</span>
-          )}
+          {/* Simple Week Navigation - just prev/next buttons */}
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={handlePrevious} title="Previous week">
+              <ChevronLeftIcon className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleToday}>
+              Today
+            </Button>
+            <Button variant="outline" size="icon" onClick={handleNext} title="Next week">
+              <ChevronRightIcon className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -795,31 +1052,6 @@ export function PlanPanel() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="border-dark-600 bg-dark-800 text-dark-100 placeholder:text-dark-500 focus:border-knowall-green w-48 rounded-lg border py-1.5 pr-3 pl-9 text-sm focus:ring-1 focus:outline-none"
             />
-          </div>
-
-          {/* Zoom Controls */}
-          <div className="border-dark-600 flex items-center gap-1 rounded-lg border px-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleZoomOut}
-              disabled={zoomLevel <= MIN_ZOOM}
-              title="Zoom out"
-              className="h-7 w-7"
-            >
-              <MinusIcon className="h-4 w-4" />
-            </Button>
-            <span className="text-dark-400 w-8 text-center text-xs">{zoomLevel}x</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleZoomIn}
-              disabled={zoomLevel >= MAX_ZOOM}
-              title="Zoom in"
-              className="h-7 w-7"
-            >
-              <PlusIcon className="h-4 w-4" />
-            </Button>
           </div>
 
           {/* Fullscreen Toggle */}
@@ -838,75 +1070,83 @@ export function PlanPanel() {
         </div>
       </div>
 
-      {/* Action Bar (Team view only) */}
-      {viewMode === 'team' && (
-        <div className="flex flex-wrap items-center gap-2">
-          {membersWithoutTimesheet > 0 && (
-            <Button variant="outline" size="sm" onClick={selectAllWithoutTimesheet}>
-              <DocumentPlusIcon className="mr-2 h-4 w-4" />
-              Select Without Timesheet ({membersWithoutTimesheet})
-            </Button>
-          )}
-
-          {selectedMemberIds.length > 0 && (
-            <>
-              <span className="text-dark-400 text-sm">{selectedMemberIds.length} selected</span>
-              <Button variant="ghost" size="sm" onClick={clearSelection}>
-                Clear
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleCreateTimesheets}
-                isLoading={isCreatingTimesheets}
-              >
-                <PlusIcon className="mr-2 h-4 w-4" />
-                Create Timesheets
-              </Button>
-            </>
-          )}
-        </div>
-      )}
 
       {/* Calendar Grid */}
       <Card
         variant="bordered"
         className={cn('overflow-hidden', isFullscreen && 'flex flex-1 flex-col')}
       >
-        {/* Header with dates */}
-        <div className="border-dark-700 bg-dark-800/50 flex border-b">
-          <div className="w-[190px] shrink-0" />
-          <div className="flex flex-1 overflow-x-auto">
-            {allDays.map((day, index) => {
-              const dayIsToday = isToday(day);
-              const isWeekStart = day.getDay() === 1;
-              return (
+        {/* Header with week numbers and dates */}
+        <div className="border-dark-700 bg-dark-800/50 flex w-full flex-col border-b">
+          {/* Week numbers row */}
+          <div className="flex w-full">
+            {/* Sticky name column header spacer */}
+            <div className="bg-dark-800/50 sticky left-0 z-10 flex shrink-0">
+              <div className="w-[230px] shrink-0" />
+            </div>
+            <div className="flex flex-1">
+              {headerWeekGroups.map((weekGroup, index) => (
                 <div
-                  key={day.toISOString()}
+                  key={weekGroup.weekStart.toISOString()}
                   className={cn(
-                    'border-dark-700 flex flex-col items-center justify-center border-l py-1',
-                    dayIsToday && 'bg-knowall-green/10',
-                    isWeekStart && index > 0 && 'border-l-2'
+                    'border-dark-700 relative flex flex-1 items-center justify-center border-l py-1',
+                    index > 0 && 'border-l-2'
                   )}
-                  style={{ width: `${dayWidth}px`, minWidth: `${dayWidth}px` }}
                 >
-                  <span className="text-dark-400 text-[10px]">{format(day, 'EEE')}</span>
-                  <span
+                  {/* Month at top left */}
+                  <span className="text-dark-500 absolute left-1 text-[10px]">
+                    {weekGroup.month}
+                  </span>
+                  {/* Week number centered */}
+                  <span className="text-dark-300 text-xs font-medium">
+                    {weekGroup.weekNumber}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="text-dark-500 flex w-16 shrink-0 items-center justify-end px-2 text-[10px]">
+              Total
+            </div>
+          </div>
+
+          {/* Day names and numbers row */}
+          <div className="flex w-full">
+            {/* Sticky name column header spacer */}
+            <div className="bg-dark-800/50 sticky left-0 z-10 flex shrink-0">
+              <div className="w-[230px] shrink-0" />
+            </div>
+            <div className="flex flex-1">
+              {allDays.map((day, index) => {
+                const dayIsToday = isToday(day);
+                const dayIsWeekend = isWeekend(day);
+                const isWeekStart = day.getDay() === 1;
+                return (
+                  <div
+                    key={day.toISOString()}
                     className={cn(
-                      'text-xs font-medium',
-                      dayIsToday ? 'text-knowall-green' : 'text-dark-200'
+                      'border-dark-700 flex flex-1 flex-col items-center justify-center border-l py-1',
+                      dayIsWeekend && 'bg-dark-700/60',
+                      dayIsToday && 'bg-knowall-green/10',
+                      isWeekStart && index > 0 && 'border-l-2'
                     )}
                   >
-                    {format(day, 'd')}
-                  </span>
-                  {isWeekStart && (
-                    <span className="text-dark-500 text-[10px]">{format(day, 'MMM')}</span>
-                  )}
-                </div>
-              );
-            })}
+                    <span className={cn('text-[10px]', dayIsWeekend ? 'text-dark-500' : 'text-dark-400')}>
+                      {format(day, 'EEE')}
+                    </span>
+                    <span
+                      className={cn(
+                        'text-xs font-medium',
+                        dayIsToday ? 'text-knowall-green' : dayIsWeekend ? 'text-dark-400' : 'text-dark-200'
+                      )}
+                    >
+                      {format(day, 'd')}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="w-16 shrink-0" />
           </div>
-          <div className="w-16 shrink-0" />
         </div>
 
         {/* Loading State */}
@@ -918,7 +1158,7 @@ export function PlanPanel() {
 
         {/* Content */}
         {!isLoading && (
-          <div className={cn('overflow-auto', isFullscreen ? 'flex-1' : 'max-h-[500px]')}>
+          <div className={cn('w-full', isFullscreen && 'flex-1 overflow-y-auto')}>
             {viewMode === 'team' ? (
               // Team View
               filteredMembers.length > 0 ? (
@@ -927,17 +1167,15 @@ export function PlanPanel() {
                     key={member.id}
                     member={member}
                     days={allDays}
-                    isSelected={selectedMemberIds.includes(member.id)}
-                    onToggleSelect={() => toggleMemberSelection(member.id)}
                     selectedAllocationId={selectedAllocationId}
                     onSelectAllocation={selectAllocation}
                     onDragStart={startDrag}
                     onDragEnd={endDrag}
                     onDrop={handleDrop}
                     isDragging={isDragging}
-                    dayWidth={dayWidth}
-                    showAssignButton={true}
-                    onAssign={() => handleOpenAssignModal(member)}
+                    isExpanded={expandedMemberIds.has(member.id)}
+                    onToggleExpand={() => toggleMemberExpanded(member.id)}
+                    onAddPlan={(weekStart) => handleOpenPlanModal(member, weekStart)}
                   />
                 ))
               ) : (
@@ -957,7 +1195,9 @@ export function PlanPanel() {
                   onDragStart={startDrag}
                   onDragEnd={endDrag}
                   isDragging={isDragging}
-                  dayWidth={dayWidth}
+                  onAddPlan={(weekStart) => handleOpenProjectPlanModal(project, weekStart)}
+                  isExpanded={expandedProjectIds.has(project.id)}
+                  onToggleExpand={() => toggleProjectExpanded(project.id)}
                 />
               ))
             ) : (
@@ -973,21 +1213,30 @@ export function PlanPanel() {
       <div className="flex flex-wrap items-center gap-4 text-xs">
         <span className="text-dark-400">Tip:</span>
         <span className="text-dark-300">Click blocks to select</span>
-        <span className="text-dark-300">Drag blocks to move</span>
-        <span className="text-dark-300">+ button to assign to task</span>
+        <span className="text-dark-300">Hover over week to add plan</span>
       </div>
 
-      {/* Assign Modal */}
-      {assigningResource && (
-        <AssignModal
-          isOpen={assignModalOpen}
-          onClose={() => {
-            setAssignModalOpen(false);
-            setAssigningResource(null);
-          }}
-          resourceName={assigningResource.name}
-          resourceNumber={assigningResource.number}
-          onAssign={handleAssign}
+      {/* Plan Entry Modal (Team view - select project for resource) */}
+      {selectedMemberForPlan && (
+        <PlanEntryModal
+          isOpen={isPlanModalOpen}
+          onClose={() => setIsPlanModalOpen(false)}
+          resourceNumber={selectedMemberForPlan.number}
+          resourceName={selectedMemberForPlan.name}
+          selectedDate={selectedDateForPlan}
+          onSave={handlePlanSaved}
+        />
+      )}
+
+      {/* Plan Resource Modal (Projects view - select resource for project) */}
+      {selectedProjectForPlan && (
+        <PlanResourceModal
+          isOpen={isResourceModalOpen}
+          onClose={() => setIsResourceModalOpen(false)}
+          projectNumber={selectedProjectForPlan.number}
+          projectName={selectedProjectForPlan.name}
+          selectedDate={selectedDateForPlan}
+          onSave={handlePlanSaved}
         />
       )}
     </div>
