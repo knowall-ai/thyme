@@ -23,7 +23,7 @@ import type { BCTimeSheet, BCTimeSheetLine, BCJob, BCJobTask } from '@/types';
 type GroupBy = 'none' | 'week' | 'person';
 
 export function ApprovalList() {
-  const { selectedCompany } = useCompanyStore();
+  const { selectedCompany, companyVersion } = useCompanyStore();
   const { account } = useAuth();
   const emailDomain = account?.username?.split('@')[1] || '';
   const {
@@ -116,17 +116,18 @@ export function ApprovalList() {
   // Fetch permissions and approvals on mount and when company changes
   // Note: Zustand actions are stable references, but ESLint doesn't know that.
   // We intentionally omit them from deps to avoid infinite re-renders.
+  // companyVersion ensures refetch when company switches.
   useEffect(() => {
     checkApprovalPermission();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCompany]);
+  }, [companyVersion]);
 
   useEffect(() => {
     if (permissionChecked && isApprover) {
       fetchPendingApprovals();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [permissionChecked, isApprover, selectedCompany]);
+  }, [permissionChecked, isApprover, companyVersion]);
 
   // Update lines cache when selectedLines changes
   useEffect(() => {

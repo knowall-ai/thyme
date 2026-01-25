@@ -1267,7 +1267,7 @@ function ProjectRow({
 }
 
 export function PlanPanel() {
-  const { selectedCompany } = useCompanyStore();
+  const { selectedCompany, companyVersion } = useCompanyStore();
   const { account } = useAuth();
   const userEmail = account?.username || '';
   const emailDomain = userEmail ? userEmail.split('@')[1] : undefined;
@@ -1384,7 +1384,7 @@ export function PlanPanel() {
   // Clear cache when company changes to force fresh data fetch
   useEffect(() => {
     clearCache();
-  }, [selectedCompany, clearCache]);
+  }, [companyVersion, clearCache]);
 
   // Fetch data when company, week, or weeks to show changes
   useEffect(() => {
@@ -1399,7 +1399,8 @@ export function PlanPanel() {
       }
     }
     loadData();
-  }, [selectedCompany, currentWeekStart, effectiveWeeksToShow, emailDomain, fetchTeamData]);
+    // companyVersion ensures refetch when company switches
+  }, [companyVersion, currentWeekStart, effectiveWeeksToShow, emailDomain, fetchTeamData]);
 
   // Create a stable key for tracking when team members change
   const teamMemberIds = useMemo(() => teamMembers.map((m) => m.id).join(','), [teamMembers]);

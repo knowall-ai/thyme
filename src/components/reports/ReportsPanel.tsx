@@ -66,7 +66,7 @@ export function ReportsPanel() {
   const { account } = useAuth();
   const currentUserEmail = account?.username || '';
   const { projects, fetchProjects } = useProjectsStore();
-  const { selectedCompany } = useCompanyStore();
+  const { selectedCompany, companyVersion } = useCompanyStore();
 
   // Calculate date range boundaries
   const { startDate, endDate } = useMemo(() => {
@@ -120,7 +120,8 @@ export function ReportsPanel() {
       }
     };
     fetchResources();
-  }, [selectedCompany]);
+    // companyVersion changes when company switches, ensuring refetch
+  }, [companyVersion]);
 
   // Set default to 'everyone' once resources are loaded
   useEffect(() => {
@@ -179,7 +180,8 @@ export function ReportsPanel() {
     };
 
     fetchAllEntries();
-  }, [selectedMember, resources, startDate, endDate]);
+    // companyVersion ensures refetch when company switches
+  }, [selectedMember, resources, startDate, endDate, companyVersion]);
 
   // Fetch projects on mount
   useEffect(() => {

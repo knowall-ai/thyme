@@ -60,7 +60,7 @@ function getBCResourceUrl(
 }
 
 export function TeamList() {
-  const { selectedCompany } = useCompanyStore();
+  const { selectedCompany, companyVersion } = useCompanyStore();
   const { account } = useAuth();
   const userEmail = account?.username || '';
 
@@ -247,7 +247,8 @@ export function TeamList() {
       }
     }
     fetchTeamData();
-  }, [selectedCompany, currentWeekStart, userEmail]);
+    // companyVersion changes when company switches, ensuring refetch
+  }, [companyVersion, currentWeekStart, userEmail]);
 
   // Calculate totals
   const totals = useMemo(() => {

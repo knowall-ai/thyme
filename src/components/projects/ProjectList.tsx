@@ -57,6 +57,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
   } = useProjectsStore();
 
   const selectedCompany = useCompanyStore((state) => state.selectedCompany);
+  const companyVersion = useCompanyStore((state) => state.companyVersion);
 
   const [filterBy, setFilterBy] = useState<FilterOption>('all');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
@@ -73,7 +74,8 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
 
   useEffect(() => {
     fetchProjects();
-  }, [fetchProjects]);
+    // companyVersion ensures refetch when company switches
+  }, [fetchProjects, companyVersion]);
 
   const filteredProjects = getFilteredProjects();
 
