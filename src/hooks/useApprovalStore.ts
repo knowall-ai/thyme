@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { BCTimeSheet, BCTimeSheetLine, ApprovalFilters } from '@/types';
-import { bcClient } from '@/services/bc/bcClient';
+import { bcClient, ExtensionNotInstalledError } from '@/services/bc';
 import { getTimesheetDisplayStatus } from '@/utils';
 
 interface ApprovalStore {
@@ -18,6 +18,7 @@ interface ApprovalStore {
   isApprover: boolean;
   approverResourceNumber: string | null;
   permissionChecked: boolean;
+  extensionNotInstalled: boolean;
 
   // Stats
   pendingCount: number;
@@ -59,6 +60,7 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
   isApprover: false,
   approverResourceNumber: null,
   permissionChecked: false,
+  extensionNotInstalled: false,
 
   pendingCount: 0,
   pendingHours: 0,
@@ -294,12 +296,15 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
         isApprover: result.isApprover,
         approverResourceNumber: result.resourceNumber || null,
         permissionChecked: true,
+        extensionNotInstalled: false,
       });
-    } catch {
+    } catch (error) {
+      const isExtensionError = error instanceof ExtensionNotInstalledError;
       set({
         isApprover: false,
         approverResourceNumber: null,
         permissionChecked: true,
+        extensionNotInstalled: isExtensionError,
       });
     }
   },

@@ -7,6 +7,7 @@ import {
   StarIcon as StarOutlineIcon,
   FunnelIcon,
   ArrowsUpDownIcon,
+  FolderIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import { Input, Select } from '@/components/ui';
@@ -299,7 +300,8 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
       {/* Empty state */}
       {processedProjects.length === 0 && (
         <div className="py-12 text-center">
-          <p className="text-gray-500">
+          <FolderIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
+          <p className="text-dark-400">
             {searchQuery
               ? 'No projects match your search'
               : filterBy !== 'all'

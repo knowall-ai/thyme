@@ -8,6 +8,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   ArrowTopRightOnSquareIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth, getUserProfilePhoto } from '@/services/auth';
 import { bcClient } from '@/services/bc';
@@ -418,8 +419,9 @@ function TeamBreakdownTable({
 }) {
   if (data.length === 0) {
     return (
-      <div className="py-8 text-center">
-        <p className="text-gray-500">No team members have logged time on this project</p>
+      <div className="py-12 text-center">
+        <UserGroupIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
+        <p className="text-dark-400">No team members have logged time on this project</p>
       </div>
     );
   }

@@ -10,6 +10,7 @@ import {
   MagnifyingGlassIcon,
   ExclamationTriangleIcon,
   ArrowTopRightOnSquareIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { Card, WeekNavigation, ExtensionPreviewWrapper } from '@/components/ui';
 import { bcClient, ExtensionNotInstalledError } from '@/services/bc';
@@ -670,10 +671,13 @@ export function TeamList() {
                     ))}
                     {filteredAndSortedMembers.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="text-dark-400 px-4 py-8 text-center">
-                          {searchQuery
-                            ? 'No team members match your search'
-                            : 'No team members found'}
+                        <td colSpan={6} className="px-4 py-12 text-center">
+                          <UserGroupIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
+                          <p className="text-dark-400">
+                            {searchQuery
+                              ? 'No team members match your search'
+                              : 'No team members found'}
+                          </p>
                         </td>
                       </tr>
                     )}

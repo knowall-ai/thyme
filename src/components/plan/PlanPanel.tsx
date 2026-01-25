@@ -1780,7 +1780,8 @@ export function PlanPanel() {
                 ))
               ) : (
                 <div className="text-dark-400 py-12 text-center">
-                  {searchQuery ? 'No resources match your search' : 'No resources found'}
+                  <UserGroupIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
+                  <p>{searchQuery ? 'No resources match your search' : 'No resources found'}</p>
                 </div>
               )
             ) : // Projects View
@@ -1806,7 +1807,8 @@ export function PlanPanel() {
               ))
             ) : (
               <div className="text-dark-400 py-12 text-center">
-                {searchQuery ? 'No projects match your search' : 'No allocations found'}
+                <FolderIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
+                <p>{searchQuery ? 'No projects match your search' : 'No allocations found'}</p>
               </div>
             )}
           </div>
