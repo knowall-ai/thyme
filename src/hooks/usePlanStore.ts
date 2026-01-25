@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { BCResource, BCTimeSheet, BCJobPlanningLine, TimesheetDisplayStatus } from '@/types';
-import { bcClient } from '@/services/bc/bcClient';
+import { bcClient, ExtensionNotInstalledError } from '@/services/bc';
 import { getTimesheetDisplayStatus } from '@/utils';
 import { addWeeks, startOfWeek, endOfWeek, format, parseISO, isWithinInterval } from 'date-fns';
 
@@ -471,6 +471,10 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         projects: [],
         allAllocations: [],
       });
+      // Re-throw ExtensionNotInstalledError so the UI can show the proper component
+      if (error instanceof ExtensionNotInstalledError) {
+        throw error;
+      }
     }
   },
 

@@ -1381,6 +1381,11 @@ export function PlanPanel() {
     setCurrentWeekStart(today);
   };
 
+  // Clear cache when company changes to force fresh data fetch
+  useEffect(() => {
+    clearCache();
+  }, [selectedCompany, clearCache]);
+
   // Fetch data when company, week, or weeks to show changes
   useEffect(() => {
     async function loadData() {
