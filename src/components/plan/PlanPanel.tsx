@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import {
   MagnifyingGlassIcon,
@@ -20,7 +20,6 @@ import { useAuth, getUserProfilePhoto } from '@/services/auth';
 import { ExtensionNotInstalledError } from '@/services/bc';
 import { cn } from '@/utils';
 import type { AllocationBlock, PlanTeamMember, PlanProject, ViewMode } from '@/hooks/usePlanStore';
-import type { TimesheetDisplayStatus } from '@/types';
 import {
   addWeeks,
   eachDayOfInterval,
@@ -31,25 +30,6 @@ import {
   isToday,
 } from 'date-fns';
 
-// Status color mapping
-function getStatusColor(status: TimesheetDisplayStatus | 'No Timesheet'): string {
-  switch (status) {
-    case 'Open':
-      return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-    case 'Submitted':
-    case 'Partially Submitted':
-      return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
-    case 'Approved':
-      return 'bg-green-500/20 text-green-400 border-green-500/30';
-    case 'Rejected':
-      return 'bg-red-500/20 text-red-400 border-red-500/30';
-    case 'Mixed':
-      return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
-    case 'No Timesheet':
-    default:
-      return 'bg-dark-600/50 text-dark-400 border-dark-500/30';
-  }
-}
 
 // Allocation Block Component
 interface AllocationBlockProps {
@@ -59,7 +39,6 @@ interface AllocationBlockProps {
   onSelect: () => void;
   onDragStart: () => void;
   onDragEnd: () => void;
-  onSplit?: (date: string) => void;
   dayWidth: number;
 }
 
@@ -70,7 +49,6 @@ function AllocationBlockComponent({
   onSelect,
   onDragStart,
   onDragEnd,
-  onSplit,
   dayWidth,
 }: AllocationBlockProps) {
   const startDate = new Date(allocation.startDate);
@@ -407,21 +385,36 @@ function AssignModal({
     })) || [];
 
   const handleSubmit = () => {
-    if (selectedProject && selectedTask && hours) {
-      onAssign(selectedProject, selectedTask, parseFloat(hours));
-      onClose();
+    if (!selectedProject || !selectedTask || !hours) return;
+
+    const parsedHours = parseFloat(hours);
+    if (isNaN(parsedHours) || parsedHours < 0.5 || parsedHours > 24) {
+      return;
     }
+
+    onAssign(selectedProject, selectedTask, parsedHours);
+    onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="assign-modal-title"
+    >
       <div className="bg-dark-800 border-dark-700 w-full max-w-md rounded-xl border p-6 shadow-xl">
-        <h3 className="mb-4 text-lg font-semibold text-white">Assign {resourceName} to Task</h3>
+        <h3 id="assign-modal-title" className="mb-4 text-lg font-semibold text-white">
+          Assign {resourceName} to Task
+        </h3>
 
         <div className="space-y-4">
           <div>
-            <label className="text-dark-300 mb-1 block text-sm">Project</label>
+            <label htmlFor="assign-project" className="text-dark-300 mb-1 block text-sm">
+              Project
+            </label>
             <Select
+              id="assign-project"
               value={selectedProject}
               onChange={(e) => setSelectedProject(e.target.value)}
               options={projectOptions}
@@ -431,8 +424,11 @@ function AssignModal({
 
           {selectedProject && (
             <div>
-              <label className="text-dark-300 mb-1 block text-sm">Task</label>
+              <label htmlFor="assign-task" className="text-dark-300 mb-1 block text-sm">
+                Task
+              </label>
               <Select
+                id="assign-task"
                 value={selectedTask}
                 onChange={(e) => setSelectedTask(e.target.value)}
                 options={taskOptions}
@@ -442,8 +438,11 @@ function AssignModal({
           )}
 
           <div>
-            <label className="text-dark-300 mb-1 block text-sm">Hours per day</label>
+            <label htmlFor="assign-hours" className="text-dark-300 mb-1 block text-sm">
+              Hours per day
+            </label>
             <input
+              id="assign-hours"
               type="number"
               value={hours}
               onChange={(e) => setHours(e.target.value)}
@@ -488,10 +487,8 @@ export function PlanPanel() {
     selectedMemberIds,
     selectedAllocationId,
     isDragging,
-    weeksToShow,
     fetchTeamData,
     setCurrentWeekStart,
-    setWeeksToShow,
     setViewMode,
     toggleMemberSelection,
     selectAllWithoutTimesheet,
@@ -702,6 +699,9 @@ export function PlanPanel() {
     if (success) {
       toast.success('Allocation moved');
       await fetchTeamData(currentWeekStart, effectiveWeeksToShow, emailDomain);
+    } else {
+      // dropAllocation returns false when not implemented (requires BC extension update)
+      toast.error('Move not available. BC extension update required.');
     }
   };
 

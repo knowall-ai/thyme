@@ -976,7 +976,7 @@ class BusinessCentralClient {
       throw new Error('Thyme BC Extension is not installed.');
     }
 
-    // Validate date format
+    // Validate and sanitize date input to prevent OData injection
     const sanitizedDate = this.sanitizeDateInput(startingDate);
     const sanitizedResourceNo = this.sanitizeODataString(resourceNo);
 

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { BCResource, BCTimeSheet, BCTimeSheetLine, TimesheetDisplayStatus } from '@/types';
 import { bcClient } from '@/services/bc/bcClient';
 import { getTimesheetDisplayStatus } from '@/utils';
-import { addWeeks, eachDayOfInterval, startOfWeek, endOfWeek, format } from 'date-fns';
+import { addWeeks, startOfWeek, endOfWeek, format } from 'date-fns';
 
 // Allocation block representing work on a project
 export interface AllocationBlock {
@@ -161,7 +161,6 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
       // Calculate date range for multiple weeks
       const endDate = endOfWeek(addWeeks(weekStart, weeksToShow - 1), { weekStartsOn: 1 });
-      const allDays = eachDayOfInterval({ start: weekStart, end: endDate });
 
       // Fetch timesheet data for each resource across all weeks
       const allAllocations: AllocationBlock[] = [];
@@ -378,42 +377,32 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   },
 
   createAllocation: async (
-    resourceNumber: string,
-    projectNumber: string,
-    startDate: string,
-    endDate: string,
-    hoursPerDay: number
+    _resourceNumber: string,
+    _projectNumber: string,
+    _startDate: string,
+    _endDate: string,
+    _hoursPerDay: number
   ) => {
     // This would create a timesheet line - requires BC extension support
     // For now, return false as not implemented
-    console.log('Create allocation:', {
-      resourceNumber,
-      projectNumber,
-      startDate,
-      endDate,
-      hoursPerDay,
-    });
     return false;
   },
 
   updateAllocation: async (
-    allocationId: string,
-    updates: Partial<Pick<AllocationBlock, 'startDate' | 'endDate' | 'hoursPerDay'>>
+    _allocationId: string,
+    _updates: Partial<Pick<AllocationBlock, 'startDate' | 'endDate' | 'hoursPerDay'>>
   ) => {
     // This would update timesheet details - requires BC extension support
-    console.log('Update allocation:', allocationId, updates);
     return false;
   },
 
-  deleteAllocation: async (allocationId: string) => {
+  deleteAllocation: async (_allocationId: string) => {
     // This would delete a timesheet line - requires BC extension support
-    console.log('Delete allocation:', allocationId);
     return false;
   },
 
-  splitAllocation: async (allocationId: string, splitDate: string) => {
+  splitAllocation: async (_allocationId: string, _splitDate: string) => {
     // This would split an allocation into two parts
-    console.log('Split allocation:', allocationId, 'at', splitDate);
     return false;
   },
 
