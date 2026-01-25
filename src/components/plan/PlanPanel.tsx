@@ -30,7 +30,6 @@ import {
   isToday,
 } from 'date-fns';
 
-
 // Allocation Block Component
 interface AllocationBlockProps {
   allocation: AllocationBlock;
