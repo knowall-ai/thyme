@@ -142,15 +142,15 @@ export function CompanySwitcher() {
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
-          'border border-dark-600 bg-dark-800 hover:border-dark-500 hover:bg-dark-700',
+          'border-dark-600 bg-dark-800 hover:border-dark-500 hover:bg-dark-700 border',
           isOpen && 'border-knowall-green bg-dark-700'
         )}
         title="Switch company"
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
-        <BuildingOffice2Icon className="h-5 w-5 text-dark-400" />
-        <span className="hidden max-w-[150px] truncate text-dark-200 md:block">
+        <BuildingOffice2Icon className="text-dark-400 h-5 w-5" />
+        <span className="text-dark-200 hidden max-w-[150px] truncate md:block">
           {selectedCompany?.displayName || 'Select company'}
         </span>
       </button>
@@ -158,24 +158,24 @@ export function CompanySwitcher() {
       {/* Dropdown Panel */}
       {isOpen && (
         <div
-          className="absolute right-0 z-50 mt-2 w-72 rounded-lg border border-dark-600 bg-dark-800 shadow-xl"
+          className="border-dark-600 bg-dark-800 absolute right-0 z-50 mt-2 w-72 rounded-lg border shadow-xl"
           role="listbox"
         >
           {/* Header */}
-          <div className="border-b border-dark-600 px-4 py-3">
+          <div className="border-dark-600 border-b px-4 py-3">
             <h3 className="text-sm font-medium text-white">Available Companies</h3>
           </div>
 
           {/* Search */}
-          <div className="border-b border-dark-600 p-2">
+          <div className="border-dark-600 border-b p-2">
             <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dark-400" />
+              <MagnifyingGlassIcon className="text-dark-400 absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-md border border-dark-600 bg-dark-700 py-2 pl-9 pr-3 text-sm text-white placeholder-dark-400 focus:border-knowall-green focus:outline-none"
+                className="border-dark-600 bg-dark-700 placeholder-dark-400 focus:border-knowall-green w-full rounded-md border py-2 pr-3 pl-9 text-sm text-white focus:outline-none"
               />
             </div>
           </div>
@@ -183,11 +183,11 @@ export function CompanySwitcher() {
           {/* Company List - Grouped by Environment */}
           <div className="max-h-80 overflow-y-auto">
             {isLoading ? (
-              <div className="px-4 py-3 text-center text-sm text-dark-400">
+              <div className="text-dark-400 px-4 py-3 text-center text-sm">
                 Loading companies...
               </div>
             ) : !hasAnyResults ? (
-              <div className="px-4 py-3 text-center text-sm text-dark-400">No companies found</div>
+              <div className="text-dark-400 px-4 py-3 text-center text-sm">No companies found</div>
             ) : (
               environments.map((env) => {
                 const envCompanies = filterCompanies(getCompaniesByEnvironment(env));
@@ -200,14 +200,14 @@ export function CompanySwitcher() {
                     {/* Environment Header */}
                     <button
                       onClick={() => toggleEnvExpanded(env)}
-                      className="flex w-full items-center justify-between px-4 py-2 text-left hover:bg-dark-700/50"
+                      className="hover:bg-dark-700/50 flex w-full items-center justify-between px-4 py-2 text-left"
                     >
-                      <span className="text-xs font-semibold uppercase tracking-wider text-dark-400">
+                      <span className="text-dark-400 text-xs font-semibold tracking-wider uppercase">
                         {ENV_LABELS[env]}
                       </span>
                       <ChevronDownIcon
                         className={cn(
-                          'h-4 w-4 text-dark-400 transition-transform',
+                          'text-dark-400 h-4 w-4 transition-transform',
                           !isExpanded && '-rotate-90'
                         )}
                       />
@@ -225,18 +225,18 @@ export function CompanySwitcher() {
                               key={`${company.environment}-${company.id}`}
                               onClick={() => handleCompanySelect(company)}
                               className={cn(
-                                'flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors hover:bg-dark-700',
+                                'hover:bg-dark-700 flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors',
                                 isSelected && 'bg-dark-700'
                               )}
                               role="option"
                               aria-selected={isSelected}
                             >
-                              <BuildingOffice2Icon className="h-5 w-5 flex-shrink-0 text-dark-400" />
-                              <span className="flex-1 truncate text-dark-200">
+                              <BuildingOffice2Icon className="text-dark-400 h-5 w-5 flex-shrink-0" />
+                              <span className="text-dark-200 flex-1 truncate">
                                 {company.displayName}
                               </span>
                               {isSelected && (
-                                <CheckIcon className="h-5 w-5 flex-shrink-0 text-knowall-green" />
+                                <CheckIcon className="text-knowall-green h-5 w-5 flex-shrink-0" />
                               )}
                             </button>
                           );

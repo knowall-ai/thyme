@@ -23,7 +23,7 @@ export function Dashboard() {
           <div className="flex flex-wrap items-center gap-4">
             <div>
               <h1 className="text-2xl font-bold text-white">Timesheet</h1>
-              <p className="mt-1 text-dark-400">
+              <p className="text-dark-400 mt-1">
                 {isViewingTeammate
                   ? `Viewing ${selectedTeammate.displayName}'s timesheet`
                   : 'Track your time and sync to Business Central'}

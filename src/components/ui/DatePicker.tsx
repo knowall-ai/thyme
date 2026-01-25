@@ -101,12 +101,12 @@ export function DatePicker({ selectedDate, onDateSelect, className }: DatePicker
         aria-label="Open date picker"
         aria-expanded={isOpen}
         className={cn(
-          'flex h-10 w-full items-center gap-2 rounded-lg border border-dark-600 bg-dark-700 px-3 text-sm transition-colors',
-          'hover:border-dark-500 focus:border-thyme-500 focus:outline-none focus:ring-1 focus:ring-thyme-500',
+          'border-dark-600 bg-dark-700 flex h-10 w-full items-center gap-2 rounded-lg border px-3 text-sm transition-colors',
+          'hover:border-dark-500 focus:border-thyme-500 focus:ring-thyme-500 focus:ring-1 focus:outline-none',
           selectedDate ? 'text-white' : 'text-dark-400'
         )}
       >
-        <CalendarIcon className="h-4 w-4 shrink-0 text-dark-400" />
+        <CalendarIcon className="text-dark-400 h-4 w-4 shrink-0" />
         <span className="truncate">
           {selectedDate ? format(selectedDate, 'MMM d, yyyy') : 'Select date'}
         </span>
@@ -114,7 +114,7 @@ export function DatePicker({ selectedDate, onDateSelect, className }: DatePicker
 
       {isOpen && (
         <div
-          className="absolute left-0 top-full z-50 mt-2 w-72 rounded-lg border border-dark-600 bg-dark-800 p-3 shadow-xl"
+          className="border-dark-600 bg-dark-800 absolute top-full left-0 z-50 mt-2 w-72 rounded-lg border p-3 shadow-xl"
           role="dialog"
           aria-modal="true"
           aria-label="Date picker"
@@ -150,7 +150,7 @@ export function DatePicker({ selectedDate, onDateSelect, className }: DatePicker
               <div
                 key={day}
                 role="columnheader"
-                className="py-1 text-center text-xs font-medium uppercase text-dark-400"
+                className="text-dark-400 py-1 text-center text-xs font-medium uppercase"
               >
                 {day}
               </div>
@@ -172,10 +172,10 @@ export function DatePicker({ selectedDate, onDateSelect, className }: DatePicker
                   aria-selected={isSelected || undefined}
                   className={cn(
                     'h-8 w-8 rounded text-sm transition-colors',
-                    'hover:bg-dark-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-knowall-green focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900',
+                    'hover:bg-dark-700 focus-visible:ring-knowall-green focus-visible:ring-offset-dark-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
                     !isCurrentMonth && 'text-dark-500',
                     isCurrentMonth && !isSelected && 'text-dark-200',
-                    isToday && !isSelected && 'font-semibold text-knowall-green',
+                    isToday && !isSelected && 'text-knowall-green font-semibold',
                     isSelected && 'bg-knowall-green text-dark-950 hover:bg-knowall-green-light'
                   )}
                 >
@@ -186,7 +186,7 @@ export function DatePicker({ selectedDate, onDateSelect, className }: DatePicker
           </div>
 
           {/* Today Button */}
-          <div className="mt-3 border-t border-dark-700 pt-3">
+          <div className="border-dark-700 mt-3 border-t pt-3">
             <Button variant="ghost" size="sm" onClick={handleTodayClick} className="w-full">
               Today
             </Button>

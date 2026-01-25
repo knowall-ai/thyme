@@ -68,7 +68,7 @@ export function Header() {
   };
 
   return (
-    <header className="border-b border-dark-700 bg-dark-900">
+    <header className="border-dark-700 bg-dark-900 border-b">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 justify-between">
           {/* Logo and Navigation */}
@@ -76,8 +76,8 @@ export function Header() {
             {/* Logo */}
             <Link href="/" className="flex shrink-0 items-center">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-knowall-green shadow-lg shadow-knowall-green/20">
-                  <ThymeLogo className="h-5 w-5 text-dark-950" />
+                <div className="bg-knowall-green shadow-knowall-green/20 flex h-8 w-8 items-center justify-center rounded-lg shadow-lg">
+                  <ThymeLogo className="text-dark-950 h-5 w-5" />
                 </div>
                 <span className="text-xl font-bold text-white">Thyme</span>
               </div>
@@ -131,7 +131,7 @@ export function Header() {
                 <div className="relative" ref={userMenuRef}>
                   <button
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                    className="flex items-center gap-2 rounded-lg p-1 transition-colors hover:bg-dark-800"
+                    className="hover:bg-dark-800 flex items-center gap-2 rounded-lg p-1 transition-colors"
                   >
                     {photoUrl ? (
                       <img
@@ -139,11 +139,11 @@ export function Header() {
                         alt={
                           account.name ? `${account.name}'s profile photo` : 'User profile photo'
                         }
-                        className="h-9 w-9 rounded-full border border-knowall-green/30 object-cover"
+                        className="border-knowall-green/30 h-9 w-9 rounded-full border object-cover"
                       />
                     ) : (
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-knowall-green/30 bg-knowall-green/20">
-                        <span className="text-sm font-medium text-knowall-green">
+                      <div className="border-knowall-green/30 bg-knowall-green/20 flex h-9 w-9 items-center justify-center rounded-full border">
+                        <span className="text-knowall-green text-sm font-medium">
                           {account.name
                             ?.trim()
                             .split(/\s+/)
@@ -159,17 +159,17 @@ export function Header() {
 
                   {/* Dropdown menu */}
                   {isUserMenuOpen && (
-                    <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border border-dark-700 bg-dark-800 py-1 shadow-lg">
+                    <div className="border-dark-700 bg-dark-800 absolute top-full right-0 z-50 mt-2 w-56 rounded-lg border py-1 shadow-lg">
                       {/* User info */}
-                      <div className="border-b border-dark-700 px-4 py-3">
+                      <div className="border-dark-700 border-b px-4 py-3">
                         <p className="text-sm font-medium text-white">{account.name}</p>
-                        <p className="text-xs text-dark-400">{account.username}</p>
+                        <p className="text-dark-400 text-xs">{account.username}</p>
                       </div>
 
                       {/* Sign out */}
                       <button
                         onClick={handleLogout}
-                        className="flex w-full items-center gap-2 px-4 py-2 text-sm text-dark-300 transition-colors hover:bg-dark-700 hover:text-white"
+                        className="text-dark-300 hover:bg-dark-700 flex w-full items-center gap-2 px-4 py-2 text-sm transition-colors hover:text-white"
                       >
                         <ArrowRightOnRectangleIcon className="h-4 w-4" />
                         Sign out
@@ -184,7 +184,7 @@ export function Header() {
       </div>
 
       {/* Mobile Navigation */}
-      <nav className="border-t border-dark-700 sm:hidden">
+      <nav className="border-dark-700 border-t sm:hidden">
         <div className="flex justify-around">
           {navigation.map((item) => {
             const Icon = item.icon;

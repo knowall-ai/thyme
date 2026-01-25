@@ -31,7 +31,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-thyme-600"></div>
+          <div className="border-thyme-600 mx-auto h-12 w-12 animate-spin rounded-full border-b-2"></div>
           <p className="mt-4 text-gray-600">Initializing...</p>
         </div>
       </div>

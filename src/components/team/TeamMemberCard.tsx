@@ -41,8 +41,8 @@ export function TeamMemberCard({ member }: TeamMemberCardProps) {
           {member.avatar ? (
             <img src={member.avatar} alt={member.name} className="h-12 w-12 rounded-full" />
           ) : (
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-dark-600">
-              <span className="text-lg font-medium text-dark-200">
+            <div className="bg-dark-600 flex h-12 w-12 items-center justify-center rounded-full">
+              <span className="text-dark-200 text-lg font-medium">
                 {member.name
                   .split(' ')
                   .map((n) => n[0])
@@ -56,14 +56,14 @@ export function TeamMemberCard({ member }: TeamMemberCardProps) {
         {/* Info */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="truncate font-medium text-dark-100">{member.name}</h3>
+            <h3 className="text-dark-100 truncate font-medium">{member.name}</h3>
             <span
               className={`rounded-full px-2 py-0.5 text-xs ${statusColors[member.status]} text-white`}
             >
               {statusLabels[member.status]}
             </span>
           </div>
-          <p className="truncate text-sm text-dark-400">{member.role}</p>
+          <p className="text-dark-400 truncate text-sm">{member.role}</p>
 
           {/* Progress */}
           <div className="mt-3">
@@ -73,7 +73,7 @@ export function TeamMemberCard({ member }: TeamMemberCardProps) {
                 {formatTime(member.hoursThisWeek)} / {formatTime(member.hoursTarget)}
               </span>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-dark-700">
+            <div className="bg-dark-700 h-2 overflow-hidden rounded-full">
               <div
                 className={`h-full ${statusColors[member.status]} transition-all duration-300`}
                 style={{ width: `${progressPercent}%` }}

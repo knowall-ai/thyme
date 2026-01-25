@@ -92,7 +92,7 @@ export function ProjectTasksTable() {
   if (isLoadingAnalytics) {
     return (
       <Card variant="bordered" className="p-6">
-        <div className="h-48 animate-pulse rounded bg-dark-600" />
+        <div className="bg-dark-600 h-48 animate-pulse rounded" />
       </Card>
     );
   }
@@ -200,7 +200,7 @@ function ProfileAvatar({
   return (
     <div
       className={cn(
-        'flex items-center justify-center rounded-full bg-dark-600 font-medium text-dark-200',
+        'bg-dark-600 text-dark-200 flex items-center justify-center rounded-full font-medium',
         sizeClasses
       )}
     >
@@ -249,7 +249,7 @@ function TaskBreakdownTable({
   const totalPending = data.reduce((sum, item) => sum + item.pendingHours, 0);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-dark-600">
+    <div className="border-dark-600 overflow-hidden rounded-lg border">
       <table className="w-full">
         <thead className="bg-dark-700">
           <tr>
@@ -266,7 +266,7 @@ function TaskBreakdownTable({
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-dark-600">
+        <tbody className="divide-dark-600 divide-y">
           {data.map((item) => {
             const taskInfo = taskMap.get(item.taskNo);
             const hasDetails = item.teamMembers && item.teamMembers.length > 0;
@@ -277,7 +277,7 @@ function TaskBreakdownTable({
                 <tr
                   className={cn(
                     'transition-colors',
-                    hasDetails && 'cursor-pointer hover:bg-dark-700/50'
+                    hasDetails && 'hover:bg-dark-700/50 cursor-pointer'
                   )}
                   onClick={() => hasDetails && toggleExpanded(item.taskNo)}
                 >
@@ -303,7 +303,7 @@ function TaskBreakdownTable({
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="text-gray-500 hover:text-thyme-400"
+                            className="hover:text-thyme-400 text-gray-500"
                             title="Open task in Business Central"
                           >
                             <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
@@ -329,7 +329,7 @@ function TaskBreakdownTable({
                 {isExpanded &&
                   item.teamMembers?.map((member) => (
                     <tr key={`${item.taskNo}-${member.resourceNo}`} className="bg-dark-800/50">
-                      <td className="py-2 pl-12 pr-4">
+                      <td className="py-2 pr-4 pl-12">
                         <div className="flex items-center gap-2">
                           <ProfileAvatar
                             name={member.name}
@@ -342,7 +342,7 @@ function TaskBreakdownTable({
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="text-gray-500 hover:text-thyme-400"
+                            className="hover:text-thyme-400 text-gray-500"
                             title="Open resource in Business Central"
                           >
                             <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
@@ -430,7 +430,7 @@ function TeamBreakdownTable({
   const totalPending = data.reduce((sum, item) => sum + item.pendingHours, 0);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-dark-600">
+    <div className="border-dark-600 overflow-hidden rounded-lg border">
       <table className="w-full">
         <thead className="bg-dark-700">
           <tr>
@@ -447,7 +447,7 @@ function TeamBreakdownTable({
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-dark-600">
+        <tbody className="divide-dark-600 divide-y">
           {data.map((item) => {
             const hasDetails = item.tasks && item.tasks.length > 0;
             const isExpanded = expanded[item.resourceNo];
@@ -457,7 +457,7 @@ function TeamBreakdownTable({
                 <tr
                   className={cn(
                     'transition-colors',
-                    hasDetails && 'cursor-pointer hover:bg-dark-700/50'
+                    hasDetails && 'hover:bg-dark-700/50 cursor-pointer'
                   )}
                   onClick={() => hasDetails && toggleExpanded(item.resourceNo)}
                 >
@@ -483,7 +483,7 @@ function TeamBreakdownTable({
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="text-gray-500 hover:text-thyme-400"
+                        className="hover:text-thyme-400 text-gray-500"
                         title="Open resource in Business Central"
                       >
                         <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
@@ -507,7 +507,7 @@ function TeamBreakdownTable({
                 {isExpanded &&
                   item.tasks?.map((task) => (
                     <tr key={`${item.resourceNo}-${task.taskNo}`} className="bg-dark-800/50">
-                      <td className="py-2 pl-12 pr-4">
+                      <td className="py-2 pr-4 pl-12">
                         <div className="flex items-center gap-1">
                           <span className="font-mono text-xs text-gray-500">{task.taskNo}</span>
                           <span className="ml-1 text-sm text-gray-400">{task.description}</span>
@@ -517,7 +517,7 @@ function TeamBreakdownTable({
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
-                              className="text-gray-500 hover:text-thyme-400"
+                              className="hover:text-thyme-400 text-gray-500"
                               title="Open task in Business Central"
                             >
                               <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />

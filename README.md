@@ -17,19 +17,20 @@ A modern time tracking web application that integrates with Microsoft Dynamics 3
 
 | Layer    | Technology                   |
 | -------- | ---------------------------- |
-| Frontend | React 19, Next.js 15         |
-| Styling  | Tailwind CSS                 |
+| Frontend | React 19, Next.js 16         |
+| Styling  | Tailwind CSS 4               |
 | State    | Zustand                      |
 | Auth     | MSAL.js (Microsoft Entra ID) |
 | Data     | Business Central OData API   |
 | Testing  | Playwright, Vitest           |
+| Runtime  | Bun                          |
 | Hosting  | Azure App Service            |
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 20 LTS
+- [Bun](https://bun.sh) 1.0+
 - Azure subscription with Entra ID
 - Business Central environment
 
@@ -41,14 +42,14 @@ git clone https://github.com/knowall-ai/thyme.git
 cd thyme
 
 # Install dependencies
-npm install
+bun install
 
 # Set up environment variables
 cp .env.example .env.local
 # Edit .env.local with your Azure/BC credentials
 
 # Run development server
-npm run dev
+bun run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
@@ -68,17 +69,17 @@ BC_COMPANY_ID=<business-central-company-guid>
 ### Scripts
 
 ```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run start        # Start production server
-npm run lint         # Run ESLint
-npm run lint:fix     # Run ESLint with auto-fix
-npm run format       # Format code with Prettier
-npm run format:check # Check formatting without changes
-npm run test         # Run unit tests
-npm run test:e2e     # Run E2E tests
-npm run typecheck    # Run TypeScript checks
-npm run check        # Run all checks (format, lint, typecheck, build)
+bun run dev          # Start development server
+bun run build        # Build for production
+bun run start        # Start production server
+bun run lint         # Run ESLint
+bun run lint:fix     # Run ESLint with auto-fix
+bun run format       # Format code with Prettier
+bun run format:check # Check formatting without changes
+bun run test         # Run unit tests
+bun run test:e2e     # Run E2E tests
+bun run typecheck    # Run TypeScript checks
+bun run check        # Run all checks (format, lint, typecheck, build)
 ```
 
 ### Code Quality Checks
@@ -86,7 +87,7 @@ npm run check        # Run all checks (format, lint, typecheck, build)
 Before submitting a PR, ensure all checks pass:
 
 ```bash
-npm run check
+bun run check
 ```
 
 This runs:
@@ -127,7 +128,7 @@ thyme/
 Deploy to Azure App Service:
 
 ```bash
-npm run build
+bun run build
 # Deploy .next/standalone to Azure
 ```
 

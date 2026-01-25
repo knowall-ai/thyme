@@ -11,7 +11,7 @@ function TeamContent() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-white">Team</h1>
-          <p className="mt-1 text-dark-400">View your team&apos;s timesheet progress</p>
+          <p className="text-dark-400 mt-1">View your team&apos;s timesheet progress</p>
         </div>
         <PendingApprovalCard />
         <ZaplieBanner />

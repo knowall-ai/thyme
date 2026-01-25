@@ -296,7 +296,7 @@ export function ApprovalList() {
   if (!permissionChecked) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-thyme-600"></div>
+        <div className="border-thyme-600 h-8 w-8 animate-spin rounded-full border-b-2"></div>
       </div>
     );
   }
@@ -305,11 +305,11 @@ export function ApprovalList() {
   if (!isApprover) {
     return (
       <Card variant="bordered" className="p-8 text-center">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-dark-700">
-          <XMarkIcon className="h-8 w-8 text-dark-400" />
+        <div className="bg-dark-700 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full">
+          <XMarkIcon className="text-dark-400 h-8 w-8" />
         </div>
         <h3 className="text-lg font-semibold text-white">No Approval Access</h3>
-        <p className="mt-2 text-dark-400">
+        <p className="text-dark-400 mt-2">
           You don&apos;t have permission to approve timesheets. Contact your administrator if you
           believe this is an error.
         </p>
@@ -321,7 +321,7 @@ export function ApprovalList() {
   if (isLoading && pendingApprovals.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-thyme-600"></div>
+        <div className="border-thyme-600 h-8 w-8 animate-spin rounded-full border-b-2"></div>
       </div>
     );
   }
@@ -333,7 +333,7 @@ export function ApprovalList() {
         <p className="mb-2 text-red-500">{error}</p>
         <button
           onClick={() => fetchPendingApprovals()}
-          className="text-thyme-500 underline hover:text-thyme-400"
+          className="text-thyme-500 hover:text-thyme-400 underline"
         >
           Try again
         </button>
@@ -346,7 +346,7 @@ export function ApprovalList() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card variant="bordered" className="p-4">
-          <p className="text-sm text-dark-400">
+          <p className="text-dark-400 text-sm">
             {pendingApprovals.length !== allApprovals.length
               ? `Matching Timesheets (${allApprovals.length} total)`
               : 'Pending Approvals'}
@@ -354,12 +354,12 @@ export function ApprovalList() {
           <p className="mt-1 text-2xl font-bold text-amber-500">{pendingApprovals.length}</p>
         </Card>
         <Card variant="bordered" className="p-4">
-          <p className="text-sm text-dark-400">
+          <p className="text-dark-400 text-sm">
             {pendingApprovals.length !== allApprovals.length
               ? 'Filtered Hours'
               : 'Total Hours Pending'}
           </p>
-          <p className="mt-1 flex items-center gap-2 text-2xl font-bold text-dark-100">
+          <p className="text-dark-100 mt-1 flex items-center gap-2 text-2xl font-bold">
             <ClockIcon className="h-6 w-6" />
             {actualPendingHours.toFixed(1)}
           </p>
@@ -376,7 +376,7 @@ export function ApprovalList() {
         />
 
         {/* Group by toggle */}
-        <div className="flex items-center gap-1 rounded-lg border border-dark-600 bg-dark-800 p-1">
+        <div className="border-dark-600 bg-dark-800 flex items-center gap-1 rounded-lg border p-1">
           <button
             onClick={() => setGroupBy(groupBy === 'week' ? 'none' : 'week')}
             className={cn(
@@ -414,9 +414,9 @@ export function ApprovalList() {
             <div key={group.key} className="space-y-3">
               {/* Group header (only show if grouping is active) */}
               {groupBy !== 'none' && (
-                <div className="flex items-center gap-2 border-b border-dark-700 pb-2">
+                <div className="border-dark-700 flex items-center gap-2 border-b pb-2">
                   {groupBy === 'week' ? (
-                    <CalendarDaysIcon className="h-8 w-8 text-thyme-500" />
+                    <CalendarDaysIcon className="text-thyme-500 h-8 w-8" />
                   ) : (
                     // Show profile photo for person group
                     (() => {
@@ -433,12 +433,12 @@ export function ApprovalList() {
                           className="h-8 w-8 rounded-full object-cover"
                         />
                       ) : (
-                        <UserIcon className="h-8 w-8 text-thyme-500" />
+                        <UserIcon className="text-thyme-500 h-8 w-8" />
                       );
                     })()
                   )}
                   <h3 className="text-sm font-semibold text-white">{group.label}</h3>
-                  <span className="text-xs text-dark-400">
+                  <span className="text-dark-400 text-xs">
                     ({group.items.length} timesheet{group.items.length !== 1 ? 's' : ''})
                   </span>
                 </div>
@@ -475,16 +475,16 @@ export function ApprovalList() {
           {allApprovals.length > 0 ? (
             // Filters are hiding results
             <>
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-dark-700">
-                <CalendarDaysIcon className="h-8 w-8 text-dark-400" />
+              <div className="bg-dark-700 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full">
+                <CalendarDaysIcon className="text-dark-400 h-8 w-8" />
               </div>
               <h3 className="text-lg font-semibold text-white">No Matching Timesheets</h3>
-              <p className="mt-2 text-dark-400">
+              <p className="text-dark-400 mt-2">
                 No timesheets match your current filters. Try adjusting or clearing your filters.
               </p>
               <button
                 onClick={clearFilters}
-                className="mt-4 text-thyme-500 underline hover:text-thyme-400"
+                className="text-thyme-500 hover:text-thyme-400 mt-4 underline"
               >
                 Clear filters
               </button>
@@ -492,11 +492,11 @@ export function ApprovalList() {
           ) : (
             // Truly no pending approvals
             <>
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-thyme-500/20">
-                <CheckIcon className="h-8 w-8 text-thyme-500" />
+              <div className="bg-thyme-500/20 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full">
+                <CheckIcon className="text-thyme-500 h-8 w-8" />
               </div>
               <h3 className="text-lg font-semibold text-white">All Caught Up!</h3>
-              <p className="mt-2 text-dark-400">There are no timesheets pending your approval.</p>
+              <p className="text-dark-400 mt-2">There are no timesheets pending your approval.</p>
             </>
           )}
         </Card>

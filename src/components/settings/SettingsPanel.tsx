@@ -58,7 +58,7 @@ export function SettingsPanel() {
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-thyme-600"></div>
+        <div className="border-thyme-600 h-8 w-8 animate-spin rounded-full border-b-2"></div>
       </div>
     );
   }
@@ -68,7 +68,7 @@ export function SettingsPanel() {
       {/* User Information */}
       <Card variant="bordered" className="p-6">
         <div className="mb-4 flex items-center gap-3">
-          <UserCircleIcon className="h-6 w-6 text-thyme-500" />
+          <UserCircleIcon className="text-thyme-500 h-6 w-6" />
           <h2 className="text-lg font-semibold text-white">Your Account</h2>
         </div>
         <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2">
@@ -80,11 +80,11 @@ export function SettingsPanel() {
                 <img
                   src={photoUrl}
                   alt={account?.name ? `${account.name}'s profile photo` : 'User profile photo'}
-                  className="h-16 w-16 rounded-full border-2 border-thyme-500/30 object-cover"
+                  className="border-thyme-500/30 h-16 w-16 rounded-full border-2 object-cover"
                 />
               ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-thyme-500/30 bg-thyme-500/20">
-                  <span className="text-xl font-medium text-thyme-500">
+                <div className="border-thyme-500/30 bg-thyme-500/20 flex h-16 w-16 items-center justify-center rounded-full border-2">
+                  <span className="text-thyme-500 text-xl font-medium">
                     {account?.name
                       ?.trim()
                       .split(/\s+/)
@@ -98,18 +98,18 @@ export function SettingsPanel() {
               )}
             </div>
             <div className="flex items-start gap-2 pt-1">
-              <UserIcon className="mt-0.5 h-4 w-4 text-dark-400" />
+              <UserIcon className="text-dark-400 mt-0.5 h-4 w-4" />
               <div>
-                <p className="text-sm text-dark-400">Name</p>
+                <p className="text-dark-400 text-sm">Name</p>
                 <p className="text-dark-100">{account?.name || 'Not available'}</p>
               </div>
             </div>
           </div>
           {/* Right column: Email */}
           <div className="flex items-start gap-2 pt-1">
-            <EnvelopeIcon className="mt-0.5 h-4 w-4 text-dark-400" />
+            <EnvelopeIcon className="text-dark-400 mt-0.5 h-4 w-4" />
             <div>
-              <p className="text-sm text-dark-400">Email</p>
+              <p className="text-dark-400 text-sm">Email</p>
               {account?.username ? (
                 <a
                   href={`mailto:${account.username}`}
@@ -128,7 +128,7 @@ export function SettingsPanel() {
       {/* Company Information */}
       <Card variant="bordered" className="p-6">
         <div className="mb-4 flex items-center gap-3">
-          <BuildingOffice2Icon className="h-6 w-6 text-thyme-500" />
+          <BuildingOffice2Icon className="text-thyme-500 h-6 w-6" />
           <h2 className="text-lg font-semibold text-white">Business Central Company</h2>
         </div>
         {error ? (
@@ -138,16 +138,16 @@ export function SettingsPanel() {
             {/* Left column: Company details */}
             <div className="space-y-3">
               <div className="flex items-start gap-2">
-                <BuildingOfficeIcon className="mt-0.5 h-4 w-4 text-dark-400" />
+                <BuildingOfficeIcon className="text-dark-400 mt-0.5 h-4 w-4" />
                 <div>
-                  <p className="text-sm text-dark-400">Company Name</p>
+                  <p className="text-dark-400 text-sm">Company Name</p>
                   <p className="text-dark-100">{companyInfo.displayName || 'Not set'}</p>
                 </div>
               </div>
               <div className="flex items-start gap-2">
-                <EnvelopeIcon className="mt-0.5 h-4 w-4 text-dark-400" />
+                <EnvelopeIcon className="text-dark-400 mt-0.5 h-4 w-4" />
                 <div>
-                  <p className="text-sm text-dark-400">Email</p>
+                  <p className="text-dark-400 text-sm">Email</p>
                   {companyInfo.email ? (
                     <a
                       href={`mailto:${companyInfo.email}`}
@@ -161,9 +161,9 @@ export function SettingsPanel() {
                 </div>
               </div>
               <div className="flex items-start gap-2">
-                <GlobeAltIcon className="mt-0.5 h-4 w-4 text-dark-400" />
+                <GlobeAltIcon className="text-dark-400 mt-0.5 h-4 w-4" />
                 <div>
-                  <p className="text-sm text-dark-400">Website</p>
+                  <p className="text-dark-400 text-sm">Website</p>
                   {companyInfo.website ? (
                     <a
                       href={
@@ -183,18 +183,18 @@ export function SettingsPanel() {
                 </div>
               </div>
               <div className="flex items-start gap-2">
-                <CurrencyPoundIcon className="mt-0.5 h-4 w-4 text-dark-400" />
+                <CurrencyPoundIcon className="text-dark-400 mt-0.5 h-4 w-4" />
                 <div>
-                  <p className="text-sm text-dark-400">Currency</p>
+                  <p className="text-dark-400 text-sm">Currency</p>
                   <p className="text-dark-100">{companyInfo.currencyCode || 'Not set'}</p>
                 </div>
               </div>
             </div>
             {/* Right column: Address */}
             <div className="flex items-start gap-2">
-              <MapPinIcon className="mt-0.5 h-4 w-4 text-dark-400" />
+              <MapPinIcon className="text-dark-400 mt-0.5 h-4 w-4" />
               <div>
-                <p className="text-sm text-dark-400">Address</p>
+                <p className="text-dark-400 text-sm">Address</p>
                 {companyInfo.addressLine1 ? (
                   <p className="text-dark-100">
                     {companyInfo.addressLine1}
@@ -222,22 +222,22 @@ export function SettingsPanel() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-dark-100">Weekly Hours Target</p>
-              <p className="text-sm text-dark-400">Your target hours per week for tracking</p>
+              <p className="text-dark-400 text-sm">Your target hours per week for tracking</p>
             </div>
             <input
               type="number"
               defaultValue={40}
-              className="w-20 rounded-lg border border-dark-600 bg-dark-800 px-3 py-2 text-dark-100 focus:outline-none focus:ring-2 focus:ring-thyme-500"
+              className="border-dark-600 bg-dark-800 text-dark-100 focus:ring-thyme-500 w-20 rounded-lg border px-3 py-2 focus:ring-2 focus:outline-none"
             />
           </div>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-dark-100">Timesheet Reminders</p>
-              <p className="text-sm text-dark-400">Get reminded to fill in your timesheet</p>
+              <p className="text-dark-400 text-sm">Get reminded to fill in your timesheet</p>
             </div>
             <label className="relative inline-flex cursor-pointer items-center">
               <input type="checkbox" defaultChecked className="peer sr-only" />
-              <div className="peer h-6 w-11 rounded-full bg-dark-600 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-thyme-600 peer-checked:after:translate-x-full peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-thyme-500"></div>
+              <div className="peer bg-dark-600 peer-checked:bg-thyme-600 peer-focus:ring-thyme-500 h-6 w-11 rounded-full peer-focus:ring-2 peer-focus:outline-none after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full"></div>
             </label>
           </div>
         </div>
@@ -250,7 +250,7 @@ export function SettingsPanel() {
           <div className="h-3 w-3 rounded-full bg-green-500"></div>
           <p className="text-dark-100">Connected to Business Central</p>
         </div>
-        <p className="mt-2 text-sm text-dark-400">
+        <p className="text-dark-400 mt-2 text-sm">
           Environment: {process.env.BC_ENVIRONMENT || 'Production'}
         </p>
       </Card>

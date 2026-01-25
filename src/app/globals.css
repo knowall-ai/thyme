@@ -1,8 +1,68 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  /* KnowAll.ai brand colors - Dark theme with green accent */
+  --color-knowall-green: #00d26a;
+  --color-knowall-green-light: #00ff7f;
+  --color-knowall-green-dark: #00b359;
+  --color-knowall-green-glow: rgba(0, 210, 106, 0.3);
+
+  /* Dark theme backgrounds */
+  --color-dark-50: #f8fafc;
+  --color-dark-100: #f1f5f9;
+  --color-dark-200: #e2e8f0;
+  --color-dark-300: #cbd5e1;
+  --color-dark-400: #94a3b8;
+  --color-dark-500: #64748b;
+  --color-dark-600: #475569;
+  --color-dark-700: #334155;
+  --color-dark-800: #1e293b;
+  --color-dark-850: #172033;
+  --color-dark-900: #0f172a;
+  --color-dark-950: #020617;
+
+  /* Thyme accent (matching KnowAll green) */
+  --color-thyme-50: #ecfdf5;
+  --color-thyme-100: #d1fae5;
+  --color-thyme-200: #a7f3d0;
+  --color-thyme-300: #6ee7b7;
+  --color-thyme-400: #34d399;
+  --color-thyme-500: #00d26a;
+  --color-thyme-600: #00b359;
+  --color-thyme-700: #059669;
+  --color-thyme-800: #047857;
+  --color-thyme-900: #065f46;
+  --color-thyme-950: #022c22;
+
+  /* Fonts */
+  --font-family-sans: 'Inter', system-ui, sans-serif;
+  --font-family-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Custom animations */
+  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-glow: glow 2s ease-in-out infinite alternate;
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  @keyframes glow {
+    0% {
+      box-shadow: 0 0 20px rgba(0, 210, 106, 0.2);
+    }
+    100% {
+      box-shadow: 0 0 30px rgba(0, 210, 106, 0.4);
+    }
+  }
+}
 
 :root {
   --foreground-rgb: 255, 255, 255;
@@ -24,6 +84,17 @@ body {
   html {
     @apply antialiased;
   }
+
+  /* Restore cursor-pointer for interactive elements (Tailwind 4 removed this from preflight) */
+  button,
+  [role='button'],
+  [type='button'],
+  [type='submit'],
+  [type='reset'],
+  select,
+  summary {
+    cursor: pointer;
+  }
 }
 
 @layer utilities {
@@ -40,7 +111,14 @@ body {
   }
 
   .gradient-text {
-    @apply bg-gradient-to-r from-knowall-green to-thyme-300 bg-clip-text text-transparent;
+    @apply from-knowall-green to-thyme-300 bg-gradient-to-r bg-clip-text text-transparent;
+  }
+
+  .bg-grid-pattern {
+    background-image:
+      linear-gradient(to right, rgba(30, 41, 59, 0.5) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(30, 41, 59, 0.5) 1px, transparent 1px);
+    background-size: 40px 40px;
   }
 }
 

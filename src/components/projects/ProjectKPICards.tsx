@@ -29,7 +29,7 @@ function InfoTooltip({
     <div className="relative">
       <button
         type="button"
-        className="cursor-help rounded text-gray-600 hover:text-gray-400 focus:outline-none focus:ring-1 focus:ring-thyme-500 focus:ring-offset-1 focus:ring-offset-dark-800"
+        className="focus:ring-thyme-500 focus:ring-offset-dark-800 cursor-help rounded text-gray-600 hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none"
         onMouseEnter={() => setIsOpen(true)}
         onMouseLeave={() => setIsOpen(false)}
         onFocus={() => setIsOpen(true)}
@@ -42,19 +42,19 @@ function InfoTooltip({
       {isOpen && (
         <div
           role="tooltip"
-          className="absolute right-0 top-6 z-20 w-64 rounded bg-dark-700 px-3 py-2 text-xs shadow-lg"
+          className="bg-dark-700 absolute top-6 right-0 z-20 w-64 rounded px-3 py-2 text-xs shadow-lg"
         >
           <div className="font-medium text-white">{title}</div>
-          <div className="mt-1 border-t border-dark-500 pt-1">
+          <div className="border-dark-500 mt-1 border-t pt-1">
             <div className="text-gray-300">{description}</div>
           </div>
           {formula && (
-            <div className="mt-1 border-t border-dark-500 pt-1">
+            <div className="border-dark-500 mt-1 border-t pt-1">
               <div className="text-gray-500">Formula:</div>
-              <div className="font-mono text-thyme-400">{formula}</div>
+              <div className="text-thyme-400 font-mono">{formula}</div>
             </div>
           )}
-          <div className="mt-1 border-t border-dark-500 pt-1">
+          <div className="border-dark-500 mt-1 border-t pt-1">
             <div className="text-gray-500">Source:</div>
             <div className="text-blue-400">{source}</div>
           </div>
@@ -94,7 +94,7 @@ export function ProjectKPICards() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i} variant="bordered" className="animate-pulse p-4">
-              <div className="h-20 rounded bg-dark-600" />
+              <div className="bg-dark-600 h-20 rounded" />
             </Card>
           ))}
         </div>
@@ -102,7 +102,7 @@ export function ProjectKPICards() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[5, 6, 7, 8].map((i) => (
             <Card key={i} variant="bordered" className="animate-pulse p-4">
-              <div className="h-20 rounded bg-dark-600" />
+              <div className="bg-dark-600 h-20 rounded" />
             </Card>
           ))}
         </div>
@@ -291,7 +291,7 @@ export function ProjectKPICards() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {hoursKpis.map((kpi) => (
           <Card key={kpi.label} variant="bordered" className="relative p-4">
-            <div className="absolute right-3 top-3">
+            <div className="absolute top-3 right-3">
               <InfoTooltip
                 title={kpi.tooltip.title}
                 description={kpi.tooltip.description}
@@ -300,7 +300,7 @@ export function ProjectKPICards() {
               />
             </div>
             <div className="flex items-start gap-3">
-              <div className={`rounded-lg bg-dark-600 p-2 ${kpi.color}`}>
+              <div className={`bg-dark-600 rounded-lg p-2 ${kpi.color}`}>
                 <kpi.icon className="h-5 w-5" />
               </div>
               <div className="min-w-0 flex-1">
@@ -308,7 +308,7 @@ export function ProjectKPICards() {
                 <p className="text-2xl font-bold text-white">{kpi.value}</p>
                 <p className="mt-1 text-xs text-gray-500">{kpi.subLabel}</p>
                 {kpi.progress !== undefined && (
-                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-dark-600">
+                  <div className="bg-dark-600 mt-2 h-1.5 w-full overflow-hidden rounded-full">
                     <div
                       className={`h-full rounded-full transition-all ${kpi.progressColor}`}
                       style={{ width: `${kpi.progress}%` }}
@@ -328,7 +328,7 @@ export function ProjectKPICards() {
           const breakdown = 'breakdown' in kpi ? kpi.breakdown : null;
           return (
             <Card key={kpi.label} variant="bordered" className="relative p-4">
-              <div className={`absolute right-3 top-3 ${isHidden ? 'opacity-50' : ''}`}>
+              <div className={`absolute top-3 right-3 ${isHidden ? 'opacity-50' : ''}`}>
                 <InfoTooltip
                   title={kpi.tooltip.title}
                   description={kpi.tooltip.description}
@@ -338,7 +338,7 @@ export function ProjectKPICards() {
               </div>
               <div className="flex items-start gap-3">
                 <div
-                  className={`rounded-lg bg-dark-600 p-2 ${kpi.color} ${isHidden ? 'opacity-50' : ''}`}
+                  className={`bg-dark-600 rounded-lg p-2 ${kpi.color} ${isHidden ? 'opacity-50' : ''}`}
                 >
                   <kpi.icon className="h-5 w-5" />
                 </div>

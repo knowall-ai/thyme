@@ -407,7 +407,7 @@ export function TeamList() {
           <p className="mb-2 text-red-500">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="text-knowall-green underline hover:text-knowall-green-light"
+            className="text-knowall-green hover:text-knowall-green-light underline"
           >
             Try again
           </button>
@@ -433,7 +433,7 @@ export function TeamList() {
           <ExclamationTriangleIcon className="h-5 w-5 shrink-0 text-amber-500" />
           <div className="text-sm">
             <p className="font-medium text-amber-400">You don&apos;t have a Resource record</p>
-            <p className="mt-1 text-dark-300">
+            <p className="text-dark-300 mt-1">
               Your account ({userEmail}) doesn&apos;t have a matching Resource record in Business
               Central. You won&apos;t be able to track time until your administrator creates a
               Resource record for you with timesheet access enabled.
@@ -444,7 +444,7 @@ export function TeamList() {
 
       {isLoading ? (
         <div className="flex h-64 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-knowall-green"></div>
+          <div className="border-knowall-green h-8 w-8 animate-spin rounded-full border-b-2"></div>
         </div>
       ) : (
         <>
@@ -452,27 +452,27 @@ export function TeamList() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
             {/* Total Hours */}
             <Card variant="bordered" className="p-4">
-              <p className="text-sm text-dark-400">Total Hours</p>
-              <p className="mt-1 text-2xl font-bold text-dark-100">
+              <p className="text-dark-400 text-sm">Total Hours</p>
+              <p className="text-dark-100 mt-1 text-2xl font-bold">
                 {totals.totalHours.toFixed(1)}
               </p>
             </Card>
 
             {/* Team Capacity */}
             <Card variant="bordered" className="p-4">
-              <p className="text-sm text-dark-400">Team Capacity</p>
-              <p className="mt-1 text-2xl font-bold text-dark-100">
+              <p className="text-dark-400 text-sm">Team Capacity</p>
+              <p className="text-dark-100 mt-1 text-2xl font-bold">
                 {totals.totalCapacity.toFixed(1)}
               </p>
             </Card>
 
             {/* Utilization */}
             <Card variant="bordered" className="p-4">
-              <p className="text-sm text-dark-400">Utilization</p>
-              <p className="mt-1 text-2xl font-bold text-dark-100">
+              <p className="text-dark-400 text-sm">Utilization</p>
+              <p className="text-dark-100 mt-1 text-2xl font-bold">
                 {totals.utilization.toFixed(0)}%
               </p>
-              <div className="mt-2 h-4 w-full overflow-hidden rounded bg-dark-700">
+              <div className="bg-dark-700 mt-2 h-4 w-full overflow-hidden rounded">
                 <div
                   className={cn('h-full rounded', getUtilizationColor(totals.utilization))}
                   style={{ width: `${Math.min(totals.utilization, 100)}%` }}
@@ -482,7 +482,7 @@ export function TeamList() {
 
             {/* Pie Chart */}
             <Card variant="bordered" className="p-4">
-              <p className="mb-2 text-sm text-dark-400">Hours Breakdown</p>
+              <p className="text-dark-400 mb-2 text-sm">Hours Breakdown</p>
               <div className="flex items-center gap-4">
                 <div
                   className="h-20 w-20 shrink-0"
@@ -511,13 +511,13 @@ export function TeamList() {
 
           {/* Search */}
           <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-dark-400" />
+            <MagnifyingGlassIcon className="text-dark-400 absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search team members..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg border border-dark-600 bg-dark-800 py-2 pl-10 pr-4 text-dark-100 placeholder:text-dark-500 focus:border-knowall-green focus:outline-none focus:ring-1 focus:ring-knowall-green"
+              className="border-dark-600 bg-dark-800 text-dark-100 placeholder:text-dark-500 focus:border-knowall-green focus:ring-knowall-green w-full rounded-lg border py-2 pr-4 pl-10 focus:ring-1 focus:outline-none"
             />
           </div>
 
@@ -526,9 +526,9 @@ export function TeamList() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-dark-700 bg-dark-800/50">
+                  <tr className="border-dark-700 bg-dark-800/50 border-b">
                     <th
-                      className="cursor-pointer px-4 py-3 text-left text-sm font-medium text-dark-300 hover:text-dark-100"
+                      className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-left text-sm font-medium"
                       onClick={() => handleSort('name')}
                       role="columnheader"
                       aria-sort={getAriaSort('name')}
@@ -540,9 +540,9 @@ export function TeamList() {
                         <SortIcon field="name" />
                       </div>
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-dark-300">Code</th>
+                    <th className="text-dark-300 px-4 py-3 text-left text-sm font-medium">Code</th>
                     <th
-                      className="cursor-pointer px-4 py-3 text-right text-sm font-medium text-dark-300 hover:text-dark-100"
+                      className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
                       onClick={() => handleSort('totalHours')}
                       role="columnheader"
                       aria-sort={getAriaSort('totalHours')}
@@ -555,7 +555,7 @@ export function TeamList() {
                       </div>
                     </th>
                     <th
-                      className="cursor-pointer px-4 py-3 text-right text-sm font-medium text-dark-300 hover:text-dark-100"
+                      className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
                       onClick={() => handleSort('utilization')}
                       role="columnheader"
                       aria-sort={getAriaSort('utilization')}
@@ -567,11 +567,11 @@ export function TeamList() {
                         <SortIcon field="utilization" />
                       </div>
                     </th>
-                    <th className="px-4 py-3 text-right text-sm font-medium text-dark-300">
+                    <th className="text-dark-300 px-4 py-3 text-right text-sm font-medium">
                       Capacity
                     </th>
                     <th
-                      className="cursor-pointer px-4 py-3 text-right text-sm font-medium text-dark-300 hover:text-dark-100"
+                      className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
                       onClick={() => handleSort('billablePercent')}
                       role="columnheader"
                       aria-sort={getAriaSort('billablePercent')}
@@ -589,7 +589,7 @@ export function TeamList() {
                   {filteredAndSortedMembers.map((member) => (
                     <tr
                       key={member.id}
-                      className="border-b border-dark-700 last:border-b-0 hover:bg-dark-800/50"
+                      className="border-dark-700 hover:bg-dark-800/50 border-b last:border-b-0"
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
@@ -600,7 +600,7 @@ export function TeamList() {
                               className="h-9 w-9 rounded-full object-cover"
                             />
                           ) : (
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-dark-600 text-sm font-medium text-dark-200">
+                            <div className="bg-dark-600 text-dark-200 flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium">
                               {member.name
                                 .split(' ')
                                 .map((n) => n[0])
@@ -610,13 +610,13 @@ export function TeamList() {
                             </div>
                           )}
                           <div>
-                            <p className="font-medium text-dark-100">
+                            <p className="text-dark-100 font-medium">
                               {member.name}
                               {member.isCurrentUser && (
-                                <span className="ml-2 text-knowall-green">(you)</span>
+                                <span className="text-knowall-green ml-2">(you)</span>
                               )}
                             </p>
-                            <p className="text-xs text-dark-400">{member.email}</p>
+                            <p className="text-dark-400 text-xs">{member.email}</p>
                           </div>
                         </div>
                       </td>
@@ -641,7 +641,7 @@ export function TeamList() {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right text-dark-100">
+                      <td className="text-dark-100 px-4 py-3 text-right">
                         {member.totalHours.toFixed(1)}
                       </td>
                       <td className="px-4 py-3">
@@ -653,10 +653,10 @@ export function TeamList() {
                           aria-valuemax={100}
                           aria-label={`Utilization ${member.utilization.toFixed(0)}% - ${getUtilizationStatus(member.utilization)}`}
                         >
-                          <span className="text-sm font-medium text-dark-100">
+                          <span className="text-dark-100 text-sm font-medium">
                             {member.utilization.toFixed(0)}%
                           </span>
-                          <div className="h-4 w-24 overflow-hidden rounded bg-dark-700">
+                          <div className="bg-dark-700 h-4 w-24 overflow-hidden rounded">
                             <div
                               className={cn('h-full', getUtilizationColor(member.utilization))}
                               style={{ width: `${Math.min(member.utilization, 100)}%` }}
@@ -664,7 +664,7 @@ export function TeamList() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right text-dark-300">
+                      <td className="text-dark-300 px-4 py-3 text-right">
                         {member.capacity.toFixed(1)}
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -682,7 +682,7 @@ export function TeamList() {
                   ))}
                   {filteredAndSortedMembers.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-dark-400">
+                      <td colSpan={6} className="text-dark-400 px-4 py-8 text-center">
                         {searchQuery
                           ? 'No team members match your search'
                           : 'No team members found'}
