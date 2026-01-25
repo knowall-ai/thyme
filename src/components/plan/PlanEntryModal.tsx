@@ -41,7 +41,9 @@ export function PlanEntryModal({
   const [extensionInstalled, setExtensionInstalled] = useState<boolean | null>(null);
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
   // Track existing planning lines by date -> { id, etag } for update/delete
-  const [existingLinesByDate, setExistingLinesByDate] = useState<Record<string, { id: string; etag: string }>>({});
+  const [existingLinesByDate, setExistingLinesByDate] = useState<
+    Record<string, { id: string; etag: string }>
+  >({});
   const [hasExistingData, setHasExistingData] = useState(false);
 
   // Calculate the week's days based on selected date
@@ -260,7 +262,9 @@ export function PlanEntryModal({
 
     setIsSubmitting(true);
     try {
-      let created = 0, updated = 0, deleted = 0;
+      let created = 0,
+        updated = 0,
+        deleted = 0;
 
       // Delete lines where hours were cleared
       for (const item of toDelete) {
@@ -270,9 +274,13 @@ export function PlanEntryModal({
 
       // Update existing lines
       for (const item of toUpdate) {
-        await bcClient.updateJobPlanningLine(item.id, {
-          quantity: item.hours,
-        }, item.etag);
+        await bcClient.updateJobPlanningLine(
+          item.id,
+          {
+            quantity: item.hours,
+          },
+          item.etag
+        );
         updated++;
       }
 
@@ -476,7 +484,11 @@ export function PlanEntryModal({
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" isLoading={isSubmitting} disabled={!projectId || !taskId || isLoadingExisting}>
+          <Button
+            type="submit"
+            isLoading={isSubmitting}
+            disabled={!projectId || !taskId || isLoadingExisting}
+          >
             {hasExistingData ? 'Save Changes' : 'Add Plan'}
           </Button>
         </div>

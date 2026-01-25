@@ -80,7 +80,10 @@ function ResourceRow({
 
   // Group allocations by project
   const allocationsByProject = useMemo(() => {
-    const map = new Map<string, { projectNumber: string; projectName: string; color: string; allocations: AllocationBlock[] }>();
+    const map = new Map<
+      string,
+      { projectNumber: string; projectName: string; color: string; allocations: AllocationBlock[] }
+    >();
     for (const allocation of member.allocations) {
       const key = allocation.projectNumber;
       if (!map.has(key)) {
@@ -301,7 +304,10 @@ function ResourceRow({
           {/* Projects grouped */}
           {Array.from(allocationsByProject.entries()).map(([projectNumber, projectData]) => {
             const isProjectExpanded = expandedProjectIds.has(projectNumber);
-            const projectTotalHours = projectData.allocations.reduce((sum, a) => sum + a.totalHours, 0);
+            const projectTotalHours = projectData.allocations.reduce(
+              (sum, a) => sum + a.totalHours,
+              0
+            );
 
             return (
               <div key={projectNumber}>
@@ -316,40 +322,47 @@ function ResourceRow({
                 />
 
                 {/* Task rows - shown when project is expanded, consolidated by task */}
-                {isProjectExpanded && (() => {
-                  // Group allocations by task
-                  const taskGroups = new Map<string, { taskNumber: string; taskName: string; allocations: AllocationBlock[] }>();
-                  for (const allocation of projectData.allocations) {
-                    const taskKey = allocation.taskNumber || 'no-task';
-                    if (!taskGroups.has(taskKey)) {
-                      taskGroups.set(taskKey, {
-                        taskNumber: allocation.taskNumber || '',
-                        taskName: allocation.taskName || '(No task)',
-                        allocations: [],
-                      });
+                {isProjectExpanded &&
+                  (() => {
+                    // Group allocations by task
+                    const taskGroups = new Map<
+                      string,
+                      { taskNumber: string; taskName: string; allocations: AllocationBlock[] }
+                    >();
+                    for (const allocation of projectData.allocations) {
+                      const taskKey = allocation.taskNumber || 'no-task';
+                      if (!taskGroups.has(taskKey)) {
+                        taskGroups.set(taskKey, {
+                          taskNumber: allocation.taskNumber || '',
+                          taskName: allocation.taskName || '(No task)',
+                          allocations: [],
+                        });
+                      }
+                      taskGroups.get(taskKey)!.allocations.push(allocation);
                     }
-                    taskGroups.get(taskKey)!.allocations.push(allocation);
-                  }
 
-                  return Array.from(taskGroups.entries()).map(([taskKey, taskData]) => {
-                    const taskTotalHours = taskData.allocations.reduce((sum, a) => sum + a.totalHours, 0);
-                    // Use the first allocation's ID for edit (will load all lines for that task)
-                    const firstAllocation = taskData.allocations[0];
+                    return Array.from(taskGroups.entries()).map(([taskKey, taskData]) => {
+                      const taskTotalHours = taskData.allocations.reduce(
+                        (sum, a) => sum + a.totalHours,
+                        0
+                      );
+                      // Use the first allocation's ID for edit (will load all lines for that task)
+                      const firstAllocation = taskData.allocations[0];
 
-                    return (
-                      <TeamTaskRow
-                        key={taskKey}
-                        taskData={taskData}
-                        projectData={projectData}
-                        weekGroups={weekGroups}
-                        taskTotalHours={taskTotalHours}
-                        firstAllocation={firstAllocation}
-                        onEditAllocation={onEditAllocation}
-                        onAddPlan={onAddPlan}
-                      />
-                    );
-                  });
-                })()}
+                      return (
+                        <TeamTaskRow
+                          key={taskKey}
+                          taskData={taskData}
+                          projectData={projectData}
+                          weekGroups={weekGroups}
+                          taskTotalHours={taskTotalHours}
+                          firstAllocation={firstAllocation}
+                          onEditAllocation={onEditAllocation}
+                          onAddPlan={onAddPlan}
+                        />
+                      );
+                    });
+                  })()}
               </div>
             );
           })}
@@ -410,7 +423,12 @@ function ResourceRow({
 // Team Task Row Component (for Team view - shows task under a project with add capability)
 interface TeamTaskRowProps {
   taskData: { taskNumber: string; taskName: string; allocations: AllocationBlock[] };
-  projectData: { projectNumber: string; projectName: string; color: string; allocations: AllocationBlock[] };
+  projectData: {
+    projectNumber: string;
+    projectName: string;
+    color: string;
+    allocations: AllocationBlock[];
+  };
   weekGroups: { weekStart: Date; days: Date[] }[];
   taskTotalHours: number;
   firstAllocation: AllocationBlock;
@@ -441,9 +459,7 @@ function TeamTaskRow({
             onEditAllocation(firstAllocation.id);
           }}
         >
-          <span className="text-dark-500 truncate text-xs">
-            {taskData.taskName}
-          </span>
+          <span className="text-dark-500 truncate text-xs">{taskData.taskName}</span>
         </div>
       </div>
       {/* Day cells - grouped by week for hover effect */}
@@ -533,7 +549,12 @@ function TeamTaskRow({
 
 // Team Project Row Component (for Team view - shows project under a resource with add capability)
 interface TeamProjectRowProps {
-  projectData: { projectNumber: string; projectName: string; color: string; allocations: AllocationBlock[] };
+  projectData: {
+    projectNumber: string;
+    projectName: string;
+    color: string;
+    allocations: AllocationBlock[];
+  };
   weekGroups: { weekStart: Date; days: Date[] }[];
   projectTotalHours: number;
   isExpanded: boolean;
@@ -552,10 +573,7 @@ function TeamProjectRow({
   const [hoveredWeekStart, setHoveredWeekStart] = useState<Date | null>(null);
 
   return (
-    <div
-      className="hover:bg-dark-700/60 flex w-full items-center"
-      title="Click to show/hide tasks"
-    >
+    <div className="hover:bg-dark-700/60 flex w-full items-center" title="Click to show/hide tasks">
       {/* Sticky name column */}
       <div className="bg-dark-850 sticky left-0 z-10 flex shrink-0">
         <div
@@ -578,9 +596,7 @@ function TeamProjectRow({
             className="h-2 w-2 shrink-0 rounded-full"
             style={{ backgroundColor: projectData.color }}
           />
-          <span className="text-dark-300 truncate text-xs">
-            {projectData.projectName}
-          </span>
+          <span className="text-dark-300 truncate text-xs">{projectData.projectName}</span>
         </div>
       </div>
       {/* Day cells - grouped by week for hover effect */}
@@ -715,9 +731,7 @@ function TaskRow({
               <ChevronRightIcon className="h-3 w-3" />
             )}
           </button>
-          <span className="text-dark-300 truncate text-xs">
-            {taskData.taskName}
-          </span>
+          <span className="text-dark-300 truncate text-xs">{taskData.taskName}</span>
         </div>
       </div>
       {/* Day cells - grouped by week for hover effect */}
@@ -838,9 +852,7 @@ function ResourceTaskRow({
             onEditAllocation(firstAlloc.id);
           }}
         >
-          <span className="text-dark-500 truncate text-xs">
-            {firstAlloc.resourceName}
-          </span>
+          <span className="text-dark-500 truncate text-xs">{firstAlloc.resourceName}</span>
         </div>
       </div>
       {/* Day cells - grouped by week for hover effect */}
@@ -963,7 +975,10 @@ function ProjectRow({
 
   // Group allocations by task, then by resource within each task
   const allocationsByTask = useMemo(() => {
-    const map = new Map<string, { taskNumber: string; taskName: string; allocations: AllocationBlock[] }>();
+    const map = new Map<
+      string,
+      { taskNumber: string; taskName: string; allocations: AllocationBlock[] }
+    >();
     for (const allocation of project.allocations) {
       const key = allocation.taskNumber || 'no-task';
       if (!map.has(key)) {
@@ -1176,27 +1191,27 @@ function ProjectRow({
                 />
 
                 {/* Resource rows - shown when task is expanded */}
-                {isTaskExpanded && Array.from(resourcesByTask.entries()).map(([resourceNumber, allocations]) => {
-                  const firstAlloc = allocations[0];
-                  return (
-                    <ResourceTaskRow
-                      key={resourceNumber}
-                      allocations={allocations}
-                      days={days}
-                      weekGroups={weekGroups}
-                      projectColor={project.color}
-                      projectNumber={project.number}
-                      taskNumber={taskData.taskNumber}
-                      taskName={taskData.taskName}
-                      onEditAllocation={onEditAllocation}
-                      onAddPlan={onAddPlan}
-                    />
-                  );
-                })}
+                {isTaskExpanded &&
+                  Array.from(resourcesByTask.entries()).map(([resourceNumber, allocations]) => {
+                    const firstAlloc = allocations[0];
+                    return (
+                      <ResourceTaskRow
+                        key={resourceNumber}
+                        allocations={allocations}
+                        days={days}
+                        weekGroups={weekGroups}
+                        projectColor={project.color}
+                        projectNumber={project.number}
+                        taskNumber={taskData.taskNumber}
+                        taskName={taskData.taskName}
+                        onEditAllocation={onEditAllocation}
+                        onAddPlan={onAddPlan}
+                      />
+                    );
+                  })}
               </div>
             );
           })}
-
 
           {/* Add Resource row */}
           <div className="hover:bg-dark-700/60 flex w-full items-center">
@@ -1289,8 +1304,12 @@ export function PlanPanel() {
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [selectedMemberForPlan, setSelectedMemberForPlan] = useState<PlanTeamMember | null>(null);
   const [selectedDateForPlan, setSelectedDateForPlan] = useState<Date>(new Date());
-  const [preSelectedProjectCode, setPreSelectedProjectCode] = useState<string | undefined>(undefined);
-  const [preSelectedTeamTaskCode, setPreSelectedTeamTaskCode] = useState<string | undefined>(undefined);
+  const [preSelectedProjectCode, setPreSelectedProjectCode] = useState<string | undefined>(
+    undefined
+  );
+  const [preSelectedTeamTaskCode, setPreSelectedTeamTaskCode] = useState<string | undefined>(
+    undefined
+  );
 
   // Modal state for adding plans (Projects view)
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
@@ -1467,7 +1486,11 @@ export function PlanPanel() {
   };
 
   // Open plan entry modal (Team view - select project for a resource)
-  const handleOpenPlanModal = (member: PlanTeamMember, weekStart: Date, context?: AddPlanContext) => {
+  const handleOpenPlanModal = (
+    member: PlanTeamMember,
+    weekStart: Date,
+    context?: AddPlanContext
+  ) => {
     setSelectedMemberForPlan(member);
     setSelectedDateForPlan(weekStart);
     setPreSelectedProjectCode(context?.projectCode);
@@ -1476,7 +1499,11 @@ export function PlanPanel() {
   };
 
   // Open plan entry modal (Projects view - select resource for a project)
-  const handleOpenProjectPlanModal = (project: PlanProject, weekStart: Date, context?: AddPlanContext) => {
+  const handleOpenProjectPlanModal = (
+    project: PlanProject,
+    weekStart: Date,
+    context?: AddPlanContext
+  ) => {
     setSelectedProjectForPlan(project);
     setSelectedDateForPlan(weekStart);
     setPreSelectedTaskCode(context?.taskCode);
@@ -1758,7 +1785,9 @@ export function PlanPanel() {
                     isDragging={isDragging}
                     isExpanded={expandedMemberIds.has(member.id)}
                     onToggleExpand={() => toggleMemberExpanded(member.id)}
-                    onAddPlan={(weekStart, context) => handleOpenPlanModal(member, weekStart, context)}
+                    onAddPlan={(weekStart, context) =>
+                      handleOpenPlanModal(member, weekStart, context)
+                    }
                     companyName={selectedCompany?.name}
                   />
                 ))
@@ -1780,7 +1809,9 @@ export function PlanPanel() {
                   onDragStart={startDrag}
                   onDragEnd={endDrag}
                   isDragging={isDragging}
-                  onAddPlan={(weekStart, context) => handleOpenProjectPlanModal(project, weekStart, context)}
+                  onAddPlan={(weekStart, context) =>
+                    handleOpenProjectPlanModal(project, weekStart, context)
+                  }
                   isExpanded={expandedProjectIds.has(project.id)}
                   onToggleExpand={() => toggleProjectExpanded(project.id)}
                   companyName={selectedCompany?.name}

@@ -38,7 +38,9 @@ export function PlanEditModal({
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
 
   // Track existing lines by date (array because there could be duplicates)
-  const [existingLinesByDate, setExistingLinesByDate] = useState<Record<string, ExistingLine[]>>({});
+  const [existingLinesByDate, setExistingLinesByDate] = useState<Record<string, ExistingLine[]>>(
+    {}
+  );
   // Hours input per day (user edits this)
   const [hoursPerDay, setHoursPerDay] = useState<Record<string, string>>({});
 
@@ -225,7 +227,9 @@ export function PlanEditModal({
 
     setIsSubmitting(true);
     try {
-      let created = 0, updated = 0, deleted = 0;
+      let created = 0,
+        updated = 0,
+        deleted = 0;
 
       // Delete lines first (including duplicates)
       for (const item of toDelete) {
@@ -235,9 +239,13 @@ export function PlanEditModal({
 
       // Update existing lines with new quantity
       for (const item of toUpdate) {
-        await bcClient.updateJobPlanningLine(item.id, {
-          quantity: item.hours,
-        }, item.etag);
+        await bcClient.updateJobPlanningLine(
+          item.id,
+          {
+            quantity: item.hours,
+          },
+          item.etag
+        );
         updated++;
       }
 
@@ -354,9 +362,7 @@ export function PlanEditModal({
         <div>
           <div className="mb-2 flex items-center justify-between">
             <label className="text-dark-200 text-sm font-medium">Hours per Day</label>
-            {isLoadingExisting && (
-              <span className="text-dark-400 text-xs">Loading...</span>
-            )}
+            {isLoadingExisting && <span className="text-dark-400 text-xs">Loading...</span>}
           </div>
           <div className="grid grid-cols-7 gap-1">
             {weekDays.map((day) => {
