@@ -1,9 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, ExclamationTriangleIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { bcClient } from '@/services/bc/bcClient';
 import { useCompanyStore } from '@/hooks';
+
+// GitHub releases page for the BC extension
+const EXTENSION_RELEASES_URL = 'https://github.com/knowall-ai/thyme-bc-extension/releases';
 
 const BANNER_DISMISSED_KEY = 'thyme_extension_banner_dismissed';
 
@@ -57,12 +60,21 @@ export function ExtensionBanner() {
               Extension to enable customer names, project tasks, and timesheet management.
             </p>
           </div>
-          <div className="flex flex-shrink-0 items-center gap-3">
+          <div className="flex flex-shrink-0 items-center gap-2">
+            <a
+              href={EXTENSION_RELEASES_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-amber-500"
+            >
+              <ArrowDownTrayIcon className="h-4 w-4" />
+              Install
+            </a>
             <a
               href="https://github.com/knowall-ai/thyme-bc-extension"
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-amber-500"
+              className="rounded-md px-3 py-1.5 text-sm font-medium text-amber-200 transition-colors hover:bg-amber-800/50 hover:text-white"
             >
               Learn More
             </a>

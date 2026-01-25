@@ -7,4 +7,5 @@ export { useSettingsStore } from './useSettingsStore';
 export { useTeammateStore } from './useTeammateStore';
 export { useApprovalStore } from './useApprovalStore';
 export { usePlanStore } from './usePlanStore';
+export { useExtensionStore } from './useExtensionStore';
 export { useTimer } from './useTimer';

@@ -14,7 +14,7 @@ import {
   ChevronLeftIcon,
   ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
-import { Card, Button, ExtensionNotInstalled } from '@/components/ui';
+import { Card, Button, ExtensionPreviewWrapper } from '@/components/ui';
 import { PlanEntryModal } from './PlanEntryModal';
 import { PlanResourceModal } from './PlanResourceModal';
 import { PlanEditModal } from './PlanEditModal';
@@ -1565,27 +1565,8 @@ export function PlanPanel() {
     }
   };
 
-  // Error/loading states
-  if (extensionNotInstalled) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={handlePrevious}>
-            <ChevronLeftIcon className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleToday}>
-            Today
-          </Button>
-          <Button variant="outline" size="icon" onClick={handleNext}>
-            <ChevronRightIcon className="h-4 w-4" />
-          </Button>
-        </div>
-        <ExtensionNotInstalled />
-      </div>
-    );
-  }
-
-  if (error && !isLoading) {
+  // Error state (only show if not loading)
+  if (error && !isLoading && !extensionNotInstalled) {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="text-center">
@@ -1890,8 +1871,16 @@ export function PlanPanel() {
 
   // Fullscreen mode
   if (isFullscreen) {
-    return <div className="bg-dark-900 fixed inset-0 z-50 flex flex-col p-6">{planContent}</div>;
+    return (
+      <ExtensionPreviewWrapper extensionNotInstalled={extensionNotInstalled} pageName="Plan">
+        <div className="bg-dark-900 fixed inset-0 z-50 flex flex-col p-6">{planContent}</div>
+      </ExtensionPreviewWrapper>
+    );
   }
 
-  return planContent;
+  return (
+    <ExtensionPreviewWrapper extensionNotInstalled={extensionNotInstalled} pageName="Plan">
+      {planContent}
+    </ExtensionPreviewWrapper>
+  );
 }
