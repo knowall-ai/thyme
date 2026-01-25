@@ -36,84 +36,6 @@ import {
   isWeekend,
 } from 'date-fns';
 
-// Day width is now dynamic based on available space
-
-// Allocation Block Component
-interface AllocationBlockProps {
-  allocation: AllocationBlock;
-  days: Date[];
-  isSelected: boolean;
-  onSelect: () => void;
-  onDragStart: () => void;
-  onDragEnd: () => void;
-}
-
-function AllocationBlockComponent({
-  allocation,
-  days,
-  isSelected,
-  onSelect,
-  onDragStart,
-  onDragEnd,
-}: AllocationBlockProps) {
-  const startDate = new Date(allocation.startDate);
-  const endDate = new Date(allocation.endDate);
-
-  // Find the day index where allocation starts and ends
-  const startIndex = days.findIndex((d) => isSameDay(d, startDate));
-  const endIndex = days.findIndex((d) => isSameDay(d, endDate));
-
-  // If allocation is outside visible range, don't render
-  if (startIndex === -1 && endIndex === -1) {
-    // Check if allocation spans the entire visible range
-    const allocStart = startDate.getTime();
-    const allocEnd = endDate.getTime();
-    const visibleStart = days[0].getTime();
-    const visibleEnd = days[days.length - 1].getTime();
-
-    if (allocEnd < visibleStart || allocStart > visibleEnd) {
-      return null;
-    }
-  }
-
-  // Calculate position and width as percentages
-  const totalDays = days.length;
-  const effectiveStartIndex = startIndex === -1 ? 0 : startIndex;
-  const effectiveEndIndex = endIndex === -1 ? totalDays - 1 : endIndex;
-  const leftPercent = (effectiveStartIndex / totalDays) * 100;
-  const widthPercent = ((effectiveEndIndex - effectiveStartIndex + 1) / totalDays) * 100;
-
-  return (
-    <div
-      className={cn(
-        'absolute top-1 h-8 cursor-pointer rounded px-2 text-xs font-medium text-white shadow transition-all',
-        isSelected && 'ring-2 ring-white ring-offset-1 ring-offset-transparent'
-      )}
-      style={{
-        left: `calc(${leftPercent}% + 2px)`,
-        width: `calc(${widthPercent}% - 4px)`,
-        backgroundColor: allocation.color,
-      }}
-      onClick={onSelect}
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData('text/plain', allocation.id);
-        onDragStart();
-      }}
-      onDragEnd={onDragEnd}
-      title={`${allocation.projectName}${allocation.taskName ? ` - ${allocation.taskName}` : ''}\n${allocation.totalHours.toFixed(1)}h total`}
-    >
-      <div className="flex h-full items-center justify-between overflow-hidden">
-        <span className="truncate">
-          {allocation.projectName}
-          {allocation.taskName && <span className="opacity-70"> - {allocation.taskName}</span>}
-        </span>
-        <span className="ml-1 shrink-0 opacity-80">{allocation.totalHours.toFixed(1)}h</span>
-      </div>
-    </div>
-  );
-}
-
 // Context for adding plans - allows pre-selecting project, task, and resource
 interface AddPlanContext {
   projectCode?: string;
@@ -244,14 +166,14 @@ function ResourceRow({
         >
           {/* Avatar and Name - clickable to expand */}
           <div
-            className="flex flex-1 cursor-pointer items-center gap-2 overflow-hidden px-3 py-2"
-            onClick={onToggleExpand}
+            className="flex flex-1 items-center gap-2 overflow-hidden px-3 py-2"
             title={member.name}
           >
             {/* Expand/Collapse chevron */}
             <button
-              className="text-dark-400 hover:text-dark-200 flex-shrink-0"
+              className="text-dark-400 hover:text-dark-200 flex-shrink-0 cursor-pointer"
               aria-label={isExpanded ? 'Collapse' : 'Expand'}
+              onClick={onToggleExpand}
             >
               {isExpanded ? (
                 <ChevronDownIcon className="h-4 w-4" />
@@ -637,14 +559,14 @@ function TeamProjectRow({
       {/* Sticky name column */}
       <div className="bg-dark-850 sticky left-0 z-10 flex shrink-0">
         <div
-          className="flex w-[230px] cursor-pointer items-center gap-2 overflow-hidden py-1.5 pr-4 pl-8"
+          className="flex w-[230px] items-center gap-2 overflow-hidden py-1.5 pr-4 pl-8"
           title={projectData.projectName}
-          onClick={onToggleExpand}
         >
           {/* Expand/Collapse chevron */}
           <button
-            className="text-dark-400 hover:text-dark-200 flex-shrink-0"
+            className="text-dark-400 hover:text-dark-200 flex-shrink-0 cursor-pointer"
             aria-label={isExpanded ? 'Collapse' : 'Expand'}
+            onClick={onToggleExpand}
           >
             {isExpanded ? (
               <ChevronDownIcon className="h-3 w-3" />
@@ -1352,7 +1274,6 @@ export function PlanPanel() {
     startDrag,
     endDrag,
     dropAllocation,
-    createAllocation,
   } = usePlanStore();
 
   const [currentWeekStart, setLocalWeekStart] = useState(() =>
@@ -1479,7 +1400,9 @@ export function PlanPanel() {
     };
 
     void fetchPhotos();
-  }, [teamMemberIds, teamMembers, updateMemberPhoto]);
+    // teamMemberIds is a derived key from teamMembers - using it avoids re-running when only photos update
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamMemberIds, updateMemberPhoto]);
 
   // Handle ESC key
   useEffect(() => {

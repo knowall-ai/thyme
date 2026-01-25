@@ -55,6 +55,7 @@ export function PlanResourceModal({
   );
 
   // Get the current project from projects store
+  // projectNumber prop comes from PlanProject.number which maps to Project.code
   const currentProject = useMemo(
     () => projects.find((p) => p.code === projectNumber),
     [projects, projectNumber]
