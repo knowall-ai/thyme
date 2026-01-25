@@ -491,6 +491,247 @@ class BusinessCentralClient {
     }
   }
 
+  // Get Job Planning Lines for a specific resource/task/week
+  // Used to pre-load existing allocations when editing
+  async getJobPlanningLinesForWeek(params: {
+    jobNo: string;
+    jobTaskNo: string;
+    resourceNo: string;
+    weekStart: string; // YYYY-MM-DD
+    weekEnd: string; // YYYY-MM-DD
+  }): Promise<BCJobPlanningLine[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      return [];
+    }
+
+    try {
+      const token = await getBCAccessToken();
+      if (!token) return [];
+
+      // Build OData filter for resource, task, and date range
+      const escapedJobNo = this.sanitizeODataString(params.jobNo);
+      const escapedTaskNo = this.sanitizeODataString(params.jobTaskNo);
+      const escapedResourceNo = this.sanitizeODataString(params.resourceNo);
+      const filter = `jobNo eq '${escapedJobNo}' and jobTaskNo eq '${escapedTaskNo}' and number eq '${escapedResourceNo}' and planningDate ge ${params.weekStart} and planningDate le ${params.weekEnd}`;
+
+      const url = `${this.customApiBaseUrl}/jobPlanningLines?$filter=${encodeURIComponent(filter)}`;
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.warn(
+            '[BC API] jobPlanningLines endpoint not found. Upgrade Thyme BC Extension to v1.6.0+.'
+          );
+          return [];
+        }
+        return [];
+      }
+
+      const data = await response.json();
+      return data.value || [];
+    } catch (error) {
+      console.error('[BC API] Error fetching job planning lines for week:', error);
+      return [];
+    }
+  }
+
+  // Create Job Planning Line - requires Thyme BC Extension v1.8.0+
+  // Creates a new planning line for resource allocation
+  async createJobPlanningLine(params: {
+    jobNo: string;
+    jobTaskNo: string;
+    resourceNo: string;
+    planningDate: string; // YYYY-MM-DD
+    quantity: number;
+    lineType?: 'Budget' | 'Billable' | 'Both Budget and Billable';
+  }): Promise<BCJobPlanningLine | null> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      const { ExtensionNotInstalledError } = await import('./timeEntryService');
+      throw new ExtensionNotInstalledError();
+    }
+
+    try {
+      const token = await getBCAccessToken();
+      if (!token) {
+        throw new Error('Failed to get access token');
+      }
+
+      // Validate date format
+      const sanitizedDate = this.sanitizeDateInput(params.planningDate);
+      if (!sanitizedDate) {
+        throw new Error('Invalid date format. Expected YYYY-MM-DD.');
+      }
+
+      const url = `${this.customApiBaseUrl}/jobPlanningLines`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          jobNo: params.jobNo,
+          jobTaskNo: params.jobTaskNo,
+          type: 'Resource',
+          number: params.resourceNo,
+          planningDate: sanitizedDate,
+          quantity: params.quantity,
+          lineType: params.lineType || 'Budget',
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error(
+            'Job Planning Lines API not found. Upgrade Thyme BC Extension to v1.8.0+.'
+          );
+        }
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage =
+          errorData?.error?.message || `Failed to create planning line (${response.status})`;
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('[BC API] Error creating job planning line:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update a job planning line - requires Thyme BC Extension v1.8.0+
+   * @param id - The SystemId (GUID) of the planning line to update
+   * @param params - The fields to update (quantity, etc.)
+   * @param etag - The @odata.etag value for optimistic concurrency (required by BC)
+   */
+  async updateJobPlanningLine(
+    id: string,
+    params: {
+      quantity?: number;
+      planningDate?: string;
+    },
+    etag?: string
+  ): Promise<BCJobPlanningLine | null> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      const { ExtensionNotInstalledError } = await import('./timeEntryService');
+      throw new ExtensionNotInstalledError();
+    }
+
+    try {
+      const token = await getBCAccessToken();
+      if (!token) {
+        throw new Error('Failed to get access token');
+      }
+
+      // Use SystemId (GUID) as the key - this is the standard BC API pattern
+      const url = `${this.customApiBaseUrl}/jobPlanningLines(${id})`;
+
+      const updateBody: Record<string, unknown> = {};
+      if (params.quantity !== undefined) {
+        updateBody.quantity = params.quantity;
+      }
+      if (params.planningDate) {
+        updateBody.planningDate = this.sanitizeDateInput(params.planningDate);
+      }
+
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      };
+      // BC requires If-Match header with ETag for PATCH operations
+      if (etag) {
+        headers['If-Match'] = etag;
+      }
+
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(updateBody),
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error(
+            'Job Planning Line not found or update not supported. Try deleting and recreating.'
+          );
+        }
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage =
+          errorData?.error?.message || `Failed to update planning line (${response.status})`;
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('[BC API] Error updating job planning line:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a job planning line - requires Thyme BC Extension v1.8.0+
+   * @param id - The SystemId (GUID) of the planning line to delete
+   * @param etag - The @odata.etag value for optimistic concurrency (required by BC)
+   */
+  async deleteJobPlanningLine(id: string, etag?: string): Promise<void> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      const { ExtensionNotInstalledError } = await import('./timeEntryService');
+      throw new ExtensionNotInstalledError();
+    }
+
+    try {
+      const token = await getBCAccessToken();
+      if (!token) {
+        throw new Error('Failed to get access token');
+      }
+
+      // Use SystemId (GUID) as the key - this is the standard BC API pattern
+      const url = `${this.customApiBaseUrl}/jobPlanningLines(${id})`;
+
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      };
+      // BC requires If-Match header with ETag for DELETE operations
+      if (etag) {
+        headers['If-Match'] = etag;
+      }
+
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers,
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          // Already deleted or doesn't exist - treat as success
+          return;
+        }
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage =
+          errorData?.error?.message || `Failed to delete planning line (${response.status})`;
+        throw new Error(errorMessage);
+      }
+    } catch (error) {
+      console.error('[BC API] Error deleting job planning line:', error);
+      throw error;
+    }
+  }
+
   // Time Entries - requires Thyme BC Extension v1.7.0+
   // Provides posted time entries from Job Ledger Entry (actual cost and invoiced price)
   async getTimeEntries(jobNumber: string): Promise<BCTimeEntry[]> {
@@ -962,6 +1203,60 @@ class BusinessCentralClient {
     await this.customApiFetch(`/timeSheets(${timeSheetId})/Microsoft.NAV.reject`, {
       method: 'POST',
     });
+  }
+
+  /**
+   * Create a new timesheet for a resource.
+   * @param resourceNo - The resource number (employee)
+   * @param startingDate - The week starting date (YYYY-MM-DD, must be a Monday)
+   * @returns The created timesheet
+   */
+  async createTimeSheet(resourceNo: string, startingDate: string): Promise<BCTimeSheet> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    // Validate and sanitize date input to prevent OData injection
+    const sanitizedDate = this.sanitizeDateInput(startingDate);
+    const sanitizedResourceNo = this.sanitizeODataString(resourceNo);
+
+    return this.customApiFetch<BCTimeSheet>('/timeSheets', {
+      method: 'POST',
+      body: JSON.stringify({
+        resourceNo: sanitizedResourceNo,
+        startingDate: sanitizedDate,
+      }),
+    });
+  }
+
+  /**
+   * Create timesheets for multiple resources for a given week.
+   * @param resourceNos - Array of resource numbers
+   * @param startingDate - The week starting date (YYYY-MM-DD, must be a Monday)
+   * @returns Array of results with success/failure for each resource
+   */
+  async createTimeSheetsForResources(
+    resourceNos: string[],
+    startingDate: string
+  ): Promise<
+    Array<{ resourceNo: string; success: boolean; timesheet?: BCTimeSheet; error?: string }>
+  > {
+    const results = await Promise.all(
+      resourceNos.map(async (resourceNo) => {
+        try {
+          const timesheet = await this.createTimeSheet(resourceNo, startingDate);
+          return { resourceNo, success: true, timesheet };
+        } catch (error) {
+          return {
+            resourceNo,
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          };
+        }
+      })
+    );
+    return results;
   }
 
   /**

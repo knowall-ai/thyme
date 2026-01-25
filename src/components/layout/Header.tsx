@@ -12,6 +12,7 @@ import {
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
   ClipboardDocumentCheckIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth, useProfilePhoto } from '@/services/auth';
 import { useCompanyStore } from '@/hooks';
@@ -29,6 +30,7 @@ const navigation: NavItem[] = [
   { name: 'Time', href: '/', icon: ClockIcon },
   { name: 'Projects', href: '/projects', icon: FolderIcon },
   { name: 'Team', href: '/team', icon: UserGroupIcon },
+  { name: 'Plan', href: '/plan', icon: CalendarDaysIcon },
   { name: 'Approvals', href: '/approvals', icon: ClipboardDocumentCheckIcon },
   { name: 'Reports', href: '/reports', icon: ChartBarIcon },
 ];
