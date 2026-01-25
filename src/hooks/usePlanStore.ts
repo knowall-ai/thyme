@@ -23,6 +23,7 @@ export interface AllocationBlock {
   color: string;
   lineType: 'Budget' | 'Billable' | 'Both Budget and Billable';
   planningLineNo?: number;
+  planningLineId?: string; // BC SystemId (GUID) for PATCH/DELETE operations
 }
 
 export interface PlanTeamMember {
@@ -339,6 +340,22 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         resourceIdMap.set(r.number, r.id);
       });
 
+      // Fetch job tasks for all projects to get actual task names
+      // Map key is "jobNo|jobTaskNo" -> task description
+      const taskNameMap = new Map<string, string>();
+      await Promise.all(
+        projectsData.map(async (project) => {
+          try {
+            const tasks = await bcClient.getJobTasks(project.number);
+            for (const task of tasks) {
+              taskNameMap.set(`${task.jobNo}|${task.jobTaskNo}`, task.description);
+            }
+          } catch {
+            // Ignore errors fetching tasks
+          }
+        })
+      );
+
       // Fetch allocations only for weeks not in cache
       const newAllocations: AllocationBlock[] = [];
 
@@ -374,7 +391,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
                   projectName: projectNameMap.get(line.jobNo) || line.jobNo,
                   taskId: line.jobTaskNo,
                   taskNumber: line.jobTaskNo,
-                  taskName: line.description || line.jobTaskNo,
+                  taskName: taskNameMap.get(`${line.jobNo}|${line.jobTaskNo}`) || line.jobTaskNo,
                   startDate: line.planningDate,
                   endDate: line.planningDate,
                   hoursPerDay: line.quantity,
@@ -382,6 +399,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
                   color: projectColorMap.get(line.jobNo) || '#6b7280',
                   lineType: line.lineType,
                   planningLineNo: line.lineNo,
+                  planningLineId: line.id, // BC SystemId (GUID) for PATCH/DELETE
                 };
                 newAllocations.push(allocation);
               }
