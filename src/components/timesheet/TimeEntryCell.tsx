@@ -43,7 +43,7 @@ export function TimeEntryCell({
   return (
     <div
       className={cn(
-        'min-h-[100px] border-r border-dark-700 p-2 transition-colors last:border-r-0 sm:min-h-[120px]',
+        'border-dark-700 min-h-[100px] border-r p-2 transition-colors last:border-r-0 sm:min-h-[120px]',
         isToday ? 'bg-knowall-green/5' : 'bg-dark-800',
         isHovered && 'bg-dark-700/50'
       )}
@@ -70,7 +70,7 @@ export function TimeEntryCell({
             }
             className={cn(
               'w-full rounded-md p-2 text-left transition-colors',
-              !readOnly && 'cursor-pointer hover:bg-dark-600/50'
+              !readOnly && 'hover:bg-dark-600/50 cursor-pointer'
             )}
             style={{
               backgroundColor: `${getProjectColor(entry.projectId)}20`,
@@ -78,12 +78,12 @@ export function TimeEntryCell({
             }}
           >
             <div className="flex items-start justify-between gap-1">
-              <span className="truncate text-xs font-medium text-dark-200">
+              <span className="text-dark-200 truncate text-xs font-medium">
                 {getProjectName(entry.projectId)}
               </span>
-              <span className="shrink-0 text-xs text-dark-400">{formatTime(entry.hours)}</span>
+              <span className="text-dark-400 shrink-0 text-xs">{formatTime(entry.hours)}</span>
             </div>
-            {entry.notes && <p className="mt-0.5 truncate text-xs text-dark-400">{entry.notes}</p>}
+            {entry.notes && <p className="text-dark-400 mt-0.5 truncate text-xs">{entry.notes}</p>}
           </div>
         ))}
       </div>
@@ -93,8 +93,8 @@ export function TimeEntryCell({
         <button
           onClick={() => onAddEntry(date)}
           className={cn(
-            'mt-2 w-full rounded-md border-2 border-dashed border-dark-600 p-2 text-dark-500',
-            'transition-colors hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green',
+            'border-dark-600 text-dark-500 mt-2 w-full rounded-md border-2 border-dashed p-2',
+            'hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green transition-colors',
             'flex items-center justify-center gap-1 text-xs'
           )}
         >
@@ -105,8 +105,8 @@ export function TimeEntryCell({
 
       {/* Day total */}
       {totalHours > 0 && (
-        <div className="mt-2 border-t border-dark-700 pt-2">
-          <p className="text-right text-xs font-medium text-dark-300">{formatTime(totalHours)}</p>
+        <div className="border-dark-700 mt-2 border-t pt-2">
+          <p className="text-dark-300 text-right text-xs font-medium">{formatTime(totalHours)}</p>
         </div>
       )}
     </div>

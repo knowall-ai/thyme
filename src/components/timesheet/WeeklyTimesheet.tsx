@@ -270,23 +270,23 @@ export function WeeklyTimesheet() {
           <div className="flex flex-col items-center justify-center text-center">
             <UserCircleIcon className="mb-4 h-12 w-12 text-red-500" />
             <h3 className="mb-2 text-lg font-semibold text-white">Resource Record Not Found</h3>
-            <p className="mb-4 max-w-md text-dark-300">
+            <p className="text-dark-300 mb-4 max-w-md">
               No Resource record was found in Business Central for your account. A Resource record
               is required before you can enter time.
             </p>
 
             <div className="max-w-lg text-left">
-              <p className="mb-2 text-sm font-medium text-dark-300">
+              <p className="text-dark-300 mb-2 text-sm font-medium">
                 To resolve this, ask your Business Central administrator to:
               </p>
-              <ol className="list-inside list-decimal space-y-2 text-sm text-dark-400">
+              <ol className="text-dark-400 list-inside list-decimal space-y-2 text-sm">
                 <li>
                   Open{' '}
                   <a
                     href={getBCResourcesListUrl()}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-medium text-thyme-400 underline hover:text-thyme-300"
+                    className="text-thyme-400 hover:text-thyme-300 font-medium underline"
                   >
                     Resources
                   </a>{' '}
@@ -294,21 +294,21 @@ export function WeeklyTimesheet() {
                 </li>
                 <li>
                   Create or edit a Resource record with{' '}
-                  <span className="font-medium text-dark-200">Type: Person</span>
+                  <span className="text-dark-200 font-medium">Type: Person</span>
                 </li>
                 <li>
-                  Set <span className="font-medium text-dark-200">Base Unit of Measure</span> to{' '}
-                  <span className="font-medium text-dark-200">HOUR</span>
+                  Set <span className="text-dark-200 font-medium">Base Unit of Measure</span> to{' '}
+                  <span className="text-dark-200 font-medium">HOUR</span>
                 </li>
                 <li>
-                  Enable <span className="font-medium text-dark-200">Use Time Sheet</span>
+                  Enable <span className="text-dark-200 font-medium">Use Time Sheet</span>
                 </li>
                 <li>
-                  Set <span className="font-medium text-dark-200">Time Sheet Owner User ID</span> to
+                  Set <span className="text-dark-200 font-medium">Time Sheet Owner User ID</span> to
                   the employee&apos;s BC User ID
                 </li>
                 <li>
-                  Set <span className="font-medium text-dark-200">Time Sheet Approver User ID</span>{' '}
+                  Set <span className="text-dark-200 font-medium">Time Sheet Approver User ID</span>{' '}
                   to the approver
                 </li>
                 <li>Save the Resource record</li>
@@ -331,7 +331,7 @@ Please create or update a Resource with the following settings:
 7. Save the Resource record
 
 Thank you!`)}`}
-                  className="inline-flex items-center gap-2 rounded-md bg-thyme-600 px-4 py-2 text-sm font-medium text-white hover:bg-thyme-500"
+                  className="bg-thyme-600 hover:bg-thyme-500 inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white"
                 >
                   <EnvelopeIcon className="h-4 w-4" />
                   Email request to manager
@@ -371,41 +371,41 @@ Thank you!`)}`}
           <div className="flex flex-col items-center justify-center text-center">
             <ExclamationTriangleIcon className="mb-4 h-12 w-12 text-yellow-500" />
             <h3 className="mb-2 text-lg font-semibold text-white">No Timesheet Available</h3>
-            <p className="mb-4 max-w-md text-dark-300">
+            <p className="text-dark-300 mb-4 max-w-md">
               There is no timesheet created for the week of {weekStartStr} - {weekEndStr}. A
               timesheet must be created before you can enter time.
             </p>
 
             <div className="max-w-lg text-left">
-              <p className="mb-2 text-sm font-medium text-dark-300">
+              <p className="text-dark-300 mb-2 text-sm font-medium">
                 To resolve this, ask your timesheet manager to:
               </p>
-              <ol className="list-inside list-decimal space-y-2 text-sm text-dark-400">
+              <ol className="text-dark-400 list-inside list-decimal space-y-2 text-sm">
                 <li>
                   Open your{' '}
                   <a
                     href={getBCResourcesListUrl()}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-medium text-thyme-400 underline hover:text-thyme-300"
+                    className="text-thyme-400 hover:text-thyme-300 font-medium underline"
                   >
                     Resource
                   </a>{' '}
                   in Business Central
                 </li>
                 <li>
-                  Click <span className="font-medium text-dark-200">Create Time Sheets...</span>
+                  Click <span className="text-dark-200 font-medium">Create Time Sheets...</span>
                 </li>
                 <li>
-                  Set <span className="font-medium text-dark-200">Starting Date</span> to{' '}
-                  <span className="font-medium text-dark-200">{weekStartStr}</span>
+                  Set <span className="text-dark-200 font-medium">Starting Date</span> to{' '}
+                  <span className="text-dark-200 font-medium">{weekStartStr}</span>
                 </li>
                 <li>
-                  Set <span className="font-medium text-dark-200">No. of Periods</span> (e.g., 1 for
+                  Set <span className="text-dark-200 font-medium">No. of Periods</span> (e.g., 1 for
                   one week)
                 </li>
                 <li>
-                  Click <span className="font-medium text-dark-200">OK</span> to create the
+                  Click <span className="text-dark-200 font-medium">OK</span> to create the
                   timesheet
                 </li>
               </ol>
@@ -425,7 +425,7 @@ Please create a timesheet using the following steps:
 5. Click OK
 
 Thank you!`)}`}
-                  className="inline-flex items-center gap-2 rounded-md bg-thyme-600 px-4 py-2 text-sm font-medium text-white hover:bg-thyme-500"
+                  className="bg-thyme-600 hover:bg-thyme-500 inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white"
                 >
                   <EnvelopeIcon className="h-4 w-4" />
                   Email request to manager
@@ -442,18 +442,18 @@ Thank you!`)}`}
     <div className="space-y-6">
       {/* Teammate View Banner */}
       {isViewingTeammate && (
-        <div className="flex items-center gap-3 rounded-lg border border-thyme-600/30 bg-thyme-900/20 px-4 py-3">
-          <EyeIcon className="h-5 w-5 text-thyme-500" />
+        <div className="border-thyme-600/30 bg-thyme-900/20 flex items-center gap-3 rounded-lg border px-4 py-3">
+          <EyeIcon className="text-thyme-500 h-5 w-5" />
           <div className="flex-1">
-            <span className="text-sm text-dark-200">
+            <span className="text-dark-200 text-sm">
               Viewing <span className="font-medium text-white">{selectedTeammate.displayName}</span>
               &apos;s timesheet
             </span>
             {selectedTeammate.jobTitle && (
-              <span className="ml-2 text-xs text-dark-400">({selectedTeammate.jobTitle})</span>
+              <span className="text-dark-400 ml-2 text-xs">({selectedTeammate.jobTitle})</span>
             )}
           </div>
-          <span className="rounded bg-thyme-600/20 px-2 py-1 text-xs text-thyme-400">
+          <span className="bg-thyme-600/20 text-thyme-400 rounded px-2 py-1 text-xs">
             Read-only
           </span>
         </div>
@@ -486,9 +486,9 @@ Thank you!`)}`}
 
       {/* Timesheet Status Bar */}
       {currentTimesheet && timesheetStatus && !isViewingTeammate && (
-        <div className="flex items-center justify-between rounded-lg border border-dark-700 bg-dark-850 px-4 py-3">
+        <div className="border-dark-700 bg-dark-850 flex items-center justify-between rounded-lg border px-4 py-3">
           <div className="flex items-center gap-4">
-            <div className="text-sm text-dark-400">
+            <div className="text-dark-400 text-sm">
               Timesheet: <span className="font-medium text-white">{currentTimesheet.number}</span>
             </div>
             <span
@@ -525,7 +525,7 @@ Thank you!`)}`}
             )}
             {timesheetStatus === 'Submitted' && (
               <>
-                <span className="text-sm text-dark-400">Awaiting approval</span>
+                <span className="text-dark-400 text-sm">Awaiting approval</span>
                 <Button
                   variant="outline"
                   size="sm"
@@ -547,11 +547,11 @@ Thank you!`)}`}
 
       {/* Week Summary */}
       <div className="flex items-center gap-6">
-        <div className="text-sm text-dark-400">
+        <div className="text-dark-400 text-sm">
           Week total: <span className="font-semibold text-white">{formatTime(totalHours)}</span>
         </div>
         {entries.length > 0 && (
-          <div className="text-sm text-dark-400">
+          <div className="text-dark-400 text-sm">
             {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
           </div>
         )}
@@ -565,17 +565,17 @@ Thank you!`)}`}
       {/* Timesheet Grid */}
       <Card variant="bordered" className="overflow-hidden">
         {/* Day Headers */}
-        <div className="grid grid-cols-7 border-b border-dark-700 bg-dark-900">
+        <div className="border-dark-700 bg-dark-900 grid grid-cols-7 border-b">
           {weekDays.map((day) => {
             const isToday = isDayToday(day);
             return (
               <div
                 key={day.toISOString()}
-                className={`border-r border-dark-700 p-3 text-center last:border-r-0 ${
+                className={`border-dark-700 border-r p-3 text-center last:border-r-0 ${
                   isToday ? 'bg-knowall-green/10' : ''
                 }`}
               >
-                <p className="text-xs font-medium uppercase text-dark-400">{format(day, 'EEE')}</p>
+                <p className="text-dark-400 text-xs font-medium uppercase">{format(day, 'EEE')}</p>
                 <p
                   className={`text-lg font-semibold ${
                     isToday ? 'text-knowall-green' : 'text-white'
@@ -591,7 +591,7 @@ Thank you!`)}`}
         {/* Entries Grid */}
         {isLoading || projectsLoading ? (
           <div className="flex h-64 items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-knowall-green"></div>
+            <div className="border-knowall-green h-8 w-8 animate-spin rounded-full border-b-2"></div>
           </div>
         ) : (
           <div className="grid grid-cols-7">
@@ -621,17 +621,17 @@ Thank you!`)}`}
           <div className="py-12 text-center">
             {isViewingTeammate ? (
               <>
-                <p className="mb-2 text-dark-300">
+                <p className="text-dark-300 mb-2">
                   No time entries found for {selectedTeammate.displayName} this week.
                 </p>
-                <p className="text-sm text-dark-500">
+                <p className="text-dark-500 text-sm">
                   Time entries will appear here once added to their timesheet.
                 </p>
               </>
             ) : (
               <>
-                <p className="mb-4 text-dark-300">&quot;{quote.text}&quot;</p>
-                <p className="text-sm text-dark-500">
+                <p className="text-dark-300 mb-4">&quot;{quote.text}&quot;</p>
+                <p className="text-dark-500 text-sm">
                   — {quote.author}
                   {quote.source && <>, {quote.source}</>}
                 </p>

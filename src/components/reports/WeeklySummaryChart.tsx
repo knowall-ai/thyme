@@ -108,14 +108,14 @@ export function WeeklySummaryChart() {
       {/* Chart */}
       <Card variant="bordered" className="lg:col-span-2">
         <CardHeader>
-          <h3 className="text-lg font-semibold text-dark-100">Hours by Day</h3>
+          <h3 className="text-dark-100 text-lg font-semibold">Hours by Day</h3>
         </CardHeader>
         <CardContent>
           <div className="h-64">
             {entries.length > 0 ? (
               <Bar data={chartData} options={options as never} />
             ) : (
-              <div className="flex h-full items-center justify-center text-dark-400">
+              <div className="text-dark-400 flex h-full items-center justify-center">
                 No data for this week
               </div>
             )}
@@ -126,19 +126,19 @@ export function WeeklySummaryChart() {
       {/* Summary */}
       <Card variant="bordered">
         <CardHeader>
-          <h3 className="text-lg font-semibold text-dark-100">Summary</h3>
+          <h3 className="text-dark-100 text-lg font-semibold">Summary</h3>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {/* Total */}
-            <div className="border-b border-dark-700 pb-4">
-              <p className="text-sm text-dark-400">Total Hours</p>
-              <p className="text-3xl font-bold text-dark-100">{formatTime(totalHours)}</p>
+            <div className="border-dark-700 border-b pb-4">
+              <p className="text-dark-400 text-sm">Total Hours</p>
+              <p className="text-dark-100 text-3xl font-bold">{formatTime(totalHours)}</p>
             </div>
 
             {/* By project */}
             <div className="space-y-3">
-              <p className="text-sm font-medium text-dark-200">By Project</p>
+              <p className="text-dark-200 text-sm font-medium">By Project</p>
               {projectTotals.map(({ project, hours }) => (
                 <div key={project?.id} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -146,14 +146,14 @@ export function WeeklySummaryChart() {
                       className="h-3 w-3 rounded-full"
                       style={{ backgroundColor: project?.color }}
                     />
-                    <span className="truncate text-sm text-dark-200">{project?.name}</span>
+                    <span className="text-dark-200 truncate text-sm">{project?.name}</span>
                   </div>
-                  <span className="text-sm font-medium text-dark-100">{formatTime(hours)}</span>
+                  <span className="text-dark-100 text-sm font-medium">{formatTime(hours)}</span>
                 </div>
               ))}
 
               {projectTotals.length === 0 && (
-                <p className="text-sm text-dark-400">No entries this week</p>
+                <p className="text-dark-400 text-sm">No entries this week</p>
               )}
             </div>
           </div>

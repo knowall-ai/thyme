@@ -88,7 +88,7 @@ export function ProjectCharts() {
   if (isLoadingAnalytics) {
     return (
       <Card variant="bordered" className="p-6">
-        <div className="h-64 animate-pulse rounded bg-dark-600" />
+        <div className="bg-dark-600 h-64 animate-pulse rounded" />
       </Card>
     );
   }
@@ -136,10 +136,10 @@ export function ProjectCharts() {
             onTouchEnd={clearHoldTimers}
             disabled={!canGoBack}
             className={cn(
-              'select-none rounded-lg p-1.5 transition-colors',
+              'rounded-lg p-1.5 transition-colors select-none',
               canGoBack
-                ? 'bg-dark-600 text-gray-300 hover:bg-dark-500 hover:text-white'
-                : 'cursor-not-allowed bg-dark-700 text-gray-600'
+                ? 'bg-dark-600 hover:bg-dark-500 text-gray-300 hover:text-white'
+                : 'bg-dark-700 cursor-not-allowed text-gray-600'
             )}
             title="Previous week (hold to scroll)"
           >
@@ -152,7 +152,7 @@ export function ProjectCharts() {
               'rounded-lg px-3 py-1 text-sm font-medium transition-colors',
               offsetWeeks === 0
                 ? 'bg-thyme-600 text-white'
-                : 'bg-dark-600 text-gray-300 hover:bg-dark-500 hover:text-white'
+                : 'bg-dark-600 hover:bg-dark-500 text-gray-300 hover:text-white'
             )}
           >
             This Week
@@ -165,10 +165,10 @@ export function ProjectCharts() {
             onTouchEnd={clearHoldTimers}
             disabled={!canGoForward}
             className={cn(
-              'select-none rounded-lg p-1.5 transition-colors',
+              'rounded-lg p-1.5 transition-colors select-none',
               canGoForward
-                ? 'bg-dark-600 text-gray-300 hover:bg-dark-500 hover:text-white'
-                : 'cursor-not-allowed bg-dark-700 text-gray-600'
+                ? 'bg-dark-600 hover:bg-dark-500 text-gray-300 hover:text-white'
+                : 'bg-dark-700 cursor-not-allowed text-gray-600'
             )}
             title="Next week (hold to scroll)"
           >
@@ -346,7 +346,7 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
           {/* Grid lines */}
           <div className="absolute inset-0 flex flex-col justify-between">
             {yAxisLabels.map((label) => (
-              <div key={label} className="border-t border-dark-600" />
+              <div key={label} className="border-dark-600 border-t" />
             ))}
           </div>
 
@@ -406,7 +406,7 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
 
                   {/* Tooltip */}
                   {isHovered && (
-                    <div className="absolute -top-20 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-dark-700 px-2 py-1 text-xs shadow-lg">
+                    <div className="bg-dark-700 absolute -top-20 left-1/2 z-10 -translate-x-1/2 rounded px-2 py-1 text-xs whitespace-nowrap shadow-lg">
                       <div className="font-medium text-white">
                         {point.date.toLocaleDateString('en-US', {
                           month: 'short',
@@ -416,7 +416,7 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
                       </div>
                       {point.approvedHours > 0 && (
                         <div className="flex items-center gap-2 text-gray-400">
-                          <span className="inline-block h-2 w-2 rounded-sm bg-thyme-500" />
+                          <span className="bg-thyme-500 inline-block h-2 w-2 rounded-sm" />
                           Approved: {point.approvedHours.toFixed(1)}h
                         </div>
                       )}
@@ -438,7 +438,7 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
       </div>
 
       {/* X-axis with month labels */}
-      <div className="ml-8 mt-2 flex">
+      <div className="mt-2 ml-8 flex">
         {displayData.map((point) => (
           <div key={point.week} className="flex-1 text-center">
             {point.monthLabel && <span className="text-xs text-gray-500">{point.monthLabel}</span>}
@@ -614,7 +614,7 @@ function ProgressLineChart({
           {/* Grid lines */}
           <div className="absolute inset-0 flex flex-col justify-between">
             {yAxisLabels.map((label) => (
-              <div key={label} className="border-t border-dark-600" />
+              <div key={label} className="border-dark-600 border-t" />
             ))}
           </div>
 
@@ -624,14 +624,14 @@ function ProgressLineChart({
               {/* Resource budget band (bottom) */}
               {budgetCostBreakdown.resource > 0 && (
                 <div
-                  className="absolute bottom-0 left-0 right-0 bg-blue-500/10"
+                  className="absolute right-0 bottom-0 left-0 bg-blue-500/10"
                   style={{ height: `${100 - resourceBudgetY}%` }}
                 />
               )}
               {/* Item budget band (middle) */}
               {budgetCostBreakdown.item > 0 && (
                 <div
-                  className="absolute left-0 right-0 bg-purple-500/10"
+                  className="absolute right-0 left-0 bg-purple-500/10"
                   style={{
                     top: `${resourceItemBudgetY}%`,
                     height: `${resourceBudgetY - resourceItemBudgetY}%`,
@@ -641,7 +641,7 @@ function ProgressLineChart({
               {/* G/L Account budget band (top) */}
               {budgetCostBreakdown.glAccount > 0 && (
                 <div
-                  className="absolute left-0 right-0 bg-amber-500/10"
+                  className="absolute right-0 left-0 bg-amber-500/10"
                   style={{
                     top: `${totalBudgetY}%`,
                     height: `${resourceItemBudgetY - totalBudgetY}%`,
@@ -651,7 +651,7 @@ function ProgressLineChart({
 
               {/* Total budget line */}
               <div
-                className="absolute left-0 right-0 border-t-2 border-dashed border-amber-500/50"
+                className="absolute right-0 left-0 border-t-2 border-dashed border-amber-500/50"
                 style={{ top: `${totalBudgetY}%` }}
               >
                 <span className="absolute -top-5 right-0 text-xs text-amber-400">
@@ -737,7 +737,7 @@ function ProgressLineChart({
           {/* Tooltip with breakdown */}
           {hoveredIndex !== null && showCosts && (
             <div
-              className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-dark-700 px-3 py-2 text-xs shadow-lg"
+              className="bg-dark-700 pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded px-3 py-2 text-xs whitespace-nowrap shadow-lg"
               style={{
                 left: `${(hoveredIndex / (displayDataWithCost.length - 1)) * 100}%`,
                 top: `${maxCost > 0 ? (1 - displayDataWithCost[hoveredIndex].cumulativeCost / maxCost) * 100 : 100}%`,
@@ -751,7 +751,7 @@ function ProgressLineChart({
                   year: 'numeric',
                 })}
               </div>
-              <div className="mt-1 border-t border-dark-500 pt-1">
+              <div className="border-dark-500 mt-1 border-t pt-1">
                 <div className="text-gray-400">
                   {displayDataWithCost[hoveredIndex].cumulative.toFixed(1)} hours
                 </div>
@@ -767,7 +767,7 @@ function ProgressLineChart({
                 )}
               </div>
               {budgetCost > 0 && (
-                <div className="mt-1 border-t border-dark-500 pt-1">
+                <div className="border-dark-500 mt-1 border-t pt-1">
                   <div className="mb-1 text-gray-500">Budget breakdown:</div>
                   {budgetCostBreakdown.resource > 0 && (
                     <div className="flex items-center gap-2 text-blue-400">
@@ -794,7 +794,7 @@ function ProgressLineChart({
                 </div>
               )}
               {displayDataWithCost[hoveredIndex].isCurrentWeek && (
-                <div className="mt-1 text-thyme-400">This week</div>
+                <div className="text-thyme-400 mt-1">This week</div>
               )}
             </div>
           )}
@@ -802,7 +802,7 @@ function ProgressLineChart({
           {/* Simple tooltip when costs are hidden */}
           {hoveredIndex !== null && !showCosts && (
             <div
-              className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-dark-700 px-2 py-1 text-xs shadow-lg"
+              className="bg-dark-700 pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded px-2 py-1 text-xs whitespace-nowrap shadow-lg"
               style={{
                 left: `${(hoveredIndex / (displayDataWithCost.length - 1)) * 100}%`,
                 top: `${maxCost > 0 ? (1 - displayDataWithCost[hoveredIndex].cumulativeCost / maxCost) * 100 : 100}%`,
@@ -828,7 +828,7 @@ function ProgressLineChart({
       </div>
 
       {/* X-axis with month labels */}
-      <div className="ml-12 mt-2 flex">
+      <div className="mt-2 ml-12 flex">
         {displayDataWithCost.map((point) => (
           <div key={point.week} className="flex-1 text-center">
             {point.monthLabel && <span className="text-xs text-gray-500">{point.monthLabel}</span>}
@@ -838,9 +838,9 @@ function ProgressLineChart({
 
       {/* Legend */}
       {showCosts && budgetCost > 0 && (
-        <div className="ml-12 mt-2 flex items-center gap-4 text-xs text-gray-500">
+        <div className="mt-2 ml-12 flex items-center gap-4 text-xs text-gray-500">
           <div className="flex items-center gap-1">
-            <span className="inline-block h-2 w-4 rounded bg-thyme-500/50" />
+            <span className="bg-thyme-500/50 inline-block h-2 w-4 rounded" />
             <span>Spent</span>
           </div>
           {budgetCostBreakdown.resource > 0 && (

@@ -148,7 +148,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-thyme-600"></div>
+        <div className="border-thyme-600 h-8 w-8 animate-spin rounded-full border-b-2"></div>
       </div>
     );
   }
@@ -162,7 +162,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
           href={getBCJobsListUrl()}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1 text-thyme-400 hover:text-thyme-300"
+          className="text-thyme-400 hover:text-thyme-300 flex items-center gap-1"
         >
           Projects
           <ArrowTopRightOnSquareIcon className="h-4 w-4" />
@@ -171,7 +171,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
           href={getBCCustomersListUrl()}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1 text-thyme-400 hover:text-thyme-300"
+          className="text-thyme-400 hover:text-thyme-300 flex items-center gap-1"
         >
           Customers
           <ArrowTopRightOnSquareIcon className="h-4 w-4" />
@@ -181,7 +181,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
       {/* Search and Filter/Sort Controls */}
       <div className="space-y-3">
         <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+          <MagnifyingGlassIcon className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
           <Input
             type="text"
             placeholder="Search projects..."
@@ -240,7 +240,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
       </div>
 
       {/* Projects Table */}
-      <div className="overflow-hidden rounded-lg border border-dark-600">
+      <div className="border-dark-600 overflow-hidden rounded-lg border">
         <table className="w-full">
           <thead className="bg-dark-700">
             <tr>
@@ -248,7 +248,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
               <th className="w-24 px-4 py-3 text-center text-sm font-medium text-gray-400">
                 Billing
                 {isLoadingBillingModes && (
-                  <span className="ml-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-500 border-t-thyme-500" />
+                  <span className="border-t-thyme-500 ml-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-500" />
                 )}
               </th>
               <th className="w-24 px-4 py-3 text-right text-sm font-medium text-gray-400">
@@ -257,7 +257,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
               <th className="w-24 px-4 py-3 text-right text-sm font-medium text-gray-400">
                 Spent
                 {isLoadingHours && (
-                  <span className="ml-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-500 border-t-thyme-500" />
+                  <span className="border-t-thyme-500 ml-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-500" />
                 )}
               </th>
               <th className="w-32 px-4 py-3 text-right text-sm font-medium text-gray-400">
@@ -268,7 +268,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-dark-600">
+          <tbody className="divide-dark-600 divide-y">
             {Object.entries(groupedProjects).map(([customer, customerProjects]) => (
               <Fragment key={customer}>
                 {/* Customer group header */}
@@ -333,7 +333,7 @@ function ProjectRow({
 
   return (
     <tr
-      className="cursor-pointer transition-colors hover:bg-dark-700/50"
+      className="hover:bg-dark-700/50 cursor-pointer transition-colors"
       onClick={() => onProjectClick(project)}
     >
       {/* Project column */}
@@ -372,7 +372,7 @@ function ProjectRow({
         {billingMode ? (
           <span
             className={cn(
-              'whitespace-nowrap rounded px-1.5 py-0.5 text-xs font-medium',
+              'rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap',
               getBillingModeStyles(billingMode)
             )}
           >
@@ -393,7 +393,7 @@ function ProjectRow({
         <div className="flex flex-col items-end gap-1">
           <span className="text-white">{hours !== undefined ? `${hours.toFixed(1)}h` : '-'}</span>
           {budget !== undefined && hours !== undefined && percentUsed !== undefined && (
-            <div className="h-1.5 w-20 overflow-hidden rounded-full bg-dark-600">
+            <div className="bg-dark-600 h-1.5 w-20 overflow-hidden rounded-full">
               <div
                 className={cn(
                   'h-full rounded-full transition-all',
@@ -430,7 +430,7 @@ function ProjectRow({
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className="rounded p-1 text-gray-400 transition-colors hover:bg-dark-600 hover:text-thyme-400"
+            className="hover:bg-dark-600 hover:text-thyme-400 rounded p-1 text-gray-400 transition-colors"
             title="Open in Business Central"
           >
             <ArrowTopRightOnSquareIcon className="h-5 w-5" />
@@ -442,7 +442,7 @@ function ProjectRow({
               e.stopPropagation();
               onToggleFavorite(project.id);
             }}
-            className="rounded p-1 transition-colors hover:bg-dark-600"
+            className="hover:bg-dark-600 rounded p-1 transition-colors"
           >
             {project.isFavorite ? (
               <StarSolidIcon className="h-5 w-5 text-amber-400" />

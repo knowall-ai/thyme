@@ -29,7 +29,7 @@ export function TimerDisplay({ onStartTimer }: TimerDisplayProps) {
       <Button
         onClick={onStartTimer}
         size="lg"
-        className="h-14 w-14 animate-glow rounded-full shadow-lg shadow-knowall-green/30 transition-shadow hover:shadow-knowall-green/50"
+        className="animate-glow shadow-knowall-green/30 hover:shadow-knowall-green/50 h-14 w-14 rounded-full shadow-lg transition-shadow"
       >
         <PlayIcon className="h-6 w-6" />
         <span className="sr-only">Start timer</span>
@@ -38,7 +38,7 @@ export function TimerDisplay({ onStartTimer }: TimerDisplayProps) {
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-dark-700 bg-dark-800 p-4 shadow-lg sm:flex-row sm:items-center sm:gap-4">
+    <div className="border-dark-700 bg-dark-800 flex flex-col gap-3 rounded-xl border p-4 shadow-lg sm:flex-row sm:items-center sm:gap-4">
       {/* Timer Info */}
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-center gap-2">
@@ -52,13 +52,13 @@ export function TimerDisplay({ onStartTimer }: TimerDisplayProps) {
             {currentProject?.name || 'Unknown Project'}
           </span>
         </div>
-        <p className="truncate text-sm text-dark-400">{currentTask?.name || 'Unknown Task'}</p>
-        {timer.notes && <p className="truncate text-sm text-dark-500">{timer.notes}</p>}
+        <p className="text-dark-400 truncate text-sm">{currentTask?.name || 'Unknown Task'}</p>
+        {timer.notes && <p className="text-dark-500 truncate text-sm">{timer.notes}</p>}
       </div>
 
       {/* Timer Display and Stop Button */}
       <div className="flex items-center justify-between gap-4 sm:justify-end">
-        <div className="font-mono text-2xl font-bold tabular-nums text-knowall-green">
+        <div className="text-knowall-green font-mono text-2xl font-bold tabular-nums">
           {formatDuration(timer.elapsedSeconds)}
         </div>
 

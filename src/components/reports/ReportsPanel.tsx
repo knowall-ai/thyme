@@ -292,14 +292,14 @@ export function ReportsPanel() {
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrevious}
-              className="rounded-lg bg-dark-700 p-2 text-dark-300 transition-colors hover:bg-dark-600 hover:text-white"
+              className="bg-dark-700 text-dark-300 hover:bg-dark-600 rounded-lg p-2 transition-colors hover:text-white"
               aria-label="Previous period"
             >
               <ChevronLeftIcon className="h-5 w-5" />
             </button>
             <button
               onClick={handleNext}
-              className="rounded-lg bg-dark-700 p-2 text-dark-300 transition-colors hover:bg-dark-600 hover:text-white"
+              className="bg-dark-700 text-dark-300 hover:bg-dark-600 rounded-lg p-2 transition-colors hover:text-white"
               aria-label="Next period"
             >
               <ChevronRightIcon className="h-5 w-5" />
@@ -307,12 +307,12 @@ export function ReportsPanel() {
             {!isCurrentPeriod && (
               <button
                 onClick={handleToday}
-                className="rounded-lg bg-dark-700 px-3 py-2 text-sm text-dark-300 transition-colors hover:bg-dark-600 hover:text-white"
+                className="bg-dark-700 text-dark-300 hover:bg-dark-600 rounded-lg px-3 py-2 text-sm transition-colors hover:text-white"
               >
                 Today
               </button>
             )}
-            <CalendarIcon className="ml-2 h-5 w-5 text-dark-400" />
+            <CalendarIcon className="text-dark-400 ml-2 h-5 w-5" />
             <span className="text-dark-100">{getDateRangeLabel()}</span>
           </div>
           <div className="flex items-center gap-4">
@@ -322,11 +322,11 @@ export function ReportsPanel() {
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
                 className={cn(
                   'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
-                  'border border-dark-600 bg-dark-700 hover:border-dark-500 hover:bg-dark-600',
+                  'border-dark-600 bg-dark-700 hover:border-dark-500 hover:bg-dark-600 border',
                   isFilterOpen && 'border-thyme-500'
                 )}
               >
-                <UsersIcon className="h-4 w-4 text-dark-400" />
+                <UsersIcon className="text-dark-400 h-4 w-4" />
                 <span className="text-dark-200">
                   {selectedMember === 'everyone'
                     ? 'Everyone'
@@ -336,15 +336,15 @@ export function ReportsPanel() {
                 </span>
                 <ChevronDownIcon
                   className={cn(
-                    'h-4 w-4 text-dark-400 transition-transform',
+                    'text-dark-400 h-4 w-4 transition-transform',
                     isFilterOpen && 'rotate-180'
                   )}
                 />
               </button>
 
               {isFilterOpen && (
-                <div className="absolute right-0 z-50 mt-2 w-64 rounded-lg border border-dark-600 bg-dark-800 shadow-xl">
-                  <div className="border-b border-dark-600 px-4 py-3">
+                <div className="border-dark-600 bg-dark-800 absolute right-0 z-50 mt-2 w-64 rounded-lg border shadow-xl">
+                  <div className="border-dark-600 border-b px-4 py-3">
                     <h3 className="text-sm font-medium text-white">Filter by Resource</h3>
                   </div>
                   <div className="max-h-64 overflow-y-auto py-1">
@@ -355,17 +355,17 @@ export function ReportsPanel() {
                         setIsFilterOpen(false);
                       }}
                       className={cn(
-                        'flex w-full items-center gap-3 px-4 py-2 text-left text-sm hover:bg-dark-700',
+                        'hover:bg-dark-700 flex w-full items-center gap-3 px-4 py-2 text-left text-sm',
                         selectedMember === 'everyone' && 'bg-dark-700'
                       )}
                     >
-                      <UsersIcon className="h-5 w-5 text-thyme-500" />
+                      <UsersIcon className="text-thyme-500 h-5 w-5" />
                       <span className="text-dark-200">Everyone</span>
                     </button>
 
                     {/* Individual resources */}
                     {isLoadingResources ? (
-                      <div className="px-4 py-3 text-center text-sm text-dark-400">Loading...</div>
+                      <div className="text-dark-400 px-4 py-3 text-center text-sm">Loading...</div>
                     ) : (
                       resources.map((resource) => (
                         <button
@@ -375,16 +375,16 @@ export function ReportsPanel() {
                             setIsFilterOpen(false);
                           }}
                           className={cn(
-                            'flex w-full items-center gap-3 px-4 py-2 text-left text-sm hover:bg-dark-700',
+                            'hover:bg-dark-700 flex w-full items-center gap-3 px-4 py-2 text-left text-sm',
                             selectedMember !== 'everyone' &&
                               selectedMember?.id === resource.id &&
                               'bg-dark-700'
                           )}
                         >
-                          <UserIcon className="h-5 w-5 text-dark-400" />
+                          <UserIcon className="text-dark-400 h-5 w-5" />
                           <div className="flex-1 truncate">
                             <div className="text-dark-200">{resource.name}</div>
-                            <div className="text-xs text-dark-500">{resource.number}</div>
+                            <div className="text-dark-500 text-xs">{resource.number}</div>
                           </div>
                         </button>
                       ))
@@ -425,12 +425,12 @@ export function ReportsPanel() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <Card variant="bordered" className="p-4">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-thyme-500/20 p-2">
-              <ClockIcon className="h-5 w-5 text-thyme-500" />
+            <div className="bg-thyme-500/20 rounded-lg p-2">
+              <ClockIcon className="text-thyme-500 h-5 w-5" />
             </div>
             <div>
-              <p className="text-sm text-dark-400">Total Hours</p>
-              <p className="text-xl font-bold text-dark-100">
+              <p className="text-dark-400 text-sm">Total Hours</p>
+              <p className="text-dark-100 text-xl font-bold">
                 {isLoading ? '...' : formatTime(stats.totalHours)}
               </p>
             </div>
@@ -442,8 +442,8 @@ export function ReportsPanel() {
               <ChartBarIcon className="h-5 w-5 text-blue-500" />
             </div>
             <div>
-              <p className="text-sm text-dark-400">Billable Hours</p>
-              <p className="text-xl font-bold text-dark-100">
+              <p className="text-dark-400 text-sm">Billable Hours</p>
+              <p className="text-dark-100 text-xl font-bold">
                 {isLoading ? '...' : formatTime(stats.billableHours)}
               </p>
             </div>
@@ -455,8 +455,8 @@ export function ReportsPanel() {
               <ChartBarIcon className="h-5 w-5 text-purple-500" />
             </div>
             <div>
-              <p className="text-sm text-dark-400">Projects</p>
-              <p className="text-xl font-bold text-dark-100">
+              <p className="text-dark-400 text-sm">Projects</p>
+              <p className="text-dark-100 text-xl font-bold">
                 {isLoading ? '...' : stats.uniqueProjects}
               </p>
             </div>
@@ -468,8 +468,8 @@ export function ReportsPanel() {
               <ChartBarIcon className="h-5 w-5 text-amber-500" />
             </div>
             <div>
-              <p className="text-sm text-dark-400">Billable %</p>
-              <p className="text-xl font-bold text-dark-100">
+              <p className="text-dark-400 text-sm">Billable %</p>
+              <p className="text-dark-100 text-xl font-bold">
                 {isLoading ? '...' : `${stats.billablePercentage}%`}
               </p>
             </div>
@@ -481,14 +481,14 @@ export function ReportsPanel() {
       <Card variant="bordered" className="p-6">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">Hours by Project</h2>
-          <button className="flex items-center gap-2 rounded-lg bg-dark-700 px-3 py-1.5 text-sm text-dark-300 transition-colors hover:bg-dark-600 hover:text-white">
+          <button className="bg-dark-700 text-dark-300 hover:bg-dark-600 flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors hover:text-white">
             <DocumentArrowDownIcon className="h-4 w-4" />
             Export
           </button>
         </div>
         {isLoading ? (
-          <div className="py-12 text-center text-dark-400">
-            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-dark-600 border-t-thyme-500"></div>
+          <div className="text-dark-400 py-12 text-center">
+            <div className="border-dark-600 border-t-thyme-500 mx-auto h-8 w-8 animate-spin rounded-full border-2"></div>
             <p className="mt-4">Loading...</p>
           </div>
         ) : error ? (
@@ -496,14 +496,14 @@ export function ReportsPanel() {
             <p className="mb-2 text-red-500">{error}</p>
             <button
               onClick={() => window.location.reload()}
-              className="text-thyme-500 underline hover:text-thyme-400"
+              className="text-thyme-500 hover:text-thyme-400 underline"
             >
               Try again
             </button>
           </div>
         ) : entries.length === 0 ? (
-          <div className="py-12 text-center text-dark-400">
-            <ChartBarIcon className="mx-auto mb-4 h-12 w-12 text-dark-600" />
+          <div className="text-dark-400 py-12 text-center">
+            <ChartBarIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
             <p>No time entries found for this period</p>
             <p className="mt-1 text-sm">Start tracking time to see your reports here</p>
           </div>
@@ -517,13 +517,13 @@ export function ReportsPanel() {
                       className="h-3 w-3 rounded-full"
                       style={{ backgroundColor: project.projectColor }}
                     />
-                    <span className="text-sm font-medium text-dark-100">{project.projectName}</span>
+                    <span className="text-dark-100 text-sm font-medium">{project.projectName}</span>
                   </div>
-                  <span className="text-sm text-dark-400">{formatTime(project.hours)}</span>
+                  <span className="text-dark-400 text-sm">{formatTime(project.hours)}</span>
                 </div>
-                <div className="relative h-2 overflow-hidden rounded-full bg-dark-700">
+                <div className="bg-dark-700 relative h-2 overflow-hidden rounded-full">
                   <div
-                    className="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
+                    className="absolute top-0 left-0 h-full rounded-full transition-all duration-500"
                     style={{
                       width: `${(project.hours / maxProjectHours) * 100}%`,
                       backgroundColor: project.projectColor,
@@ -531,7 +531,7 @@ export function ReportsPanel() {
                   />
                 </div>
                 {project.billableHours > 0 && (
-                  <p className="text-xs text-dark-500">
+                  <p className="text-dark-500 text-xs">
                     {formatTime(project.billableHours)} billable
                   </p>
                 )}
@@ -547,7 +547,7 @@ export function ReportsPanel() {
           <h2 className="text-lg font-semibold text-white">Daily Breakdown</h2>
           <div className="flex items-center gap-4 text-sm">
             <div className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded-sm bg-thyme-600" />
+              <div className="bg-thyme-600 h-3 w-3 rounded-sm" />
               <span className="text-dark-300">Billable</span>
             </div>
             <div className="flex items-center gap-2">
@@ -557,8 +557,8 @@ export function ReportsPanel() {
           </div>
         </div>
         {isLoading ? (
-          <div className="py-12 text-center text-dark-400">
-            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-dark-600 border-t-thyme-500"></div>
+          <div className="text-dark-400 py-12 text-center">
+            <div className="border-dark-600 border-t-thyme-500 mx-auto h-8 w-8 animate-spin rounded-full border-2"></div>
             <p className="mt-4">Loading...</p>
           </div>
         ) : error ? (
@@ -566,14 +566,14 @@ export function ReportsPanel() {
             <p className="mb-2 text-red-500">{error}</p>
             <button
               onClick={() => window.location.reload()}
-              className="text-thyme-500 underline hover:text-thyme-400"
+              className="text-thyme-500 hover:text-thyme-400 underline"
             >
               Try again
             </button>
           </div>
         ) : entries.length === 0 ? (
-          <div className="py-12 text-center text-dark-400">
-            <CalendarIcon className="mx-auto mb-4 h-12 w-12 text-dark-600" />
+          <div className="text-dark-400 py-12 text-center">
+            <CalendarIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
             <p>No time entries found for this period</p>
           </div>
         ) : (
@@ -585,14 +585,14 @@ export function ReportsPanel() {
 
               return (
                 <div key={day.date} className="flex items-center gap-4">
-                  <span className="w-28 text-sm text-dark-400">{day.label}</span>
-                  <div className="relative h-6 flex-1 overflow-hidden rounded bg-dark-700">
+                  <span className="text-dark-400 w-28 text-sm">{day.label}</span>
+                  <div className="bg-dark-700 relative h-6 flex-1 overflow-hidden rounded">
                     {day.hours > 0 && (
-                      <div className="absolute left-0 top-0 flex h-full">
+                      <div className="absolute top-0 left-0 flex h-full">
                         {/* Billable segment */}
                         {day.billableHours > 0 && (
                           <div
-                            className="flex h-full items-center bg-thyme-600 px-2 transition-all duration-500"
+                            className="bg-thyme-600 flex h-full items-center px-2 transition-all duration-500"
                             style={{
                               width: `${billableWidth}%`,
                               minWidth: day.billableHours > 0 ? '24px' : '0',
@@ -620,7 +620,7 @@ export function ReportsPanel() {
                       </div>
                     )}
                   </div>
-                  <span className="w-32 text-right text-xs text-dark-300">
+                  <span className="text-dark-300 w-32 text-right text-xs">
                     <span className="text-thyme-400">{formatTime(day.billableHours)}</span>
                     {' + '}
                     <span className="text-slate-400">{formatTime(unbillableHours)}</span>

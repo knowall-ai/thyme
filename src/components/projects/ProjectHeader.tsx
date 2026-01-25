@@ -88,7 +88,7 @@ function BillingModeBadge({ mode, showTooltip = true }: BillingModeBadgeProps) {
         </button>
       )}
       {isTooltipVisible && (
-        <div className="absolute left-0 top-full z-50 mt-2 w-64 rounded-lg border border-dark-600 bg-dark-800 p-3 text-xs shadow-lg">
+        <div className="border-dark-600 bg-dark-800 absolute top-full left-0 z-50 mt-2 w-64 rounded-lg border p-3 text-xs shadow-lg">
           <p className="font-medium text-white">{mode}</p>
           <p className="mt-1 text-gray-400">{billingModeExplanations[mode]}</p>
         </div>
@@ -191,7 +191,7 @@ export function ProjectHeader() {
           {/* PDF Export button */}
           <button
             onClick={handleExportPDF}
-            className="flex items-center gap-2 rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-gray-300 transition-colors hover:border-thyme-500/50 hover:text-white print:hidden"
+            className="border-dark-600 bg-dark-700 hover:border-thyme-500/50 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm text-gray-300 transition-colors hover:text-white print:hidden"
             title="Export to PDF"
           >
             <DocumentArrowDownIcon className="h-4 w-4" />
@@ -203,7 +203,7 @@ export function ProjectHeader() {
             href={getBCJobUrl(project.code, selectedCompany?.name)}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 rounded-lg border border-dark-600 bg-dark-700 px-4 py-2 text-sm text-gray-300 transition-colors hover:border-thyme-500/50 hover:text-white"
+            className="border-dark-600 bg-dark-700 hover:border-thyme-500/50 flex items-center gap-2 rounded-lg border px-4 py-2 text-sm text-gray-300 transition-colors hover:text-white"
           >
             <ArrowTopRightOnSquareIcon className="h-4 w-4" />
             <span className="hidden sm:inline">Open in Business Central</span>

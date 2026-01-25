@@ -34,20 +34,20 @@ Thank you!`);
       <div className="flex flex-col items-center justify-center text-center">
         <ExclamationTriangleIcon className="mb-4 h-12 w-12 text-yellow-500" />
         <h3 className="mb-2 text-lg font-semibold text-white">Thyme BC Extension Not Installed</h3>
-        <p className="mb-4 max-w-md text-dark-300">{message || defaultMessage}</p>
+        <p className="text-dark-300 mb-4 max-w-md">{message || defaultMessage}</p>
 
         <div className="max-w-lg text-left">
-          <p className="mb-2 text-sm font-medium text-dark-300">
+          <p className="text-dark-300 mb-2 text-sm font-medium">
             To resolve this, ask your Business Central administrator to:
           </p>
-          <ol className="list-inside list-decimal space-y-2 text-sm text-dark-400">
+          <ol className="text-dark-400 list-inside list-decimal space-y-2 text-sm">
             <li>
               Download the latest Thyme BC Extension from{' '}
               <a
                 href={EXTENSION_GITHUB_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-medium text-thyme-400 underline hover:text-thyme-300"
+                className="text-thyme-400 hover:text-thyme-300 font-medium underline"
               >
                 GitHub
               </a>
@@ -59,7 +59,7 @@ Thank you!`);
           <div className="mt-4 flex justify-center">
             <a
               href={`mailto:?subject=${emailSubject}&body=${emailBody}`}
-              className="inline-flex items-center gap-2 rounded-md bg-thyme-600 px-4 py-2 text-sm font-medium text-white hover:bg-thyme-500"
+              className="bg-thyme-600 hover:bg-thyme-500 inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white"
             >
               <EnvelopeIcon className="h-4 w-4" />
               Email request to administrator

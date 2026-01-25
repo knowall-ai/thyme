@@ -125,14 +125,14 @@ export function ApprovalCard({
                   className="h-8 w-8 rounded-full object-cover"
                 />
               ) : (
-                <UserIcon className="h-5 w-5 text-dark-400" />
+                <UserIcon className="text-dark-400 h-5 w-5" />
               )}
               <span className="font-medium text-white">{timeSheet.resourceName}</span>
             </div>
           )}
           {hidePerson && !hideWeek && (
             <div className="flex items-center gap-2">
-              <CalendarDaysIcon className="h-8 w-8 text-thyme-500" />
+              <CalendarDaysIcon className="text-thyme-500 h-8 w-8" />
               <span className="font-medium text-white">
                 {formatDate(timeSheet.startingDate)} - {formatDate(timeSheet.endingDate)}
               </span>
@@ -140,7 +140,7 @@ export function ApprovalCard({
           )}
           <div
             className={cn(
-              'flex items-center gap-4 text-sm text-dark-400',
+              'text-dark-400 flex items-center gap-4 text-sm',
               (!hidePerson || !hideWeek) && 'mt-1'
             )}
           >
@@ -212,7 +212,7 @@ export function ApprovalCard({
           onClick={onToggleExpand}
           aria-label={isExpanded ? 'Collapse timesheet details' : 'Expand timesheet details'}
           aria-expanded={isExpanded}
-          className="rounded-lg p-2 text-dark-400 hover:bg-dark-700 hover:text-white"
+          className="text-dark-400 hover:bg-dark-700 rounded-lg p-2 hover:text-white"
         >
           {isExpanded ? (
             <ChevronUpIcon className="h-5 w-5" />
@@ -224,16 +224,16 @@ export function ApprovalCard({
 
       {/* Expanded details */}
       {isExpanded && (
-        <div className="border-t border-dark-700">
+        <div className="border-dark-700 border-t">
           {/* Time sheet lines */}
-          <div className="divide-y divide-dark-700/50">
+          <div className="divide-dark-700/50 divide-y">
             {lines.length > 0 ? (
               lines.map((line) => (
                 <div key={line.id} className="flex items-center justify-between px-4 py-3">
                   <div>
                     <p className="text-sm text-white">{line.description || 'No description'}</p>
                     {line.jobNo && (
-                      <p className="text-xs text-dark-400">
+                      <p className="text-dark-400 text-xs">
                         {getJobName(line.jobNo)}
                         {line.jobTaskNo && ` / ${getTaskName(line.jobNo, line.jobTaskNo)}`}
                       </p>
@@ -241,26 +241,26 @@ export function ApprovalCard({
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-medium text-white">{line.totalQuantity} hrs</p>
-                    <p className="text-xs text-dark-400">{line.type}</p>
+                    <p className="text-dark-400 text-xs">{line.type}</p>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="p-4 text-center text-dark-400">No line details available</div>
+              <div className="text-dark-400 p-4 text-center">No line details available</div>
             )}
           </div>
 
           {/* Reject form */}
           {showRejectForm && (
-            <div className="border-t border-dark-700 p-4">
-              <label className="mb-2 block text-sm font-medium text-dark-300">
+            <div className="border-dark-700 border-t p-4">
+              <label className="text-dark-300 mb-2 block text-sm font-medium">
                 Rejection reason (required)
               </label>
               <textarea
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 placeholder="Please provide a reason for rejection..."
-                className="w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-white placeholder-dark-400 focus:border-thyme-500 focus:outline-none focus:ring-1 focus:ring-thyme-500"
+                className="border-dark-600 bg-dark-700 placeholder:text-dark-400 focus:border-thyme-500 focus:ring-thyme-500 w-full rounded-lg border px-3 py-2 text-white focus:ring-1 focus:outline-none"
                 rows={3}
               />
             </div>
@@ -268,7 +268,7 @@ export function ApprovalCard({
 
           {/* Reject confirmation buttons (only shown when reject form is active) */}
           {showRejectForm && (
-            <div className="flex items-center justify-end gap-2 border-t border-dark-700 p-4">
+            <div className="border-dark-700 flex items-center justify-end gap-2 border-t p-4">
               <Button
                 variant="ghost"
                 size="sm"

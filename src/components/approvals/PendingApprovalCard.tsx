@@ -42,19 +42,19 @@ export function PendingApprovalCard() {
     <Link href="/approvals">
       <Card
         variant="bordered"
-        className="hover:bg-dark-750 group cursor-pointer p-4 transition-all hover:border-thyme-600/50"
+        className="hover:bg-dark-750 group hover:border-thyme-600/50 cursor-pointer p-4 transition-all"
       >
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-dark-400">Pending Approvals</p>
+            <p className="text-dark-400 text-sm">Pending Approvals</p>
             <p className="mt-1 text-2xl font-bold text-amber-500">{pendingCount}</p>
           </div>
           <div className="text-right">
-            <div className="flex items-center gap-1 text-sm text-dark-400">
+            <div className="text-dark-400 flex items-center gap-1 text-sm">
               <ClockIcon className="h-4 w-4" />
               <span>{pendingHours.toFixed(1)} hrs</span>
             </div>
-            <div className="mt-2 flex items-center gap-1 text-xs text-thyme-500 opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="text-thyme-500 mt-2 flex items-center gap-1 text-xs opacity-0 transition-opacity group-hover:opacity-100">
               <span>View all</span>
               <ArrowRightIcon className="h-3 w-3" />
             </div>

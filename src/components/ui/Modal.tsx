@@ -68,19 +68,19 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
           aria-labelledby="modal-title"
           tabIndex={-1}
           className={cn(
-            'relative w-full transform rounded-xl border border-dark-700 bg-dark-800 shadow-2xl transition-all',
+            'border-dark-700 bg-dark-800 relative w-full transform rounded-xl border shadow-2xl transition-all',
             sizes[size]
           )}
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-dark-700 px-6 py-4">
+          <div className="border-dark-700 flex items-center justify-between border-b px-6 py-4">
             <h2 id="modal-title" className="text-lg font-semibold text-white">
               {title}
             </h2>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg p-1 text-dark-400 hover:bg-dark-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-knowall-green"
+              className="text-dark-400 hover:bg-dark-700 focus:ring-knowall-green rounded-lg p-1 hover:text-white focus:ring-2 focus:outline-none"
             >
               <XMarkIcon className="h-5 w-5" />
               <span className="sr-only">Close</span>

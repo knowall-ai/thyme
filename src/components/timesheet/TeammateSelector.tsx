@@ -93,7 +93,7 @@ export function TeammateSelector() {
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
-          'border border-dark-600 bg-dark-800 hover:border-dark-500 hover:bg-dark-700',
+          'border-dark-600 bg-dark-800 hover:border-dark-500 hover:bg-dark-700 border',
           isOpen && 'border-knowall-green bg-dark-700',
           selectedTeammate && 'border-thyme-600'
         )}
@@ -101,36 +101,36 @@ export function TeammateSelector() {
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
-        <UsersIcon className="h-5 w-5 text-dark-400" />
-        <span className="max-w-[150px] truncate text-dark-200">{displayName}</span>
+        <UsersIcon className="text-dark-400 h-5 w-5" />
+        <span className="text-dark-200 max-w-[150px] truncate">{displayName}</span>
         <ChevronDownIcon
-          className={cn('h-4 w-4 text-dark-400 transition-transform', isOpen && 'rotate-180')}
+          className={cn('text-dark-400 h-4 w-4 transition-transform', isOpen && 'rotate-180')}
         />
       </button>
 
       {/* Dropdown Panel */}
       {isOpen && (
         <div
-          className="absolute left-0 z-50 mt-2 w-72 rounded-lg border border-dark-600 bg-dark-800 shadow-xl"
+          className="border-dark-600 bg-dark-800 absolute left-0 z-50 mt-2 w-72 rounded-lg border shadow-xl"
           role="listbox"
         >
           {/* Header */}
-          <div className="border-b border-dark-600 px-4 py-3">
+          <div className="border-dark-600 border-b px-4 py-3">
             <h3 className="text-sm font-medium text-white">Teammates</h3>
-            <p className="mt-0.5 text-xs text-dark-400">View your team&apos;s timesheets</p>
+            <p className="text-dark-400 mt-0.5 text-xs">View your team&apos;s timesheets</p>
           </div>
 
           {/* Search */}
           {teammates.length > 5 && (
-            <div className="border-b border-dark-600 p-2">
+            <div className="border-dark-600 border-b p-2">
               <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dark-400" />
+                <MagnifyingGlassIcon className="text-dark-400 absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
                 <input
                   type="text"
                   placeholder="Search teammates..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-md border border-dark-600 bg-dark-700 py-2 pl-9 pr-3 text-sm text-white placeholder-dark-400 focus:border-knowall-green focus:outline-none"
+                  className="border-dark-600 bg-dark-700 placeholder:text-dark-400 focus:border-knowall-green w-full rounded-md border py-2 pr-3 pl-9 text-sm text-white focus:outline-none"
                 />
               </div>
             </div>
@@ -139,40 +139,40 @@ export function TeammateSelector() {
           {/* Teammate List */}
           <div className="max-h-80 overflow-y-auto">
             {isLoading ? (
-              <div className="px-4 py-3 text-center text-sm text-dark-400">
+              <div className="text-dark-400 px-4 py-3 text-center text-sm">
                 Loading teammates...
               </div>
             ) : (
               <>
                 {/* My Timesheet option */}
-                <div className="border-b border-dark-600/50 py-1">
+                <div className="border-dark-600/50 border-b py-1">
                   <button
                     onClick={() => handleSelect(null)}
                     className={cn(
-                      'flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors hover:bg-dark-700',
+                      'hover:bg-dark-700 flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors',
                       !selectedTeammate && 'bg-dark-700'
                     )}
                     role="option"
                     aria-selected={!selectedTeammate}
                   >
-                    <UserIcon className="h-5 w-5 flex-shrink-0 text-thyme-500" />
+                    <UserIcon className="text-thyme-500 h-5 w-5 flex-shrink-0" />
                     <div className="flex-1 truncate">
                       <span className="text-dark-200">My Timesheet</span>
                       {currentUserTeammate && (
-                        <span className="ml-2 text-xs text-dark-400">
+                        <span className="text-dark-400 ml-2 text-xs">
                           ({currentUserTeammate.displayName})
                         </span>
                       )}
                     </div>
                     {!selectedTeammate && (
-                      <CheckIcon className="h-5 w-5 flex-shrink-0 text-knowall-green" />
+                      <CheckIcon className="text-knowall-green h-5 w-5 flex-shrink-0" />
                     )}
                   </button>
                 </div>
 
                 {/* Other teammates */}
                 {otherTeammates.length === 0 && searchQuery && (
-                  <div className="px-4 py-3 text-center text-sm text-dark-400">
+                  <div className="text-dark-400 px-4 py-3 text-center text-sm">
                     No teammates found
                   </div>
                 )}
@@ -180,7 +180,7 @@ export function TeammateSelector() {
                 {otherTeammates.length > 0 && (
                   <div className="py-1">
                     <div className="px-4 py-2">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-dark-400">
+                      <span className="text-dark-400 text-xs font-semibold tracking-wider uppercase">
                         Team Members
                       </span>
                     </div>
@@ -191,13 +191,13 @@ export function TeammateSelector() {
                           key={teammate.id}
                           onClick={() => handleSelect(teammate)}
                           className={cn(
-                            'flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors hover:bg-dark-700',
+                            'hover:bg-dark-700 flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors',
                             isSelected && 'bg-dark-700'
                           )}
                           role="option"
                           aria-selected={isSelected}
                         >
-                          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-dark-600 text-xs font-medium text-dark-200">
+                          <div className="bg-dark-600 text-dark-200 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-medium">
                             {teammate.givenName?.[0] ||
                               teammate.surname?.[0] ||
                               teammate.displayName?.[0] ||
@@ -209,11 +209,11 @@ export function TeammateSelector() {
                           <div className="flex-1 truncate">
                             <div className="text-dark-200">{teammate.displayName}</div>
                             {teammate.jobTitle && (
-                              <div className="text-xs text-dark-400">{teammate.jobTitle}</div>
+                              <div className="text-dark-400 text-xs">{teammate.jobTitle}</div>
                             )}
                           </div>
                           {isSelected && (
-                            <CheckIcon className="h-5 w-5 flex-shrink-0 text-knowall-green" />
+                            <CheckIcon className="text-knowall-green h-5 w-5 flex-shrink-0" />
                           )}
                         </button>
                       );

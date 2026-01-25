@@ -25,7 +25,7 @@ export function TeamsBotBanner() {
       {/* Dismiss button - absolute positioned */}
       <button
         onClick={handleDismiss}
-        className="absolute right-2 top-2 flex-shrink-0 rounded-lg p-1 transition-colors hover:bg-white/10"
+        className="absolute top-2 right-2 flex-shrink-0 rounded-lg p-1 transition-colors hover:bg-white/10"
         aria-label="Dismiss"
       >
         <XMarkIcon className="h-5 w-5 text-white/70" />

@@ -55,7 +55,7 @@ export function ApprovalFilters({
     <div className="flex flex-wrap items-end gap-3">
       {/* Resource filter */}
       <div className="min-w-[160px]">
-        <label className="mb-1 block text-xs font-medium text-dark-400">Resource</label>
+        <label className="text-dark-400 mb-1 block text-xs font-medium">Resource</label>
         <Select
           options={resourceOptions}
           value={filters.resourceId || ''}
@@ -65,7 +65,7 @@ export function ApprovalFilters({
 
       {/* Status filter */}
       <div className="min-w-[160px]">
-        <label className="mb-1 block text-xs font-medium text-dark-400">Status</label>
+        <label className="text-dark-400 mb-1 block text-xs font-medium">Status</label>
         <Select
           options={statusOptions}
           value={filters.status || ''}
@@ -79,7 +79,7 @@ export function ApprovalFilters({
 
       {/* Start date filter */}
       <div className="min-w-[140px]">
-        <label className="mb-1 block text-xs font-medium text-dark-400">From</label>
+        <label className="text-dark-400 mb-1 block text-xs font-medium">From</label>
         <DatePicker
           selectedDate={filters.startDate ? new Date(filters.startDate) : undefined}
           onDateSelect={(date: Date) =>
@@ -92,7 +92,7 @@ export function ApprovalFilters({
 
       {/* End date filter */}
       <div className="min-w-[140px]">
-        <label className="mb-1 block text-xs font-medium text-dark-400">To</label>
+        <label className="text-dark-400 mb-1 block text-xs font-medium">To</label>
         <DatePicker
           selectedDate={filters.endDate ? new Date(filters.endDate) : undefined}
           onDateSelect={(date: Date) =>

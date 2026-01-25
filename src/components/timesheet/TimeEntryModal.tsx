@@ -223,7 +223,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
             <ExclamationTriangleIcon className="h-8 w-8 text-amber-500" />
           </div>
           <h3 className="mb-2 text-lg font-semibold text-white">Extension Required</h3>
-          <p className="mb-4 max-w-sm text-sm text-dark-300">
+          <p className="text-dark-300 mb-4 max-w-sm text-sm">
             The Thyme BC Extension is required to log time entries. It provides the project tasks
             needed by Business Central.
           </p>
@@ -307,7 +307,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
 
         {/* Notes */}
         <div>
-          <label htmlFor="notes" className="mb-1 block text-sm font-medium text-dark-200">
+          <label htmlFor="notes" className="text-dark-200 mb-1 block text-sm font-medium">
             Notes (optional)
           </label>
           <textarea
@@ -315,13 +315,13 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
             rows={3}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="flex w-full rounded-lg border border-dark-600 bg-dark-700 px-3 py-2 text-sm text-dark-100 placeholder:text-dark-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-thyme-500"
+            className="border-dark-600 bg-dark-700 text-dark-100 placeholder:text-dark-400 focus:ring-thyme-500 flex w-full rounded-lg border px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:outline-none"
             placeholder="What did you work on?"
           />
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-between border-t border-dark-700 pt-4">
+        <div className="border-dark-700 flex items-center justify-between border-t pt-4">
           <div>
             {entry && (
               <Button

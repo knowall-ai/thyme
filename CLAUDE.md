@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Thyme is a time tracking application that integrates with Microsoft Dynamics 365 Business Central. Built with Next.js 15, MSAL authentication, and Tailwind CSS.
+Thyme is a time tracking application that integrates with Microsoft Dynamics 365 Business Central. Built with Next.js 16, MSAL authentication, and Tailwind CSS 4.
 
 ## Key Directories
 
@@ -15,15 +15,15 @@ Thyme is a time tracking application that integrates with Microsoft Dynamics 365
 ## Development Commands
 
 ```bash
-npm run dev          # Start dev server
-npm run build        # Production build
-npm run test         # Run tests
-npm run lint         # Lint code
-npm run lint:fix     # Auto-fix lint issues
-npm run format       # Format code with Prettier
-npm run format:check # Verify formatting
-npm run typecheck    # TypeScript type checking
-npm run check        # Run all checks (format, lint, typecheck, build)
+bun run dev          # Start dev server
+bun run build        # Production build
+bun run test         # Run tests
+bun run lint         # Lint code
+bun run lint:fix     # Auto-fix lint issues
+bun run format       # Format code with Prettier
+bun run format:check # Verify formatting
+bun run typecheck    # TypeScript type checking
+bun run check        # Run all checks (format, lint, typecheck, build)
 ```
 
 ## Branch Switching
@@ -31,7 +31,7 @@ npm run check        # Run all checks (format, lint, typecheck, build)
 **Important**: After switching git branches, you must restart the dev server:
 
 ```bash
-rm -rf .next && npm run dev
+rm -rf .next && bun run dev
 ```
 
 The Next.js dev server caches compiled code in `.next/`. When switching branches, many files change simultaneously and the webpack cache becomes stale, causing module loading errors (e.g., "Initializing..." stuck, chunk load failures). A fresh restart rebuilds from scratch.
@@ -41,15 +41,15 @@ The Next.js dev server caches compiled code in `.next/`. When switching branches
 **Before committing changes**, run all checks:
 
 ```bash
-npm run check
+bun run check
 ```
 
 This validates:
 
-- Prettier formatting (`npm run format:check`)
-- ESLint rules (`npm run lint`)
-- TypeScript types (`npm run typecheck`)
-- Production build (`npm run build`)
+- Prettier formatting (`bun run format:check`)
+- ESLint rules (`bun run lint`)
+- TypeScript types (`bun run typecheck`)
+- Production build (`bun run build`)
 
 CI/CD runs these checks automatically on every PR via GitHub Actions.
 
@@ -133,3 +133,13 @@ az ad app show --id "44c618b5-89c3-4673-92ec-f7afb4e403bf" --query "spa.redirect
 # Add a new redirect URI (replace with full list)
 az ad app update --id "44c618b5-89c3-4673-92ec-f7afb4e403bf" --spa-redirect-uris "http://localhost:3000" "http://localhost:3001" "https://thyme.knowall.ai"
 ```
+
+## Adding UI Components
+
+This project is configured for shadcn/ui. To add a new component:
+
+```bash
+bunx shadcn@latest add [component-name]
+```
+
+Components will be added to `src/components/ui/`.
