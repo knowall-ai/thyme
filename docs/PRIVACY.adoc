@@ -1,13 +1,7 @@
 = Thyme Privacy Policy
-:toc:
-:toc-title: Contents
 :sectnums:
 
-*Last Updated: January 2026*
-
-*Effective Date: January 2026*
-
-KnowAll.ai Ltd ("we", "us", or "our") operates Thyme, a time tracking application that integrates with Microsoft Dynamics 365 Business Central. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application.
+KnowAll AI SAS de CV ("we", "us", or "our") operates Thyme, a time tracking application that integrates with Microsoft Dynamics 365 Business Central. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application.
 
 == Information We Collect
 
@@ -128,7 +122,7 @@ We may update this Privacy Policy from time to time. We will notify you of mater
 
 For questions about this Privacy Policy or our data practices:
 
-*KnowAll.ai Ltd*
+*KnowAll AI SAS de CV*
 
 Email: privacy@knowall.ai
 

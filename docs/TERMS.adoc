@@ -1,13 +1,7 @@
 = Thyme Terms of Service
-:toc:
-:toc-title: Contents
 :sectnums:
 
-*Last Updated: January 2026*
-
-*Effective Date: January 2026*
-
-Welcome to Thyme. These Terms of Service ("Terms") govern your access to and use of the Thyme time tracking application ("Service") provided by KnowAll.ai Ltd ("Company", "we", "us", or "our").
+Welcome to Thyme. These Terms of Service ("Terms") govern your access to and use of the Thyme time tracking application ("Service") provided by KnowAll AI SAS de CV ("Company", "we", "us", or "our").
 
 By accessing or using Thyme, you agree to be bound by these Terms. If you disagree with any part of these Terms, you may not access the Service.
 
@@ -129,7 +123,7 @@ We reserve the right to:
 
 === Our Rights
 
-* Thyme and all related intellectual property are owned by KnowAll.ai Ltd
+* Thyme and all related intellectual property are owned by KnowAll AI SAS de CV
 * This includes software, design, trademarks, and documentation
 * Nothing in these Terms transfers any ownership rights to you
 
@@ -179,7 +173,7 @@ TO THE MAXIMUM EXTENT PERMITTED BY LAW:
 
 == Indemnification
 
-You agree to indemnify and hold harmless KnowAll.ai Ltd from any claims, damages, or expenses arising from:
+You agree to indemnify and hold harmless KnowAll AI SAS de CV from any claims, damages, or expenses arising from:
 
 * Your use of the Service
 * Your violation of these Terms
@@ -224,7 +218,7 @@ Continued use after changes constitutes acceptance of the new Terms.
 
 === Entire Agreement
 
-These Terms, along with our Privacy Policy and EULA, constitute the entire agreement between you and KnowAll.ai Ltd.
+These Terms, along with our Privacy Policy and EULA, constitute the entire agreement between you and KnowAll AI SAS de CV.
 
 === Severability
 
@@ -242,7 +236,7 @@ You may not assign these Terms without our consent. We may assign our rights wit
 
 For questions about these Terms:
 
-*KnowAll.ai Ltd*
+*KnowAll AI SAS de CV*
 
 Email: support@knowall.ai
 

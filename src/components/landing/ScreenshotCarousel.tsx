@@ -13,13 +13,6 @@ interface Screenshot {
 
 const screenshots: Screenshot[] = [
   {
-    src: '/screenshots/dashboard.png',
-    alt: 'Thyme Dashboard showing weekly timesheet overview',
-    title: 'Dashboard',
-    description:
-      'Get a complete overview of your weekly time entries and quick access to key actions.',
-  },
-  {
     src: '/screenshots/timesheet.png',
     alt: 'Weekly timesheet view with time entries',
     title: 'Weekly Timesheet',
@@ -32,22 +25,16 @@ const screenshots: Screenshot[] = [
     description: 'Browse all your Business Central projects with search and favorites.',
   },
   {
-    src: '/screenshots/timer.png',
-    alt: 'Real-time timer for tracking work',
-    title: 'Timer',
-    description: 'Track time in real-time with the built-in timer functionality.',
+    src: '/screenshots/approvals.png',
+    alt: 'Timesheet approval workflow',
+    title: 'Approvals',
+    description: 'Managers can review and approve team timesheets with one click.',
   },
   {
     src: '/screenshots/reports.png',
     alt: 'Time reports and analytics',
     title: 'Reports',
     description: 'Generate reports and export your time data to CSV.',
-  },
-  {
-    src: '/screenshots/approvals.png',
-    alt: 'Timesheet approval workflow',
-    title: 'Approvals',
-    description: 'Managers can review and approve team timesheets with one click.',
   },
 ];
 

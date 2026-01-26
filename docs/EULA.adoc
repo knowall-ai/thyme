@@ -1,15 +1,9 @@
 = Thyme End User License Agreement
-:toc:
-:toc-title: Contents
 :sectnums:
-
-*Last Updated: January 2026*
-
-*Effective Date: January 2026*
 
 PLEASE READ THIS END USER LICENSE AGREEMENT ("AGREEMENT") CAREFULLY BEFORE USING THYME.
 
-This Agreement is a legally binding contract between you ("User", "you", or "your") and KnowAll.ai Ltd ("Company", "we", "us", or "our") governing your use of the Thyme time tracking application ("Application" or "Thyme").
+This Agreement is a legally binding contract between you ("User", "you", or "your") and KnowAll AI SAS de CV ("Company", "we", "us", or "our") governing your use of the Thyme time tracking application ("Application" or "Thyme").
 
 BY ACCESSING OR USING THYME, YOU AGREE TO BE BOUND BY THIS AGREEMENT. IF YOU DO NOT AGREE TO THESE TERMS, DO NOT USE THE APPLICATION.
 
@@ -54,7 +48,7 @@ You may NOT:
 
 === Ownership
 
-* Thyme, including all code, design, features, and documentation, is owned by KnowAll.ai Ltd
+* Thyme, including all code, design, features, and documentation, is owned by KnowAll AI SAS de CV
 * This Agreement does not transfer any ownership rights to you
 * All trademarks, logos, and service marks displayed are our property or the property of their respective owners
 
@@ -106,7 +100,7 @@ TO THE MAXIMUM EXTENT PERMITTED BY LAW:
 
 === Exclusion of Damages
 
-IN NO EVENT SHALL KNOWALL.AI LTD BE LIABLE FOR:
+IN NO EVENT SHALL KNOWALL AI LTD BE LIABLE FOR:
 
 * Indirect, incidental, special, consequential, or punitive damages
 * Loss of profits, revenue, data, or business opportunities
@@ -123,7 +117,7 @@ Some jurisdictions do not allow the exclusion of certain warranties or limitatio
 
 == Indemnification
 
-You agree to indemnify, defend, and hold harmless KnowAll.ai Ltd and its officers, directors, employees, and agents from any claims, damages, losses, liabilities, and expenses (including legal fees) arising from:
+You agree to indemnify, defend, and hold harmless KnowAll AI SAS de CV and its officers, directors, employees, and agents from any claims, damages, losses, liabilities, and expenses (including legal fees) arising from:
 
 * Your use of the Application
 * Your violation of this Agreement
@@ -169,7 +163,7 @@ Any disputes arising from this Agreement shall be subject to the exclusive juris
 
 === Entire Agreement
 
-This Agreement, together with our Privacy Policy and Terms of Service, constitutes the entire agreement between you and KnowAll.ai Ltd regarding Thyme.
+This Agreement, together with our Privacy Policy and Terms of Service, constitutes the entire agreement between you and KnowAll AI SAS de CV regarding Thyme.
 
 === Severability
 
@@ -191,7 +185,7 @@ We reserve the right to modify this Agreement at any time. Material changes will
 
 For questions about this Agreement:
 
-*KnowAll.ai Ltd*
+*KnowAll AI SAS de CV*
 
 Email: legal@knowall.ai
 

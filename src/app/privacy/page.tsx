@@ -2,7 +2,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { Metadata } from 'next';
 import { PublicPageLayout } from '@/components/docs/PublicPageLayout';
-import { AsciidocContent } from '@/components/docs/AsciidocContent';
+import { LegalDocLayout } from '@/components/docs/LegalDocLayout';
 
 export const metadata: Metadata = {
   title: 'Privacy Policy - Thyme by KnowAll.ai',
@@ -16,7 +16,7 @@ export default async function PrivacyPage() {
 
   return (
     <PublicPageLayout>
-      <AsciidocContent content={content} />
+      <LegalDocLayout content={content} />
     </PublicPageLayout>
   );
 }

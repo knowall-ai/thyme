@@ -4,6 +4,8 @@
 
 Thyme is a time tracking application that integrates with Microsoft Dynamics 365 Business Central. Built with Next.js 16, MSAL authentication, and Tailwind CSS 4.
 
+**Company**: KnowAll AI SAS de CV (El Salvador). NIT: 0623-070525-121-2 | NRC: 362963-0
+
 ## Key Directories
 
 - `src/app/` - Next.js App Router pages
