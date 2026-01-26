@@ -29,9 +29,22 @@ const features = [
       'Automatically sync time entries to Microsoft Dynamics 365 Business Central Jobs and Job Journal Lines.',
   },
   {
+    icon: CheckCircleIcon,
+    title: 'Timesheet Approvals',
+    description:
+      'Managers can review and approve team timesheets with a single click. Track submission status across your team.',
+  },
+  {
     icon: ChartBarIcon,
-    title: 'Insightful Reports',
-    description: 'View weekly summaries, track project progress, and export data for analysis.',
+    title: 'Budget Tracking & Reports',
+    description:
+      'Monitor project budgets in real-time. View weekly summaries, track progress, and export data for analysis.',
+  },
+  {
+    icon: BuildingOfficeIcon,
+    title: 'Planning & Forecasting',
+    description:
+      'Plan and schedule resources across projects with a visual timeline. Forecast team capacity and utilization.',
   },
   {
     icon: BoltIcon,
@@ -40,15 +53,24 @@ const features = [
       'Pay with Bitcoin via Lightning Network. Fixed pricing in Sats with instant, low-fee payments.',
     iconColor: 'text-amber-400',
   },
+  {
+    icon: BoltIcon,
+    title: 'Zaps for Submissions',
+    description:
+      'Incentivize timely timesheet submissions with optional Zaps (micro-Bitcoin payments via Lightning Network).',
+    iconColor: 'text-amber-400',
+  },
 ];
 
 const benefits = [
   'Seamless Microsoft Entra ID authentication',
   'Real-time sync with Business Central',
   'Weekly timesheet with copy-forward',
-  'Start/stop timer functionality',
+  'Timesheet approvals workflow',
+  'Project budget tracking',
+  'Resource planning & forecasting',
   'Mobile-responsive design',
-  'Bitcoin Lightning payments',
+  'Zaps to incentivize submissions',
 ];
 
 export function LandingPage() {
@@ -138,7 +160,7 @@ export function LandingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {features.map((feature, index) => {
               const Icon = feature.icon;
               const iconColor = feature.iconColor || 'text-knowall-green';
