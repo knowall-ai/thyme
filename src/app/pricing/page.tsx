@@ -213,7 +213,7 @@ function PriceDisplay({
 export default function PricingPage() {
   const [currency, setCurrency] = useState<Currency>('sats');
   const [rates, setRates] = useState<CryptoRates | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [_isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function fetchRates() {

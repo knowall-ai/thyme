@@ -21,6 +21,7 @@ async function fetchKrakenRates(): Promise<ExchangeRate | null> {
     const response = await fetch(
       'https://api.kraken.com/0/public/Ticker?pair=XBTGBP,XBTEUR,XBTUSD'
     );
+    if (!response.ok) return null;
     const data = await response.json();
     if (data.error?.length > 0) return null;
 
@@ -44,6 +45,8 @@ async function fetchCoinbaseRates(): Promise<ExchangeRate | null> {
       fetch('https://api.coinbase.com/v2/prices/BTC-EUR/spot'),
       fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot'),
     ]);
+
+    if (!gbpRes.ok || !eurRes.ok || !usdRes.ok) return null;
 
     const [gbpData, eurData, usdData] = await Promise.all([
       gbpRes.json(),
@@ -71,6 +74,8 @@ async function fetchBitstampRates(): Promise<ExchangeRate | null> {
       fetch('https://www.bitstamp.net/api/v2/ticker/btceur/'),
       fetch('https://www.bitstamp.net/api/v2/ticker/btcusd/'),
     ]);
+
+    if (!gbpRes.ok || !eurRes.ok || !usdRes.ok) return null;
 
     const [gbpData, eurData, usdData] = await Promise.all([
       gbpRes.json(),

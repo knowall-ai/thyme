@@ -73,7 +73,6 @@ export function LegalDocLayout({ content }: LegalDocLayoutProps) {
     if (!container || sections.length === 0) return;
 
     const handleScroll = () => {
-      const scrollTop = container.scrollTop;
       const containerTop = container.getBoundingClientRect().top;
 
       // Find which section is currently in view

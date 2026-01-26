@@ -1200,23 +1200,20 @@ function ProjectRow({
                   {isTaskExpanded &&
                     Array.from(resourcesByTask.entries())
                       .sort(([, a], [, b]) => a[0].resourceName.localeCompare(b[0].resourceName))
-                      .map(([resourceNumber, allocations]) => {
-                        const firstAlloc = allocations[0];
-                        return (
-                          <ResourceTaskRow
-                            key={resourceNumber}
-                            allocations={allocations}
-                            days={days}
-                            weekGroups={weekGroups}
-                            projectColor={project.color}
-                            projectNumber={project.number}
-                            taskNumber={taskData.taskNumber}
-                            taskName={taskData.taskName}
-                            onEditAllocation={onEditAllocation}
-                            onAddPlan={onAddPlan}
-                          />
-                        );
-                      })}
+                      .map(([resourceNumber, allocations]) => (
+                        <ResourceTaskRow
+                          key={resourceNumber}
+                          allocations={allocations}
+                          days={days}
+                          weekGroups={weekGroups}
+                          projectColor={project.color}
+                          projectNumber={project.number}
+                          taskNumber={taskData.taskNumber}
+                          taskName={taskData.taskName}
+                          onEditAllocation={onEditAllocation}
+                          onAddPlan={onAddPlan}
+                        />
+                      ))}
                 </div>
               );
             })}

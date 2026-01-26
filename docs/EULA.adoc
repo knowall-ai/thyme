@@ -100,7 +100,7 @@ TO THE MAXIMUM EXTENT PERMITTED BY LAW:
 
 === Exclusion of Damages
 
-IN NO EVENT SHALL KNOWALL AI LTD BE LIABLE FOR:
+IN NO EVENT SHALL KNOWALL AI SAS DE CV BE LIABLE FOR:
 
 * Indirect, incidental, special, consequential, or punitive damages
 * Loss of profits, revenue, data, or business opportunities

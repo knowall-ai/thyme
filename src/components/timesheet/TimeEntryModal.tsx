@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { TrashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { Modal, Button, Input, Select } from '@/components/ui';
@@ -71,79 +71,51 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
 
   // Filter projects by selected customer (or show all if customer dropdown is hidden)
   const filteredProjects = useMemo(() => {
-    console.log('[TimeEntryModal] Filtering projects:', {
-      showCustomerDropdown,
-      customerId,
-      totalProjects: projects.length,
-      customerOptions: customerOptions.map((c) => c.value),
-    });
-
     if (!showCustomerDropdown) {
-      console.log('[TimeEntryModal] No customer dropdown, returning all projects:', projects.length);
       return projects;
     }
     if (!customerId) {
-      console.log('[TimeEntryModal] No customerId selected, returning empty');
       return [];
     }
     // Use case-insensitive, trimmed comparison for robustness
     const normalizedCustomerId = customerId.trim().toLowerCase();
-    const filtered = projects.filter((p) => {
+    return projects.filter((p) => {
       const projectCustomer = (p.customerName || 'Unknown').trim().toLowerCase();
-      const matches = projectCustomer === normalizedCustomerId;
-      if (!matches) {
-        console.log('[TimeEntryModal] Project not matching:', {
-          projectName: p.name,
-          projectCustomer: p.customerName,
-          normalizedProjectCustomer: projectCustomer,
-          normalizedCustomerId,
-        });
-      }
-      return matches;
+      return projectCustomer === normalizedCustomerId;
     });
-    console.log('[TimeEntryModal] Filtered projects:', filtered.length);
-    return filtered;
-  }, [projects, customerId, showCustomerDropdown, customerOptions]);
+  }, [projects, customerId, showCustomerDropdown]);
 
   // Helper to find the matching customerOption value for a customer name
   // This ensures the Select dropdown value matches exactly
-  const findMatchingCustomerOption = (customerName: string | undefined): string => {
-    // If no customer name provided, return first available option (if exists)
-    // This handles the case where user opens a new entry without a selected project
-    if (!customerName) {
-      // Return first customer option, or empty string to force user to select
-      return customerOptions.length > 0 ? customerOptions[0].value : '';
-    }
-    const normalizedName = customerName.trim().toLowerCase();
-    const matchingOption = customerOptions.find(
-      (opt) => opt.value.trim().toLowerCase() === normalizedName
-    );
-    // If no match found but we have options, return first option
-    if (!matchingOption && customerOptions.length > 0) {
-      return customerOptions[0].value;
-    }
-    return matchingOption?.value || customerName;
-  };
+  const findMatchingCustomerOption = useCallback(
+    (customerName: string | undefined): string => {
+      // If no customer name provided, return first available option (if exists)
+      // This handles the case where user opens a new entry without a selected project
+      if (!customerName) {
+        // Return first customer option, or empty string to force user to select
+        return customerOptions.length > 0 ? customerOptions[0].value : '';
+      }
+      const normalizedName = customerName.trim().toLowerCase();
+      const matchingOption = customerOptions.find(
+        (opt) => opt.value.trim().toLowerCase() === normalizedName
+      );
+      // If no match found but we have options, return first option
+      if (!matchingOption && customerOptions.length > 0) {
+        return customerOptions[0].value;
+      }
+      return matchingOption?.value || customerName;
+    },
+    [customerOptions]
+  );
 
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      console.log('[TimeEntryModal] Modal opened:', {
-        isEditMode: !!entry,
-        projectsCount: projects.length,
-        selectedProject: selectedProject?.name,
-        customerOptionsCount: customerOptions.length,
-      });
-
       if (entry) {
         // Editing existing entry - entry.projectId is a job code (e.g., "PR00030"), not a GUID
         const project = projects.find((p) => p.code === entry.projectId);
         // Use matching customer option value to ensure Select works correctly
         const matchedCustomer = findMatchingCustomerOption(project?.customerName);
-        console.log('[TimeEntryModal] Edit mode - setting customerId:', {
-          projectCustomerName: project?.customerName,
-          matchedCustomer,
-        });
         setCustomerId(matchedCustomer);
         // Use project.id (GUID) for form state since dropdown options use GUIDs
         setProjectId(project?.id || '');
@@ -158,10 +130,6 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
       } else {
         // New entry - use matching customer option value
         const matchedCustomer = findMatchingCustomerOption(selectedProject?.customerName);
-        console.log('[TimeEntryModal] New entry - setting customerId:', {
-          selectedProjectCustomerName: selectedProject?.customerName,
-          matchedCustomer,
-        });
         setCustomerId(matchedCustomer);
         setProjectId(selectedProject?.id || '');
         setTaskId(selectedTask?.id || '');
@@ -170,8 +138,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
         setNotes('');
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, entry, selectedProject, selectedTask, projects]);
+  }, [isOpen, entry, selectedProject, selectedTask, projects, findMatchingCustomerOption]);
 
   const projectOptions: SelectOption[] = filteredProjects.map((p) => ({
     value: p.id,
