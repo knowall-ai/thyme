@@ -70,7 +70,7 @@ export function Header() {
   };
 
   return (
-    <header className="border-dark-700 bg-dark-900 border-b">
+    <header className="border-dark-700 bg-dark-900 relative z-[70] border-b">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 justify-between">
           {/* Logo and Navigation */}

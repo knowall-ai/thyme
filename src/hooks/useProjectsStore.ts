@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Project, Task } from '@/types';
-import { projectService } from '@/services/bc';
+import { projectService, ExtensionNotInstalledError } from '@/services/bc';
 import { projectDetailsService, type BillingMode } from '@/services/bc/projectDetailsService';
 
 interface ProjectsStore {
@@ -12,6 +12,7 @@ interface ProjectsStore {
   isLoadingBillingModes: boolean;
   billingModes: Map<string, BillingMode>;
   error: string | null;
+  extensionNotInstalled: boolean;
   searchQuery: string;
 
   fetchProjects: () => Promise<void>;
@@ -36,10 +37,11 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
   isLoadingBillingModes: false,
   billingModes: new Map(),
   error: null,
+  extensionNotInstalled: false,
   searchQuery: '',
 
   fetchProjects: async () => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, extensionNotInstalled: false });
     try {
       const projects = await projectService.getProjects();
 
@@ -56,13 +58,21 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
         })
       );
 
-      set({ projects: projectsWithTasks, isLoading: false });
+      set({ projects: projectsWithTasks, isLoading: false, extensionNotInstalled: false });
 
       // Fetch hours in the background (don't block)
       get().fetchProjectHours();
     } catch (error) {
+      // Check if this is an extension not installed error (custom API returns 404)
+      const isExtensionError =
+        error instanceof ExtensionNotInstalledError ||
+        (error instanceof Error && error.message.includes('404'));
       const message = error instanceof Error ? error.message : 'Failed to fetch projects';
-      set({ error: message, isLoading: false });
+      set({
+        error: isExtensionError ? null : message,
+        isLoading: false,
+        extensionNotInstalled: isExtensionError,
+      });
     }
   },
 

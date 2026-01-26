@@ -50,7 +50,7 @@ export function ExtensionBanner() {
   }
 
   return (
-    <div className="border-b border-amber-600/30 bg-amber-900/20">
+    <div className="relative z-[70] border-b border-amber-600/30 bg-amber-900/20">
       <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-3">

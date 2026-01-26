@@ -70,6 +70,7 @@ export function WeeklyTimesheet() {
     projects,
     isLoading: projectsLoading,
     error: projectsError,
+    extensionNotInstalled: projectsExtensionNotInstalled,
     fetchProjects,
   } = useProjectsStore();
 
@@ -158,10 +159,10 @@ export function WeeklyTimesheet() {
   // Show toast when projects fail to load (entries errors handled locally in components)
   // Don't show toast when extension isn't installed - the modal handles that
   useEffect(() => {
-    if (projectsError && !extensionNotInstalled) {
+    if (projectsError && !extensionNotInstalled && !projectsExtensionNotInstalled) {
       toast.error('Failed to load projects. Some features may not work correctly.');
     }
-  }, [projectsError, extensionNotInstalled]);
+  }, [projectsError, extensionNotInstalled, projectsExtensionNotInstalled]);
 
   const weekDays = getWeekDays(currentWeekStart);
 
