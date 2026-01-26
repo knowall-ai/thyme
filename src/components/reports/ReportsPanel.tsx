@@ -156,7 +156,7 @@ export function ReportsPanel() {
     const fetchAllEntries = async () => {
       setIsLoading(true);
       setError(null);
-      setExtensionNotInstalled(false);
+      // Don't reset extensionNotInstalled here - fetchResources sets it
       try {
         // Fetch entries for all selected resources
         const allEntries: TimeEntry[] = [];

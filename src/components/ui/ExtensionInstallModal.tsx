@@ -75,11 +75,21 @@ export function ExtensionInstallModal({ isOpen }: ExtensionInstallModalProps) {
               </div>
             </div>
 
-            {/* Install action */}
-            <Button variant="primary" className="w-full" onClick={handleInstall}>
-              <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
-              Install Extension
-            </Button>
+            {/* Actions */}
+            <div className="flex items-center gap-3">
+              <Button variant="primary" className="flex-1" onClick={handleInstall}>
+                <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
+                Install Extension
+              </Button>
+              <a
+                href="https://github.com/knowall-ai/thyme-bc-extension"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-dark-300 hover:text-thyme-400 text-sm font-medium transition-colors"
+              >
+                Learn More
+              </a>
+            </div>
           </div>
         </div>
       </div>
