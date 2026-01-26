@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Card, ExtensionNotInstalled } from '@/components/ui';
+import { Card, ExtensionPreviewWrapper } from '@/components/ui';
 import { ExtensionNotInstalledError, NoTimesheetError } from '@/services/bc';
 import {
   ChartBarIcon,
@@ -66,7 +66,7 @@ export function ReportsPanel() {
   const { account } = useAuth();
   const currentUserEmail = account?.username || '';
   const { projects, fetchProjects } = useProjectsStore();
-  const { selectedCompany } = useCompanyStore();
+  const { selectedCompany, companyVersion } = useCompanyStore();
 
   // Calculate date range boundaries
   const { startDate, endDate } = useMemo(() => {
@@ -108,19 +108,25 @@ export function ReportsPanel() {
   useEffect(() => {
     const fetchResources = async () => {
       setIsLoadingResources(true);
+      setExtensionNotInstalled(false);
       try {
         // Get all person resources (same as Team page)
         const data = await bcClient.getResources();
         setResources(data);
       } catch (err) {
-        console.error('Failed to fetch resources:', err);
+        if (err instanceof ExtensionNotInstalledError) {
+          setExtensionNotInstalled(true);
+        } else {
+          console.error('Failed to fetch resources:', err);
+        }
         setResources([]);
       } finally {
         setIsLoadingResources(false);
       }
     };
     fetchResources();
-  }, [selectedCompany]);
+    // companyVersion changes when company switches, ensuring refetch
+  }, [companyVersion]);
 
   // Set default to 'everyone' once resources are loaded
   useEffect(() => {
@@ -150,7 +156,7 @@ export function ReportsPanel() {
     const fetchAllEntries = async () => {
       setIsLoading(true);
       setError(null);
-      setExtensionNotInstalled(false);
+      // Don't reset extensionNotInstalled here - fetchResources sets it
       try {
         // Fetch entries for all selected resources
         const allEntries: TimeEntry[] = [];
@@ -179,7 +185,8 @@ export function ReportsPanel() {
     };
 
     fetchAllEntries();
-  }, [selectedMember, resources, startDate, endDate]);
+    // companyVersion ensures refetch when company switches
+  }, [selectedMember, resources, startDate, endDate, companyVersion]);
 
   // Fetch projects on mount
   useEffect(() => {
@@ -277,361 +284,360 @@ export function ReportsPanel() {
       ? isSameWeek(referenceDate, new Date(), { weekStartsOn: 1 })
       : isSameMonth(referenceDate, new Date());
 
-  // Extension not installed state
-  if (extensionNotInstalled) {
-    return (
-      <ExtensionNotInstalled message="The Thyme Business Central Extension is required to view reports. Please ask your administrator to install the extension." />
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      {/* Date Range Selector */}
-      <Card variant="bordered" className="p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handlePrevious}
-              className="bg-dark-700 text-dark-300 hover:bg-dark-600 rounded-lg p-2 transition-colors hover:text-white"
-              aria-label="Previous period"
-            >
-              <ChevronLeftIcon className="h-5 w-5" />
-            </button>
-            <button
-              onClick={handleNext}
-              className="bg-dark-700 text-dark-300 hover:bg-dark-600 rounded-lg p-2 transition-colors hover:text-white"
-              aria-label="Next period"
-            >
-              <ChevronRightIcon className="h-5 w-5" />
-            </button>
-            {!isCurrentPeriod && (
+    <ExtensionPreviewWrapper extensionNotInstalled={extensionNotInstalled} pageName="Reports">
+      <div className="space-y-6">
+        {/* Date Range Selector */}
+        <Card variant="bordered" className="p-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
               <button
-                onClick={handleToday}
-                className="bg-dark-700 text-dark-300 hover:bg-dark-600 rounded-lg px-3 py-2 text-sm transition-colors hover:text-white"
+                onClick={handlePrevious}
+                className="bg-dark-700 text-dark-300 hover:bg-dark-600 rounded-lg p-2 transition-colors hover:text-white"
+                aria-label="Previous period"
               >
-                Today
+                <ChevronLeftIcon className="h-5 w-5" />
               </button>
-            )}
-            <CalendarIcon className="text-dark-400 ml-2 h-5 w-5" />
-            <span className="text-dark-100">{getDateRangeLabel()}</span>
-          </div>
-          <div className="flex items-center gap-4">
-            {/* Team Member Filter */}
-            <div className="relative">
               <button
-                onClick={() => setIsFilterOpen(!isFilterOpen)}
-                className={cn(
-                  'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
-                  'border-dark-600 bg-dark-700 hover:border-dark-500 hover:bg-dark-600 border',
-                  isFilterOpen && 'border-thyme-500'
-                )}
+                onClick={handleNext}
+                className="bg-dark-700 text-dark-300 hover:bg-dark-600 rounded-lg p-2 transition-colors hover:text-white"
+                aria-label="Next period"
               >
-                <UsersIcon className="text-dark-400 h-4 w-4" />
-                <span className="text-dark-200">
-                  {selectedMember === 'everyone'
-                    ? 'Everyone'
-                    : selectedMember
-                      ? selectedMember.name
-                      : 'Loading...'}
-                </span>
-                <ChevronDownIcon
-                  className={cn(
-                    'text-dark-400 h-4 w-4 transition-transform',
-                    isFilterOpen && 'rotate-180'
-                  )}
-                />
+                <ChevronRightIcon className="h-5 w-5" />
               </button>
-
-              {isFilterOpen && (
-                <div className="border-dark-600 bg-dark-800 absolute right-0 z-50 mt-2 w-64 rounded-lg border shadow-xl">
-                  <div className="border-dark-600 border-b px-4 py-3">
-                    <h3 className="text-sm font-medium text-white">Filter by Resource</h3>
-                  </div>
-                  <div className="max-h-64 overflow-y-auto py-1">
-                    {/* Everyone option */}
-                    <button
-                      onClick={() => {
-                        setSelectedMember('everyone');
-                        setIsFilterOpen(false);
-                      }}
-                      className={cn(
-                        'hover:bg-dark-700 flex w-full items-center gap-3 px-4 py-2 text-left text-sm',
-                        selectedMember === 'everyone' && 'bg-dark-700'
-                      )}
-                    >
-                      <UsersIcon className="text-thyme-500 h-5 w-5" />
-                      <span className="text-dark-200">Everyone</span>
-                    </button>
-
-                    {/* Individual resources */}
-                    {isLoadingResources ? (
-                      <div className="text-dark-400 px-4 py-3 text-center text-sm">Loading...</div>
-                    ) : (
-                      resources.map((resource) => (
-                        <button
-                          key={resource.id}
-                          onClick={() => {
-                            setSelectedMember(resource);
-                            setIsFilterOpen(false);
-                          }}
-                          className={cn(
-                            'hover:bg-dark-700 flex w-full items-center gap-3 px-4 py-2 text-left text-sm',
-                            selectedMember !== 'everyone' &&
-                              selectedMember?.id === resource.id &&
-                              'bg-dark-700'
-                          )}
-                        >
-                          <UserIcon className="text-dark-400 h-5 w-5" />
-                          <div className="flex-1 truncate">
-                            <div className="text-dark-200">{resource.name}</div>
-                            <div className="text-dark-500 text-xs">{resource.number}</div>
-                          </div>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </div>
+              {!isCurrentPeriod && (
+                <button
+                  onClick={handleToday}
+                  className="bg-dark-700 text-dark-300 hover:bg-dark-600 rounded-lg px-3 py-2 text-sm transition-colors hover:text-white"
+                >
+                  Today
+                </button>
               )}
+              <CalendarIcon className="text-dark-400 ml-2 h-5 w-5" />
+              <span className="text-dark-100">{getDateRangeLabel()}</span>
             </div>
-
-            {/* Week/Month Toggle */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setDateRange('week')}
-                className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                  dateRange === 'week'
-                    ? 'bg-thyme-600 text-white'
-                    : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
-                }`}
-              >
-                This Week
-              </button>
-              <button
-                onClick={() => setDateRange('month')}
-                className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                  dateRange === 'month'
-                    ? 'bg-thyme-600 text-white'
-                    : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
-                }`}
-              >
-                This Month
-              </button>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <Card variant="bordered" className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-thyme-500/20 rounded-lg p-2">
-              <ClockIcon className="text-thyme-500 h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-dark-400 text-sm">Total Hours</p>
-              <p className="text-dark-100 text-xl font-bold">
-                {isLoading ? '...' : formatTime(stats.totalHours)}
-              </p>
-            </div>
-          </div>
-        </Card>
-        <Card variant="bordered" className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-blue-500/20 p-2">
-              <ChartBarIcon className="h-5 w-5 text-blue-500" />
-            </div>
-            <div>
-              <p className="text-dark-400 text-sm">Billable Hours</p>
-              <p className="text-dark-100 text-xl font-bold">
-                {isLoading ? '...' : formatTime(stats.billableHours)}
-              </p>
-            </div>
-          </div>
-        </Card>
-        <Card variant="bordered" className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-purple-500/20 p-2">
-              <ChartBarIcon className="h-5 w-5 text-purple-500" />
-            </div>
-            <div>
-              <p className="text-dark-400 text-sm">Projects</p>
-              <p className="text-dark-100 text-xl font-bold">
-                {isLoading ? '...' : stats.uniqueProjects}
-              </p>
-            </div>
-          </div>
-        </Card>
-        <Card variant="bordered" className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-amber-500/20 p-2">
-              <ChartBarIcon className="h-5 w-5 text-amber-500" />
-            </div>
-            <div>
-              <p className="text-dark-400 text-sm">Billable %</p>
-              <p className="text-dark-100 text-xl font-bold">
-                {isLoading ? '...' : `${stats.billablePercentage}%`}
-              </p>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Project Breakdown */}
-      <Card variant="bordered" className="p-6">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">Hours by Project</h2>
-          <button className="bg-dark-700 text-dark-300 hover:bg-dark-600 flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors hover:text-white">
-            <DocumentArrowDownIcon className="h-4 w-4" />
-            Export
-          </button>
-        </div>
-        {isLoading ? (
-          <div className="text-dark-400 py-12 text-center">
-            <div className="border-dark-600 border-t-thyme-500 mx-auto h-8 w-8 animate-spin rounded-full border-2"></div>
-            <p className="mt-4">Loading...</p>
-          </div>
-        ) : error ? (
-          <div className="py-12 text-center">
-            <p className="mb-2 text-red-500">{error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="text-thyme-500 hover:text-thyme-400 underline"
-            >
-              Try again
-            </button>
-          </div>
-        ) : entries.length === 0 ? (
-          <div className="text-dark-400 py-12 text-center">
-            <ChartBarIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
-            <p>No time entries found for this period</p>
-            <p className="mt-1 text-sm">Start tracking time to see your reports here</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {projectHours.map((project) => (
-              <div key={project.projectId} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="h-3 w-3 rounded-full"
-                      style={{ backgroundColor: project.projectColor }}
-                    />
-                    <span className="text-dark-100 text-sm font-medium">{project.projectName}</span>
-                  </div>
-                  <span className="text-dark-400 text-sm">{formatTime(project.hours)}</span>
-                </div>
-                <div className="bg-dark-700 relative h-2 overflow-hidden rounded-full">
-                  <div
-                    className="absolute top-0 left-0 h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${(project.hours / maxProjectHours) * 100}%`,
-                      backgroundColor: project.projectColor,
-                    }}
+            <div className="flex items-center gap-4">
+              {/* Team Member Filter */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsFilterOpen(!isFilterOpen)}
+                  className={cn(
+                    'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
+                    'border-dark-600 bg-dark-700 hover:border-dark-500 hover:bg-dark-600 border',
+                    isFilterOpen && 'border-thyme-500'
+                  )}
+                >
+                  <UsersIcon className="text-dark-400 h-4 w-4" />
+                  <span className="text-dark-200">
+                    {selectedMember === 'everyone'
+                      ? 'Everyone'
+                      : selectedMember
+                        ? selectedMember.name
+                        : 'Loading...'}
+                  </span>
+                  <ChevronDownIcon
+                    className={cn(
+                      'text-dark-400 h-4 w-4 transition-transform',
+                      isFilterOpen && 'rotate-180'
+                    )}
                   />
-                </div>
-                {project.billableHours > 0 && (
-                  <p className="text-dark-500 text-xs">
-                    {formatTime(project.billableHours)} billable
-                  </p>
+                </button>
+
+                {isFilterOpen && (
+                  <div className="border-dark-600 bg-dark-800 absolute right-0 z-50 mt-2 w-64 rounded-lg border shadow-xl">
+                    <div className="border-dark-600 border-b px-4 py-3">
+                      <h3 className="text-sm font-medium text-white">Filter by Resource</h3>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto py-1">
+                      {/* Everyone option */}
+                      <button
+                        onClick={() => {
+                          setSelectedMember('everyone');
+                          setIsFilterOpen(false);
+                        }}
+                        className={cn(
+                          'hover:bg-dark-700 flex w-full items-center gap-3 px-4 py-2 text-left text-sm',
+                          selectedMember === 'everyone' && 'bg-dark-700'
+                        )}
+                      >
+                        <UsersIcon className="text-thyme-500 h-5 w-5" />
+                        <span className="text-dark-200">Everyone</span>
+                      </button>
+
+                      {/* Individual resources */}
+                      {isLoadingResources ? (
+                        <div className="text-dark-400 px-4 py-3 text-center text-sm">
+                          Loading...
+                        </div>
+                      ) : (
+                        resources.map((resource) => (
+                          <button
+                            key={resource.id}
+                            onClick={() => {
+                              setSelectedMember(resource);
+                              setIsFilterOpen(false);
+                            }}
+                            className={cn(
+                              'hover:bg-dark-700 flex w-full items-center gap-3 px-4 py-2 text-left text-sm',
+                              selectedMember !== 'everyone' &&
+                                selectedMember?.id === resource.id &&
+                                'bg-dark-700'
+                            )}
+                          >
+                            <UserIcon className="text-dark-400 h-5 w-5" />
+                            <div className="flex-1 truncate">
+                              <div className="text-dark-200">{resource.name}</div>
+                              <div className="text-dark-500 text-xs">{resource.number}</div>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
-            ))}
-          </div>
-        )}
-      </Card>
 
-      {/* Daily Breakdown */}
-      <Card variant="bordered" className="p-6">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">Daily Breakdown</h2>
-          <div className="flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="bg-thyme-600 h-3 w-3 rounded-sm" />
-              <span className="text-dark-300">Billable</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded-sm bg-slate-500" />
-              <span className="text-dark-300">Unbillable</span>
+              {/* Week/Month Toggle */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setDateRange('week')}
+                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                    dateRange === 'week'
+                      ? 'bg-thyme-600 text-white'
+                      : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
+                  }`}
+                >
+                  This Week
+                </button>
+                <button
+                  onClick={() => setDateRange('month')}
+                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                    dateRange === 'month'
+                      ? 'bg-thyme-600 text-white'
+                      : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
+                  }`}
+                >
+                  This Month
+                </button>
+              </div>
             </div>
           </div>
+        </Card>
+
+        {/* Summary Stats */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <Card variant="bordered" className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-thyme-500/20 rounded-lg p-2">
+                <ClockIcon className="text-thyme-500 h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-dark-400 text-sm">Total Hours</p>
+                <p className="text-dark-100 text-xl font-bold">
+                  {isLoading ? '...' : formatTime(stats.totalHours)}
+                </p>
+              </div>
+            </div>
+          </Card>
+          <Card variant="bordered" className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-blue-500/20 p-2">
+                <ChartBarIcon className="h-5 w-5 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-dark-400 text-sm">Billable Hours</p>
+                <p className="text-dark-100 text-xl font-bold">
+                  {isLoading ? '...' : formatTime(stats.billableHours)}
+                </p>
+              </div>
+            </div>
+          </Card>
+          <Card variant="bordered" className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-purple-500/20 p-2">
+                <ChartBarIcon className="h-5 w-5 text-purple-500" />
+              </div>
+              <div>
+                <p className="text-dark-400 text-sm">Projects</p>
+                <p className="text-dark-100 text-xl font-bold">
+                  {isLoading ? '...' : stats.uniqueProjects}
+                </p>
+              </div>
+            </div>
+          </Card>
+          <Card variant="bordered" className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-amber-500/20 p-2">
+                <ChartBarIcon className="h-5 w-5 text-amber-500" />
+              </div>
+              <div>
+                <p className="text-dark-400 text-sm">Billable %</p>
+                <p className="text-dark-100 text-xl font-bold">
+                  {isLoading ? '...' : `${stats.billablePercentage}%`}
+                </p>
+              </div>
+            </div>
+          </Card>
         </div>
-        {isLoading ? (
-          <div className="text-dark-400 py-12 text-center">
-            <div className="border-dark-600 border-t-thyme-500 mx-auto h-8 w-8 animate-spin rounded-full border-2"></div>
-            <p className="mt-4">Loading...</p>
-          </div>
-        ) : error ? (
-          <div className="py-12 text-center">
-            <p className="mb-2 text-red-500">{error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="text-thyme-500 hover:text-thyme-400 underline"
-            >
-              Try again
+
+        {/* Project Breakdown */}
+        <Card variant="bordered" className="p-6">
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-white">Hours by Project</h2>
+            <button className="bg-dark-700 text-dark-300 hover:bg-dark-600 flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors hover:text-white">
+              <DocumentArrowDownIcon className="h-4 w-4" />
+              Export
             </button>
           </div>
-        ) : entries.length === 0 ? (
-          <div className="text-dark-400 py-12 text-center">
-            <CalendarIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
-            <p>No time entries found for this period</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {dailyBreakdown.map((day) => {
-              const unbillableHours = day.hours - day.billableHours;
-              const billableWidth = (day.billableHours / maxDailyHours) * 100;
-              const unbillableWidth = (unbillableHours / maxDailyHours) * 100;
-
-              return (
-                <div key={day.date} className="flex items-center gap-4">
-                  <span className="text-dark-400 w-28 text-sm">{day.label}</span>
-                  <div className="bg-dark-700 relative h-6 flex-1 overflow-hidden rounded">
-                    {day.hours > 0 && (
-                      <div className="absolute top-0 left-0 flex h-full">
-                        {/* Billable segment */}
-                        {day.billableHours > 0 && (
-                          <div
-                            className="bg-thyme-600 flex h-full items-center px-2 transition-all duration-500"
-                            style={{
-                              width: `${billableWidth}%`,
-                              minWidth: day.billableHours > 0 ? '24px' : '0',
-                            }}
-                          >
-                            <span className="text-xs font-medium text-white">
-                              {formatTime(day.billableHours)}
-                            </span>
-                          </div>
-                        )}
-                        {/* Unbillable segment */}
-                        {unbillableHours > 0 && (
-                          <div
-                            className="flex h-full items-center bg-slate-500 px-2 transition-all duration-500"
-                            style={{
-                              width: `${unbillableWidth}%`,
-                              minWidth: unbillableHours > 0 ? '24px' : '0',
-                            }}
-                          >
-                            <span className="text-xs font-medium text-white">
-                              {formatTime(unbillableHours)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
+          {isLoading ? (
+            <div className="text-dark-400 py-12 text-center">
+              <div className="border-dark-600 border-t-thyme-500 mx-auto h-8 w-8 animate-spin rounded-full border-2"></div>
+              <p className="mt-4">Loading...</p>
+            </div>
+          ) : error ? (
+            <div className="py-12 text-center">
+              <p className="mb-2 text-red-500">{error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="text-thyme-500 hover:text-thyme-400 underline"
+              >
+                Try again
+              </button>
+            </div>
+          ) : entries.length === 0 ? (
+            <div className="text-dark-400 py-12 text-center">
+              <ChartBarIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
+              <p>No time entries found for this period</p>
+              <p className="mt-1 text-sm">Start tracking time to see your reports here</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {projectHours.map((project) => (
+                <div key={project.projectId} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="h-3 w-3 rounded-full"
+                        style={{ backgroundColor: project.projectColor }}
+                      />
+                      <span className="text-dark-100 text-sm font-medium">
+                        {project.projectName}
+                      </span>
+                    </div>
+                    <span className="text-dark-400 text-sm">{formatTime(project.hours)}</span>
                   </div>
-                  <span className="text-dark-300 w-32 text-right text-xs">
-                    <span className="text-thyme-400">{formatTime(day.billableHours)}</span>
-                    {' + '}
-                    <span className="text-slate-400">{formatTime(unbillableHours)}</span>
-                    <span className="text-dark-500"> / {dailyCapacity}h</span>
-                  </span>
+                  <div className="bg-dark-700 relative h-2 overflow-hidden rounded-full">
+                    <div
+                      className="absolute top-0 left-0 h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${(project.hours / maxProjectHours) * 100}%`,
+                        backgroundColor: project.projectColor,
+                      }}
+                    />
+                  </div>
+                  {project.billableHours > 0 && (
+                    <p className="text-dark-500 text-xs">
+                      {formatTime(project.billableHours)} billable
+                    </p>
+                  )}
                 </div>
-              );
-            })}
+              ))}
+            </div>
+          )}
+        </Card>
+
+        {/* Daily Breakdown */}
+        <Card variant="bordered" className="p-6">
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-white">Daily Breakdown</h2>
+            <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="bg-thyme-600 h-3 w-3 rounded-sm" />
+                <span className="text-dark-300">Billable</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded-sm bg-slate-500" />
+                <span className="text-dark-300">Unbillable</span>
+              </div>
+            </div>
           </div>
-        )}
-      </Card>
-    </div>
+          {isLoading ? (
+            <div className="text-dark-400 py-12 text-center">
+              <div className="border-dark-600 border-t-thyme-500 mx-auto h-8 w-8 animate-spin rounded-full border-2"></div>
+              <p className="mt-4">Loading...</p>
+            </div>
+          ) : error ? (
+            <div className="py-12 text-center">
+              <p className="mb-2 text-red-500">{error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="text-thyme-500 hover:text-thyme-400 underline"
+              >
+                Try again
+              </button>
+            </div>
+          ) : entries.length === 0 ? (
+            <div className="text-dark-400 py-12 text-center">
+              <CalendarIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
+              <p>No time entries found for this period</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {dailyBreakdown.map((day) => {
+                const unbillableHours = day.hours - day.billableHours;
+                const billableWidth = (day.billableHours / maxDailyHours) * 100;
+                const unbillableWidth = (unbillableHours / maxDailyHours) * 100;
+
+                return (
+                  <div key={day.date} className="flex items-center gap-4">
+                    <span className="text-dark-400 w-28 text-sm">{day.label}</span>
+                    <div className="bg-dark-700 relative h-6 flex-1 overflow-hidden rounded">
+                      {day.hours > 0 && (
+                        <div className="absolute top-0 left-0 flex h-full">
+                          {/* Billable segment */}
+                          {day.billableHours > 0 && (
+                            <div
+                              className="bg-thyme-600 flex h-full items-center px-2 transition-all duration-500"
+                              style={{
+                                width: `${billableWidth}%`,
+                                minWidth: day.billableHours > 0 ? '24px' : '0',
+                              }}
+                            >
+                              <span className="text-xs font-medium text-white">
+                                {formatTime(day.billableHours)}
+                              </span>
+                            </div>
+                          )}
+                          {/* Unbillable segment */}
+                          {unbillableHours > 0 && (
+                            <div
+                              className="flex h-full items-center bg-slate-500 px-2 transition-all duration-500"
+                              style={{
+                                width: `${unbillableWidth}%`,
+                                minWidth: '24px',
+                              }}
+                            >
+                              <span className="text-xs font-medium text-white">
+                                {formatTime(unbillableHours)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-dark-300 w-32 text-right text-xs">
+                      <span className="text-thyme-400">{formatTime(day.billableHours)}</span>
+                      {' + '}
+                      <span className="text-slate-400">{formatTime(unbillableHours)}</span>
+                      <span className="text-dark-500"> / {dailyCapacity}h</span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      </div>
+    </ExtensionPreviewWrapper>
   );
 }

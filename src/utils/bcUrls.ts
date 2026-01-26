@@ -17,7 +17,11 @@ const BC_PAGES = {
   jobTaskLines: 1002, // Job Task Lines subpage
   timeSheetManager: 955, // Time Sheet Manager (for creating timesheets)
   timeSheets: 973, // Time Sheets list (user's own)
+  extensionManagement: 2503, // Extension Management page
 };
+
+// Thyme BC Extension App ID (from app.json in thyme-bc-extension repo)
+const THYME_EXTENSION_APP_ID = 'f879df78-af6d-44cb-987e-ac54c2755e71';
 
 /**
  * Get the base Business Central URL for the current tenant and environment
@@ -135,4 +139,16 @@ export function getBCJobTaskUrl(jobNumber: string, taskNo: string, companyName?:
   // Job tasks are viewed on the Job Card page (page 88), so we open the job
   // The task lines are shown in a subpage on the job card
   return getBCJobUrl(jobNumber, companyName);
+}
+
+/**
+ * Generate a URL to open the Extension Management page in Business Central
+ * filtered to the Thyme BC Extension for installation.
+ * User can click "Install" on this page to install the extension.
+ */
+export function getBCExtensionInstallUrl(): string {
+  const baseUrl = getBCBaseUrl();
+  // Filter by extension ID to show only the Thyme extension
+  const filter = encodeURIComponent(`'ID' IS '${THYME_EXTENSION_APP_ID}'`);
+  return `${baseUrl}/?page=${BC_PAGES.extensionManagement}&filter=${filter}`;
 }

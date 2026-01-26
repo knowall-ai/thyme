@@ -22,3 +22,9 @@ export { WeekNavigation } from './WeekNavigation';
 export type { WeekNavigationProps } from './WeekNavigation';
 
 export { ExtensionNotInstalled } from './ExtensionNotInstalled';
+
+export { ExtensionPreviewWrapper } from './ExtensionPreviewWrapper';
+export type { ExtensionPreviewWrapperProps } from './ExtensionPreviewWrapper';
+
+export { ExtensionInstallModal } from './ExtensionInstallModal';
+export type { ExtensionInstallModalProps } from './ExtensionInstallModal';

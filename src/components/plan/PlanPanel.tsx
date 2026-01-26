@@ -14,7 +14,7 @@ import {
   ChevronLeftIcon,
   ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
-import { Card, Button, ExtensionNotInstalled } from '@/components/ui';
+import { Card, Button, ExtensionPreviewWrapper } from '@/components/ui';
 import { PlanEntryModal } from './PlanEntryModal';
 import { PlanResourceModal } from './PlanResourceModal';
 import { PlanEditModal } from './PlanEditModal';
@@ -1267,7 +1267,7 @@ function ProjectRow({
 }
 
 export function PlanPanel() {
-  const { selectedCompany } = useCompanyStore();
+  const { selectedCompany, companyVersion } = useCompanyStore();
   const { account } = useAuth();
   const userEmail = account?.username || '';
   const emailDomain = userEmail ? userEmail.split('@')[1] : undefined;
@@ -1384,7 +1384,7 @@ export function PlanPanel() {
   // Clear cache when company changes to force fresh data fetch
   useEffect(() => {
     clearCache();
-  }, [selectedCompany, clearCache]);
+  }, [companyVersion, clearCache]);
 
   // Fetch data when company, week, or weeks to show changes
   useEffect(() => {
@@ -1399,7 +1399,8 @@ export function PlanPanel() {
       }
     }
     loadData();
-  }, [selectedCompany, currentWeekStart, effectiveWeeksToShow, emailDomain, fetchTeamData]);
+    // companyVersion ensures refetch when company switches
+  }, [companyVersion, currentWeekStart, effectiveWeeksToShow, emailDomain, fetchTeamData]);
 
   // Create a stable key for tracking when team members change
   const teamMemberIds = useMemo(() => teamMembers.map((m) => m.id).join(','), [teamMembers]);
@@ -1565,27 +1566,8 @@ export function PlanPanel() {
     }
   };
 
-  // Error/loading states
-  if (extensionNotInstalled) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={handlePrevious}>
-            <ChevronLeftIcon className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleToday}>
-            Today
-          </Button>
-          <Button variant="outline" size="icon" onClick={handleNext}>
-            <ChevronRightIcon className="h-4 w-4" />
-          </Button>
-        </div>
-        <ExtensionNotInstalled />
-      </div>
-    );
-  }
-
-  if (error && !isLoading) {
+  // Error state (only show if not loading)
+  if (error && !isLoading && !extensionNotInstalled) {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="text-center">
@@ -1798,7 +1780,8 @@ export function PlanPanel() {
                 ))
               ) : (
                 <div className="text-dark-400 py-12 text-center">
-                  {searchQuery ? 'No resources match your search' : 'No resources found'}
+                  <UserGroupIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
+                  <p>{searchQuery ? 'No resources match your search' : 'No resources found'}</p>
                 </div>
               )
             ) : // Projects View
@@ -1824,7 +1807,8 @@ export function PlanPanel() {
               ))
             ) : (
               <div className="text-dark-400 py-12 text-center">
-                {searchQuery ? 'No projects match your search' : 'No allocations found'}
+                <FolderIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
+                <p>{searchQuery ? 'No projects match your search' : 'No allocations found'}</p>
               </div>
             )}
           </div>
@@ -1890,8 +1874,16 @@ export function PlanPanel() {
 
   // Fullscreen mode
   if (isFullscreen) {
-    return <div className="bg-dark-900 fixed inset-0 z-50 flex flex-col p-6">{planContent}</div>;
+    return (
+      <ExtensionPreviewWrapper extensionNotInstalled={extensionNotInstalled} pageName="Plan">
+        <div className="bg-dark-900 fixed inset-0 z-50 flex flex-col p-6">{planContent}</div>
+      </ExtensionPreviewWrapper>
+    );
   }
 
-  return planContent;
+  return (
+    <ExtensionPreviewWrapper extensionNotInstalled={extensionNotInstalled} pageName="Plan">
+      {planContent}
+    </ExtensionPreviewWrapper>
+  );
 }

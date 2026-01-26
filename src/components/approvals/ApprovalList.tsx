@@ -9,8 +9,9 @@ import {
   ClockIcon,
   CalendarDaysIcon,
   UserIcon,
+  ClipboardDocumentCheckIcon,
 } from '@heroicons/react/24/outline';
-import { Card } from '@/components/ui';
+import { Card, ExtensionPreviewWrapper } from '@/components/ui';
 import { ApprovalCard } from './ApprovalCard';
 import { ApprovalFilters } from './ApprovalFilters';
 import { useApprovalStore, useCompanyStore } from '@/hooks';
@@ -23,7 +24,7 @@ import type { BCTimeSheet, BCTimeSheetLine, BCJob, BCJobTask } from '@/types';
 type GroupBy = 'none' | 'week' | 'person';
 
 export function ApprovalList() {
-  const { selectedCompany } = useCompanyStore();
+  const { selectedCompany, companyVersion } = useCompanyStore();
   const { account } = useAuth();
   const emailDomain = account?.username?.split('@')[1] || '';
   const {
@@ -37,6 +38,7 @@ export function ApprovalList() {
     error,
     isApprover,
     permissionChecked,
+    extensionNotInstalled,
     fetchPendingApprovals,
     fetchTimeSheetLines,
     selectTimeSheet,
@@ -116,17 +118,18 @@ export function ApprovalList() {
   // Fetch permissions and approvals on mount and when company changes
   // Note: Zustand actions are stable references, but ESLint doesn't know that.
   // We intentionally omit them from deps to avoid infinite re-renders.
+  // companyVersion ensures refetch when company switches.
   useEffect(() => {
     checkApprovalPermission();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCompany]);
+  }, [companyVersion]);
 
   useEffect(() => {
     if (permissionChecked && isApprover) {
       fetchPendingApprovals();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [permissionChecked, isApprover, selectedCompany]);
+  }, [permissionChecked, isApprover, companyVersion]);
 
   // Update lines cache when selectedLines changes
   useEffect(() => {
@@ -304,16 +307,15 @@ export function ApprovalList() {
   // Not an approver
   if (!isApprover) {
     return (
-      <Card variant="bordered" className="p-8 text-center">
-        <div className="bg-dark-700 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full">
-          <XMarkIcon className="text-dark-400 h-8 w-8" />
+      <ExtensionPreviewWrapper extensionNotInstalled={extensionNotInstalled} pageName="Approvals">
+        <div className="py-12 text-center">
+          <ClipboardDocumentCheckIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
+          <p className="text-dark-400">No pending approvals available</p>
+          <p className="text-dark-400 mt-1 text-sm">
+            Timesheets requiring your approval will appear here
+          </p>
         </div>
-        <h3 className="text-lg font-semibold text-white">No Approval Access</h3>
-        <p className="text-dark-400 mt-2">
-          You don&apos;t have permission to approve timesheets. Contact your administrator if you
-          believe this is an error.
-        </p>
-      </Card>
+      </ExtensionPreviewWrapper>
     );
   }
 
@@ -342,165 +344,167 @@ export function ApprovalList() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Card variant="bordered" className="p-4">
-          <p className="text-dark-400 text-sm">
-            {pendingApprovals.length !== allApprovals.length
-              ? `Matching Timesheets (${allApprovals.length} total)`
-              : 'Pending Approvals'}
-          </p>
-          <p className="mt-1 text-2xl font-bold text-amber-500">{pendingApprovals.length}</p>
-        </Card>
-        <Card variant="bordered" className="p-4">
-          <p className="text-dark-400 text-sm">
-            {pendingApprovals.length !== allApprovals.length
-              ? 'Filtered Hours'
-              : 'Total Hours Pending'}
-          </p>
-          <p className="text-dark-100 mt-1 flex items-center gap-2 text-2xl font-bold">
-            <ClockIcon className="h-6 w-6" />
-            {actualPendingHours.toFixed(1)}
-          </p>
-        </Card>
-      </div>
-
-      {/* Filters and Grouping */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <ApprovalFilters
-          filters={filters}
-          onFilterChange={setFilters}
-          onClearFilters={clearFilters}
-          allTimesheets={allApprovals}
-        />
-
-        {/* Group by toggle */}
-        <div className="border-dark-600 bg-dark-800 flex items-center gap-1 rounded-lg border p-1">
-          <button
-            onClick={() => setGroupBy(groupBy === 'week' ? 'none' : 'week')}
-            className={cn(
-              'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-              groupBy === 'week'
-                ? 'bg-thyme-600 text-white'
-                : 'text-dark-400 hover:bg-dark-700 hover:text-white'
-            )}
-            title="Group by week"
-          >
-            <CalendarDaysIcon className="h-4 w-4" />
-            By Week
-          </button>
-          <button
-            onClick={() => setGroupBy(groupBy === 'person' ? 'none' : 'person')}
-            className={cn(
-              'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-              groupBy === 'person'
-                ? 'bg-thyme-600 text-white'
-                : 'text-dark-400 hover:bg-dark-700 hover:text-white'
-            )}
-            title="Group by person"
-          >
-            <UserIcon className="h-4 w-4" />
-            By Person
-          </button>
+    <ExtensionPreviewWrapper extensionNotInstalled={extensionNotInstalled} pageName="Approvals">
+      <div className="space-y-6">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Card variant="bordered" className="p-4">
+            <p className="text-dark-400 text-sm">
+              {pendingApprovals.length !== allApprovals.length
+                ? `Matching Timesheets (${allApprovals.length} total)`
+                : 'Pending Approvals'}
+            </p>
+            <p className="mt-1 text-2xl font-bold text-amber-500">{pendingApprovals.length}</p>
+          </Card>
+          <Card variant="bordered" className="p-4">
+            <p className="text-dark-400 text-sm">
+              {pendingApprovals.length !== allApprovals.length
+                ? 'Filtered Hours'
+                : 'Total Hours Pending'}
+            </p>
+            <p className="text-dark-100 mt-1 flex items-center gap-2 text-2xl font-bold">
+              <ClockIcon className="h-6 w-6" />
+              {actualPendingHours.toFixed(1)}
+            </p>
+          </Card>
         </div>
-      </div>
 
-      {/* Approval list */}
-      {pendingApprovals.length > 0 ? (
-        <div className="space-y-4">
-          {/* Grouped approval cards */}
-          {groupedApprovals.map((group) => (
-            <div key={group.key} className="space-y-3">
-              {/* Group header (only show if grouping is active) */}
-              {groupBy !== 'none' && (
-                <div className="border-dark-700 flex items-center gap-2 border-b pb-2">
-                  {groupBy === 'week' ? (
-                    <CalendarDaysIcon className="text-thyme-500 h-8 w-8" />
-                  ) : (
-                    // Show profile photo for person group
-                    (() => {
-                      const firstTs = group.items[0];
-                      const email =
-                        firstTs?.resourceEmail && emailDomain
-                          ? `${firstTs.resourceEmail}@${emailDomain}`
-                          : null;
-                      const photo = email ? photosCache[email] : null;
-                      return photo ? (
-                        <img
-                          src={photo}
-                          alt={group.label}
-                          className="h-8 w-8 rounded-full object-cover"
-                        />
-                      ) : (
-                        <UserIcon className="text-thyme-500 h-8 w-8" />
-                      );
-                    })()
-                  )}
-                  <h3 className="text-sm font-semibold text-white">{group.label}</h3>
-                  <span className="text-dark-400 text-xs">
-                    ({group.items.length} timesheet{group.items.length !== 1 ? 's' : ''})
-                  </span>
-                </div>
+        {/* Filters and Grouping */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <ApprovalFilters
+            filters={filters}
+            onFilterChange={setFilters}
+            onClearFilters={clearFilters}
+            allTimesheets={allApprovals}
+          />
+
+          {/* Group by toggle */}
+          <div className="border-dark-600 bg-dark-800 flex items-center gap-1 rounded-lg border p-1">
+            <button
+              onClick={() => setGroupBy(groupBy === 'week' ? 'none' : 'week')}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                groupBy === 'week'
+                  ? 'bg-thyme-600 text-white'
+                  : 'text-dark-400 hover:bg-dark-700 hover:text-white'
               )}
-
-              {/* Approval cards in this group */}
-              {group.items.map((timeSheet) => (
-                <ApprovalCard
-                  key={timeSheet.id}
-                  timeSheet={timeSheet}
-                  lines={linesCache[timeSheet.id] || []}
-                  isExpanded={expandedId === timeSheet.id}
-                  isProcessing={isProcessing}
-                  onToggleExpand={() => handleToggleExpand(timeSheet)}
-                  onApprove={(comment) => handleApprove(timeSheet.id, comment)}
-                  onReject={(comment) => handleReject(timeSheet.id, comment)}
-                  hidePerson={groupBy === 'person'}
-                  hideWeek={groupBy === 'week'}
-                  resourceEmail={
-                    timeSheet.resourceEmail && emailDomain
-                      ? `${timeSheet.resourceEmail}@${emailDomain}`
-                      : undefined
-                  }
-                  jobsCache={jobsCache}
-                  tasksCache={tasksCache}
-                />
-              ))}
-            </div>
-          ))}
+              title="Group by week"
+            >
+              <CalendarDaysIcon className="h-4 w-4" />
+              By Week
+            </button>
+            <button
+              onClick={() => setGroupBy(groupBy === 'person' ? 'none' : 'person')}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                groupBy === 'person'
+                  ? 'bg-thyme-600 text-white'
+                  : 'text-dark-400 hover:bg-dark-700 hover:text-white'
+              )}
+              title="Group by person"
+            >
+              <UserIcon className="h-4 w-4" />
+              By Person
+            </button>
+          </div>
         </div>
-      ) : (
-        <Card variant="bordered" className="p-8 text-center">
-          {/* Check if we have any approvals at all vs just filtered to nothing */}
-          {allApprovals.length > 0 ? (
-            // Filters are hiding results
-            <>
-              <div className="bg-dark-700 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full">
-                <CalendarDaysIcon className="text-dark-400 h-8 w-8" />
+
+        {/* Approval list */}
+        {pendingApprovals.length > 0 ? (
+          <div className="space-y-4">
+            {/* Grouped approval cards */}
+            {groupedApprovals.map((group) => (
+              <div key={group.key} className="space-y-3">
+                {/* Group header (only show if grouping is active) */}
+                {groupBy !== 'none' && (
+                  <div className="border-dark-700 flex items-center gap-2 border-b pb-2">
+                    {groupBy === 'week' ? (
+                      <CalendarDaysIcon className="text-thyme-500 h-8 w-8" />
+                    ) : (
+                      // Show profile photo for person group
+                      (() => {
+                        const firstTs = group.items[0];
+                        const email =
+                          firstTs?.resourceEmail && emailDomain
+                            ? `${firstTs.resourceEmail}@${emailDomain}`
+                            : null;
+                        const photo = email ? photosCache[email] : null;
+                        return photo ? (
+                          <img
+                            src={photo}
+                            alt={group.label}
+                            className="h-8 w-8 rounded-full object-cover"
+                          />
+                        ) : (
+                          <UserIcon className="text-thyme-500 h-8 w-8" />
+                        );
+                      })()
+                    )}
+                    <h3 className="text-sm font-semibold text-white">{group.label}</h3>
+                    <span className="text-dark-400 text-xs">
+                      ({group.items.length} timesheet{group.items.length !== 1 ? 's' : ''})
+                    </span>
+                  </div>
+                )}
+
+                {/* Approval cards in this group */}
+                {group.items.map((timeSheet) => (
+                  <ApprovalCard
+                    key={timeSheet.id}
+                    timeSheet={timeSheet}
+                    lines={linesCache[timeSheet.id] || []}
+                    isExpanded={expandedId === timeSheet.id}
+                    isProcessing={isProcessing}
+                    onToggleExpand={() => handleToggleExpand(timeSheet)}
+                    onApprove={(comment) => handleApprove(timeSheet.id, comment)}
+                    onReject={(comment) => handleReject(timeSheet.id, comment)}
+                    hidePerson={groupBy === 'person'}
+                    hideWeek={groupBy === 'week'}
+                    resourceEmail={
+                      timeSheet.resourceEmail && emailDomain
+                        ? `${timeSheet.resourceEmail}@${emailDomain}`
+                        : undefined
+                    }
+                    jobsCache={jobsCache}
+                    tasksCache={tasksCache}
+                  />
+                ))}
               </div>
-              <h3 className="text-lg font-semibold text-white">No Matching Timesheets</h3>
-              <p className="text-dark-400 mt-2">
-                No timesheets match your current filters. Try adjusting or clearing your filters.
-              </p>
-              <button
-                onClick={clearFilters}
-                className="text-thyme-500 hover:text-thyme-400 mt-4 underline"
-              >
-                Clear filters
-              </button>
-            </>
-          ) : (
-            // Truly no pending approvals
-            <>
-              <div className="bg-thyme-500/20 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full">
-                <CheckIcon className="text-thyme-500 h-8 w-8" />
-              </div>
-              <h3 className="text-lg font-semibold text-white">All Caught Up!</h3>
-              <p className="text-dark-400 mt-2">There are no timesheets pending your approval.</p>
-            </>
-          )}
-        </Card>
-      )}
-    </div>
+            ))}
+          </div>
+        ) : (
+          <Card variant="bordered" className="p-8 text-center">
+            {/* Check if we have any approvals at all vs just filtered to nothing */}
+            {allApprovals.length > 0 ? (
+              // Filters are hiding results
+              <>
+                <div className="bg-dark-700 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full">
+                  <CalendarDaysIcon className="text-dark-400 h-8 w-8" />
+                </div>
+                <h3 className="text-lg font-semibold text-white">No Matching Timesheets</h3>
+                <p className="text-dark-400 mt-2">
+                  No timesheets match your current filters. Try adjusting or clearing your filters.
+                </p>
+                <button
+                  onClick={clearFilters}
+                  className="text-thyme-500 hover:text-thyme-400 mt-4 underline"
+                >
+                  Clear filters
+                </button>
+              </>
+            ) : (
+              // Truly no pending approvals
+              <>
+                <div className="bg-thyme-500/20 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full">
+                  <CheckIcon className="text-thyme-500 h-8 w-8" />
+                </div>
+                <h3 className="text-lg font-semibold text-white">All Caught Up!</h3>
+                <p className="text-dark-400 mt-2">There are no timesheets pending your approval.</p>
+              </>
+            )}
+          </Card>
+        )}
+      </div>
+    </ExtensionPreviewWrapper>
   );
 }

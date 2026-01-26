@@ -1,4 +1,5 @@
 import { getBCAccessToken } from '../auth';
+import { ExtensionNotInstalledError } from './timeEntryService';
 import type {
   BCCompany,
   BCEnvironmentType,
@@ -1392,14 +1393,15 @@ class BusinessCentralClient {
   /**
    * Check if the current user has approval permissions.
    * Attempts to fetch pending approvals - if successful, user is an approver.
+   * Throws ExtensionNotInstalledError if extension is not installed.
    */
   async checkApprovalPermission(): Promise<{ isApprover: boolean; resourceNumber?: string }> {
-    try {
-      const extensionInstalled = await this.isExtensionInstalled();
-      if (!extensionInstalled) {
-        return { isApprover: false };
-      }
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new ExtensionNotInstalledError();
+    }
 
+    try {
       // Try to fetch pending approvals - if this succeeds without error, user has approval access
       // BC will return 403 or similar if user doesn't have permission
       await this.getPendingApprovals();

@@ -15,7 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useTimeEntriesStore, useProjectsStore, useTeammateStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
-import { Button, Card, WeekNavigation, ExtensionNotInstalled } from '@/components/ui';
+import { Button, Card, WeekNavigation, ExtensionPreviewWrapper } from '@/components/ui';
 import { TimeEntryCell } from './TimeEntryCell';
 import { TimeEntryModal } from './TimeEntryModal';
 import type { TimeEntry, TimesheetDisplayStatus } from '@/types';
@@ -70,6 +70,7 @@ export function WeeklyTimesheet() {
     projects,
     isLoading: projectsLoading,
     error: projectsError,
+    extensionNotInstalled: projectsExtensionNotInstalled,
     fetchProjects,
   } = useProjectsStore();
 
@@ -156,11 +157,12 @@ export function WeeklyTimesheet() {
   }, [fetchProjects]);
 
   // Show toast when projects fail to load (entries errors handled locally in components)
+  // Don't show toast when extension isn't installed - the modal handles that
   useEffect(() => {
-    if (projectsError) {
+    if (projectsError && !extensionNotInstalled && !projectsExtensionNotInstalled) {
       toast.error('Failed to load projects. Some features may not work correctly.');
     }
-  }, [projectsError]);
+  }, [projectsError, extensionNotInstalled, projectsExtensionNotInstalled]);
 
   const weekDays = getWeekDays(currentWeekStart);
 
@@ -229,26 +231,6 @@ export function WeeklyTimesheet() {
   };
 
   const totalHours = getTotalHours();
-
-  // Extension not installed state
-  if (extensionNotInstalled && !isViewingTeammate) {
-    return (
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <WeekNavigation
-            currentWeekStart={currentWeekStart}
-            onPrevious={() => navigateToWeek('prev')}
-            onNext={() => navigateToWeek('next')}
-            onToday={goToCurrentWeek}
-            onDateSelect={goToDate}
-          />
-        </div>
-
-        <ExtensionNotInstalled />
-      </div>
-    );
-  }
 
   // No resource record exists state
   if (noResourceExists && !isViewingTeammate) {
@@ -439,93 +421,84 @@ Thank you!`)}`}
   }
 
   return (
-    <div className="space-y-6">
-      {/* Teammate View Banner */}
-      {isViewingTeammate && (
-        <div className="border-thyme-600/30 bg-thyme-900/20 flex items-center gap-3 rounded-lg border px-4 py-3">
-          <EyeIcon className="text-thyme-500 h-5 w-5" />
-          <div className="flex-1">
-            <span className="text-dark-200 text-sm">
-              Viewing <span className="font-medium text-white">{selectedTeammate.displayName}</span>
-              &apos;s timesheet
+    <ExtensionPreviewWrapper
+      extensionNotInstalled={extensionNotInstalled && !isViewingTeammate}
+      pageName="Timesheet"
+    >
+      <div className="space-y-6">
+        {/* Teammate View Banner */}
+        {isViewingTeammate && (
+          <div className="border-thyme-600/30 bg-thyme-900/20 flex items-center gap-3 rounded-lg border px-4 py-3">
+            <EyeIcon className="text-thyme-500 h-5 w-5" />
+            <div className="flex-1">
+              <span className="text-dark-200 text-sm">
+                Viewing{' '}
+                <span className="font-medium text-white">{selectedTeammate.displayName}</span>
+                &apos;s timesheet
+              </span>
+              {selectedTeammate.jobTitle && (
+                <span className="text-dark-400 ml-2 text-xs">({selectedTeammate.jobTitle})</span>
+              )}
+            </div>
+            <span className="bg-thyme-600/20 text-thyme-400 rounded px-2 py-1 text-xs">
+              Read-only
             </span>
-            {selectedTeammate.jobTitle && (
-              <span className="text-dark-400 ml-2 text-xs">({selectedTeammate.jobTitle})</span>
-            )}
-          </div>
-          <span className="bg-thyme-600/20 text-thyme-400 rounded px-2 py-1 text-xs">
-            Read-only
-          </span>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <WeekNavigation
-          currentWeekStart={currentWeekStart}
-          onPrevious={() => navigateToWeek('prev')}
-          onNext={() => navigateToWeek('next')}
-          onToday={goToCurrentWeek}
-          onDateSelect={goToDate}
-        />
-
-        {!isViewingTeammate && (
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCopyPreviousWeek}
-              disabled={isLoading || !canEdit}
-            >
-              <DocumentDuplicateIcon className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Copy previous week</span>
-            </Button>
           </div>
         )}
-      </div>
 
-      {/* Timesheet Status Bar */}
-      {currentTimesheet && timesheetStatus && !isViewingTeammate && (
-        <div className="border-dark-700 bg-dark-850 flex items-center justify-between rounded-lg border px-4 py-3">
-          <div className="flex items-center gap-4">
-            <div className="text-dark-400 text-sm">
-              Timesheet: <span className="font-medium text-white">{currentTimesheet.number}</span>
-            </div>
-            <span
-              className={`rounded px-2 py-1 text-xs font-medium ${statusColors[timesheetStatus]}`}
-            >
-              {timesheetStatus}
-            </span>
-          </div>
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <WeekNavigation
+            currentWeekStart={currentWeekStart}
+            onPrevious={() => navigateToWeek('prev')}
+            onNext={() => navigateToWeek('next')}
+            onToday={goToCurrentWeek}
+            onDateSelect={goToDate}
+          />
 
-          <div className="flex items-center gap-2">
-            {(timesheetStatus === 'Open' || timesheetStatus === 'Partially Submitted') && (
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleSubmitTimesheet}
-                disabled={isSubmitting || entries.length === 0}
-              >
-                <PaperAirplaneIcon className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Submit for Approval</span>
-                <span className="sm:hidden">Submit</span>
-              </Button>
-            )}
-            {timesheetStatus === 'Rejected' && (
+          {!isViewingTeammate && (
+            <div className="flex items-center gap-3">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleReopenTimesheet}
-                disabled={isSubmitting}
+                onClick={handleCopyPreviousWeek}
+                disabled={isLoading || !canEdit}
               >
-                <ArrowPathIcon className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Reopen for Editing</span>
-                <span className="sm:hidden">Reopen</span>
+                <DocumentDuplicateIcon className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Copy previous week</span>
               </Button>
-            )}
-            {timesheetStatus === 'Submitted' && (
-              <>
-                <span className="text-dark-400 text-sm">Awaiting approval</span>
+            </div>
+          )}
+        </div>
+
+        {/* Timesheet Status Bar */}
+        {currentTimesheet && timesheetStatus && !isViewingTeammate && (
+          <div className="border-dark-700 bg-dark-850 flex items-center justify-between rounded-lg border px-4 py-3">
+            <div className="flex items-center gap-4">
+              <div className="text-dark-400 text-sm">
+                Timesheet: <span className="font-medium text-white">{currentTimesheet.number}</span>
+              </div>
+              <span
+                className={`rounded px-2 py-1 text-xs font-medium ${statusColors[timesheetStatus]}`}
+              >
+                {timesheetStatus}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {(timesheetStatus === 'Open' || timesheetStatus === 'Partially Submitted') && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleSubmitTimesheet}
+                  disabled={isSubmitting || entries.length === 0}
+                >
+                  <PaperAirplaneIcon className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Submit for Approval</span>
+                  <span className="sm:hidden">Submit</span>
+                </Button>
+              )}
+              {timesheetStatus === 'Rejected' && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -533,121 +506,138 @@ Thank you!`)}`}
                   disabled={isSubmitting}
                 >
                   <ArrowPathIcon className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Reopen</span>
+                  <span className="hidden sm:inline">Reopen for Editing</span>
                   <span className="sm:hidden">Reopen</span>
                 </Button>
-              </>
-            )}
-            {timesheetStatus === 'Approved' && (
-              <span className="text-sm text-green-400">Timesheet approved</span>
-            )}
+              )}
+              {timesheetStatus === 'Submitted' && (
+                <>
+                  <span className="text-dark-400 text-sm">Awaiting approval</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleReopenTimesheet}
+                    disabled={isSubmitting}
+                  >
+                    <ArrowPathIcon className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Reopen</span>
+                    <span className="sm:hidden">Reopen</span>
+                  </Button>
+                </>
+              )}
+              {timesheetStatus === 'Approved' && (
+                <span className="text-sm text-green-400">Timesheet approved</span>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Week Summary */}
-      <div className="flex items-center gap-6">
-        <div className="text-dark-400 text-sm">
-          Week total: <span className="font-semibold text-white">{formatTime(totalHours)}</span>
-        </div>
-        {entries.length > 0 && (
+        {/* Week Summary */}
+        <div className="flex items-center gap-6">
           <div className="text-dark-400 text-sm">
-            {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
+            Week total: <span className="font-semibold text-white">{formatTime(totalHours)}</span>
           </div>
-        )}
-        {!canEdit && currentTimesheet && !isViewingTeammate && (
-          <span className="rounded bg-yellow-500/20 px-2 py-1 text-xs text-yellow-400">
-            Read-only
-          </span>
-        )}
-      </div>
+          {entries.length > 0 && (
+            <div className="text-dark-400 text-sm">
+              {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
+            </div>
+          )}
+          {!canEdit && currentTimesheet && !isViewingTeammate && (
+            <span className="rounded bg-yellow-500/20 px-2 py-1 text-xs text-yellow-400">
+              Read-only
+            </span>
+          )}
+        </div>
 
-      {/* Timesheet Grid */}
-      <Card variant="bordered" className="overflow-hidden">
-        {/* Day Headers */}
-        <div className="border-dark-700 bg-dark-900 grid grid-cols-7 border-b">
-          {weekDays.map((day) => {
-            const isToday = isDayToday(day);
-            return (
-              <div
-                key={day.toISOString()}
-                className={`border-dark-700 border-r p-3 text-center last:border-r-0 ${
-                  isToday ? 'bg-knowall-green/10' : ''
-                }`}
-              >
-                <p className="text-dark-400 text-xs font-medium uppercase">{format(day, 'EEE')}</p>
-                <p
-                  className={`text-lg font-semibold ${
-                    isToday ? 'text-knowall-green' : 'text-white'
+        {/* Timesheet Grid */}
+        <Card variant="bordered" className="overflow-hidden">
+          {/* Day Headers */}
+          <div className="border-dark-700 bg-dark-900 grid grid-cols-7 border-b">
+            {weekDays.map((day) => {
+              const isToday = isDayToday(day);
+              return (
+                <div
+                  key={day.toISOString()}
+                  className={`border-dark-700 border-r p-3 text-center last:border-r-0 ${
+                    isToday ? 'bg-knowall-green/10' : ''
                   }`}
                 >
-                  {format(day, 'd')}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Entries Grid */}
-        {isLoading || projectsLoading ? (
-          <div className="flex h-64 items-center justify-center">
-            <div className="border-knowall-green h-8 w-8 animate-spin rounded-full border-b-2"></div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-7">
-            {weekDays.map((day) => {
-              const dateStr = formatDate(day);
-              const dayEntries = getEntriesForDay(dateStr);
-              const isToday = isDayToday(day);
-
-              return (
-                <TimeEntryCell
-                  key={day.toISOString()}
-                  entries={dayEntries}
-                  date={dateStr}
-                  isToday={isToday}
-                  projects={projects}
-                  onAddEntry={handleAddEntry}
-                  onEditEntry={handleEditEntry}
-                  readOnly={!canEdit}
-                />
+                  <p className="text-dark-400 text-xs font-medium uppercase">
+                    {format(day, 'EEE')}
+                  </p>
+                  <p
+                    className={`text-lg font-semibold ${
+                      isToday ? 'text-knowall-green' : 'text-white'
+                    }`}
+                  >
+                    {format(day, 'd')}
+                  </p>
+                </div>
               );
             })}
           </div>
-        )}
 
-        {/* Empty State */}
-        {!isLoading && !projectsLoading && entries.length === 0 && !noTimesheetExists && (
-          <div className="py-12 text-center">
-            {isViewingTeammate ? (
-              <>
-                <p className="text-dark-300 mb-2">
-                  No time entries found for {selectedTeammate.displayName} this week.
-                </p>
-                <p className="text-dark-500 text-sm">
-                  Time entries will appear here once added to their timesheet.
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-dark-300 mb-4">&quot;{quote.text}&quot;</p>
-                <p className="text-dark-500 text-sm">
-                  — {quote.author}
-                  {quote.source && <>, {quote.source}</>}
-                </p>
-              </>
-            )}
-          </div>
-        )}
-      </Card>
+          {/* Entries Grid */}
+          {isLoading || projectsLoading ? (
+            <div className="flex h-64 items-center justify-center">
+              <div className="border-knowall-green h-8 w-8 animate-spin rounded-full border-b-2"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-7">
+              {weekDays.map((day) => {
+                const dateStr = formatDate(day);
+                const dayEntries = getEntriesForDay(dateStr);
+                const isToday = isDayToday(day);
 
-      {/* Time Entry Modal */}
-      <TimeEntryModal
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        date={selectedDate}
-        entry={selectedEntry}
-      />
-    </div>
+                return (
+                  <TimeEntryCell
+                    key={day.toISOString()}
+                    entries={dayEntries}
+                    date={dateStr}
+                    isToday={isToday}
+                    projects={projects}
+                    onAddEntry={handleAddEntry}
+                    onEditEntry={handleEditEntry}
+                    readOnly={!canEdit}
+                  />
+                );
+              })}
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isLoading && !projectsLoading && entries.length === 0 && !noTimesheetExists && (
+            <div className="py-12 text-center">
+              {isViewingTeammate ? (
+                <>
+                  <p className="text-dark-300 mb-2">
+                    No time entries found for {selectedTeammate.displayName} this week.
+                  </p>
+                  <p className="text-dark-500 text-sm">
+                    Time entries will appear here once added to their timesheet.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-dark-300 mb-4">&quot;{quote.text}&quot;</p>
+                  <p className="text-dark-500 text-sm">
+                    — {quote.author}
+                    {quote.source && <>, {quote.source}</>}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+        </Card>
+
+        {/* Time Entry Modal */}
+        <TimeEntryModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          date={selectedDate}
+          entry={selectedEntry}
+        />
+      </div>
+    </ExtensionPreviewWrapper>
   );
 }

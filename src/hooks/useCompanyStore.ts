@@ -5,6 +5,8 @@ import { bcClient } from '@/services/bc/bcClient';
 interface CompanyStore {
   companies: BCCompany[];
   selectedCompany: BCCompany | null;
+  /** Increments each time company changes - use in effect deps to force refetch */
+  companyVersion: number;
   isLoading: boolean;
   error: string | null;
 
@@ -18,6 +20,7 @@ interface CompanyStore {
 export const useCompanyStore = create<CompanyStore>((set, get) => ({
   companies: [],
   selectedCompany: null,
+  companyVersion: 0,
   isLoading: false,
   error: null,
 
@@ -77,7 +80,11 @@ export const useCompanyStore = create<CompanyStore>((set, get) => ({
       } else {
         bcClient.setCompanyId(company.id);
       }
-      set({ selectedCompany: company });
+      // Increment version to trigger refetch in all components that depend on it
+      set((state) => ({
+        selectedCompany: company,
+        companyVersion: state.companyVersion + 1,
+      }));
     }
   },
 

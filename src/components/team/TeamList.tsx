@@ -10,8 +10,9 @@ import {
   MagnifyingGlassIcon,
   ExclamationTriangleIcon,
   ArrowTopRightOnSquareIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline';
-import { Card, WeekNavigation, ExtensionNotInstalled } from '@/components/ui';
+import { Card, WeekNavigation, ExtensionPreviewWrapper } from '@/components/ui';
 import { bcClient, ExtensionNotInstalledError } from '@/services/bc';
 import { useCompanyStore } from '@/hooks';
 import { useAuth, getUserProfilePhoto } from '@/services/auth';
@@ -60,7 +61,7 @@ function getBCResourceUrl(
 }
 
 export function TeamList() {
-  const { selectedCompany } = useCompanyStore();
+  const { selectedCompany, companyVersion } = useCompanyStore();
   const { account } = useAuth();
   const userEmail = account?.username || '';
 
@@ -247,7 +248,8 @@ export function TeamList() {
       }
     }
     fetchTeamData();
-  }, [selectedCompany, currentWeekStart, userEmail]);
+    // companyVersion changes when company switches, ensuring refetch
+  }, [companyVersion, currentWeekStart, userEmail]);
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -384,22 +386,6 @@ export function TeamList() {
     return 'low';
   };
 
-  // Extension not installed state
-  if (extensionNotInstalled) {
-    return (
-      <div className="space-y-6">
-        <WeekNavigation
-          currentWeekStart={currentWeekStart}
-          onPrevious={handlePrevious}
-          onNext={handleNext}
-          onToday={handleToday}
-          onDateSelect={handleDateSelect}
-        />
-        <ExtensionNotInstalled />
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -417,284 +403,291 @@ export function TeamList() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Week Navigation */}
-      <WeekNavigation
-        currentWeekStart={currentWeekStart}
-        onPrevious={handlePrevious}
-        onNext={handleNext}
-        onToday={handleToday}
-        onDateSelect={handleDateSelect}
-      />
+    <ExtensionPreviewWrapper extensionNotInstalled={extensionNotInstalled} pageName="Team">
+      <div className="space-y-6">
+        {/* Week Navigation */}
+        <WeekNavigation
+          currentWeekStart={currentWeekStart}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          onToday={handleToday}
+          onDateSelect={handleDateSelect}
+        />
 
-      {/* Warning if current user not in resource list */}
-      {!isLoading && !currentUserInList && userEmail && (
-        <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
-          <ExclamationTriangleIcon className="h-5 w-5 shrink-0 text-amber-500" />
-          <div className="text-sm">
-            <p className="font-medium text-amber-400">You don&apos;t have a Resource record</p>
-            <p className="text-dark-300 mt-1">
-              Your account ({userEmail}) doesn&apos;t have a matching Resource record in Business
-              Central. You won&apos;t be able to track time until your administrator creates a
-              Resource record for you with timesheet access enabled.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {isLoading ? (
-        <div className="flex h-64 items-center justify-center">
-          <div className="border-knowall-green h-8 w-8 animate-spin rounded-full border-b-2"></div>
-        </div>
-      ) : (
-        <>
-          {/* Summary Row */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            {/* Total Hours */}
-            <Card variant="bordered" className="p-4">
-              <p className="text-dark-400 text-sm">Total Hours</p>
-              <p className="text-dark-100 mt-1 text-2xl font-bold">
-                {totals.totalHours.toFixed(1)}
+        {/* Warning if current user not in resource list */}
+        {!isLoading && !currentUserInList && userEmail && (
+          <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+            <ExclamationTriangleIcon className="h-5 w-5 shrink-0 text-amber-500" />
+            <div className="text-sm">
+              <p className="font-medium text-amber-400">You don&apos;t have a Resource record</p>
+              <p className="text-dark-300 mt-1">
+                Your account ({userEmail}) doesn&apos;t have a matching Resource record in Business
+                Central. You won&apos;t be able to track time until your administrator creates a
+                Resource record for you with timesheet access enabled.
               </p>
-            </Card>
-
-            {/* Team Capacity */}
-            <Card variant="bordered" className="p-4">
-              <p className="text-dark-400 text-sm">Team Capacity</p>
-              <p className="text-dark-100 mt-1 text-2xl font-bold">
-                {totals.totalCapacity.toFixed(1)}
-              </p>
-            </Card>
-
-            {/* Utilization */}
-            <Card variant="bordered" className="p-4">
-              <p className="text-dark-400 text-sm">Utilization</p>
-              <p className="text-dark-100 mt-1 text-2xl font-bold">
-                {totals.utilization.toFixed(0)}%
-              </p>
-              <div className="bg-dark-700 mt-2 h-4 w-full overflow-hidden rounded">
-                <div
-                  className={cn('h-full rounded', getUtilizationColor(totals.utilization))}
-                  style={{ width: `${Math.min(totals.utilization, 100)}%` }}
-                />
-              </div>
-            </Card>
-
-            {/* Pie Chart */}
-            <Card variant="bordered" className="p-4">
-              <p className="text-dark-400 mb-2 text-sm">Hours Breakdown</p>
-              <div className="flex items-center gap-4">
-                <div
-                  className="h-20 w-20 shrink-0"
-                  role="img"
-                  aria-label={`Billable vs non-billable hours. Billable: ${totals.billableHours.toFixed(1)} hours. Non-billable: ${totals.nonBillableHours.toFixed(1)} hours.`}
-                >
-                  <Pie data={displayPieData} options={pieOptions} />
-                </div>
-                <div className="text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="h-3 w-3 shrink-0 rounded-full bg-green-500"></span>
-                    <span className="text-dark-300">
-                      Billable: {totals.billableHours.toFixed(1)}h
-                    </span>
-                  </div>
-                  <div className="mt-1 flex items-center gap-2">
-                    <span className="h-3 w-3 shrink-0 rounded-full bg-slate-500"></span>
-                    <span className="text-dark-300">
-                      Non-billable: {totals.nonBillableHours.toFixed(1)}h
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          {/* Search */}
-          <div className="relative">
-            <MagnifyingGlassIcon className="text-dark-400 absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search team members..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="border-dark-600 bg-dark-800 text-dark-100 placeholder:text-dark-500 focus:border-knowall-green focus:ring-knowall-green w-full rounded-lg border py-2 pr-4 pl-10 focus:ring-1 focus:outline-none"
-            />
-          </div>
-
-          {/* Team Members Table */}
-          <Card variant="bordered" className="overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-dark-700 bg-dark-800/50 border-b">
-                    <th
-                      className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-left text-sm font-medium"
-                      onClick={() => handleSort('name')}
-                      role="columnheader"
-                      aria-sort={getAriaSort('name')}
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSort('name')}
-                    >
-                      <div className="flex items-center gap-1">
-                        Employee
-                        <SortIcon field="name" />
-                      </div>
-                    </th>
-                    <th className="text-dark-300 px-4 py-3 text-left text-sm font-medium">Code</th>
-                    <th
-                      className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
-                      onClick={() => handleSort('totalHours')}
-                      role="columnheader"
-                      aria-sort={getAriaSort('totalHours')}
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSort('totalHours')}
-                    >
-                      <div className="flex items-center justify-end gap-1">
-                        Hours
-                        <SortIcon field="totalHours" />
-                      </div>
-                    </th>
-                    <th
-                      className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
-                      onClick={() => handleSort('utilization')}
-                      role="columnheader"
-                      aria-sort={getAriaSort('utilization')}
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSort('utilization')}
-                    >
-                      <div className="flex items-center justify-end gap-1">
-                        Utilization
-                        <SortIcon field="utilization" />
-                      </div>
-                    </th>
-                    <th className="text-dark-300 px-4 py-3 text-right text-sm font-medium">
-                      Capacity
-                    </th>
-                    <th
-                      className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
-                      onClick={() => handleSort('billablePercent')}
-                      role="columnheader"
-                      aria-sort={getAriaSort('billablePercent')}
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSort('billablePercent')}
-                    >
-                      <div className="flex items-center justify-end gap-1">
-                        Billable %
-                        <SortIcon field="billablePercent" />
-                      </div>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAndSortedMembers.map((member) => (
-                    <tr
-                      key={member.id}
-                      className="border-dark-700 hover:bg-dark-800/50 border-b last:border-b-0"
-                    >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          {member.photoUrl ? (
-                            <img
-                              src={member.photoUrl}
-                              alt={member.name}
-                              className="h-9 w-9 rounded-full object-cover"
-                            />
-                          ) : (
-                            <div className="bg-dark-600 text-dark-200 flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium">
-                              {member.name
-                                .split(' ')
-                                .map((n) => n[0])
-                                .join('')
-                                .slice(0, 2)
-                                .toUpperCase()}
-                            </div>
-                          )}
-                          <div>
-                            <p className="text-dark-100 font-medium">
-                              {member.name}
-                              {member.isCurrentUser && (
-                                <span className="text-knowall-green ml-2">(you)</span>
-                              )}
-                            </p>
-                            <p className="text-dark-400 text-xs">{member.email}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-dark-300">{member.role}</span>
-                          {selectedCompany?.name && (
-                            <a
-                              href={getBCResourceUrl(
-                                bcClient.tenantId,
-                                bcClient.environment,
-                                selectedCompany.name,
-                                member.number
-                              )}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-dark-400 hover:text-knowall-green"
-                              title="Open in Business Central"
-                            >
-                              <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-                            </a>
-                          )}
-                        </div>
-                      </td>
-                      <td className="text-dark-100 px-4 py-3 text-right">
-                        {member.totalHours.toFixed(1)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div
-                          className="flex flex-col gap-1"
-                          role="meter"
-                          aria-valuenow={member.utilization}
-                          aria-valuemin={0}
-                          aria-valuemax={100}
-                          aria-label={`Utilization ${member.utilization.toFixed(0)}% - ${getUtilizationStatus(member.utilization)}`}
-                        >
-                          <span className="text-dark-100 text-sm font-medium">
-                            {member.utilization.toFixed(0)}%
-                          </span>
-                          <div className="bg-dark-700 h-4 w-24 overflow-hidden rounded">
-                            <div
-                              className={cn('h-full', getUtilizationColor(member.utilization))}
-                              style={{ width: `${Math.min(member.utilization, 100)}%` }}
-                            />
-                          </div>
-                        </div>
-                      </td>
-                      <td className="text-dark-300 px-4 py-3 text-right">
-                        {member.capacity.toFixed(1)}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <span
-                          className={cn(
-                            'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
-                            getBillableColor(member.billablePercent)
-                          )}
-                          aria-label={`Billable percentage ${member.billablePercent.toFixed(0)}% - ${getBillableStatus(member.billablePercent)}`}
-                        >
-                          {member.billablePercent.toFixed(0)}%
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredAndSortedMembers.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="text-dark-400 px-4 py-8 text-center">
-                        {searchQuery
-                          ? 'No team members match your search'
-                          : 'No team members found'}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
             </div>
-          </Card>
-        </>
-      )}
-    </div>
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="flex h-64 items-center justify-center">
+            <div className="border-knowall-green h-8 w-8 animate-spin rounded-full border-b-2"></div>
+          </div>
+        ) : (
+          <>
+            {/* Summary Row */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+              {/* Total Hours */}
+              <Card variant="bordered" className="p-4">
+                <p className="text-dark-400 text-sm">Total Hours</p>
+                <p className="text-dark-100 mt-1 text-2xl font-bold">
+                  {totals.totalHours.toFixed(1)}
+                </p>
+              </Card>
+
+              {/* Team Capacity */}
+              <Card variant="bordered" className="p-4">
+                <p className="text-dark-400 text-sm">Team Capacity</p>
+                <p className="text-dark-100 mt-1 text-2xl font-bold">
+                  {totals.totalCapacity.toFixed(1)}
+                </p>
+              </Card>
+
+              {/* Utilization */}
+              <Card variant="bordered" className="p-4">
+                <p className="text-dark-400 text-sm">Utilization</p>
+                <p className="text-dark-100 mt-1 text-2xl font-bold">
+                  {totals.utilization.toFixed(0)}%
+                </p>
+                <div className="bg-dark-700 mt-2 h-4 w-full overflow-hidden rounded">
+                  <div
+                    className={cn('h-full rounded', getUtilizationColor(totals.utilization))}
+                    style={{ width: `${Math.min(totals.utilization, 100)}%` }}
+                  />
+                </div>
+              </Card>
+
+              {/* Pie Chart */}
+              <Card variant="bordered" className="p-4">
+                <p className="text-dark-400 mb-2 text-sm">Hours Breakdown</p>
+                <div className="flex items-center gap-4">
+                  <div
+                    className="h-20 w-20 shrink-0"
+                    role="img"
+                    aria-label={`Billable vs non-billable hours. Billable: ${totals.billableHours.toFixed(1)} hours. Non-billable: ${totals.nonBillableHours.toFixed(1)} hours.`}
+                  >
+                    <Pie data={displayPieData} options={pieOptions} />
+                  </div>
+                  <div className="text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="h-3 w-3 shrink-0 rounded-full bg-green-500"></span>
+                      <span className="text-dark-300">
+                        Billable: {totals.billableHours.toFixed(1)}h
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="h-3 w-3 shrink-0 rounded-full bg-slate-500"></span>
+                      <span className="text-dark-300">
+                        Non-billable: {totals.nonBillableHours.toFixed(1)}h
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+              <MagnifyingGlassIcon className="text-dark-400 absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search team members..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="border-dark-600 bg-dark-800 text-dark-100 placeholder:text-dark-500 focus:border-knowall-green focus:ring-knowall-green w-full rounded-lg border py-2 pr-4 pl-10 focus:ring-1 focus:outline-none"
+              />
+            </div>
+
+            {/* Team Members Table */}
+            <Card variant="bordered" className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-dark-700 bg-dark-800/50 border-b">
+                      <th
+                        className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-left text-sm font-medium"
+                        onClick={() => handleSort('name')}
+                        role="columnheader"
+                        aria-sort={getAriaSort('name')}
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSort('name')}
+                      >
+                        <div className="flex items-center gap-1">
+                          Employee
+                          <SortIcon field="name" />
+                        </div>
+                      </th>
+                      <th className="text-dark-300 px-4 py-3 text-left text-sm font-medium">
+                        Code
+                      </th>
+                      <th
+                        className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
+                        onClick={() => handleSort('totalHours')}
+                        role="columnheader"
+                        aria-sort={getAriaSort('totalHours')}
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSort('totalHours')}
+                      >
+                        <div className="flex items-center justify-end gap-1">
+                          Hours
+                          <SortIcon field="totalHours" />
+                        </div>
+                      </th>
+                      <th
+                        className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
+                        onClick={() => handleSort('utilization')}
+                        role="columnheader"
+                        aria-sort={getAriaSort('utilization')}
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSort('utilization')}
+                      >
+                        <div className="flex items-center justify-end gap-1">
+                          Utilization
+                          <SortIcon field="utilization" />
+                        </div>
+                      </th>
+                      <th className="text-dark-300 px-4 py-3 text-right text-sm font-medium">
+                        Capacity
+                      </th>
+                      <th
+                        className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
+                        onClick={() => handleSort('billablePercent')}
+                        role="columnheader"
+                        aria-sort={getAriaSort('billablePercent')}
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSort('billablePercent')}
+                      >
+                        <div className="flex items-center justify-end gap-1">
+                          Billable %
+                          <SortIcon field="billablePercent" />
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAndSortedMembers.map((member) => (
+                      <tr
+                        key={member.id}
+                        className="border-dark-700 hover:bg-dark-800/50 border-b last:border-b-0"
+                      >
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            {member.photoUrl ? (
+                              <img
+                                src={member.photoUrl}
+                                alt={member.name}
+                                className="h-9 w-9 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="bg-dark-600 text-dark-200 flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium">
+                                {member.name
+                                  .split(' ')
+                                  .map((n) => n[0])
+                                  .join('')
+                                  .slice(0, 2)
+                                  .toUpperCase()}
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-dark-100 font-medium">
+                                {member.name}
+                                {member.isCurrentUser && (
+                                  <span className="text-knowall-green ml-2">(you)</span>
+                                )}
+                              </p>
+                              <p className="text-dark-400 text-xs">{member.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-dark-300">{member.role}</span>
+                            {selectedCompany?.name && (
+                              <a
+                                href={getBCResourceUrl(
+                                  bcClient.tenantId,
+                                  bcClient.environment,
+                                  selectedCompany.name,
+                                  member.number
+                                )}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-dark-400 hover:text-knowall-green"
+                                title="Open in Business Central"
+                              >
+                                <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                              </a>
+                            )}
+                          </div>
+                        </td>
+                        <td className="text-dark-100 px-4 py-3 text-right">
+                          {member.totalHours.toFixed(1)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div
+                            className="flex flex-col gap-1"
+                            role="meter"
+                            aria-valuenow={member.utilization}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-label={`Utilization ${member.utilization.toFixed(0)}% - ${getUtilizationStatus(member.utilization)}`}
+                          >
+                            <span className="text-dark-100 text-sm font-medium">
+                              {member.utilization.toFixed(0)}%
+                            </span>
+                            <div className="bg-dark-700 h-4 w-24 overflow-hidden rounded">
+                              <div
+                                className={cn('h-full', getUtilizationColor(member.utilization))}
+                                style={{ width: `${Math.min(member.utilization, 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="text-dark-300 px-4 py-3 text-right">
+                          {member.capacity.toFixed(1)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span
+                            className={cn(
+                              'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
+                              getBillableColor(member.billablePercent)
+                            )}
+                            aria-label={`Billable percentage ${member.billablePercent.toFixed(0)}% - ${getBillableStatus(member.billablePercent)}`}
+                          >
+                            {member.billablePercent.toFixed(0)}%
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredAndSortedMembers.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-12 text-center">
+                          <UserGroupIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
+                          <p className="text-dark-400">
+                            {searchQuery
+                              ? 'No team members match your search'
+                              : 'No team members found'}
+                          </p>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </>
+        )}
+      </div>
+    </ExtensionPreviewWrapper>
   );
 }
