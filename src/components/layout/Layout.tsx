@@ -1,7 +1,6 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { ExtensionBanner } from './ExtensionBanner';
 import { Header } from './Header';
 
 interface LayoutProps {
@@ -17,7 +16,6 @@ export function Layout({ children }: LayoutProps) {
       <div className="bg-grid-pattern bg-grid pointer-events-none fixed inset-0 opacity-10" />
 
       <div className="relative z-10 flex flex-1 flex-col">
-        <ExtensionBanner />
         <Header />
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
           {children}
