@@ -386,7 +386,8 @@ export const timeEntryService = {
 
     if (otherDetails.length === 0) {
       // Delete the line too
-      await bcClient.deleteTimeSheetLine(line.id, line['@odata.etag'] || '*');
+      // Use '*' to force delete since setHoursForDate() above changed the ETag
+      await bcClient.deleteTimeSheetLine(line.id, '*');
       this._currentTimesheetLines = this._currentTimesheetLines.filter((l) => l.id !== line.id);
     }
 
