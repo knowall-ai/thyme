@@ -3,9 +3,7 @@
 import { CheckCircleIcon, ArrowDownTrayIcon, ServerIcon } from '@heroicons/react/24/outline';
 import { Button } from './Button';
 import { useCompanyStore } from '@/hooks';
-
-// GitHub releases page for the BC extension
-const EXTENSION_RELEASES_URL = 'https://github.com/knowall-ai/thyme-bc-extension/releases';
+import { getBCExtensionInstallUrl } from '@/utils';
 
 export interface ExtensionInstallModalProps {
   isOpen: boolean;
@@ -25,7 +23,8 @@ export function ExtensionInstallModal({ isOpen }: ExtensionInstallModalProps) {
   const environmentLabel = environment === 'sandbox' ? 'Sandbox' : 'Production';
 
   const handleInstall = () => {
-    window.open(EXTENSION_RELEASES_URL, '_blank', 'noopener,noreferrer');
+    // Open BC Extension Management page filtered to Thyme extension
+    window.open(getBCExtensionInstallUrl(), '_blank', 'noopener,noreferrer');
   };
 
   if (!isOpen) return null;

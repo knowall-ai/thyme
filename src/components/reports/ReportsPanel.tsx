@@ -108,12 +108,17 @@ export function ReportsPanel() {
   useEffect(() => {
     const fetchResources = async () => {
       setIsLoadingResources(true);
+      setExtensionNotInstalled(false);
       try {
         // Get all person resources (same as Team page)
         const data = await bcClient.getResources();
         setResources(data);
       } catch (err) {
-        console.error('Failed to fetch resources:', err);
+        if (err instanceof ExtensionNotInstalledError) {
+          setExtensionNotInstalled(true);
+        } else {
+          console.error('Failed to fetch resources:', err);
+        }
         setResources([]);
       } finally {
         setIsLoadingResources(false);

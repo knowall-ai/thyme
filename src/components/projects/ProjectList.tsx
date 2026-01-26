@@ -10,7 +10,7 @@ import {
   FolderIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
-import { Input, Select } from '@/components/ui';
+import { Input, Select, ExtensionPreviewWrapper } from '@/components/ui';
 import { useProjectsStore } from '@/hooks';
 import type { Project } from '@/types';
 import type { BillingMode } from '@/services/bc/projectDetailsService';
@@ -55,6 +55,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
     getFilteredProjects,
     toggleFavorite,
     fetchProjects,
+    extensionNotInstalled,
   } = useProjectsStore();
 
   const selectedCompany = useCompanyStore((state) => state.selectedCompany);
@@ -150,167 +151,171 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
 
   if (isLoading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="border-thyme-600 h-8 w-8 animate-spin rounded-full border-b-2"></div>
-      </div>
+      <ExtensionPreviewWrapper extensionNotInstalled={extensionNotInstalled} pageName="Projects">
+        <div className="flex h-64 items-center justify-center">
+          <div className="border-thyme-600 h-8 w-8 animate-spin rounded-full border-b-2"></div>
+        </div>
+      </ExtensionPreviewWrapper>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Business Central Links */}
-      <div className="flex items-center gap-4 text-sm">
-        <span className="text-gray-400">Open in Business Central:</span>
-        <a
-          href={getBCJobsListUrl()}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-thyme-400 hover:text-thyme-300 flex items-center gap-1"
-        >
-          Projects
-          <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-        </a>
-        <a
-          href={getBCCustomersListUrl()}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-thyme-400 hover:text-thyme-300 flex items-center gap-1"
-        >
-          Customers
-          <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-        </a>
-      </div>
-
-      {/* Search and Filter/Sort Controls */}
-      <div className="space-y-3">
-        <div className="relative">
-          <MagnifyingGlassIcon className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="Search projects..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+    <ExtensionPreviewWrapper extensionNotInstalled={extensionNotInstalled} pageName="Projects">
+      <div className="space-y-6">
+        {/* Business Central Links */}
+        <div className="flex items-center gap-4 text-sm">
+          <span className="text-gray-400">Open in Business Central:</span>
+          <a
+            href={getBCJobsListUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-thyme-400 hover:text-thyme-300 flex items-center gap-1"
+          >
+            Projects
+            <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+          </a>
+          <a
+            href={getBCCustomersListUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-thyme-400 hover:text-thyme-300 flex items-center gap-1"
+          >
+            Customers
+            <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+          </a>
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          {/* Customer Filter */}
-          <div className="flex items-center gap-2">
-            <Select
-              value={customerFilter}
-              onChange={(e) => setCustomerFilter(e.target.value)}
-              className="w-40"
-              options={[
-                { value: 'all', label: 'All Customers' },
-                ...uniqueCustomers.map((customer) => ({ value: customer, label: customer })),
-              ]}
+        {/* Search and Filter/Sort Controls */}
+        <div className="space-y-3">
+          <div className="relative">
+            <MagnifyingGlassIcon className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search projects..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
             />
           </div>
 
-          {/* Status Filter */}
-          <div className="flex items-center gap-2">
-            <FunnelIcon className="h-4 w-4 text-gray-400" />
-            <Select
-              value={filterBy}
-              onChange={(e) => setFilterBy(e.target.value as FilterOption)}
-              className="w-36"
-              options={[
-                { value: 'all', label: 'All Status' },
-                { value: 'favorites', label: 'Favorites' },
-                { value: 'active', label: 'Active' },
-                { value: 'completed', label: 'Completed' },
-              ]}
-            />
-          </div>
+          <div className="flex flex-wrap gap-3">
+            {/* Customer Filter */}
+            <div className="flex items-center gap-2">
+              <Select
+                value={customerFilter}
+                onChange={(e) => setCustomerFilter(e.target.value)}
+                className="w-40"
+                options={[
+                  { value: 'all', label: 'All Customers' },
+                  ...uniqueCustomers.map((customer) => ({ value: customer, label: customer })),
+                ]}
+              />
+            </div>
 
-          {/* Sort */}
-          <div className="flex items-center gap-2">
-            <ArrowsUpDownIcon className="h-4 w-4 text-gray-400" />
-            <Select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="w-36"
-              options={[
-                { value: 'name-asc', label: 'Name (A-Z)' },
-                { value: 'name-desc', label: 'Name (Z-A)' },
-                { value: 'code', label: 'Code' },
-                { value: 'recent', label: 'Recent' },
-              ]}
-            />
+            {/* Status Filter */}
+            <div className="flex items-center gap-2">
+              <FunnelIcon className="h-4 w-4 text-gray-400" />
+              <Select
+                value={filterBy}
+                onChange={(e) => setFilterBy(e.target.value as FilterOption)}
+                className="w-36"
+                options={[
+                  { value: 'all', label: 'All Status' },
+                  { value: 'favorites', label: 'Favorites' },
+                  { value: 'active', label: 'Active' },
+                  { value: 'completed', label: 'Completed' },
+                ]}
+              />
+            </div>
+
+            {/* Sort */}
+            <div className="flex items-center gap-2">
+              <ArrowsUpDownIcon className="h-4 w-4 text-gray-400" />
+              <Select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="w-36"
+                options={[
+                  { value: 'name-asc', label: 'Name (A-Z)' },
+                  { value: 'name-desc', label: 'Name (Z-A)' },
+                  { value: 'code', label: 'Code' },
+                  { value: 'recent', label: 'Recent' },
+                ]}
+              />
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Projects Table */}
-      <div className="border-dark-600 overflow-hidden rounded-lg border">
-        <table className="w-full">
-          <thead className="bg-dark-700">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-400">Project</th>
-              <th className="w-24 px-4 py-3 text-center text-sm font-medium text-gray-400">
-                Billing
-                {isLoadingBillingModes && (
-                  <span className="border-t-thyme-500 ml-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-500" />
-                )}
-              </th>
-              <th className="w-24 px-4 py-3 text-right text-sm font-medium text-gray-400">
-                Planned
-              </th>
-              <th className="w-24 px-4 py-3 text-right text-sm font-medium text-gray-400">
-                Spent
-                {isLoadingHours && (
-                  <span className="border-t-thyme-500 ml-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-500" />
-                )}
-              </th>
-              <th className="w-32 px-4 py-3 text-right text-sm font-medium text-gray-400">
-                Remaining
-              </th>
-              <th className="w-20 px-4 py-3 text-center text-sm font-medium text-gray-400">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-dark-600 divide-y">
-            {Object.entries(groupedProjects).map(([customer, customerProjects]) => (
-              <Fragment key={customer}>
-                {/* Customer group header */}
-                <tr className="bg-dark-800/50">
-                  <td colSpan={6} className="px-4 py-2 text-sm font-medium text-gray-400">
-                    {customer}
-                  </td>
-                </tr>
-                {/* Projects in this group */}
-                {customerProjects.map((project) => (
-                  <ProjectRow
-                    key={project.id}
-                    project={project}
-                    billingMode={billingModes.get(project.code)}
-                    onProjectClick={handleProjectClick}
-                    onToggleFavorite={toggleFavorite}
-                    companyName={selectedCompany?.name}
-                  />
-                ))}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Empty state */}
-      {processedProjects.length === 0 && (
-        <div className="py-12 text-center">
-          <FolderIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
-          <p className="text-dark-400">
-            {searchQuery
-              ? 'No projects match your search'
-              : filterBy !== 'all'
-                ? 'No projects match the current filter'
-                : 'No projects available'}
-          </p>
+        {/* Projects Table */}
+        <div className="border-dark-600 overflow-hidden rounded-lg border">
+          <table className="w-full">
+            <thead className="bg-dark-700">
+              <tr>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-400">Project</th>
+                <th className="w-24 px-4 py-3 text-center text-sm font-medium text-gray-400">
+                  Billing
+                  {isLoadingBillingModes && (
+                    <span className="border-t-thyme-500 ml-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-500" />
+                  )}
+                </th>
+                <th className="w-24 px-4 py-3 text-right text-sm font-medium text-gray-400">
+                  Planned
+                </th>
+                <th className="w-24 px-4 py-3 text-right text-sm font-medium text-gray-400">
+                  Spent
+                  {isLoadingHours && (
+                    <span className="border-t-thyme-500 ml-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-500" />
+                  )}
+                </th>
+                <th className="w-32 px-4 py-3 text-right text-sm font-medium text-gray-400">
+                  Remaining
+                </th>
+                <th className="w-20 px-4 py-3 text-center text-sm font-medium text-gray-400">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-dark-600 divide-y">
+              {Object.entries(groupedProjects).map(([customer, customerProjects]) => (
+                <Fragment key={customer}>
+                  {/* Customer group header */}
+                  <tr className="bg-dark-800/50">
+                    <td colSpan={6} className="px-4 py-2 text-sm font-medium text-gray-400">
+                      {customer}
+                    </td>
+                  </tr>
+                  {/* Projects in this group */}
+                  {customerProjects.map((project) => (
+                    <ProjectRow
+                      key={project.id}
+                      project={project}
+                      billingMode={billingModes.get(project.code)}
+                      onProjectClick={handleProjectClick}
+                      onToggleFavorite={toggleFavorite}
+                      companyName={selectedCompany?.name}
+                    />
+                  ))}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
         </div>
-      )}
-    </div>
+
+        {/* Empty state */}
+        {processedProjects.length === 0 && (
+          <div className="py-12 text-center">
+            <FolderIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
+            <p className="text-dark-400">
+              {searchQuery
+                ? 'No projects match your search'
+                : filterBy !== 'all'
+                  ? 'No projects match the current filter'
+                  : 'No projects available'}
+            </p>
+          </div>
+        )}
+      </div>
+    </ExtensionPreviewWrapper>
   );
 }
 

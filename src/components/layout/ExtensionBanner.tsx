@@ -4,9 +4,7 @@ import { useState, useEffect } from 'react';
 import { XMarkIcon, ExclamationTriangleIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { bcClient } from '@/services/bc/bcClient';
 import { useCompanyStore } from '@/hooks';
-
-// GitHub releases page for the BC extension
-const EXTENSION_RELEASES_URL = 'https://github.com/knowall-ai/thyme-bc-extension/releases';
+import { getBCExtensionInstallUrl } from '@/utils';
 
 const BANNER_DISMISSED_KEY = 'thyme_extension_banner_dismissed';
 
@@ -61,15 +59,15 @@ export function ExtensionBanner() {
             </p>
           </div>
           <div className="flex flex-shrink-0 items-center gap-2">
-            <a
-              href={EXTENSION_RELEASES_URL}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() =>
+                window.open(getBCExtensionInstallUrl(), '_blank', 'noopener,noreferrer')
+              }
               className="inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-amber-500"
             >
               <ArrowDownTrayIcon className="h-4 w-4" />
               Install
-            </a>
+            </button>
             <a
               href="https://github.com/knowall-ai/thyme-bc-extension"
               target="_blank"
