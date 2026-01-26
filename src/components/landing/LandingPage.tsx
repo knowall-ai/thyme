@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/services/auth';
 import {
@@ -11,6 +12,7 @@ import {
   ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import { ThymeLogo } from '@/components/icons';
+import { ScreenshotCarousel } from './ScreenshotCarousel';
 
 const features = [
   {
@@ -146,47 +148,9 @@ export function LandingPage() {
             </div>
           </div>
 
-          {/* Hero illustration */}
-          <div className="relative mt-16">
-            <div className="from-dark-950 pointer-events-none absolute inset-0 z-10 bg-gradient-to-t via-transparent to-transparent" />
-            <div className="border-dark-700 bg-dark-900 overflow-hidden rounded-2xl border shadow-2xl">
-              <div className="border-dark-700 bg-dark-800 flex items-center gap-2 border-b px-4 py-3">
-                <div className="h-3 w-3 rounded-full bg-red-500/80" />
-                <div className="h-3 w-3 rounded-full bg-yellow-500/80" />
-                <div className="h-3 w-3 rounded-full bg-green-500/80" />
-                <span className="text-dark-400 ml-3 text-sm">thyme.knowall.ai</span>
-              </div>
-              <div className="p-6">
-                {/* Mock timesheet */}
-                <div className="mb-4 grid grid-cols-7 gap-2">
-                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-                    <div key={day} className="text-dark-400 py-2 text-center text-xs font-medium">
-                      {day}
-                    </div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-7 gap-2">
-                  {[8, 7.5, 8, 6, 8, 0, 0].map((hours, i) => (
-                    <div
-                      key={i}
-                      className={`rounded-lg p-3 ${
-                        hours > 0
-                          ? 'border-knowall-green/30 bg-knowall-green/10 border'
-                          : 'bg-dark-800'
-                      }`}
-                    >
-                      {hours > 0 && (
-                        <div className="text-knowall-green font-mono text-sm">{hours}h</div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="text-dark-400 text-sm">Week total</div>
-                  <div className="text-lg font-bold text-white">37.5 hours</div>
-                </div>
-              </div>
-            </div>
+          {/* Screenshot carousel */}
+          <div className="mt-16">
+            <ScreenshotCarousel />
           </div>
         </div>
       </section>
@@ -275,24 +239,137 @@ export function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-dark-800 relative z-10 border-t py-8">
+      <footer className="border-dark-800 relative z-10 border-t py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-            <div className="flex items-center gap-2">
-              <div className="bg-knowall-green flex h-8 w-8 items-center justify-center rounded-lg">
-                <ThymeLogo className="text-dark-950 h-5 w-5" />
+          <div className="grid gap-8 md:grid-cols-4">
+            {/* Brand */}
+            <div className="md:col-span-1">
+              <div className="mb-4 flex items-center gap-2">
+                <div className="bg-knowall-green flex h-8 w-8 items-center justify-center rounded-lg">
+                  <ThymeLogo className="text-dark-950 h-5 w-5" />
+                </div>
+                <span className="font-semibold text-white">Thyme</span>
               </div>
-              <span className="font-semibold text-white">Thyme</span>
-              <span className="text-dark-500">by</span>
-              <a
-                href="https://knowall.ai"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-knowall-green hover:text-knowall-green-light transition-colors"
-              >
-                KnowAll.ai
-              </a>
+              <p className="text-dark-400 text-sm">
+                Modern time tracking for Microsoft Dynamics 365 Business Central.
+              </p>
+              <div className="mt-4">
+                <a
+                  href="https://knowall.ai"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-knowall-green hover:text-knowall-green-light text-sm transition-colors"
+                >
+                  Built by KnowAll.ai
+                </a>
+              </div>
             </div>
+
+            {/* Product */}
+            <div>
+              <h3 className="mb-4 font-semibold text-white">Product</h3>
+              <ul className="space-y-2">
+                <li>
+                  <Link
+                    href="/pricing"
+                    className="text-dark-400 text-sm transition-colors hover:text-white"
+                  >
+                    Pricing
+                  </Link>
+                </li>
+                <li>
+                  <a
+                    href="https://github.com/knowall-ai/thyme-bc-extension"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-dark-400 text-sm transition-colors hover:text-white"
+                  >
+                    BC Extension
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://appsource.microsoft.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-dark-400 text-sm transition-colors hover:text-white"
+                  >
+                    AppSource
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Support */}
+            <div>
+              <h3 className="mb-4 font-semibold text-white">Support</h3>
+              <ul className="space-y-2">
+                <li>
+                  <Link
+                    href="/help"
+                    className="text-dark-400 text-sm transition-colors hover:text-white"
+                  >
+                    Help & FAQs
+                  </Link>
+                </li>
+                <li>
+                  <a
+                    href="mailto:support@knowall.ai"
+                    className="text-dark-400 text-sm transition-colors hover:text-white"
+                  >
+                    Contact Support
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://github.com/knowall-ai/thyme/issues"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-dark-400 text-sm transition-colors hover:text-white"
+                  >
+                    Report an Issue
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Legal */}
+            <div>
+              <h3 className="mb-4 font-semibold text-white">Legal</h3>
+              <ul className="space-y-2">
+                <li>
+                  <Link
+                    href="/privacy"
+                    className="text-dark-400 text-sm transition-colors hover:text-white"
+                  >
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/terms"
+                    className="text-dark-400 text-sm transition-colors hover:text-white"
+                  >
+                    Terms of Service
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/eula"
+                    className="text-dark-400 text-sm transition-colors hover:text-white"
+                  >
+                    EULA
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Bottom bar */}
+          <div className="border-dark-800 mt-8 flex flex-col items-center justify-between gap-4 border-t pt-8 sm:flex-row">
+            <p className="text-dark-500 text-sm">
+              &copy; {new Date().getFullYear()} KnowAll.ai Ltd. All rights reserved.
+            </p>
             <p className="text-dark-500 text-sm">Time Tracking for Business Central</p>
           </div>
         </div>

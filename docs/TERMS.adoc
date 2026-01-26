@@ -1,0 +1,251 @@
+= Thyme Terms of Service
+:toc:
+:toc-title: Contents
+:sectnums:
+
+*Last Updated: January 2026*
+
+*Effective Date: January 2026*
+
+Welcome to Thyme. These Terms of Service ("Terms") govern your access to and use of the Thyme time tracking application ("Service") provided by KnowAll.ai Ltd ("Company", "we", "us", or "our").
+
+By accessing or using Thyme, you agree to be bound by these Terms. If you disagree with any part of these Terms, you may not access the Service.
+
+== Definitions
+
+* *"Service"* refers to the Thyme web application and related services
+* *"User"* refers to any individual who accesses or uses the Service
+* *"Organization"* refers to the company or entity that has authorized your use of the Service
+* *"Content"* refers to any data, text, or information submitted through the Service
+* *"Business Central"* refers to Microsoft Dynamics 365 Business Central
+
+== Eligibility
+
+To use Thyme, you must:
+
+* Be at least 16 years of age
+* Have a valid Microsoft Entra ID account
+* Be authorized by your Organization to access their Business Central environment
+* Have the legal capacity to enter into this agreement
+
+== Account Responsibilities
+
+=== Access and Authentication
+
+* You access Thyme using your Microsoft Entra ID credentials
+* You are responsible for all activities under your account
+* You must not share your login credentials with others
+* You must notify us immediately of any unauthorized access
+
+=== Accurate Information
+
+* You must provide accurate and complete information
+* You must maintain the accuracy of your information
+* Time entries should accurately reflect work performed
+
+== Acceptable Use
+
+=== Permitted Uses
+
+You may use Thyme to:
+
+* Track time worked on projects and tasks
+* View and manage your timesheets
+* Synchronize time data with Business Central
+* Access reports and analytics on your time entries
+
+=== Prohibited Uses
+
+You agree NOT to:
+
+* Use the Service for any unlawful purpose
+* Submit false or misleading time entries
+* Attempt to access data you are not authorized to view
+* Interfere with or disrupt the Service or servers
+* Introduce viruses, malware, or other harmful code
+* Harvest or collect user information without consent
+* Use the Service to send spam or unsolicited communications
+* Impersonate another person or entity
+* Circumvent any security measures
+* Use automated means to access the Service without permission
+* Resell or redistribute the Service
+
+== Service Availability
+
+=== Uptime
+
+* We strive to maintain high availability but do not guarantee uninterrupted access
+* The Service may be temporarily unavailable for maintenance or updates
+* We will provide reasonable notice of planned maintenance when possible
+
+=== Modifications
+
+We reserve the right to:
+
+* Modify or discontinue any feature of the Service
+* Update the Service to improve functionality or security
+* Change pricing or subscription terms with reasonable notice
+
+== Data and Content
+
+=== Your Data
+
+* You retain ownership of the time entry data you create
+* Time entries are stored in your Organization's Business Central environment
+* You grant us a license to process your data to provide the Service
+
+=== Data Accuracy
+
+* You are responsible for the accuracy of time entries you submit
+* We are not responsible for errors in data you provide
+* Your Organization may have policies regarding time entry accuracy
+
+=== Data Retention
+
+* Time entries are retained according to your Organization's Business Central policies
+* Application usage data is retained as described in our Privacy Policy
+* Upon account termination, we will handle your data as described in our Privacy Policy
+
+== Fees and Payment
+
+=== Subscription
+
+* Access to Thyme may be subject to subscription fees
+* Fees are determined by your Organization's agreement with us
+* Current pricing is available at https://getthyme.app/pricing
+
+=== Payment Terms
+
+* Fees are billed according to the applicable subscription plan
+* All fees are non-refundable unless otherwise specified
+* We reserve the right to change pricing with 30 days' notice
+
+=== Taxes
+
+* Fees do not include applicable taxes
+* You are responsible for paying all taxes associated with your use
+
+== Intellectual Property
+
+=== Our Rights
+
+* Thyme and all related intellectual property are owned by KnowAll.ai Ltd
+* This includes software, design, trademarks, and documentation
+* Nothing in these Terms transfers any ownership rights to you
+
+=== Feedback
+
+* Any feedback or suggestions you provide may be used by us without obligation
+* You grant us a perpetual license to use such feedback
+
+== Third-Party Services
+
+=== Microsoft Integration
+
+Thyme integrates with Microsoft services:
+
+* Microsoft Entra ID for authentication
+* Microsoft Dynamics 365 Business Central for data synchronization
+
+Your use of Microsoft services is subject to Microsoft's terms.
+
+=== Third-Party Links
+
+* The Service may contain links to third-party websites
+* We are not responsible for third-party content or practices
+* Your use of third-party services is at your own risk
+
+== Privacy
+
+Your privacy is important to us. Please review our Privacy Policy at https://getthyme.app/privacy to understand how we collect, use, and protect your information.
+
+== Disclaimer of Warranties
+
+THE SERVICE IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING:
+
+* MERCHANTABILITY
+* FITNESS FOR A PARTICULAR PURPOSE
+* NON-INFRINGEMENT
+* ACCURACY OR RELIABILITY
+
+WE DO NOT WARRANT THAT THE SERVICE WILL BE UNINTERRUPTED, SECURE, OR ERROR-FREE.
+
+== Limitation of Liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW:
+
+* WE SHALL NOT BE LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES
+* OUR TOTAL LIABILITY SHALL NOT EXCEED THE FEES PAID BY YOU IN THE PRECEDING 12 MONTHS OR GBP 100, WHICHEVER IS GREATER
+
+== Indemnification
+
+You agree to indemnify and hold harmless KnowAll.ai Ltd from any claims, damages, or expenses arising from:
+
+* Your use of the Service
+* Your violation of these Terms
+* Your violation of any rights of another party
+
+== Termination
+
+=== By You
+
+You may stop using the Service at any time.
+
+=== By Us
+
+We may suspend or terminate your access if:
+
+* You violate these Terms
+* Your Organization's subscription ends
+* Required by law
+* We discontinue the Service
+
+=== Effect of Termination
+
+Upon termination:
+
+* Your right to use the Service ends immediately
+* Provisions that should survive termination will continue
+
+== Governing Law
+
+These Terms are governed by the laws of England and Wales. Any disputes shall be resolved in the courts of England and Wales.
+
+== Changes to Terms
+
+We may update these Terms from time to time. We will notify you of material changes by:
+
+* Posting the updated Terms with a new effective date
+* Notifying you through the Service or email
+
+Continued use after changes constitutes acceptance of the new Terms.
+
+== General Provisions
+
+=== Entire Agreement
+
+These Terms, along with our Privacy Policy and EULA, constitute the entire agreement between you and KnowAll.ai Ltd.
+
+=== Severability
+
+If any provision is found unenforceable, the remaining provisions will continue in effect.
+
+=== Waiver
+
+Failure to enforce any provision shall not constitute a waiver.
+
+=== Assignment
+
+You may not assign these Terms without our consent. We may assign our rights without restriction.
+
+== Contact Us
+
+For questions about these Terms:
+
+*KnowAll.ai Ltd*
+
+Email: support@knowall.ai
+
+Website: https://knowall.ai
+
+Support: https://getthyme.app/help

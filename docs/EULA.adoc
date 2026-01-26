@@ -1,0 +1,202 @@
+= Thyme End User License Agreement
+:toc:
+:toc-title: Contents
+:sectnums:
+
+*Last Updated: January 2026*
+
+*Effective Date: January 2026*
+
+PLEASE READ THIS END USER LICENSE AGREEMENT ("AGREEMENT") CAREFULLY BEFORE USING THYME.
+
+This Agreement is a legally binding contract between you ("User", "you", or "your") and KnowAll.ai Ltd ("Company", "we", "us", or "our") governing your use of the Thyme time tracking application ("Application" or "Thyme").
+
+BY ACCESSING OR USING THYME, YOU AGREE TO BE BOUND BY THIS AGREEMENT. IF YOU DO NOT AGREE TO THESE TERMS, DO NOT USE THE APPLICATION.
+
+== License Grant
+
+=== Limited License
+
+Subject to the terms of this Agreement, we grant you a limited, non-exclusive, non-transferable, revocable license to:
+
+* Access and use Thyme through a web browser
+* Create, view, edit, and submit time entries
+* Synchronize time data with your organization's Microsoft Dynamics 365 Business Central environment
+
+=== License Restrictions
+
+You may NOT:
+
+* Copy, modify, or distribute the Application or any part thereof
+* Reverse engineer, decompile, or disassemble the Application
+* Remove or alter any proprietary notices or labels
+* Use the Application for any unlawful purpose
+* Attempt to gain unauthorized access to any systems or networks
+* Use automated scripts, bots, or scrapers to access the Application
+* Sublicense, rent, lease, or lend access to the Application
+* Use the Application to develop a competing product or service
+
+== Account and Access
+
+=== Authentication
+
+* Access to Thyme requires authentication through Microsoft Entra ID
+* You are responsible for maintaining the security of your Microsoft account credentials
+* You must have appropriate permissions within your organization's Business Central environment
+
+=== Authorized Use
+
+* You may only use Thyme for legitimate business purposes
+* You may only access data you are authorized to view within your organization
+* Your use must comply with your organization's policies and applicable laws
+
+== Intellectual Property
+
+=== Ownership
+
+* Thyme, including all code, design, features, and documentation, is owned by KnowAll.ai Ltd
+* This Agreement does not transfer any ownership rights to you
+* All trademarks, logos, and service marks displayed are our property or the property of their respective owners
+
+=== Your Data
+
+* You retain ownership of the time entry data you create
+* Time entries are stored in your organization's Business Central environment
+* You grant us a limited license to process your data as necessary to provide the service
+
+== Third-Party Services
+
+=== Microsoft Services
+
+Thyme integrates with Microsoft services including:
+
+* Microsoft Entra ID for authentication
+* Microsoft Dynamics 365 Business Central for data synchronization
+
+Your use of these services is subject to Microsoft's terms and policies.
+
+=== Third-Party Terms
+
+You acknowledge that:
+
+* You must have valid licenses for Microsoft Dynamics 365 Business Central
+* Your use of Microsoft services is governed by your agreement with Microsoft
+* We are not responsible for Microsoft service availability or changes
+
+== Disclaimer of Warranties
+
+THE APPLICATION IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO:
+
+* IMPLIED WARRANTIES OF MERCHANTABILITY
+* FITNESS FOR A PARTICULAR PURPOSE
+* NON-INFRINGEMENT
+* ACCURACY OR COMPLETENESS OF DATA
+* UNINTERRUPTED OR ERROR-FREE OPERATION
+
+WE DO NOT WARRANT THAT:
+
+* The Application will meet your specific requirements
+* The Application will be uninterrupted, timely, secure, or error-free
+* Results obtained from using the Application will be accurate or reliable
+* Any errors in the Application will be corrected
+
+== Limitation of Liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW:
+
+=== Exclusion of Damages
+
+IN NO EVENT SHALL KNOWALL.AI LTD BE LIABLE FOR:
+
+* Indirect, incidental, special, consequential, or punitive damages
+* Loss of profits, revenue, data, or business opportunities
+* Business interruption or loss of goodwill
+* Any damages arising from your use or inability to use the Application
+
+=== Liability Cap
+
+OUR TOTAL LIABILITY FOR ANY CLAIMS ARISING FROM THIS AGREEMENT SHALL NOT EXCEED THE AMOUNT YOU PAID FOR THE APPLICATION IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM, OR ONE HUNDRED POUNDS (GBP 100), WHICHEVER IS GREATER.
+
+=== Exceptions
+
+Some jurisdictions do not allow the exclusion of certain warranties or limitation of liability. In such cases, our liability will be limited to the maximum extent permitted by law.
+
+== Indemnification
+
+You agree to indemnify, defend, and hold harmless KnowAll.ai Ltd and its officers, directors, employees, and agents from any claims, damages, losses, liabilities, and expenses (including legal fees) arising from:
+
+* Your use of the Application
+* Your violation of this Agreement
+* Your violation of any third-party rights
+* Your violation of any applicable laws
+
+== Term and Termination
+
+=== Term
+
+This Agreement is effective from when you first access Thyme and continues until terminated.
+
+=== Termination by You
+
+You may stop using Thyme at any time.
+
+=== Termination by Us
+
+We may terminate or suspend your access immediately, without notice, if:
+
+* You breach any term of this Agreement
+* Your organization's subscription or license is terminated
+* We discontinue the Application
+* Required by law
+
+=== Effect of Termination
+
+Upon termination:
+
+* Your license to use Thyme immediately ends
+* You must cease all use of the Application
+* Provisions that by their nature should survive will continue (including Intellectual Property, Disclaimer, Limitation of Liability, and Indemnification)
+
+== General Provisions
+
+=== Governing Law
+
+This Agreement is governed by the laws of England and Wales, without regard to conflict of law principles.
+
+=== Dispute Resolution
+
+Any disputes arising from this Agreement shall be subject to the exclusive jurisdiction of the courts of England and Wales.
+
+=== Entire Agreement
+
+This Agreement, together with our Privacy Policy and Terms of Service, constitutes the entire agreement between you and KnowAll.ai Ltd regarding Thyme.
+
+=== Severability
+
+If any provision of this Agreement is found unenforceable, the remaining provisions will continue in effect.
+
+=== Waiver
+
+Our failure to enforce any right or provision of this Agreement shall not constitute a waiver of such right or provision.
+
+=== Assignment
+
+You may not assign this Agreement without our written consent. We may assign our rights and obligations without restriction.
+
+=== Modifications
+
+We reserve the right to modify this Agreement at any time. Material changes will be communicated through the Application or via email. Continued use after changes constitutes acceptance of the modified terms.
+
+== Contact Information
+
+For questions about this Agreement:
+
+*KnowAll.ai Ltd*
+
+Email: legal@knowall.ai
+
+Website: https://knowall.ai
+
+== Acknowledgment
+
+BY USING THYME, YOU ACKNOWLEDGE THAT YOU HAVE READ THIS AGREEMENT, UNDERSTAND IT, AND AGREE TO BE BOUND BY ITS TERMS AND CONDITIONS.

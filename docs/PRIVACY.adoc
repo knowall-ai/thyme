@@ -1,0 +1,141 @@
+= Thyme Privacy Policy
+:toc:
+:toc-title: Contents
+:sectnums:
+
+*Last Updated: January 2026*
+
+*Effective Date: January 2026*
+
+KnowAll.ai Ltd ("we", "us", or "our") operates Thyme, a time tracking application that integrates with Microsoft Dynamics 365 Business Central. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application.
+
+== Information We Collect
+
+=== Information You Provide
+
+We collect information that you voluntarily provide when using Thyme:
+
+* *Account Information:* Your name and email address from your Microsoft Entra ID (Azure AD) account
+* *Time Entries:* Hours worked, project assignments, task descriptions, and notes you enter
+* *Preferences:* Application settings such as favorite projects and display preferences
+
+=== Information Collected Automatically
+
+When you use Thyme, we automatically collect:
+
+* *Usage Data:* Features used, pages visited, and interaction patterns within the application
+* *Device Information:* Browser type, operating system, and device identifiers
+* *Log Data:* IP addresses, access times, and error logs for troubleshooting
+
+=== Information from Third Parties
+
+We receive information from:
+
+* *Microsoft Entra ID:* Authentication tokens and basic profile information (name, email)
+* *Microsoft Dynamics 365 Business Central:* Project data, task information, resource assignments, and timesheet data that you have access to within your organization's Business Central environment
+
+== How We Use Your Information
+
+We use the collected information to:
+
+* *Provide the Service:* Enable time tracking, synchronize data with Business Central, and display your timesheet information
+* *Authenticate Users:* Verify your identity through Microsoft Entra ID
+* *Improve the Application:* Analyze usage patterns to enhance features and user experience
+* *Provide Support:* Respond to your requests and troubleshoot issues
+* *Ensure Security:* Detect and prevent unauthorized access or fraudulent activity
+* *Comply with Legal Obligations:* Meet regulatory requirements and respond to legal requests
+
+== Data Synchronization with Business Central
+
+Thyme acts as an interface to your organization's Microsoft Dynamics 365 Business Central environment:
+
+* *Read Access:* We retrieve project, task, and resource information from Business Central to display in Thyme
+* *Write Access:* Time entries you create in Thyme are written to Business Central timesheet lines
+* *Your Organization's Data:* All Business Central data remains within your organization's Microsoft environment; we do not store copies of this data on our servers beyond temporary caching for performance
+
+== Data Storage and Security
+
+=== Where We Store Data
+
+* *Application Data:* Hosted on secure cloud infrastructure with encryption at rest and in transit
+* *Business Central Data:* Remains in your organization's Microsoft cloud environment
+* *Authentication:* Handled entirely by Microsoft Entra ID; we do not store passwords
+
+=== Security Measures
+
+We implement appropriate technical and organizational measures including:
+
+* TLS/SSL encryption for all data transmission
+* OAuth 2.0 authentication via Microsoft identity platform
+* Regular security assessments and updates
+* Access controls and audit logging
+* Secure development practices
+
+== Data Retention
+
+* *Account Data:* Retained while your account is active and for a reasonable period thereafter
+* *Time Entries:* Stored in your organization's Business Central environment according to your organization's retention policies
+* *Usage Logs:* Retained for up to 90 days for troubleshooting and analytics
+* *Error Logs:* Retained for up to 30 days
+
+== Your Rights and Choices
+
+Depending on your location, you may have the right to:
+
+* *Access:* Request a copy of your personal data
+* *Correction:* Request correction of inaccurate data
+* *Deletion:* Request deletion of your personal data
+* *Portability:* Receive your data in a portable format
+* *Objection:* Object to certain processing of your data
+* *Withdraw Consent:* Withdraw consent where processing is based on consent
+
+To exercise these rights, contact us at privacy@knowall.ai.
+
+== Cookies and Tracking
+
+Thyme uses:
+
+* *Essential Cookies:* Required for authentication and core functionality
+* *Preference Cookies:* Store your application settings and preferences
+
+We do not use advertising or third-party tracking cookies.
+
+== Third-Party Services
+
+Thyme integrates with:
+
+* *Microsoft Entra ID:* For user authentication (see https://privacy.microsoft.com[Microsoft Privacy Statement])
+* *Microsoft Dynamics 365 Business Central:* For time and project data synchronization
+
+We do not sell your personal information to third parties.
+
+== Children's Privacy
+
+Thyme is not intended for users under 16 years of age. We do not knowingly collect personal information from children.
+
+== International Data Transfers
+
+If you access Thyme from outside the United Kingdom, your information may be transferred to and processed in the UK or other countries where our service providers operate. We ensure appropriate safeguards are in place for such transfers.
+
+== Changes to This Policy
+
+We may update this Privacy Policy from time to time. We will notify you of material changes by:
+
+* Posting the updated policy with a new "Last Updated" date
+* Sending an email notification for significant changes
+
+== Contact Us
+
+For questions about this Privacy Policy or our data practices:
+
+*KnowAll.ai Ltd*
+
+Email: privacy@knowall.ai
+
+Website: https://knowall.ai
+
+== Data Protection Officer
+
+For data protection inquiries:
+
+Email: dpo@knowall.ai
