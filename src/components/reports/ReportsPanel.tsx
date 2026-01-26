@@ -614,7 +614,7 @@ export function ReportsPanel() {
                               className="flex h-full items-center bg-slate-500 px-2 transition-all duration-500"
                               style={{
                                 width: `${unbillableWidth}%`,
-                                minWidth: unbillableHours > 0 ? '24px' : '0',
+                                minWidth: '24px',
                               }}
                             >
                               <span className="text-xs font-medium text-white">
