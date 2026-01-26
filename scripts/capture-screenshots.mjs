@@ -2,25 +2,20 @@ import { chromium } from 'playwright';
 import { mkdir } from 'fs/promises';
 
 const BASE_URL = 'http://localhost:3001';
-const WEEK = '2025-12-29';
+const WEEK = '2026-01-26';
 
 const screenshots = [
   {
-    name: 'dashboard',
-    path: `/?week=${WEEK}`,
-    waitFor: '[data-testid="timesheet"]',
-    fallbackWait: 3000,
-  },
-  {
     name: 'timesheet',
-    path: `/?week=${WEEK}`,
+    path: `/time?week=${WEEK}`,
     waitFor: '[data-testid="timesheet"]',
     fallbackWait: 3000,
   },
   { name: 'projects', path: '/projects', waitFor: 'text=Projects', fallbackWait: 3000 },
-  { name: 'reports', path: '/reports', waitFor: 'text=Reports', fallbackWait: 3000 },
-  { name: 'approvals', path: '/approvals', waitFor: 'text=Approvals', fallbackWait: 3000 },
   { name: 'team', path: '/team', waitFor: 'text=Team', fallbackWait: 3000 },
+  { name: 'plan', path: '/plan', waitFor: 'text=Plan', fallbackWait: 3000 },
+  { name: 'approvals', path: '/approvals', waitFor: 'text=Approvals', fallbackWait: 3000 },
+  { name: 'reports', path: '/reports', waitFor: 'text=Reports', fallbackWait: 3000 },
 ];
 
 async function captureScreenshots() {

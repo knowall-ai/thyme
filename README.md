@@ -13,6 +13,17 @@ A modern time tracking web application that integrates with Microsoft Dynamics 3
 - **Dark Theme** - Modern, eye-friendly dark interface
 - **Mobile Responsive** - Works on desktop and mobile devices
 
+## Screenshots
+
+| | |
+|:---:|:---:|
+| [![Timesheet](public/screenshots/timesheet.png)](public/screenshots/timesheet.png) | [![Projects](public/screenshots/projects.png)](public/screenshots/projects.png) |
+| **Timesheet** - Weekly time entry grid | **Projects** - Browse BC projects |
+| [![Team](public/screenshots/team.png)](public/screenshots/team.png) | [![Plan](public/screenshots/plan.png)](public/screenshots/plan.png) |
+| **Team** - View team status | **Plan** - Resource scheduling |
+| [![Approvals](public/screenshots/approvals.png)](public/screenshots/approvals.png) | [![Reports](public/screenshots/reports.png)](public/screenshots/reports.png) |
+| **Approvals** - Review timesheets | **Reports** - Analytics & export |
+
 ## Tech Stack
 
 | Layer    | Technology                   |

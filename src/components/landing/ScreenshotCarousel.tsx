@@ -25,6 +25,18 @@ const screenshots: Screenshot[] = [
     description: 'Browse all your Business Central projects with search and favorites.',
   },
   {
+    src: '/screenshots/team.png',
+    alt: 'Team overview with timesheet status',
+    title: 'Team',
+    description: 'View your team members and their timesheet submission status at a glance.',
+  },
+  {
+    src: '/screenshots/plan.png',
+    alt: 'Resource planning and scheduling',
+    title: 'Plan',
+    description: 'Plan and schedule resources across projects with a visual timeline.',
+  },
+  {
     src: '/screenshots/approvals.png',
     alt: 'Timesheet approval workflow',
     title: 'Approvals',
