@@ -16,7 +16,7 @@ import { Card, WeekNavigation, ExtensionPreviewWrapper } from '@/components/ui';
 import { bcClient, ExtensionNotInstalledError } from '@/services/bc';
 import { useCompanyStore } from '@/hooks';
 import { useAuth, getUserProfilePhoto } from '@/services/auth';
-import { getWeekStart } from '@/utils';
+import { getWeekStart, getBCResourcesListUrl } from '@/utils';
 import { cn } from '@/utils';
 import type { BCResource } from '@/types';
 import { teamConfig, getUtilizationColor, getBillableColor } from '@/config';
@@ -162,7 +162,6 @@ export function TeamList() {
               // Resource might not have a timesheet for this week - that's OK.
               // Log the error in development so unexpected failures are not silently ignored.
               if (process.env.NODE_ENV === 'development') {
-                // eslint-disable-next-line no-console
                 console.error(
                   'Failed to fetch timesheet data for resource',
                   resource.number,
@@ -405,6 +404,20 @@ export function TeamList() {
   return (
     <ExtensionPreviewWrapper extensionNotInstalled={extensionNotInstalled} pageName="Team">
       <div className="space-y-6">
+        {/* Business Central Links */}
+        <div className="flex items-center gap-4 text-sm">
+          <span className="text-gray-400">Open in Business Central:</span>
+          <a
+            href={getBCResourcesListUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-thyme-400 hover:text-thyme-300 flex items-center gap-1"
+          >
+            Resources
+            <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+          </a>
+        </div>
+
         {/* Week Navigation */}
         <WeekNavigation
           currentWeekStart={currentWeekStart}

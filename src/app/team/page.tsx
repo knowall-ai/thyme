@@ -14,7 +14,9 @@ function TeamContent() {
           <p className="text-dark-400 mt-1">View your team&apos;s timesheet progress</p>
         </div>
         <PendingApprovalCard />
-        <TeamList />
+        <div className="mt-2">
+          <TeamList />
+        </div>
       </div>
     </Layout>
   );

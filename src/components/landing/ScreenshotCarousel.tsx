@@ -96,7 +96,7 @@ export function ScreenshotCarousel() {
           <div className="h-3 w-3 rounded-full bg-red-500/80" />
           <div className="h-3 w-3 rounded-full bg-yellow-500/80" />
           <div className="h-3 w-3 rounded-full bg-green-500/80" />
-          <span className="text-dark-400 ml-3 text-sm">thyme.knowall.ai</span>
+          <span className="text-dark-400 ml-3 text-sm">getthyme.ai</span>
         </div>
 
         {/* Screenshot container */}
