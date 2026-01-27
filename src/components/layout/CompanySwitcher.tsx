@@ -42,7 +42,7 @@ export function CompanySwitcher() {
   const userEmail = account?.username || '';
 
   // Fetch companies on mount (Zustand actions are stable, empty dependency is intentional)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     fetchCompanies();
   }, []);
