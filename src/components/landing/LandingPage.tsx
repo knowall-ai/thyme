@@ -77,15 +77,24 @@ const features = [
 ];
 
 const benefits = [
-  'Accurate client billing — every hour tracked means every hour billed',
-  'Real-time project profitability — know margins before it is too late',
-  'No more timesheet chasing — approvals and Zaps drive on-time submissions',
-  'Better resource forecasting — plan capacity and avoid over-utilization',
-  'Reduced admin overhead — auto-sync eliminates double-entry',
-  'Compliance-ready audit trail — full history of entries and approvals',
-  'Enterprise-grade security — Microsoft Entra ID authentication and access control',
-  'Your data, your tenant — time entries stay in your Business Central environment',
-  'Track time anywhere — mobile-friendly for on-site or remote teams',
+  { title: 'Accurate client billing', description: 'Every hour tracked means every hour billed' },
+  { title: 'Real-time project profitability', description: 'Know margins before it is too late' },
+  {
+    title: 'No more timesheet chasing',
+    description: 'Approvals and Zaps drive on-time submissions',
+  },
+  { title: 'Better resource forecasting', description: 'Plan capacity and avoid over-utilization' },
+  { title: 'Reduced admin overhead', description: 'Auto-sync eliminates double-entry' },
+  { title: 'Compliance-ready audit trail', description: 'Full history of entries and approvals' },
+  {
+    title: 'Enterprise-grade security',
+    description: 'Microsoft Entra ID authentication and access control',
+  },
+  {
+    title: 'Your data, your tenant',
+    description: 'Time entries stay in your Business Central environment',
+  },
+  { title: 'Track time anywhere', description: 'Mobile-friendly for on-site or remote teams' },
 ];
 
 export function LandingPage() {
@@ -217,9 +226,12 @@ export function LandingPage() {
 
               <ul className="space-y-4">
                 {benefits.map((benefit, index) => (
-                  <li key={index} className="flex items-center gap-3">
-                    <CheckCircleIcon className="text-knowall-green h-5 w-5 shrink-0" />
-                    <span className="text-dark-200">{benefit}</span>
+                  <li key={index} className="flex items-start gap-3">
+                    <CheckCircleIcon className="text-knowall-green mt-0.5 h-5 w-5 shrink-0" />
+                    <div>
+                      <span className="font-medium text-white">{benefit.title}</span>
+                      <p className="text-dark-400 text-sm">{benefit.description}</p>
+                    </div>
                   </li>
                 ))}
               </ul>
