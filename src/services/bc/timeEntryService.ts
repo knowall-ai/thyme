@@ -315,11 +315,12 @@ export const timeEntryService = {
     }
 
     // Update line description if notes changed
+    // Use '*' to force update since setHoursForDate() above may have changed the ETag
     if (updates.notes !== undefined && updates.notes !== line.description) {
       const updatedLine = await bcClient.updateTimeSheetLine(
         line.id,
         { description: updates.notes },
-        line['@odata.etag'] || '*'
+        '*'
       );
       const lineIndex = this._currentTimesheetLines.findIndex((l) => l.id === line.id);
       if (lineIndex >= 0) {
