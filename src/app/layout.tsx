@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   authors: [{ name: 'KnowAll.ai', url: 'https://knowall.ai' }],
   creator: 'KnowAll.ai',
   publisher: 'KnowAll.ai',
-  metadataBase: new URL('https://thyme.knowall.ai'),
+  metadataBase: new URL('https://getthyme.ai'),
   icons: {
     icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
     apple: '/favicon.svg',
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     title: 'Thyme - Time Tracking for Business Central',
     description:
       'Modern time tracking application that syncs with Microsoft Dynamics 365 Business Central. Track time, manage projects, and keep your data in sync.',
-    url: 'https://thyme.knowall.ai',
+    url: 'https://getthyme.ai',
     siteName: 'Thyme by KnowAll.ai',
     locale: 'en_US',
     type: 'website',

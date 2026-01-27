@@ -4,6 +4,8 @@
 
 Thyme is a time tracking application that integrates with Microsoft Dynamics 365 Business Central. Built with Next.js 16, MSAL authentication, and Tailwind CSS 4.
 
+**Company**: KnowAll AI SAS de CV (El Salvador). NIT: 0623-070525-121-2 | NRC: 362963-0
+
 ## Key Directories
 
 - `src/app/` - Next.js App Router pages
@@ -121,7 +123,7 @@ The redirect URI is determined dynamically using `window.location.origin`, so it
 
 - `http://localhost:3000` - Default local dev
 - `http://localhost:3001` - Alternate local dev port
-- `https://thyme.knowall.ai` - Production
+- `https://getthyme.ai` - Production
 - `https://slot1-4.thyme.knowall.ai` - Staging slots
 
 To check or update redirect URIs:
@@ -131,7 +133,7 @@ To check or update redirect URIs:
 az ad app show --id "44c618b5-89c3-4673-92ec-f7afb4e403bf" --query "spa.redirectUris"
 
 # Add a new redirect URI (replace with full list)
-az ad app update --id "44c618b5-89c3-4673-92ec-f7afb4e403bf" --spa-redirect-uris "http://localhost:3000" "http://localhost:3001" "https://thyme.knowall.ai"
+az ad app update --id "44c618b5-89c3-4673-92ec-f7afb4e403bf" --spa-redirect-uris "http://localhost:3000" "http://localhost:3001" "https://getthyme.ai"
 ```
 
 ## Adding UI Components

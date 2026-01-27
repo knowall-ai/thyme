@@ -114,5 +114,5 @@ Thyme is a time tracking application that:
 - Uses Microsoft Entra ID (Azure AD) for authentication
 - Integrates with Microsoft Dynamics 365 Business Central
 - Is built with Next.js 15, TypeScript, and Tailwind CSS
-- Deploys to Azure App Service at thyme.knowall.ai
+- Deploys to Azure App Service at getthyme.ai
 - Is used exclusively by KnowAll.ai team members

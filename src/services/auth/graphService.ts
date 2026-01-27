@@ -125,7 +125,6 @@ export async function getUserProfilePhoto(userPrincipalName: string): Promise<st
   } catch (error) {
     // Log errors in development for debugging, but don't fail the app
     if (process.env.NODE_ENV === 'development') {
-      // eslint-disable-next-line no-console
       console.error('Failed to fetch profile photo for', userPrincipalName, error);
     }
     return null;

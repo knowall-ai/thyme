@@ -1,5 +1,4 @@
 = Thyme FAQs
-:toc:
 
 == Time Entry Behaviour
 

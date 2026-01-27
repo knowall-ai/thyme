@@ -58,8 +58,10 @@ export function useAuth() {
   const logout = async () => {
     try {
       clearProfilePhotoCache();
+      const account = instance.getActiveAccount();
       await instance.logoutRedirect({
-        postLogoutRedirectUri: '/',
+        account: account || undefined,
+        postLogoutRedirectUri: window.location.origin,
       });
     } catch (error) {
       throw error;

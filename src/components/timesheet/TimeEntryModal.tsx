@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { TrashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { Modal, Button, Input, Select } from '@/components/ui';
@@ -52,12 +52,14 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
   const customerOptions: SelectOption[] = useMemo(() => {
     const customers = new Map<string, string>();
     projects.forEach((p) => {
-      const customerName = p.customerName || 'Unknown';
-      if (!customers.has(customerName)) {
-        customers.set(customerName, customerName);
+      const customerName = (p.customerName || 'Unknown').trim();
+      const normalizedKey = customerName.toLowerCase();
+      // Use the first occurrence's display name, but dedupe by normalized key
+      if (!customers.has(normalizedKey)) {
+        customers.set(normalizedKey, customerName);
       }
     });
-    return Array.from(customers.keys())
+    return Array.from(customers.values())
       .sort()
       .map((name) => ({ value: name, label: name }));
   }, [projects]);
@@ -69,10 +71,42 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
 
   // Filter projects by selected customer (or show all if customer dropdown is hidden)
   const filteredProjects = useMemo(() => {
-    if (!showCustomerDropdown) return projects;
-    if (!customerId) return [];
-    return projects.filter((p) => (p.customerName || 'Unknown') === customerId);
+    if (!showCustomerDropdown) {
+      return projects;
+    }
+    if (!customerId) {
+      return [];
+    }
+    // Use case-insensitive, trimmed comparison for robustness
+    const normalizedCustomerId = customerId.trim().toLowerCase();
+    return projects.filter((p) => {
+      const projectCustomer = (p.customerName || 'Unknown').trim().toLowerCase();
+      return projectCustomer === normalizedCustomerId;
+    });
   }, [projects, customerId, showCustomerDropdown]);
+
+  // Helper to find the matching customerOption value for a customer name
+  // This ensures the Select dropdown value matches exactly
+  const findMatchingCustomerOption = useCallback(
+    (customerName: string | undefined): string => {
+      // If no customer name provided, return first available option (if exists)
+      // This handles the case where user opens a new entry without a selected project
+      if (!customerName) {
+        // Return first customer option, or empty string to force user to select
+        return customerOptions.length > 0 ? customerOptions[0].value : '';
+      }
+      const normalizedName = customerName.trim().toLowerCase();
+      const matchingOption = customerOptions.find(
+        (opt) => opt.value.trim().toLowerCase() === normalizedName
+      );
+      // If no match found but we have options, return first option
+      if (!matchingOption && customerOptions.length > 0) {
+        return customerOptions[0].value;
+      }
+      return matchingOption?.value || customerName;
+    },
+    [customerOptions]
+  );
 
   // Reset form when modal opens
   useEffect(() => {
@@ -80,7 +114,9 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
       if (entry) {
         // Editing existing entry - entry.projectId is a job code (e.g., "PR00030"), not a GUID
         const project = projects.find((p) => p.code === entry.projectId);
-        setCustomerId(project?.customerName || 'Unknown');
+        // Use matching customer option value to ensure Select works correctly
+        const matchedCustomer = findMatchingCustomerOption(project?.customerName);
+        setCustomerId(matchedCustomer);
         // Use project.id (GUID) for form state since dropdown options use GUIDs
         setProjectId(project?.id || '');
         // Find task by code and use its id
@@ -92,9 +128,9 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
         setMinutes(m.toString());
         setNotes(entry.notes || '');
       } else {
-        // New entry
-        const customerName = selectedProject?.customerName || 'Unknown';
-        setCustomerId(customerName);
+        // New entry - use matching customer option value
+        const matchedCustomer = findMatchingCustomerOption(selectedProject?.customerName);
+        setCustomerId(matchedCustomer);
         setProjectId(selectedProject?.id || '');
         setTaskId(selectedTask?.id || '');
         setHours('');
@@ -102,7 +138,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
         setNotes('');
       }
     }
-  }, [isOpen, entry, selectedProject, selectedTask, projects]);
+  }, [isOpen, entry, selectedProject, selectedTask, projects, findMatchingCustomerOption]);
 
   const projectOptions: SelectOption[] = filteredProjects.map((p) => ({
     value: p.id,

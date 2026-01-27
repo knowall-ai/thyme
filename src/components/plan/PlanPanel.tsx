@@ -301,71 +301,75 @@ function ResourceRow({
       {/* Expanded Content: Projects list (grouped by project, expandable to show tasks) */}
       {isExpanded && (
         <div className="bg-dark-850 border-dark-700 border-t">
-          {/* Projects grouped */}
-          {Array.from(allocationsByProject.entries()).map(([projectNumber, projectData]) => {
-            const isProjectExpanded = expandedProjectIds.has(projectNumber);
-            const projectTotalHours = projectData.allocations.reduce(
-              (sum, a) => sum + a.totalHours,
-              0
-            );
+          {/* Projects grouped - sorted alphabetically by project name */}
+          {Array.from(allocationsByProject.entries())
+            .sort(([, a], [, b]) => a.projectName.localeCompare(b.projectName))
+            .map(([projectNumber, projectData]) => {
+              const isProjectExpanded = expandedProjectIds.has(projectNumber);
+              const projectTotalHours = projectData.allocations.reduce(
+                (sum, a) => sum + a.totalHours,
+                0
+              );
 
-            return (
-              <div key={projectNumber}>
-                {/* Project row - clickable to expand/collapse tasks, with Add button */}
-                <TeamProjectRow
-                  projectData={projectData}
-                  weekGroups={weekGroups}
-                  projectTotalHours={projectTotalHours}
-                  isExpanded={isProjectExpanded}
-                  onToggleExpand={() => toggleProjectExpanded(projectNumber)}
-                  onAddPlan={onAddPlan}
-                />
+              return (
+                <div key={projectNumber}>
+                  {/* Project row - clickable to expand/collapse tasks, with Add button */}
+                  <TeamProjectRow
+                    projectData={projectData}
+                    weekGroups={weekGroups}
+                    projectTotalHours={projectTotalHours}
+                    isExpanded={isProjectExpanded}
+                    onToggleExpand={() => toggleProjectExpanded(projectNumber)}
+                    onAddPlan={onAddPlan}
+                  />
 
-                {/* Task rows - shown when project is expanded, consolidated by task */}
-                {isProjectExpanded &&
-                  (() => {
-                    // Group allocations by task
-                    const taskGroups = new Map<
-                      string,
-                      { taskNumber: string; taskName: string; allocations: AllocationBlock[] }
-                    >();
-                    for (const allocation of projectData.allocations) {
-                      const taskKey = allocation.taskNumber || 'no-task';
-                      if (!taskGroups.has(taskKey)) {
-                        taskGroups.set(taskKey, {
-                          taskNumber: allocation.taskNumber || '',
-                          taskName: allocation.taskName || '(No task)',
-                          allocations: [],
-                        });
+                  {/* Task rows - shown when project is expanded, consolidated by task */}
+                  {isProjectExpanded &&
+                    (() => {
+                      // Group allocations by task
+                      const taskGroups = new Map<
+                        string,
+                        { taskNumber: string; taskName: string; allocations: AllocationBlock[] }
+                      >();
+                      for (const allocation of projectData.allocations) {
+                        const taskKey = allocation.taskNumber || 'no-task';
+                        if (!taskGroups.has(taskKey)) {
+                          taskGroups.set(taskKey, {
+                            taskNumber: allocation.taskNumber || '',
+                            taskName: allocation.taskName || '(No task)',
+                            allocations: [],
+                          });
+                        }
+                        taskGroups.get(taskKey)!.allocations.push(allocation);
                       }
-                      taskGroups.get(taskKey)!.allocations.push(allocation);
-                    }
 
-                    return Array.from(taskGroups.entries()).map(([taskKey, taskData]) => {
-                      const taskTotalHours = taskData.allocations.reduce(
-                        (sum, a) => sum + a.totalHours,
-                        0
-                      );
-                      // Use the first allocation's ID for edit (will load all lines for that task)
-                      const firstAllocation = taskData.allocations[0];
+                      return Array.from(taskGroups.entries())
+                        .sort(([, a], [, b]) => a.taskName.localeCompare(b.taskName))
+                        .map(([taskKey, taskData]) => {
+                          const taskTotalHours = taskData.allocations.reduce(
+                            (sum, a) => sum + a.totalHours,
+                            0
+                          );
+                          // Use the first allocation's ID for edit (will load all lines for that task)
+                          const firstAllocation = taskData.allocations[0];
 
-                      return (
-                        <TeamTaskRow
-                          key={taskKey}
-                          taskData={taskData}
-                          projectData={projectData}
-                          weekGroups={weekGroups}
-                          taskTotalHours={taskTotalHours}
-                          firstAllocation={firstAllocation}
-                          onEditAllocation={onEditAllocation}
-                          onAddPlan={onAddPlan}
-                        />
-                      );
-                    });
-                  })()}
-              </div>
-            );
-          })}
+                          return (
+                            <TeamTaskRow
+                              key={taskKey}
+                              taskData={taskData}
+                              projectData={projectData}
+                              weekGroups={weekGroups}
+                              taskTotalHours={taskTotalHours}
+                              firstAllocation={firstAllocation}
+                              onEditAllocation={onEditAllocation}
+                              onAddPlan={onAddPlan}
+                            />
+                          );
+                        });
+                    })()}
+                </div>
+              );
+            })}
 
           {/* Add Project row */}
           <div className="hover:bg-dark-700/60 flex w-full items-center">
@@ -1169,49 +1173,50 @@ function ProjectRow({
       {/* Expanded Content: Tasks list (grouped by task, expandable to show resources) */}
       {isExpanded && (
         <div className="bg-dark-850 border-dark-700 border-t">
-          {/* Tasks under this project */}
-          {Array.from(allocationsByTask.entries()).map(([taskKey, taskData]) => {
-            const isTaskExpanded = expandedTaskIds.has(taskKey);
-            const taskTotalHours = taskData.allocations.reduce((sum, a) => sum + a.totalHours, 0);
-            const resourcesByTask = groupByResource(taskData.allocations);
+          {/* Tasks under this project - sorted alphabetically by task name */}
+          {Array.from(allocationsByTask.entries())
+            .sort(([, a], [, b]) => a.taskName.localeCompare(b.taskName))
+            .map(([taskKey, taskData]) => {
+              const isTaskExpanded = expandedTaskIds.has(taskKey);
+              const taskTotalHours = taskData.allocations.reduce((sum, a) => sum + a.totalHours, 0);
+              const resourcesByTask = groupByResource(taskData.allocations);
 
-            return (
-              <div key={taskKey}>
-                {/* Task row - clickable to expand/collapse resources */}
-                <TaskRow
-                  taskData={taskData}
-                  taskKey={taskKey}
-                  days={days}
-                  weekGroups={weekGroups}
-                  projectColor={project.color}
-                  isTaskExpanded={isTaskExpanded}
-                  onToggleExpand={() => toggleTaskExpanded(taskKey)}
-                  onAddPlan={onAddPlan}
-                  taskTotalHours={taskTotalHours}
-                />
+              return (
+                <div key={taskKey}>
+                  {/* Task row - clickable to expand/collapse resources */}
+                  <TaskRow
+                    taskData={taskData}
+                    taskKey={taskKey}
+                    days={days}
+                    weekGroups={weekGroups}
+                    projectColor={project.color}
+                    isTaskExpanded={isTaskExpanded}
+                    onToggleExpand={() => toggleTaskExpanded(taskKey)}
+                    onAddPlan={onAddPlan}
+                    taskTotalHours={taskTotalHours}
+                  />
 
-                {/* Resource rows - shown when task is expanded */}
-                {isTaskExpanded &&
-                  Array.from(resourcesByTask.entries()).map(([resourceNumber, allocations]) => {
-                    const firstAlloc = allocations[0];
-                    return (
-                      <ResourceTaskRow
-                        key={resourceNumber}
-                        allocations={allocations}
-                        days={days}
-                        weekGroups={weekGroups}
-                        projectColor={project.color}
-                        projectNumber={project.number}
-                        taskNumber={taskData.taskNumber}
-                        taskName={taskData.taskName}
-                        onEditAllocation={onEditAllocation}
-                        onAddPlan={onAddPlan}
-                      />
-                    );
-                  })}
-              </div>
-            );
-          })}
+                  {/* Resource rows - shown when task is expanded, sorted alphabetically */}
+                  {isTaskExpanded &&
+                    Array.from(resourcesByTask.entries())
+                      .sort(([, a], [, b]) => a[0].resourceName.localeCompare(b[0].resourceName))
+                      .map(([resourceNumber, allocations]) => (
+                        <ResourceTaskRow
+                          key={resourceNumber}
+                          allocations={allocations}
+                          days={days}
+                          weekGroups={weekGroups}
+                          projectColor={project.color}
+                          projectNumber={project.number}
+                          taskNumber={taskData.taskNumber}
+                          taskName={taskData.taskName}
+                          onEditAllocation={onEditAllocation}
+                          onAddPlan={onAddPlan}
+                        />
+                      ))}
+                </div>
+              );
+            })}
 
           {/* Add Resource row */}
           <div className="hover:bg-dark-700/60 flex w-full items-center">
@@ -1444,25 +1449,31 @@ export function PlanPanel() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isFullscreen, selectedAllocationId, selectAllocation]);
 
-  // Filter members by search
+  // Filter members by search and sort alphabetically
   const filteredMembers = useMemo(() => {
-    if (!searchQuery) return teamMembers;
-    const query = searchQuery.toLowerCase();
-    return teamMembers.filter(
-      (m) => m.name.toLowerCase().includes(query) || m.number.toLowerCase().includes(query)
-    );
+    const members = !searchQuery
+      ? teamMembers
+      : teamMembers.filter(
+          (m) =>
+            m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            m.number.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    return members.slice().sort((a, b) => a.name.localeCompare(b.name));
   }, [teamMembers, searchQuery]);
 
-  // Filter projects by search
+  // Filter projects by search and sort alphabetically
   const filteredProjects = useMemo(() => {
-    if (!searchQuery) return projects;
-    const query = searchQuery.toLowerCase();
-    return projects.filter(
-      (p) =>
-        p.name.toLowerCase().includes(query) ||
-        p.number.toLowerCase().includes(query) ||
-        p.allocations.some((a) => a.resourceName.toLowerCase().includes(query))
-    );
+    const filtered = !searchQuery
+      ? projects
+      : projects.filter(
+          (p) =>
+            p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            p.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            p.allocations.some((a) =>
+              a.resourceName.toLowerCase().includes(searchQuery.toLowerCase())
+            )
+        );
+    return filtered.slice().sort((a, b) => a.name.localeCompare(b.name));
   }, [projects, searchQuery]);
 
   // Toggle expanded row (Team view)

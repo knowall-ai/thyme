@@ -21,7 +21,7 @@ export function ZaplieBanner() {
   if (isDismissed) return null;
 
   return (
-    <div className="relative mb-6 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 p-4">
+    <div className="relative mt-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 p-4">
       {/* Dismiss button - absolute positioned */}
       <button
         onClick={handleDismiss}
