@@ -170,7 +170,7 @@ export function ApprovalList() {
       pendingApprovals.forEach((ts) => {
         if (ts.resourceEmail && emailDomain) {
           const email = `${ts.resourceEmail}@${emailDomain}`;
-          if (!photosCache[email]) {
+          if (!(email in photosCache)) {
             uniqueEmails.add(email);
           }
         }
