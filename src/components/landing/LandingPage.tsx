@@ -10,6 +10,8 @@ import {
   CheckCircleIcon,
   ArrowRightIcon,
   BoltIcon,
+  BuildingOffice2Icon,
+  DevicePhoneMobileIcon,
 } from '@heroicons/react/24/outline';
 import { Header, PublicFooter } from '@/components/layout';
 import { QuoteDisplay } from '@/components/ui';
@@ -59,6 +61,18 @@ const features = [
     description:
       'Incentivize timely timesheet submissions with optional Zaps (micro-Bitcoin payments via Lightning Network).',
     iconColor: 'text-amber-400',
+  },
+  {
+    icon: BuildingOffice2Icon,
+    title: 'Multi-Company Support',
+    description:
+      'Switch between Business Central companies seamlessly. Manage timesheets across different entities.',
+  },
+  {
+    icon: DevicePhoneMobileIcon,
+    title: 'Mobile Responsive',
+    description:
+      'Track time from anywhere on any device. Works great on desktop, tablet, and phone.',
   },
 ];
 

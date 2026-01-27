@@ -49,12 +49,7 @@ export function QuoteDisplay({
   }, [rotateInterval, rotateQuote]);
 
   return (
-    <div
-      className={`text-center ${className}`}
-      aria-live="polite"
-      aria-atomic="true"
-      role="status"
-    >
+    <div className={`text-center ${className}`} aria-live="polite" aria-atomic="true" role="status">
       <p
         className={`text-dark-300 mb-3 text-lg italic transition-opacity duration-300 ${
           isTransitioning ? 'opacity-0' : 'opacity-100'
