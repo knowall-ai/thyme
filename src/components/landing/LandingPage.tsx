@@ -77,14 +77,15 @@ const features = [
 ];
 
 const benefits = [
-  'Seamless Microsoft Entra ID authentication',
-  'Real-time sync with Business Central',
-  'Weekly timesheet with copy-forward',
-  'Timesheet approvals workflow',
-  'Project budget tracking',
-  'Resource planning & forecasting',
-  'Mobile-responsive design',
-  'Zaps to incentivize submissions',
+  'Accurate client billing — every hour tracked means every hour billed',
+  'Real-time project profitability — know margins before it is too late',
+  'No more timesheet chasing — approvals and Zaps drive on-time submissions',
+  'Better resource forecasting — plan capacity and avoid over-utilization',
+  'Reduced admin overhead — auto-sync eliminates double-entry',
+  'Compliance-ready audit trail — full history of entries and approvals',
+  'Enterprise-grade security — Microsoft Entra ID authentication and access control',
+  'Your data, your tenant — time entries stay in your Business Central environment',
+  'Track time anywhere — mobile-friendly for on-site or remote teams',
 ];
 
 export function LandingPage() {
@@ -207,11 +208,11 @@ export function LandingPage() {
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
             <div>
               <h2 className="mb-6 text-3xl font-bold text-white sm:text-4xl">
-                Built for <span className="text-knowall-green">Business Central</span> Users
+                Why <span className="text-knowall-green">Thyme</span>?
               </h2>
               <p className="text-dark-400 mb-8 text-lg">
-                Thyme provides a seamless experience for tracking time against your Business Central
-                projects. Simple, modern, and always in sync.
+                Stop losing revenue to unbilled hours and late timesheets. Thyme gives you the
+                visibility and control you need to run profitable projects.
               </p>
 
               <ul className="space-y-4">
