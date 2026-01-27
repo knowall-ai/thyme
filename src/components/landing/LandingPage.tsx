@@ -12,6 +12,7 @@ import {
   BoltIcon,
 } from '@heroicons/react/24/outline';
 import { Header, PublicFooter } from '@/components/layout';
+import { QuoteDisplay } from '@/components/ui';
 import { ScreenshotCarousel } from './ScreenshotCarousel';
 
 const features = [
@@ -233,6 +234,13 @@ export function LandingPage() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Quote Section */}
+      <section className="relative z-10 py-16">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+          <QuoteDisplay rotateInterval={8000} />
         </div>
       </section>
 

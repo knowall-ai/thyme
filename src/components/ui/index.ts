@@ -28,3 +28,6 @@ export type { ExtensionPreviewWrapperProps } from './ExtensionPreviewWrapper';
 
 export { ExtensionInstallModal } from './ExtensionInstallModal';
 export type { ExtensionInstallModalProps } from './ExtensionInstallModal';
+
+export { QuoteDisplay } from './QuoteDisplay';
+export type { QuoteDisplayProps } from './QuoteDisplay';
