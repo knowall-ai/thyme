@@ -10,6 +10,9 @@ import { bcClient } from '@/services/bc/bcClient';
 import type { TimeEntry, SelectOption } from '@/types';
 import { formatDateForDisplay } from '@/utils';
 
+// BC Time Sheet Line Description field has a 100-character limit
+const MAX_NOTES_LENGTH = 100;
+
 interface TimeEntryModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -190,6 +193,11 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
       return;
     }
 
+    if (notes.length > MAX_NOTES_LENGTH) {
+      toast.error(`Notes cannot exceed ${MAX_NOTES_LENGTH} characters.`);
+      return;
+    }
+
     // Use project.code and task.code for BC API (job numbers, not GUIDs)
     const jobNo = project.code;
     const jobTaskNo = task.code;
@@ -351,9 +359,23 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
             rows={3}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="border-dark-600 bg-dark-700 text-dark-100 placeholder:text-dark-400 focus:ring-thyme-500 flex w-full rounded-lg border px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:outline-none"
+            maxLength={MAX_NOTES_LENGTH}
+            className={`border-dark-600 bg-dark-700 text-dark-100 placeholder:text-dark-400 focus:ring-thyme-500 flex w-full rounded-lg border px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:outline-none ${
+              notes.length >= MAX_NOTES_LENGTH ? 'border-red-500' : ''
+            }`}
             placeholder="What did you work on?"
           />
+          <div
+            className={`mt-1 text-right text-xs ${
+              notes.length >= MAX_NOTES_LENGTH
+                ? 'text-red-500'
+                : notes.length >= MAX_NOTES_LENGTH - 20
+                  ? 'text-amber-500'
+                  : 'text-dark-400'
+            }`}
+          >
+            {notes.length}/{MAX_NOTES_LENGTH}
+          </div>
         </div>
 
         {/* Actions */}
