@@ -39,7 +39,7 @@ export function ApprovalList() {
     isApprover,
     permissionChecked,
     extensionNotInstalled,
-    fetchPendingApprovals,
+    fetchApprovals,
     fetchTimeSheetLines,
     selectTimeSheet,
     setFilters,
@@ -126,7 +126,7 @@ export function ApprovalList() {
 
   useEffect(() => {
     if (permissionChecked && isApprover) {
-      fetchPendingApprovals();
+      fetchApprovals();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [permissionChecked, isApprover, companyVersion]);
@@ -334,7 +334,7 @@ export function ApprovalList() {
       <Card variant="bordered" className="p-8 text-center">
         <p className="mb-2 text-red-500">{error}</p>
         <button
-          onClick={() => fetchPendingApprovals()}
+          onClick={() => fetchApprovals()}
           className="text-thyme-500 hover:text-thyme-400 underline"
         >
           Try again

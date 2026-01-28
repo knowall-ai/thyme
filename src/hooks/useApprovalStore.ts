@@ -25,7 +25,7 @@ interface ApprovalStore {
   pendingHours: number;
 
   // Actions
-  fetchPendingApprovals: () => Promise<void>;
+  fetchApprovals: () => Promise<void>;
   fetchTimeSheetLines: (timeSheetNumber: string) => Promise<void>;
   selectTimeSheet: (timeSheet: BCTimeSheet | null) => void;
   setFilters: (filters: Partial<ApprovalFilters>) => void;
@@ -69,7 +69,7 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
   // Uses getAllApproverTimesheets to get all statuses, then filters client-side.
   // The API's getPendingApprovals only returns submitted-not-approved timesheets,
   // which doesn't support filtering by other statuses like Approved.
-  fetchPendingApprovals: async () => {
+  fetchApprovals: async () => {
     set({ isLoading: true, error: null });
     try {
       const approvals = await bcClient.getAllApproverTimesheets();
@@ -139,13 +139,13 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
       filters: { ...state.filters, ...filters },
     }));
     // Refresh approvals with new filters
-    get().fetchPendingApprovals();
+    get().fetchApprovals();
   },
 
   // Clear filters
   clearFilters: () => {
     set({ filters: {} });
-    get().fetchPendingApprovals();
+    get().fetchApprovals();
   },
 
   // Approve a time sheet
@@ -155,7 +155,7 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
     try {
       await bcClient.approveTimeSheet(timeSheetId);
       // Refresh the list
-      await get().fetchPendingApprovals();
+      await get().fetchApprovals();
       set({ isProcessing: false, selectedTimeSheet: null, selectedLines: [] });
       return true;
     } catch (error) {
@@ -172,7 +172,7 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
     try {
       await bcClient.rejectTimeSheet(timeSheetId);
       // Refresh the list
-      await get().fetchPendingApprovals();
+      await get().fetchApprovals();
       set({ isProcessing: false, selectedTimeSheet: null, selectedLines: [] });
       return true;
     } catch (error) {
@@ -192,7 +192,7 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
       if (selectedTimeSheet) {
         await get().fetchTimeSheetLines(selectedTimeSheet.number);
       }
-      await get().fetchPendingApprovals();
+      await get().fetchApprovals();
       set({ isProcessing: false });
       return true;
     } catch (error) {
@@ -212,7 +212,7 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
       if (selectedTimeSheet) {
         await get().fetchTimeSheetLines(selectedTimeSheet.number);
       }
-      await get().fetchPendingApprovals();
+      await get().fetchApprovals();
       set({ isProcessing: false });
       return true;
     } catch (error) {
@@ -244,7 +244,7 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
       });
     }
 
-    await get().fetchPendingApprovals();
+    await get().fetchApprovals();
     set({ isProcessing: false });
 
     if (failed.length > 0) {
@@ -280,7 +280,7 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
       });
     }
 
-    await get().fetchPendingApprovals();
+    await get().fetchApprovals();
     set({ isProcessing: false });
 
     if (failed.length > 0) {
