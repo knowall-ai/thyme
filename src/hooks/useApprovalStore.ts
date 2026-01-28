@@ -91,8 +91,14 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
         filtered = filtered.filter((a) => getTimesheetDisplayStatus(a) === filters.status);
       }
 
-      const pendingCount = filtered.length;
-      const pendingHours = filtered.reduce((sum, sheet) => sum + (sheet.totalQuantity || 0), 0);
+      // Calculate pending stats from truly pending timesheets only (submitted but not approved)
+      // This ensures KPI values are correct regardless of which status filter is applied
+      const pendingTimesheets = approvals.filter((a) => a.submittedExists && !a.approvedExists);
+      const pendingCount = pendingTimesheets.length;
+      const pendingHours = pendingTimesheets.reduce(
+        (sum, sheet) => sum + (sheet.totalQuantity || 0),
+        0
+      );
 
       set({
         allApprovals: approvals,
