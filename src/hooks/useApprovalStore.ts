@@ -74,14 +74,21 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
   fetchPendingApprovals: async () => {
     set({ isLoading: true, error: null });
     try {
-      // Fetch approvals and resources in parallel
+      // Fetch approvals and (if needed) resources in parallel.
+      // Note: bcClient.getPendingApprovals() already calls getResources()
+      // internally to enrich timesheets. To avoid an extra network call on
+      // every refresh/filter change, only fetch resources explicitly when
+      // we don't already have them in the store.
+      const { resources: existingResources, filters } = get();
+      const resourcesPromise: Promise<BCResource[]> =
+        existingResources.length === 0
+          ? bcClient.getResources().catch(() => [] as BCResource[])
+          : Promise.resolve(existingResources);
+
       const [approvals, resources] = await Promise.all([
         bcClient.getPendingApprovals(),
-        bcClient.getResources().catch(() => [] as BCResource[]), // Don't fail if resources fail
+        resourcesPromise,
       ]);
-
-      // Apply client-side filters if any
-      const { filters } = get();
       let filtered = approvals;
 
       if (filters.resourceId) {
