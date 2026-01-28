@@ -82,7 +82,10 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
       const { resources: existingResources, filters } = get();
       const resourcesPromise: Promise<BCResource[]> =
         existingResources.length === 0
-          ? bcClient.getResources().catch(() => [] as BCResource[])
+          ? bcClient.getResources().catch((err) => {
+              console.warn('Failed to fetch resources for filter dropdown:', err);
+              return [] as BCResource[];
+            })
           : Promise.resolve(existingResources);
 
       const [approvals, resources] = await Promise.all([
