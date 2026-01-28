@@ -30,6 +30,7 @@ export function ApprovalList() {
   const {
     allApprovals,
     pendingApprovals,
+    resources,
     selectedTimeSheet,
     selectedLines,
     filters,
@@ -376,6 +377,7 @@ export function ApprovalList() {
             onFilterChange={setFilters}
             onClearFilters={clearFilters}
             allTimesheets={allApprovals}
+            resources={resources}
           />
 
           {/* Group by toggle */}

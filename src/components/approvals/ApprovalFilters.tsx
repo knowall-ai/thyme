@@ -6,6 +6,7 @@ import { Button, Select, DatePicker } from '@/components/ui';
 import type {
   ApprovalFilters as FilterType,
   BCTimeSheet,
+  BCResource,
   SelectOption,
   TimesheetDisplayStatus,
 } from '@/types';
@@ -14,8 +15,10 @@ interface ApprovalFiltersProps {
   filters: FilterType;
   onFilterChange: (filters: Partial<FilterType>) => void;
   onClearFilters: () => void;
-  /** All timesheets (unfiltered) to derive resource options from */
+  /** All timesheets (unfiltered) - used for fallback if resources not available */
   allTimesheets: BCTimeSheet[];
+  /** Resources fetched directly from BC - preferred source for dropdown */
+  resources: BCResource[];
 }
 
 export function ApprovalFilters({
@@ -23,20 +26,35 @@ export function ApprovalFilters({
   onFilterChange,
   onClearFilters,
   allTimesheets,
+  resources,
 }: ApprovalFiltersProps) {
-  // Derive unique resources from the timesheets
+  // Build resource options from resources (preferred) or fall back to timesheets
   const resourceOptions: SelectOption[] = useMemo(() => {
     const resourceMap = new Map<string, string>();
-    allTimesheets.forEach((ts) => {
-      if (ts.resourceNo && !resourceMap.has(ts.resourceNo)) {
-        resourceMap.set(ts.resourceNo, ts.resourceName || ts.resourceNo);
-      }
-    });
+
+    // Primary source: resources fetched directly from BC
+    if (Array.isArray(resources) && resources.length > 0) {
+      resources.forEach((r) => {
+        if (r?.number && !resourceMap.has(r.number)) {
+          resourceMap.set(r.number, r.name || r.number);
+        }
+      });
+    }
+    // Fallback: derive from timesheets if no resources available
+    else if (Array.isArray(allTimesheets) && allTimesheets.length > 0) {
+      allTimesheets.forEach((ts) => {
+        const resourceNo = ts?.resourceNo;
+        if (resourceNo && !resourceMap.has(resourceNo)) {
+          resourceMap.set(resourceNo, ts.resourceName || resourceNo);
+        }
+      });
+    }
+
     const options = Array.from(resourceMap.entries())
       .map(([value, label]) => ({ value, label }))
       .sort((a, b) => a.label.localeCompare(b.label));
     return [{ value: '', label: 'All Resources' }, ...options];
-  }, [allTimesheets]);
+  }, [resources, allTimesheets]);
 
   const statusOptions: SelectOption[] = [
     { value: '', label: 'All Statuses' },

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { BCTimeSheet, BCTimeSheetLine, ApprovalFilters } from '@/types';
+import type { BCTimeSheet, BCTimeSheetLine, ApprovalFilters, BCResource } from '@/types';
 import { bcClient, ExtensionNotInstalledError } from '@/services/bc';
 import { getTimesheetDisplayStatus } from '@/utils';
 
@@ -7,6 +7,7 @@ interface ApprovalStore {
   // State
   allApprovals: BCTimeSheet[]; // Unfiltered list for deriving filter options
   pendingApprovals: BCTimeSheet[]; // Filtered list for display
+  resources: BCResource[]; // All resources for filter dropdown
   selectedTimeSheet: BCTimeSheet | null;
   selectedLines: BCTimeSheetLine[];
   filters: ApprovalFilters;
@@ -50,6 +51,7 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
   // Initial state
   allApprovals: [],
   pendingApprovals: [],
+  resources: [],
   selectedTimeSheet: null,
   selectedLines: [],
   filters: {},
@@ -65,14 +67,18 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
   pendingCount: 0,
   pendingHours: 0,
 
-  // Fetch pending approvals
+  // Fetch pending approvals and resources
   // TODO: Consider server-side filtering if the API supports OData $filter
   // to improve performance for large datasets. Currently using client-side
   // filtering which fetches all data then filters locally.
   fetchPendingApprovals: async () => {
     set({ isLoading: true, error: null });
     try {
-      const approvals = await bcClient.getPendingApprovals();
+      // Fetch approvals and resources in parallel
+      const [approvals, resources] = await Promise.all([
+        bcClient.getPendingApprovals(),
+        bcClient.getResources().catch(() => [] as BCResource[]), // Don't fail if resources fail
+      ]);
 
       // Apply client-side filters if any
       const { filters } = get();
@@ -97,13 +103,20 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
       set({
         allApprovals: approvals,
         pendingApprovals: filtered,
+        resources,
         pendingCount,
         pendingHours,
         isLoading: false,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch pending approvals';
-      set({ error: message, isLoading: false, allApprovals: [], pendingApprovals: [] });
+      set({
+        error: message,
+        isLoading: false,
+        allApprovals: [],
+        pendingApprovals: [],
+        resources: [],
+      });
     }
   },
 
