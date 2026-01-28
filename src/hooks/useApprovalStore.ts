@@ -65,14 +65,14 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
   pendingCount: 0,
   pendingHours: 0,
 
-  // Fetch pending approvals
-  // TODO: Consider server-side filtering if the API supports OData $filter
-  // to improve performance for large datasets. Currently using client-side
-  // filtering which fetches all data then filters locally.
+  // Fetch approvals for the list view
+  // Uses getAllApproverTimesheets to get all statuses, then filters client-side.
+  // The API's getPendingApprovals only returns submitted-not-approved timesheets,
+  // which doesn't support filtering by other statuses like Approved.
   fetchPendingApprovals: async () => {
     set({ isLoading: true, error: null });
     try {
-      const approvals = await bcClient.getPendingApprovals();
+      const approvals = await bcClient.getAllApproverTimesheets();
 
       // Apply client-side filters if any
       const { filters } = get();

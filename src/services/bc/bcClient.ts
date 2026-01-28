@@ -1303,16 +1303,33 @@ class BusinessCentralClient {
   /**
    * Get time sheets pending approval for the current user.
    * Filters for timesheets where submittedExists is true and not yet approved.
+   * Used for dashboard KPI stats.
    */
   async getPendingApprovals(): Promise<BCTimeSheet[]> {
+    // Filter for submitted but not approved timesheets (pending approval)
+    const filter = 'submittedExists eq true and approvedExists eq false';
+    return this.getApproverTimesheets(filter);
+  }
+
+  /**
+   * Get all time sheets visible to the current approver.
+   * Used for the approvals list with client-side filtering.
+   */
+  async getAllApproverTimesheets(): Promise<BCTimeSheet[]> {
+    // No filter - fetch all timesheets the approver can see
+    return this.getApproverTimesheets();
+  }
+
+  /**
+   * Internal method to fetch timesheets with optional OData filter.
+   */
+  private async getApproverTimesheets(filter?: string): Promise<BCTimeSheet[]> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
       throw new Error('Thyme BC Extension is not installed.');
     }
 
-    // Filter for submitted but not approved timesheets
-    const filter = 'submittedExists eq true and approvedExists eq false';
-    const endpoint = `/timeSheets?$filter=${encodeURIComponent(filter)}`;
+    const endpoint = filter ? `/timeSheets?$filter=${encodeURIComponent(filter)}` : '/timeSheets';
     const response = await this.customApiFetch<PaginatedResponse<BCTimeSheet>>(endpoint);
     const timeSheets = response.value;
 
