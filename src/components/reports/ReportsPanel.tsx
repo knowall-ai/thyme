@@ -389,7 +389,9 @@ export function ReportsPanel() {
                           >
                             <UserIcon className="text-dark-400 h-5 w-5" />
                             <div className="flex-1 truncate">
-                              <div className="text-dark-200">{resource.name}</div>
+                              <div className="text-dark-200">
+                                {resource.name?.trim() || 'Unknown'}
+                              </div>
                               <div className="text-dark-500 text-xs">{resource.number}</div>
                             </div>
                           </button>
