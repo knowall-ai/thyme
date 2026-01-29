@@ -225,6 +225,8 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
           isBillable: task?.isBillable ?? true,
           isRunning: false,
         });
+        // Reset selected project/task so next new entry starts fresh
+        selectProject(null);
       }
       toast.success(entry ? 'Time entry updated' : 'Time entry saved');
       onClose();
