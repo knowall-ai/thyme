@@ -251,7 +251,11 @@ export function SettingsPanel() {
           <p className="text-dark-100">Connected to Business Central</p>
         </div>
         <p className="text-dark-400 mt-2 text-sm">
-          Environment: {process.env.BC_ENVIRONMENT || 'Production'}
+          Environment:{' '}
+          {selectedCompany?.environment
+            ? selectedCompany.environment.charAt(0).toUpperCase() +
+              selectedCompany.environment.slice(1)
+            : 'Unknown'}
         </p>
       </Card>
     </div>
