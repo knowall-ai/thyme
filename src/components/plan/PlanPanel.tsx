@@ -6,7 +6,7 @@ import {
   MagnifyingGlassIcon,
   PlusIcon,
   ArrowsPointingOutIcon,
-  XMarkIcon,
+  ArrowsPointingInIcon,
   FolderIcon,
   UserGroupIcon,
   ChevronDownIcon,
@@ -1663,7 +1663,7 @@ export function PlanPanel() {
             title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
           >
             {isFullscreen ? (
-              <XMarkIcon className="h-5 w-5" />
+              <ArrowsPointingInIcon className="h-5 w-5" />
             ) : (
               <ArrowsPointingOutIcon className="h-5 w-5" />
             )}
