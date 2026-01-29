@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { BCTimeSheet, BCTimeSheetLine, ApprovalFilters } from '@/types';
+import type { BCTimeSheet, BCTimeSheetLine, ApprovalFilters, BCResource } from '@/types';
 import { bcClient, ExtensionNotInstalledError } from '@/services/bc';
 import { getTimesheetDisplayStatus } from '@/utils';
 
@@ -7,6 +7,7 @@ interface ApprovalStore {
   // State
   allApprovals: BCTimeSheet[]; // Unfiltered list for deriving filter options
   pendingApprovals: BCTimeSheet[]; // Filtered list for display
+  resources: BCResource[]; // All resources for filter dropdown
   selectedTimeSheet: BCTimeSheet | null;
   selectedLines: BCTimeSheetLine[];
   filters: ApprovalFilters;
@@ -50,6 +51,7 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
   // Initial state
   allApprovals: [],
   pendingApprovals: [],
+  resources: [],
   selectedTimeSheet: null,
   selectedLines: [],
   filters: {},
@@ -72,10 +74,25 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
   fetchApprovals: async () => {
     set({ isLoading: true, error: null });
     try {
-      const approvals = await bcClient.getAllApproverTimesheets();
+      // Fetch approvals and (if needed) resources in parallel.
+      // Note: bcClient.getAllApproverTimesheets() already calls getResources()
+      // internally to enrich timesheets. To avoid an extra network call on
+      // every refresh/filter change, only fetch resources explicitly when
+      // we don't already have them in the store.
+      const { resources: existingResources, filters } = get();
+      const resourcesPromise: Promise<BCResource[]> =
+        existingResources.length === 0
+          ? bcClient.getResources().catch((err) => {
+              console.warn('Failed to fetch resources for filter dropdown:', err);
+              return [] as BCResource[];
+            })
+          : Promise.resolve(existingResources);
 
-      // Apply client-side filters if any
-      const { filters } = get();
+      const [approvals, resources] = await Promise.all([
+        bcClient.getAllApproverTimesheets(),
+        resourcesPromise,
+      ]);
+
       let filtered = approvals;
 
       if (filters.resourceId) {
@@ -103,13 +120,20 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
       set({
         allApprovals: approvals,
         pendingApprovals: filtered,
+        resources,
         pendingCount,
         pendingHours,
         isLoading: false,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch pending approvals';
-      set({ error: message, isLoading: false, allApprovals: [], pendingApprovals: [] });
+      set({
+        error: message,
+        isLoading: false,
+        allApprovals: [],
+        pendingApprovals: [],
+        resources: [],
+      });
     }
   },
 
