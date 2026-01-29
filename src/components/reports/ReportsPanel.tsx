@@ -111,8 +111,11 @@ export function ReportsPanel() {
       setExtensionNotInstalled(false);
       try {
         // Get all person resources (same as Team page)
+        // Filter out empty resource cards (no name, no search name, and no timesheet owner)
         const data = await bcClient.getResources();
-        setResources(data);
+        setResources(
+          data.filter((r) => r.name?.trim() || r.searchName?.trim() || r.timeSheetOwnerUserId)
+        );
       } catch (err) {
         if (err instanceof ExtensionNotInstalledError) {
           setExtensionNotInstalled(true);
@@ -330,7 +333,7 @@ export function ReportsPanel() {
                   <UsersIcon className="text-dark-400 h-4 w-4" />
                   <span className="text-dark-200">
                     {selectedMember === 'everyone'
-                      ? 'Everyone'
+                      ? 'All Resources'
                       : selectedMember
                         ? selectedMember.name
                         : 'Loading...'}
@@ -349,7 +352,7 @@ export function ReportsPanel() {
                       <h3 className="text-sm font-medium text-white">Filter by Resource</h3>
                     </div>
                     <div className="max-h-64 overflow-y-auto py-1">
-                      {/* Everyone option */}
+                      {/* All Resources option */}
                       <button
                         onClick={() => {
                           setSelectedMember('everyone');
@@ -361,7 +364,7 @@ export function ReportsPanel() {
                         )}
                       >
                         <UsersIcon className="text-thyme-500 h-5 w-5" />
-                        <span className="text-dark-200">Everyone</span>
+                        <span className="text-dark-200">All Resources</span>
                       </button>
 
                       {/* Individual resources */}
