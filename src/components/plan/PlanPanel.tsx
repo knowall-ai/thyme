@@ -6,7 +6,7 @@ import {
   MagnifyingGlassIcon,
   PlusIcon,
   ArrowsPointingOutIcon,
-  XMarkIcon,
+  ArrowsPointingInIcon,
   FolderIcon,
   UserGroupIcon,
   ChevronDownIcon,
@@ -1598,7 +1598,7 @@ export function PlanPanel() {
   const planContent = (
     <div className={cn('space-y-4', isFullscreen && 'flex h-full flex-col')}>
       {/* Header Row */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           {/* View Mode Toggle */}
           <div className="border-dark-600 flex rounded-lg border">
@@ -1663,7 +1663,7 @@ export function PlanPanel() {
             title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
           >
             {isFullscreen ? (
-              <XMarkIcon className="h-5 w-5" />
+              <ArrowsPointingInIcon className="h-5 w-5" />
             ) : (
               <ArrowsPointingOutIcon className="h-5 w-5" />
             )}
@@ -1887,7 +1887,19 @@ export function PlanPanel() {
   if (isFullscreen) {
     return (
       <ExtensionPreviewWrapper extensionNotInstalled={extensionNotInstalled} pageName="Plan">
-        <div className="bg-dark-900 fixed inset-0 z-50 flex flex-col p-6">{planContent}</div>
+        <div
+          className="bg-dark-900 flex flex-col p-6"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 55,
+          }}
+        >
+          {planContent}
+        </div>
       </ExtensionPreviewWrapper>
     );
   }
