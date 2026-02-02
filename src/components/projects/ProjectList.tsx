@@ -6,14 +6,14 @@ import {
   MagnifyingGlassIcon,
   StarIcon as StarOutlineIcon,
   FunnelIcon,
-  ArrowsUpDownIcon,
   FolderIcon,
   ChevronUpIcon,
   ChevronDownIcon,
   ChevronUpDownIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
-import { Input, Select, ExtensionPreviewWrapper } from '@/components/ui';
+import { Button, Input, Select, ExtensionPreviewWrapper } from '@/components/ui';
 import { useProjectsStore } from '@/hooks';
 import type { Project } from '@/types';
 import type { BillingMode } from '@/services/bc/projectDetailsService';
@@ -23,7 +23,6 @@ import { useCompanyStore } from '@/hooks';
 
 type FilterOption = 'all' | 'favorites' | 'active' | 'completed';
 type SortOption =
-  | 'name-asc'
   | 'name-desc'
   | 'code'
   | 'recent'
@@ -77,7 +76,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
   const companyVersion = useCompanyStore((state) => state.companyVersion);
 
   const [filterBy, setFilterBy] = useState<FilterOption>('all');
-  const [sortBy, setSortBy] = useState<SortOption>('name-asc');
+  const [sortBy, setSortBy] = useState<SortOption>('code');
   const [customerFilter, setCustomerFilter] = useState<CustomerFilter>('all');
 
   // Helper to toggle sort for a column
@@ -154,9 +153,6 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
 
     // Apply sort (with null safety for undefined names/codes)
     switch (sortBy) {
-      case 'name-asc':
-        result.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
-        break;
       case 'name-desc':
         result.sort((a, b) => (b.name ?? '').localeCompare(a.name ?? ''));
         break;
@@ -280,7 +276,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
               <Select
                 value={customerFilter}
                 onChange={(e) => setCustomerFilter(e.target.value)}
-                className="w-40"
+                className="w-48"
                 options={[
                   { value: 'all', label: 'All Customers' },
                   ...uniqueCustomers.map((customer) => ({ value: customer, label: customer })),
@@ -304,21 +300,22 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
               />
             </div>
 
-            {/* Sort */}
-            <div className="flex items-center gap-2">
-              <ArrowsUpDownIcon className="h-4 w-4 text-gray-400" />
-              <Select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="w-36"
-                options={[
-                  { value: 'name-asc', label: 'Name (A-Z)' },
-                  { value: 'name-desc', label: 'Name (Z-A)' },
-                  { value: 'code', label: 'Code' },
-                  { value: 'recent', label: 'Recent' },
-                ]}
-              />
-            </div>
+            {/* Clear filters button */}
+            {(customerFilter !== 'all' || filterBy !== 'all' || searchQuery) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setCustomerFilter('all');
+                  setFilterBy('all');
+                  setSearchQuery('');
+                }}
+                className="h-10"
+              >
+                <XMarkIcon className="mr-1 h-4 w-4" />
+                Clear
+              </Button>
+            )}
           </div>
         </div>
 
