@@ -1631,13 +1631,13 @@ export function PlanPanel() {
           {/* Simple Week Navigation - just prev/next buttons */}
           <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" onClick={handlePrevious} title="Previous week">
-              <ChevronLeftIcon className="h-4 w-4 text-white" />
+              <ChevronLeftIcon className="h-4 w-4" />
             </Button>
             <Button variant="outline" size="sm" onClick={handleToday}>
               Today
             </Button>
             <Button variant="outline" size="icon" onClick={handleNext} title="Next week">
-              <ChevronRightIcon className="h-4 w-4 text-white" />
+              <ChevronRightIcon className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -1663,9 +1663,9 @@ export function PlanPanel() {
             title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
           >
             {isFullscreen ? (
-              <ArrowsPointingInIcon className="h-5 w-5 text-white" />
+              <ArrowsPointingInIcon className="h-5 w-5" />
             ) : (
-              <ArrowsPointingOutIcon className="h-5 w-5 text-white" />
+              <ArrowsPointingOutIcon className="h-5 w-5" />
             )}
           </Button>
         </div>
