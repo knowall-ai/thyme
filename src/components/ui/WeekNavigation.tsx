@@ -4,7 +4,13 @@ import { addWeeks, endOfWeek, format } from 'date-fns';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { Button } from './Button';
 import { DatePicker } from './DatePicker';
-import { formatWeekRange, getWeekStart, isSameDayAs } from '@/utils';
+import {
+  formatWeekRange,
+  getWeekStart,
+  isSameDayAs,
+  DATE_FORMAT_FULL,
+  DATE_FORMAT_SHORT,
+} from '@/utils';
 
 export interface WeekNavigationProps {
   currentWeekStart: Date;
@@ -27,9 +33,9 @@ function formatMultiWeekRange(startDate: Date, weeksToShow: number): string {
   const endMonth = format(endDate, 'MMM');
 
   if (startMonth === endMonth) {
-    return `${format(startDate, 'd')} - ${format(endDate, 'd MMM yyyy')}`;
+    return `${format(startDate, 'd')} - ${format(endDate, DATE_FORMAT_FULL)}`;
   }
-  return `${format(startDate, 'd MMM')} - ${format(endDate, 'd MMM yyyy')}`;
+  return `${format(startDate, DATE_FORMAT_SHORT)} - ${format(endDate, DATE_FORMAT_FULL)}`;
 }
 
 export function WeekNavigation({

@@ -14,7 +14,7 @@ import {
   endOfWeek,
 } from 'date-fns';
 import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import { cn } from '@/utils';
+import { cn, DATE_FORMAT_FULL } from '@/utils';
 import { Button } from './Button';
 
 export interface DatePickerProps {
@@ -117,7 +117,7 @@ export function DatePicker({
         <CalendarIcon className="text-dark-400 h-4 w-4 shrink-0" />
         {!iconOnly && (
           <span className="truncate">
-            {selectedDate ? format(selectedDate, 'd MMM yyyy') : 'Select date'}
+            {selectedDate ? format(selectedDate, DATE_FORMAT_FULL) : 'Select date'}
           </span>
         )}
       </button>

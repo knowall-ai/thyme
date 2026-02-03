@@ -31,7 +31,13 @@ import {
 import { useAuth } from '@/services/auth';
 import { useProjectsStore, useCompanyStore } from '@/hooks';
 import { timeEntryService, bcClient } from '@/services/bc';
-import { cn, formatTime } from '@/utils';
+import {
+  cn,
+  formatTime,
+  DATE_FORMAT_FULL,
+  DATE_FORMAT_SHORT,
+  DATE_FORMAT_DAY_SHORT,
+} from '@/utils';
 import type { TimeEntry, BCResource } from '@/types';
 
 type DateRange = 'week' | 'month';
@@ -259,7 +265,7 @@ export function ReportsPanel() {
       const data = dailyData[dateStr] || { hours: 0, billableHours: 0 };
       return {
         date: dateStr,
-        label: format(day, 'EEE, d MMM'),
+        label: format(day, DATE_FORMAT_DAY_SHORT),
         hours: data.hours,
         billableHours: data.billableHours,
       };
@@ -279,9 +285,9 @@ export function ReportsPanel() {
       const startMonth = format(startDate, 'MMM');
       const endMonth = format(endDate, 'MMM');
       if (startMonth === endMonth) {
-        return `${format(startDate, 'd')} - ${format(endDate, 'd MMM yyyy')}`;
+        return `${format(startDate, 'd')} - ${format(endDate, DATE_FORMAT_FULL)}`;
       }
-      return `${format(startDate, 'd MMM')} - ${format(endDate, 'd MMM yyyy')}`;
+      return `${format(startDate, DATE_FORMAT_SHORT)} - ${format(endDate, DATE_FORMAT_FULL)}`;
     }
     return format(referenceDate, 'MMMM yyyy');
   };
