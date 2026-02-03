@@ -21,7 +21,7 @@ import { cn, getBCJobsListUrl, getBCCustomersListUrl, getBCJobUrl } from '@/util
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import { useCompanyStore } from '@/hooks';
 
-type FilterOption = 'all' | 'favorites' | 'active' | 'completed';
+type StatusFilter = 'all' | string;
 type SortOption =
   | 'name-desc'
   | 'code'
@@ -75,9 +75,10 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
   const selectedCompany = useCompanyStore((state) => state.selectedCompany);
   const companyVersion = useCompanyStore((state) => state.companyVersion);
 
-  const [filterBy, setFilterBy] = useState<FilterOption>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('code');
   const [customerFilter, setCustomerFilter] = useState<CustomerFilter>('all');
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   // Helper to toggle sort for a column
   const handleColumnSort = (column: 'billing' | 'planned' | 'spent' | 'remaining') => {
@@ -129,6 +130,15 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
     return Array.from(customers).sort();
   }, [filteredProjects]);
 
+  // Get unique statuses for the filter dropdown
+  const uniqueStatuses = useMemo(() => {
+    const statuses = new Set<string>();
+    filteredProjects.forEach((p) => {
+      if (p.status) statuses.add(p.status);
+    });
+    return Array.from(statuses).sort();
+  }, [filteredProjects]);
+
   // Apply filter and sort
   const processedProjects = useMemo(() => {
     let result = [...filteredProjects];
@@ -138,17 +148,14 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
       result = result.filter((p) => (p.customerName || 'No Customer') === customerFilter);
     }
 
+    // Apply favorites filter
+    if (showFavoritesOnly) {
+      result = result.filter((p) => p.isFavorite);
+    }
+
     // Apply status filter
-    switch (filterBy) {
-      case 'favorites':
-        result = result.filter((p) => p.isFavorite);
-        break;
-      case 'active':
-        result = result.filter((p) => p.status === 'active');
-        break;
-      case 'completed':
-        result = result.filter((p) => p.status === 'completed');
-        break;
+    if (statusFilter !== 'all') {
+      result = result.filter((p) => p.status === statusFilter);
     }
 
     // Apply sort (with null safety for undefined names/codes)
@@ -206,7 +213,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
     }
 
     return result;
-  }, [filteredProjects, filterBy, sortBy, customerFilter, billingModes]);
+  }, [filteredProjects, statusFilter, sortBy, customerFilter, billingModes, showFavoritesOnly]);
 
   // Group projects by customer
   const groupedProjects = processedProjects.reduce(
@@ -288,26 +295,46 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
             <div className="flex items-center gap-2">
               <FunnelIcon className="h-4 w-4 text-gray-400" />
               <Select
-                value={filterBy}
-                onChange={(e) => setFilterBy(e.target.value as FilterOption)}
-                className="w-36"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-40"
                 options={[
                   { value: 'all', label: 'All Status' },
-                  { value: 'favorites', label: 'Favorites' },
-                  { value: 'active', label: 'Active' },
-                  { value: 'completed', label: 'Completed' },
+                  ...uniqueStatuses.map((status) => ({
+                    value: status,
+                    label: status.charAt(0).toUpperCase() + status.slice(1),
+                  })),
                 ]}
               />
             </div>
 
+            {/* Favorites Toggle */}
+            <Button
+              variant={showFavoritesOnly ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+              className="h-10"
+            >
+              {showFavoritesOnly ? (
+                <StarSolidIcon className="mr-1 h-4 w-4 text-amber-400" />
+              ) : (
+                <StarOutlineIcon className="mr-1 h-4 w-4" />
+              )}
+              Favorites
+            </Button>
+
             {/* Clear filters button */}
-            {(customerFilter !== 'all' || filterBy !== 'all' || searchQuery) && (
+            {(customerFilter !== 'all' ||
+              statusFilter !== 'all' ||
+              showFavoritesOnly ||
+              searchQuery) && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => {
                   setCustomerFilter('all');
-                  setFilterBy('all');
+                  setStatusFilter('all');
+                  setShowFavoritesOnly(false);
                   setSearchQuery('');
                 }}
                 className="h-10"
@@ -407,7 +434,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
             <p className="text-dark-400">
               {searchQuery
                 ? 'No projects match your search'
-                : filterBy !== 'all'
+                : statusFilter !== 'all'
                   ? 'No projects match the current filter'
                   : 'No projects available'}
             </p>
