@@ -8,6 +8,9 @@ import {
   FunnelIcon,
   ArrowsUpDownIcon,
   FolderIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+  ChevronUpDownIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import { Input, Select, ExtensionPreviewWrapper } from '@/components/ui';
@@ -19,7 +22,19 @@ import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import { useCompanyStore } from '@/hooks';
 
 type FilterOption = 'all' | 'favorites' | 'active' | 'completed';
-type SortOption = 'name-asc' | 'name-desc' | 'code' | 'recent';
+type SortOption =
+  | 'name-asc'
+  | 'name-desc'
+  | 'code'
+  | 'recent'
+  | 'billing-asc'
+  | 'billing-desc'
+  | 'planned-asc'
+  | 'planned-desc'
+  | 'spent-asc'
+  | 'spent-desc'
+  | 'remaining-asc'
+  | 'remaining-desc';
 type CustomerFilter = 'all' | string;
 
 /**
@@ -64,6 +79,31 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
   const [filterBy, setFilterBy] = useState<FilterOption>('all');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
   const [customerFilter, setCustomerFilter] = useState<CustomerFilter>('all');
+
+  // Helper to toggle sort for a column
+  const handleColumnSort = (column: 'billing' | 'planned' | 'spent' | 'remaining') => {
+    const ascKey = `${column}-asc` as SortOption;
+    const descKey = `${column}-desc` as SortOption;
+    if (sortBy === ascKey) {
+      setSortBy(descKey);
+    } else {
+      setSortBy(ascKey);
+    }
+  };
+
+  // Helper to get sort indicator for a column
+  const getSortIndicator = (column: 'billing' | 'planned' | 'spent' | 'remaining') => {
+    const ascKey = `${column}-asc`;
+    const descKey = `${column}-desc`;
+    if (sortBy === ascKey) {
+      return <ChevronUpIcon className="ml-1 inline h-4 w-4" />;
+    }
+    if (sortBy === descKey) {
+      return <ChevronDownIcon className="ml-1 inline h-4 w-4" />;
+    }
+    // Show default up/down arrow to indicate column is sortable
+    return <ChevronUpDownIcon className="ml-1 inline h-4 w-4 opacity-50" />;
+  };
 
   const handleProjectClick = (project: Project) => {
     if (onSelectProject) {
@@ -131,10 +171,46 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
           return (a.name ?? '').localeCompare(b.name ?? '');
         });
         break;
+      case 'billing-asc':
+      case 'billing-desc': {
+        const dir = sortBy === 'billing-asc' ? 1 : -1;
+        result.sort((a, b) => {
+          const modeA = billingModes.get(a.code) ?? '';
+          const modeB = billingModes.get(b.code) ?? '';
+          return dir * modeA.localeCompare(modeB);
+        });
+        break;
+      }
+      case 'planned-asc':
+        result.sort((a, b) => (a.budgetHours ?? 0) - (b.budgetHours ?? 0));
+        break;
+      case 'planned-desc':
+        result.sort((a, b) => (b.budgetHours ?? 0) - (a.budgetHours ?? 0));
+        break;
+      case 'spent-asc':
+        result.sort((a, b) => (a.totalHours ?? 0) - (b.totalHours ?? 0));
+        break;
+      case 'spent-desc':
+        result.sort((a, b) => (b.totalHours ?? 0) - (a.totalHours ?? 0));
+        break;
+      case 'remaining-asc':
+        result.sort((a, b) => {
+          const remA = (a.budgetHours ?? 0) - (a.totalHours ?? 0);
+          const remB = (b.budgetHours ?? 0) - (b.totalHours ?? 0);
+          return remA - remB;
+        });
+        break;
+      case 'remaining-desc':
+        result.sort((a, b) => {
+          const remA = (a.budgetHours ?? 0) - (a.totalHours ?? 0);
+          const remB = (b.budgetHours ?? 0) - (b.totalHours ?? 0);
+          return remB - remA;
+        });
+        break;
     }
 
     return result;
-  }, [filteredProjects, filterBy, sortBy, customerFilter]);
+  }, [filteredProjects, filterBy, sortBy, customerFilter, billingModes]);
 
   // Group projects by customer
   const groupedProjects = processedProjects.reduce(
@@ -252,23 +328,47 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
             <thead className="bg-dark-700">
               <tr>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-400">Project</th>
-                <th className="w-24 px-4 py-3 text-center text-sm font-medium text-gray-400">
-                  Billing
-                  {isLoadingBillingModes && (
-                    <span className="border-t-thyme-500 ml-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-500" />
-                  )}
+                <th
+                  className="w-28 cursor-pointer px-4 py-3 text-center text-sm font-medium text-gray-400 hover:text-white"
+                  onClick={() => handleColumnSort('billing')}
+                >
+                  <span className="inline-flex items-center whitespace-nowrap">
+                    Billing
+                    {getSortIndicator('billing')}
+                    {isLoadingBillingModes && (
+                      <span className="border-t-thyme-500 ml-1 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-500" />
+                    )}
+                  </span>
                 </th>
-                <th className="w-24 px-4 py-3 text-right text-sm font-medium text-gray-400">
-                  Planned
+                <th
+                  className="w-28 cursor-pointer px-4 py-3 text-right text-sm font-medium text-gray-400 hover:text-white"
+                  onClick={() => handleColumnSort('planned')}
+                >
+                  <span className="inline-flex items-center whitespace-nowrap">
+                    Planned
+                    {getSortIndicator('planned')}
+                  </span>
                 </th>
-                <th className="w-24 px-4 py-3 text-right text-sm font-medium text-gray-400">
-                  Spent
-                  {isLoadingHours && (
-                    <span className="border-t-thyme-500 ml-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-500" />
-                  )}
+                <th
+                  className="w-28 cursor-pointer px-4 py-3 text-right text-sm font-medium text-gray-400 hover:text-white"
+                  onClick={() => handleColumnSort('spent')}
+                >
+                  <span className="inline-flex items-center whitespace-nowrap">
+                    Spent
+                    {getSortIndicator('spent')}
+                    {isLoadingHours && (
+                      <span className="border-t-thyme-500 ml-1 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-500" />
+                    )}
+                  </span>
                 </th>
-                <th className="w-32 px-4 py-3 text-right text-sm font-medium text-gray-400">
-                  Remaining
+                <th
+                  className="w-36 cursor-pointer px-4 py-3 text-right text-sm font-medium text-gray-400 hover:text-white"
+                  onClick={() => handleColumnSort('remaining')}
+                >
+                  <span className="inline-flex items-center whitespace-nowrap">
+                    Remaining
+                    {getSortIndicator('remaining')}
+                  </span>
                 </th>
                 <th className="w-20 px-4 py-3 text-center text-sm font-medium text-gray-400">
                   Actions
@@ -276,27 +376,29 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
               </tr>
             </thead>
             <tbody className="divide-dark-600 divide-y">
-              {Object.entries(groupedProjects).map(([customer, customerProjects]) => (
-                <Fragment key={customer}>
-                  {/* Customer group header */}
-                  <tr className="bg-dark-800/50">
-                    <td colSpan={6} className="px-4 py-2 text-sm font-medium text-gray-400">
-                      {customer}
-                    </td>
-                  </tr>
-                  {/* Projects in this group */}
-                  {customerProjects.map((project) => (
-                    <ProjectRow
-                      key={project.id}
-                      project={project}
-                      billingMode={billingModes.get(project.code)}
-                      onProjectClick={handleProjectClick}
-                      onToggleFavorite={toggleFavorite}
-                      companyName={selectedCompany?.name}
-                    />
-                  ))}
-                </Fragment>
-              ))}
+              {Object.entries(groupedProjects)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([customer, customerProjects]) => (
+                  <Fragment key={customer}>
+                    {/* Customer group header */}
+                    <tr className="bg-dark-800/50">
+                      <td colSpan={6} className="px-4 py-2 text-sm font-medium text-gray-400">
+                        {customer}
+                      </td>
+                    </tr>
+                    {/* Projects in this group */}
+                    {customerProjects.map((project) => (
+                      <ProjectRow
+                        key={project.id}
+                        project={project}
+                        billingMode={billingModes.get(project.code)}
+                        onProjectClick={handleProjectClick}
+                        onToggleFavorite={toggleFavorite}
+                        companyName={selectedCompany?.name}
+                      />
+                    ))}
+                  </Fragment>
+                ))}
             </tbody>
           </table>
         </div>
@@ -354,11 +456,11 @@ function ProjectRow({
             style={{ backgroundColor: project.color }}
           />
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-start gap-2">
               <span className="font-medium text-white">{project.name}</span>
               <span
                 className={cn(
-                  'rounded px-1.5 py-0.5 text-xs',
+                  'shrink-0 rounded px-1.5 py-0.5 text-xs',
                   project.status === 'active'
                     ? 'bg-green-900/50 text-green-400'
                     : 'bg-gray-700 text-gray-400'
