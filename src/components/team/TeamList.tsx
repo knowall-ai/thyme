@@ -5,8 +5,7 @@ import toast from 'react-hot-toast';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
 import {
-  ChevronUpIcon,
-  ChevronDownIcon,
+  ChevronUpDownIcon,
   MagnifyingGlassIcon,
   ExclamationTriangleIcon,
   ArrowTopRightOnSquareIcon,
@@ -41,7 +40,7 @@ interface TeamMember {
   userPrincipalName: string | null; // UPN for fetching profile photo
 }
 
-type SortField = 'name' | 'totalHours' | 'utilization' | 'billablePercent';
+type SortField = 'name' | 'code' | 'totalHours' | 'utilization' | 'capacity' | 'billablePercent';
 type SortDirection = 'asc' | 'desc';
 
 // Build URL to open a resource in BC web client
@@ -325,11 +324,17 @@ export function TeamList() {
         case 'name':
           comparison = a.name.localeCompare(b.name);
           break;
+        case 'code':
+          comparison = a.number.localeCompare(b.number);
+          break;
         case 'totalHours':
           comparison = a.totalHours - b.totalHours;
           break;
         case 'utilization':
           comparison = a.utilization - b.utilization;
+          break;
+        case 'capacity':
+          comparison = a.capacity - b.capacity;
           break;
         case 'billablePercent':
           comparison = a.billablePercent - b.billablePercent;
@@ -351,12 +356,9 @@ export function TeamList() {
   };
 
   const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return null;
-    return sortDirection === 'asc' ? (
-      <ChevronUpIcon className="h-4 w-4" />
-    ) : (
-      <ChevronDownIcon className="h-4 w-4" />
-    );
+    // Show up/down arrow on all sortable columns
+    // Full opacity when sorted, reduced opacity when not sorted
+    return <ChevronUpDownIcon className={cn('h-4 w-4', sortField !== field && 'opacity-50')} />;
   };
 
   // Get aria-sort value for accessible sortable headers
@@ -492,17 +494,33 @@ export function TeamList() {
                     <Pie data={displayPieData} options={pieOptions} />
                   </div>
                   <div className="text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="h-3 w-3 shrink-0 rounded-full bg-green-500"></span>
-                      <span className="text-dark-300">
-                        Billable: {totals.billableHours.toFixed(1)}h
-                      </span>
+                    <div className="flex items-start gap-2">
+                      <span className="mt-1 h-3 w-3 shrink-0 rounded-full bg-green-500"></span>
+                      <div className="text-dark-300">
+                        <div>Billable:</div>
+                        <div>
+                          {totals.billableHours.toFixed(1)}h
+                          {totals.totalHours > 0 && (
+                            <span className="text-dark-400 ml-1">
+                              ({((totals.billableHours / totals.totalHours) * 100).toFixed(0)}%)
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className="h-3 w-3 shrink-0 rounded-full bg-slate-500"></span>
-                      <span className="text-dark-300">
-                        Non-billable: {totals.nonBillableHours.toFixed(1)}h
-                      </span>
+                    <div className="mt-1 flex items-start gap-2">
+                      <span className="mt-1 h-3 w-3 shrink-0 rounded-full bg-slate-500"></span>
+                      <div className="text-dark-300">
+                        <div>Non-billable:</div>
+                        <div>
+                          {totals.nonBillableHours.toFixed(1)}h
+                          {totals.totalHours > 0 && (
+                            <span className="text-dark-400 ml-1">
+                              ({((totals.nonBillableHours / totals.totalHours) * 100).toFixed(0)}%)
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -540,8 +558,18 @@ export function TeamList() {
                           <SortIcon field="name" />
                         </div>
                       </th>
-                      <th className="text-dark-300 px-4 py-3 text-left text-sm font-medium">
-                        Code
+                      <th
+                        className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-left text-sm font-medium"
+                        onClick={() => handleSort('code')}
+                        role="columnheader"
+                        aria-sort={getAriaSort('code')}
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSort('code')}
+                      >
+                        <div className="flex items-center gap-1">
+                          Code
+                          <SortIcon field="code" />
+                        </div>
                       </th>
                       <th
                         className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
@@ -569,8 +597,18 @@ export function TeamList() {
                           <SortIcon field="utilization" />
                         </div>
                       </th>
-                      <th className="text-dark-300 px-4 py-3 text-right text-sm font-medium">
-                        Capacity
+                      <th
+                        className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
+                        onClick={() => handleSort('capacity')}
+                        role="columnheader"
+                        aria-sort={getAriaSort('capacity')}
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSort('capacity')}
+                      >
+                        <div className="flex items-center justify-end gap-1">
+                          Capacity
+                          <SortIcon field="capacity" />
+                        </div>
                       </th>
                       <th
                         className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
@@ -648,7 +686,7 @@ export function TeamList() {
                         </td>
                         <td className="px-4 py-3">
                           <div
-                            className="flex flex-col gap-1"
+                            className="flex flex-col items-end gap-1"
                             role="meter"
                             aria-valuenow={member.utilization}
                             aria-valuemin={0}
