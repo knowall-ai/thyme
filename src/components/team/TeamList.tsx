@@ -5,8 +5,6 @@ import toast from 'react-hot-toast';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
 import {
-  ChevronUpIcon,
-  ChevronDownIcon,
   ChevronUpDownIcon,
   MagnifyingGlassIcon,
   ExclamationTriangleIcon,
