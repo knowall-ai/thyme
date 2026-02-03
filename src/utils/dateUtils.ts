@@ -43,7 +43,7 @@ export function formatDate(date: Date | string, formatStr: string = 'yyyy-MM-dd'
 }
 
 export function formatDateForDisplay(date: Date | string): string {
-  return formatDate(date, 'EEE, MMM d');
+  return formatDate(date, 'EEE, d MMM');
 }
 
 export function formatWeekRange(weekStart: Date): string {
@@ -52,9 +52,9 @@ export function formatWeekRange(weekStart: Date): string {
   const endMonth = format(weekEnd, 'MMM');
 
   if (startMonth === endMonth) {
-    return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'd, yyyy')}`;
+    return `${format(weekStart, 'd')} - ${format(weekEnd, 'd MMM yyyy')}`;
   }
-  return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`;
+  return `${format(weekStart, 'd MMM')} - ${format(weekEnd, 'd MMM yyyy')}`;
 }
 
 export function isDayToday(date: Date | string): boolean {

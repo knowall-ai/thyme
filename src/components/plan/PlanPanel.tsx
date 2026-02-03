@@ -14,7 +14,7 @@ import {
   ChevronLeftIcon,
   ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
-import { Card, Button, ExtensionPreviewWrapper } from '@/components/ui';
+import { Card, Button, ExtensionPreviewWrapper, WeekNavigation } from '@/components/ui';
 import { PlanEntryModal } from './PlanEntryModal';
 import { PlanResourceModal } from './PlanResourceModal';
 import { PlanEditModal } from './PlanEditModal';
@@ -1605,7 +1605,7 @@ export function PlanPanel() {
             <button
               onClick={() => setViewMode('team')}
               className={cn(
-                'flex items-center gap-2 px-3 py-1.5 text-sm font-medium transition-colors',
+                'flex items-center gap-2 rounded-l-lg px-3 py-1.5 text-sm font-medium transition-colors',
                 viewMode === 'team'
                   ? 'bg-knowall-green text-dark-950'
                   : 'text-dark-400 hover:text-white'
@@ -1617,7 +1617,7 @@ export function PlanPanel() {
             <button
               onClick={() => setViewMode('projects')}
               className={cn(
-                'flex items-center gap-2 px-3 py-1.5 text-sm font-medium transition-colors',
+                'flex items-center gap-2 rounded-r-lg px-3 py-1.5 text-sm font-medium transition-colors',
                 viewMode === 'projects'
                   ? 'bg-knowall-green text-dark-950'
                   : 'text-dark-400 hover:text-white'
@@ -1628,18 +1628,18 @@ export function PlanPanel() {
             </button>
           </div>
 
-          {/* Simple Week Navigation - just prev/next buttons */}
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={handlePrevious} title="Previous week">
-              <ChevronLeftIcon className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleToday}>
-              Today
-            </Button>
-            <Button variant="outline" size="icon" onClick={handleNext} title="Next week">
-              <ChevronRightIcon className="h-4 w-4" />
-            </Button>
-          </div>
+          {/* Week Navigation */}
+          <WeekNavigation
+            currentWeekStart={currentWeekStart}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+            onToday={handleToday}
+            onDateSelect={(date) => {
+              const weekStart = startOfWeek(date, { weekStartsOn: 1 });
+              setLocalWeekStart(weekStart);
+              setCurrentWeekStart(weekStart);
+            }}
+          />
         </div>
 
         <div className="flex items-center gap-2">

@@ -108,7 +108,7 @@ export function DatePicker({ selectedDate, onDateSelect, className }: DatePicker
       >
         <CalendarIcon className="text-dark-400 h-4 w-4 shrink-0" />
         <span className="truncate">
-          {selectedDate ? format(selectedDate, 'MMM d, yyyy') : 'Select date'}
+          {selectedDate ? format(selectedDate, 'd MMM yyyy') : 'Select date'}
         </span>
       </button>
 
