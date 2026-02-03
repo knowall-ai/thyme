@@ -494,17 +494,33 @@ export function TeamList() {
                     <Pie data={displayPieData} options={pieOptions} />
                   </div>
                   <div className="text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="h-3 w-3 shrink-0 rounded-full bg-green-500"></span>
-                      <span className="text-dark-300">
-                        Billable: {totals.billableHours.toFixed(1)}h
-                      </span>
+                    <div className="flex items-start gap-2">
+                      <span className="mt-1 h-3 w-3 shrink-0 rounded-full bg-green-500"></span>
+                      <div className="text-dark-300">
+                        <div>Billable:</div>
+                        <div>
+                          {totals.billableHours.toFixed(1)}h
+                          {totals.totalHours > 0 && (
+                            <span className="text-dark-400 ml-1">
+                              ({((totals.billableHours / totals.totalHours) * 100).toFixed(0)}%)
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className="h-3 w-3 shrink-0 rounded-full bg-slate-500"></span>
-                      <span className="text-dark-300">
-                        Non-billable: {totals.nonBillableHours.toFixed(1)}h
-                      </span>
+                    <div className="mt-1 flex items-start gap-2">
+                      <span className="mt-1 h-3 w-3 shrink-0 rounded-full bg-slate-500"></span>
+                      <div className="text-dark-300">
+                        <div>Non-billable:</div>
+                        <div>
+                          {totals.nonBillableHours.toFixed(1)}h
+                          {totals.totalHours > 0 && (
+                            <span className="text-dark-400 ml-1">
+                              ({((totals.nonBillableHours / totals.totalHours) * 100).toFixed(0)}%)
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
