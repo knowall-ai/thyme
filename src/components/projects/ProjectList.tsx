@@ -6,14 +6,14 @@ import {
   MagnifyingGlassIcon,
   StarIcon as StarOutlineIcon,
   FunnelIcon,
-  ArrowsUpDownIcon,
   FolderIcon,
   ChevronUpIcon,
   ChevronDownIcon,
   ChevronUpDownIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
-import { Input, Select, ExtensionPreviewWrapper } from '@/components/ui';
+import { Button, Input, Select, ExtensionPreviewWrapper } from '@/components/ui';
 import { useProjectsStore } from '@/hooks';
 import type { Project } from '@/types';
 import type { BillingMode } from '@/services/bc/projectDetailsService';
@@ -21,9 +21,8 @@ import { cn, getBCJobsListUrl, getBCCustomersListUrl, getBCJobUrl } from '@/util
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import { useCompanyStore } from '@/hooks';
 
-type FilterOption = 'all' | 'favorites' | 'active' | 'completed';
+type StatusFilter = 'all' | string;
 type SortOption =
-  | 'name-asc'
   | 'name-desc'
   | 'code'
   | 'recent'
@@ -76,9 +75,10 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
   const selectedCompany = useCompanyStore((state) => state.selectedCompany);
   const companyVersion = useCompanyStore((state) => state.companyVersion);
 
-  const [filterBy, setFilterBy] = useState<FilterOption>('all');
-  const [sortBy, setSortBy] = useState<SortOption>('name-asc');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [sortBy, setSortBy] = useState<SortOption>('code');
   const [customerFilter, setCustomerFilter] = useState<CustomerFilter>('all');
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   // Helper to toggle sort for a column
   const handleColumnSort = (column: 'billing' | 'planned' | 'spent' | 'remaining') => {
@@ -130,6 +130,15 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
     return Array.from(customers).sort();
   }, [filteredProjects]);
 
+  // Get unique statuses for the filter dropdown
+  const uniqueStatuses = useMemo(() => {
+    const statuses = new Set<string>();
+    filteredProjects.forEach((p) => {
+      if (p.status) statuses.add(p.status);
+    });
+    return Array.from(statuses).sort();
+  }, [filteredProjects]);
+
   // Apply filter and sort
   const processedProjects = useMemo(() => {
     let result = [...filteredProjects];
@@ -139,24 +148,18 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
       result = result.filter((p) => (p.customerName || 'No Customer') === customerFilter);
     }
 
+    // Apply favorites filter
+    if (showFavoritesOnly) {
+      result = result.filter((p) => p.isFavorite);
+    }
+
     // Apply status filter
-    switch (filterBy) {
-      case 'favorites':
-        result = result.filter((p) => p.isFavorite);
-        break;
-      case 'active':
-        result = result.filter((p) => p.status === 'active');
-        break;
-      case 'completed':
-        result = result.filter((p) => p.status === 'completed');
-        break;
+    if (statusFilter !== 'all') {
+      result = result.filter((p) => p.status === statusFilter);
     }
 
     // Apply sort (with null safety for undefined names/codes)
     switch (sortBy) {
-      case 'name-asc':
-        result.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
-        break;
       case 'name-desc':
         result.sort((a, b) => (b.name ?? '').localeCompare(a.name ?? ''));
         break;
@@ -210,7 +213,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
     }
 
     return result;
-  }, [filteredProjects, filterBy, sortBy, customerFilter, billingModes]);
+  }, [filteredProjects, statusFilter, sortBy, customerFilter, billingModes, showFavoritesOnly]);
 
   // Group projects by customer
   const groupedProjects = processedProjects.reduce(
@@ -280,7 +283,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
               <Select
                 value={customerFilter}
                 onChange={(e) => setCustomerFilter(e.target.value)}
-                className="w-40"
+                className="w-48"
                 options={[
                   { value: 'all', label: 'All Customers' },
                   ...uniqueCustomers.map((customer) => ({ value: customer, label: customer })),
@@ -292,33 +295,54 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
             <div className="flex items-center gap-2">
               <FunnelIcon className="h-4 w-4 text-gray-400" />
               <Select
-                value={filterBy}
-                onChange={(e) => setFilterBy(e.target.value as FilterOption)}
-                className="w-36"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-40"
                 options={[
                   { value: 'all', label: 'All Status' },
-                  { value: 'favorites', label: 'Favorites' },
-                  { value: 'active', label: 'Active' },
-                  { value: 'completed', label: 'Completed' },
+                  ...uniqueStatuses.map((status) => ({
+                    value: status,
+                    label: status.charAt(0).toUpperCase() + status.slice(1),
+                  })),
                 ]}
               />
             </div>
 
-            {/* Sort */}
-            <div className="flex items-center gap-2">
-              <ArrowsUpDownIcon className="h-4 w-4 text-gray-400" />
-              <Select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="w-36"
-                options={[
-                  { value: 'name-asc', label: 'Name (A-Z)' },
-                  { value: 'name-desc', label: 'Name (Z-A)' },
-                  { value: 'code', label: 'Code' },
-                  { value: 'recent', label: 'Recent' },
-                ]}
-              />
-            </div>
+            {/* Favorites Toggle */}
+            <Button
+              variant={showFavoritesOnly ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+              className="h-10"
+            >
+              {showFavoritesOnly ? (
+                <StarSolidIcon className="mr-1 h-4 w-4 text-amber-400" />
+              ) : (
+                <StarOutlineIcon className="mr-1 h-4 w-4" />
+              )}
+              Favorites
+            </Button>
+
+            {/* Clear filters button */}
+            {(customerFilter !== 'all' ||
+              statusFilter !== 'all' ||
+              showFavoritesOnly ||
+              searchQuery) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setCustomerFilter('all');
+                  setStatusFilter('all');
+                  setShowFavoritesOnly(false);
+                  setSearchQuery('');
+                }}
+                className="h-10"
+              >
+                <XMarkIcon className="mr-1 h-4 w-4" />
+                Clear
+              </Button>
+            )}
           </div>
         </div>
 
@@ -410,7 +434,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
             <p className="text-dark-400">
               {searchQuery
                 ? 'No projects match your search'
-                : filterBy !== 'all'
+                : statusFilter !== 'all'
                   ? 'No projects match the current filter'
                   : 'No projects available'}
             </p>
