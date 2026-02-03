@@ -203,6 +203,7 @@ export function ApprovalCard({
                 }
               }}
               title="Delete timesheet"
+              aria-label={`Delete timesheet for ${timeSheet.resourceName}`}
               className="text-dark-400 hover:text-red-400"
             >
               <TrashIcon className="h-4 w-4" />
