@@ -47,8 +47,8 @@ export const msalConfig: Configuration = {
   },
 };
 
-// Scopes for Microsoft Graph (user profile)
-export const graphScopes: string[] = ['User.Read'];
+// Scopes for Microsoft Graph (user profile and reading other users' basic info)
+export const graphScopes: string[] = ['User.Read', 'User.ReadBasic.All'];
 
 // Scopes for Business Central API
 export const bcScopes: string[] = ['https://api.businesscentral.dynamics.com/.default'];
