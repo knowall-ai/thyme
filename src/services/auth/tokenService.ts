@@ -42,9 +42,9 @@ export async function getBCAccessToken(): Promise<string | null> {
 
 /**
  * Get Graph API access token for profile photos.
- * Silently fails if user hasn't consented to Graph scopes.
- * Note: The app logs in with BC scopes only. Graph scopes (User.ReadBasic.All)
- * require separate consent which hasn't been implemented yet.
+ * The login request includes Graph scopes (User.Read, User.ReadBasic.All) alongside
+ * BC scopes, so tokens can be silently acquired after initial consent.
+ * Caches failure state to prevent repeated token requests if consent is missing.
  */
 export async function getGraphAccessToken(): Promise<string | null> {
   // If already failed this session, don't retry (prevents log spam)
