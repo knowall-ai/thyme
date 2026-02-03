@@ -1888,10 +1888,10 @@ export function PlanPanel() {
     return (
       <ExtensionPreviewWrapper extensionNotInstalled={extensionNotInstalled} pageName="Plan">
         <div
-          className="bg-dark-900 flex flex-col p-6"
+          className="bg-dark-900 flex flex-col overflow-hidden p-6"
           style={{
             position: 'fixed',
-            top: 0,
+            top: 64,
             left: 0,
             right: 0,
             bottom: 0,

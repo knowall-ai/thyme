@@ -6,11 +6,14 @@ import {
   MagnifyingGlassIcon,
   StarIcon as StarOutlineIcon,
   FunnelIcon,
-  ArrowsUpDownIcon,
   FolderIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+  ChevronUpDownIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
-import { Input, Select, ExtensionPreviewWrapper } from '@/components/ui';
+import { Button, Input, Select, ExtensionPreviewWrapper } from '@/components/ui';
 import { useProjectsStore } from '@/hooks';
 import type { Project } from '@/types';
 import type { BillingMode } from '@/services/bc/projectDetailsService';
@@ -18,8 +21,19 @@ import { cn, getBCJobsListUrl, getBCCustomersListUrl, getBCJobUrl } from '@/util
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import { useCompanyStore } from '@/hooks';
 
-type FilterOption = 'all' | 'favorites' | 'active' | 'completed';
-type SortOption = 'name-asc' | 'name-desc' | 'code' | 'recent';
+type StatusFilter = 'all' | string;
+type SortOption =
+  | 'name-desc'
+  | 'code'
+  | 'recent'
+  | 'billing-asc'
+  | 'billing-desc'
+  | 'planned-asc'
+  | 'planned-desc'
+  | 'spent-asc'
+  | 'spent-desc'
+  | 'remaining-asc'
+  | 'remaining-desc';
 type CustomerFilter = 'all' | string;
 
 /**
@@ -61,9 +75,35 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
   const selectedCompany = useCompanyStore((state) => state.selectedCompany);
   const companyVersion = useCompanyStore((state) => state.companyVersion);
 
-  const [filterBy, setFilterBy] = useState<FilterOption>('all');
-  const [sortBy, setSortBy] = useState<SortOption>('name-asc');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [sortBy, setSortBy] = useState<SortOption>('code');
   const [customerFilter, setCustomerFilter] = useState<CustomerFilter>('all');
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+
+  // Helper to toggle sort for a column
+  const handleColumnSort = (column: 'billing' | 'planned' | 'spent' | 'remaining') => {
+    const ascKey = `${column}-asc` as SortOption;
+    const descKey = `${column}-desc` as SortOption;
+    if (sortBy === ascKey) {
+      setSortBy(descKey);
+    } else {
+      setSortBy(ascKey);
+    }
+  };
+
+  // Helper to get sort indicator for a column
+  const getSortIndicator = (column: 'billing' | 'planned' | 'spent' | 'remaining') => {
+    const ascKey = `${column}-asc`;
+    const descKey = `${column}-desc`;
+    if (sortBy === ascKey) {
+      return <ChevronUpIcon className="ml-1 inline h-4 w-4" />;
+    }
+    if (sortBy === descKey) {
+      return <ChevronDownIcon className="ml-1 inline h-4 w-4" />;
+    }
+    // Show default up/down arrow to indicate column is sortable
+    return <ChevronUpDownIcon className="ml-1 inline h-4 w-4 opacity-50" />;
+  };
 
   const handleProjectClick = (project: Project) => {
     if (onSelectProject) {
@@ -90,6 +130,15 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
     return Array.from(customers).sort();
   }, [filteredProjects]);
 
+  // Get unique statuses for the filter dropdown
+  const uniqueStatuses = useMemo(() => {
+    const statuses = new Set<string>();
+    filteredProjects.forEach((p) => {
+      if (p.status) statuses.add(p.status);
+    });
+    return Array.from(statuses).sort();
+  }, [filteredProjects]);
+
   // Apply filter and sort
   const processedProjects = useMemo(() => {
     let result = [...filteredProjects];
@@ -99,24 +148,18 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
       result = result.filter((p) => (p.customerName || 'No Customer') === customerFilter);
     }
 
+    // Apply favorites filter
+    if (showFavoritesOnly) {
+      result = result.filter((p) => p.isFavorite);
+    }
+
     // Apply status filter
-    switch (filterBy) {
-      case 'favorites':
-        result = result.filter((p) => p.isFavorite);
-        break;
-      case 'active':
-        result = result.filter((p) => p.status === 'active');
-        break;
-      case 'completed':
-        result = result.filter((p) => p.status === 'completed');
-        break;
+    if (statusFilter !== 'all') {
+      result = result.filter((p) => p.status === statusFilter);
     }
 
     // Apply sort (with null safety for undefined names/codes)
     switch (sortBy) {
-      case 'name-asc':
-        result.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
-        break;
       case 'name-desc':
         result.sort((a, b) => (b.name ?? '').localeCompare(a.name ?? ''));
         break;
@@ -131,10 +174,46 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
           return (a.name ?? '').localeCompare(b.name ?? '');
         });
         break;
+      case 'billing-asc':
+      case 'billing-desc': {
+        const dir = sortBy === 'billing-asc' ? 1 : -1;
+        result.sort((a, b) => {
+          const modeA = billingModes.get(a.code) ?? '';
+          const modeB = billingModes.get(b.code) ?? '';
+          return dir * modeA.localeCompare(modeB);
+        });
+        break;
+      }
+      case 'planned-asc':
+        result.sort((a, b) => (a.budgetHours ?? 0) - (b.budgetHours ?? 0));
+        break;
+      case 'planned-desc':
+        result.sort((a, b) => (b.budgetHours ?? 0) - (a.budgetHours ?? 0));
+        break;
+      case 'spent-asc':
+        result.sort((a, b) => (a.totalHours ?? 0) - (b.totalHours ?? 0));
+        break;
+      case 'spent-desc':
+        result.sort((a, b) => (b.totalHours ?? 0) - (a.totalHours ?? 0));
+        break;
+      case 'remaining-asc':
+        result.sort((a, b) => {
+          const remA = (a.budgetHours ?? 0) - (a.totalHours ?? 0);
+          const remB = (b.budgetHours ?? 0) - (b.totalHours ?? 0);
+          return remA - remB;
+        });
+        break;
+      case 'remaining-desc':
+        result.sort((a, b) => {
+          const remA = (a.budgetHours ?? 0) - (a.totalHours ?? 0);
+          const remB = (b.budgetHours ?? 0) - (b.totalHours ?? 0);
+          return remB - remA;
+        });
+        break;
     }
 
     return result;
-  }, [filteredProjects, filterBy, sortBy, customerFilter]);
+  }, [filteredProjects, statusFilter, sortBy, customerFilter, billingModes, showFavoritesOnly]);
 
   // Group projects by customer
   const groupedProjects = processedProjects.reduce(
@@ -204,7 +283,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
               <Select
                 value={customerFilter}
                 onChange={(e) => setCustomerFilter(e.target.value)}
-                className="w-40"
+                className="w-48"
                 options={[
                   { value: 'all', label: 'All Customers' },
                   ...uniqueCustomers.map((customer) => ({ value: customer, label: customer })),
@@ -216,33 +295,54 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
             <div className="flex items-center gap-2">
               <FunnelIcon className="h-4 w-4 text-gray-400" />
               <Select
-                value={filterBy}
-                onChange={(e) => setFilterBy(e.target.value as FilterOption)}
-                className="w-36"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-40"
                 options={[
                   { value: 'all', label: 'All Status' },
-                  { value: 'favorites', label: 'Favorites' },
-                  { value: 'active', label: 'Active' },
-                  { value: 'completed', label: 'Completed' },
+                  ...uniqueStatuses.map((status) => ({
+                    value: status,
+                    label: status.charAt(0).toUpperCase() + status.slice(1),
+                  })),
                 ]}
               />
             </div>
 
-            {/* Sort */}
-            <div className="flex items-center gap-2">
-              <ArrowsUpDownIcon className="h-4 w-4 text-gray-400" />
-              <Select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="w-36"
-                options={[
-                  { value: 'name-asc', label: 'Name (A-Z)' },
-                  { value: 'name-desc', label: 'Name (Z-A)' },
-                  { value: 'code', label: 'Code' },
-                  { value: 'recent', label: 'Recent' },
-                ]}
-              />
-            </div>
+            {/* Favorites Toggle */}
+            <Button
+              variant={showFavoritesOnly ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+              className="h-10"
+            >
+              {showFavoritesOnly ? (
+                <StarSolidIcon className="mr-1 h-4 w-4 text-amber-400" />
+              ) : (
+                <StarOutlineIcon className="mr-1 h-4 w-4" />
+              )}
+              Favorites
+            </Button>
+
+            {/* Clear filters button */}
+            {(customerFilter !== 'all' ||
+              statusFilter !== 'all' ||
+              showFavoritesOnly ||
+              searchQuery) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setCustomerFilter('all');
+                  setStatusFilter('all');
+                  setShowFavoritesOnly(false);
+                  setSearchQuery('');
+                }}
+                className="h-10"
+              >
+                <XMarkIcon className="mr-1 h-4 w-4" />
+                Clear
+              </Button>
+            )}
           </div>
         </div>
 
@@ -252,23 +352,47 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
             <thead className="bg-dark-700">
               <tr>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-400">Project</th>
-                <th className="w-24 px-4 py-3 text-center text-sm font-medium text-gray-400">
-                  Billing
-                  {isLoadingBillingModes && (
-                    <span className="border-t-thyme-500 ml-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-500" />
-                  )}
+                <th
+                  className="w-28 cursor-pointer px-4 py-3 text-center text-sm font-medium text-gray-400 hover:text-white"
+                  onClick={() => handleColumnSort('billing')}
+                >
+                  <span className="inline-flex items-center whitespace-nowrap">
+                    Billing
+                    {getSortIndicator('billing')}
+                    {isLoadingBillingModes && (
+                      <span className="border-t-thyme-500 ml-1 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-500" />
+                    )}
+                  </span>
                 </th>
-                <th className="w-24 px-4 py-3 text-right text-sm font-medium text-gray-400">
-                  Planned
+                <th
+                  className="w-28 cursor-pointer px-4 py-3 text-right text-sm font-medium text-gray-400 hover:text-white"
+                  onClick={() => handleColumnSort('planned')}
+                >
+                  <span className="inline-flex items-center whitespace-nowrap">
+                    Planned
+                    {getSortIndicator('planned')}
+                  </span>
                 </th>
-                <th className="w-24 px-4 py-3 text-right text-sm font-medium text-gray-400">
-                  Spent
-                  {isLoadingHours && (
-                    <span className="border-t-thyme-500 ml-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-500" />
-                  )}
+                <th
+                  className="w-28 cursor-pointer px-4 py-3 text-right text-sm font-medium text-gray-400 hover:text-white"
+                  onClick={() => handleColumnSort('spent')}
+                >
+                  <span className="inline-flex items-center whitespace-nowrap">
+                    Spent
+                    {getSortIndicator('spent')}
+                    {isLoadingHours && (
+                      <span className="border-t-thyme-500 ml-1 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-500" />
+                    )}
+                  </span>
                 </th>
-                <th className="w-32 px-4 py-3 text-right text-sm font-medium text-gray-400">
-                  Remaining
+                <th
+                  className="w-36 cursor-pointer px-4 py-3 text-right text-sm font-medium text-gray-400 hover:text-white"
+                  onClick={() => handleColumnSort('remaining')}
+                >
+                  <span className="inline-flex items-center whitespace-nowrap">
+                    Remaining
+                    {getSortIndicator('remaining')}
+                  </span>
                 </th>
                 <th className="w-20 px-4 py-3 text-center text-sm font-medium text-gray-400">
                   Actions
@@ -276,27 +400,29 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
               </tr>
             </thead>
             <tbody className="divide-dark-600 divide-y">
-              {Object.entries(groupedProjects).map(([customer, customerProjects]) => (
-                <Fragment key={customer}>
-                  {/* Customer group header */}
-                  <tr className="bg-dark-800/50">
-                    <td colSpan={6} className="px-4 py-2 text-sm font-medium text-gray-400">
-                      {customer}
-                    </td>
-                  </tr>
-                  {/* Projects in this group */}
-                  {customerProjects.map((project) => (
-                    <ProjectRow
-                      key={project.id}
-                      project={project}
-                      billingMode={billingModes.get(project.code)}
-                      onProjectClick={handleProjectClick}
-                      onToggleFavorite={toggleFavorite}
-                      companyName={selectedCompany?.name}
-                    />
-                  ))}
-                </Fragment>
-              ))}
+              {Object.entries(groupedProjects)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([customer, customerProjects]) => (
+                  <Fragment key={customer}>
+                    {/* Customer group header */}
+                    <tr className="bg-dark-800/50">
+                      <td colSpan={6} className="px-4 py-2 text-sm font-medium text-gray-400">
+                        {customer}
+                      </td>
+                    </tr>
+                    {/* Projects in this group */}
+                    {customerProjects.map((project) => (
+                      <ProjectRow
+                        key={project.id}
+                        project={project}
+                        billingMode={billingModes.get(project.code)}
+                        onProjectClick={handleProjectClick}
+                        onToggleFavorite={toggleFavorite}
+                        companyName={selectedCompany?.name}
+                      />
+                    ))}
+                  </Fragment>
+                ))}
             </tbody>
           </table>
         </div>
@@ -308,7 +434,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
             <p className="text-dark-400">
               {searchQuery
                 ? 'No projects match your search'
-                : filterBy !== 'all'
+                : statusFilter !== 'all'
                   ? 'No projects match the current filter'
                   : 'No projects available'}
             </p>
@@ -354,11 +480,11 @@ function ProjectRow({
             style={{ backgroundColor: project.color }}
           />
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-start gap-2">
               <span className="font-medium text-white">{project.name}</span>
               <span
                 className={cn(
-                  'rounded px-1.5 py-0.5 text-xs',
+                  'shrink-0 rounded px-1.5 py-0.5 text-xs',
                   project.status === 'active'
                     ? 'bg-green-900/50 text-green-400'
                     : 'bg-gray-700 text-gray-400'
