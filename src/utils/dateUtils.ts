@@ -14,6 +14,11 @@ import {
 // Week starts on Monday
 const WEEK_OPTIONS = { weekStartsOn: 1 as const };
 
+// British date format constants
+export const DATE_FORMAT_FULL = 'd MMM yyyy'; // e.g., "3 Feb 2026"
+export const DATE_FORMAT_SHORT = 'd MMM'; // e.g., "3 Feb"
+export const DATE_FORMAT_DAY_SHORT = 'EEE, d MMM'; // e.g., "Mon, 3 Feb"
+
 export function getWeekStart(date: Date = new Date()): Date {
   return startOfWeek(date, WEEK_OPTIONS);
 }
@@ -43,7 +48,7 @@ export function formatDate(date: Date | string, formatStr: string = 'yyyy-MM-dd'
 }
 
 export function formatDateForDisplay(date: Date | string): string {
-  return formatDate(date, 'EEE, MMM d');
+  return formatDate(date, DATE_FORMAT_DAY_SHORT);
 }
 
 export function formatWeekRange(weekStart: Date): string {
@@ -52,9 +57,9 @@ export function formatWeekRange(weekStart: Date): string {
   const endMonth = format(weekEnd, 'MMM');
 
   if (startMonth === endMonth) {
-    return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'd, yyyy')}`;
+    return `${format(weekStart, 'd')} - ${format(weekEnd, DATE_FORMAT_FULL)}`;
   }
-  return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`;
+  return `${format(weekStart, DATE_FORMAT_SHORT)} - ${format(weekEnd, DATE_FORMAT_FULL)}`;
 }
 
 export function isDayToday(date: Date | string): boolean {

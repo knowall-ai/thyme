@@ -14,16 +14,23 @@ import {
   endOfWeek,
 } from 'date-fns';
 import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import { cn } from '@/utils';
+import { cn, DATE_FORMAT_FULL } from '@/utils';
 import { Button } from './Button';
 
 export interface DatePickerProps {
   selectedDate?: Date;
   onDateSelect: (date: Date) => void;
   className?: string;
+  /** Show only the calendar icon without date text */
+  iconOnly?: boolean;
 }
 
-export function DatePicker({ selectedDate, onDateSelect, className }: DatePickerProps) {
+export function DatePicker({
+  selectedDate,
+  onDateSelect,
+  className,
+  iconOnly = false,
+}: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [viewDate, setViewDate] = useState(selectedDate || new Date());
   const containerRef = useRef<HTMLDivElement>(null);
@@ -101,15 +108,18 @@ export function DatePicker({ selectedDate, onDateSelect, className }: DatePicker
         aria-label="Open date picker"
         aria-expanded={isOpen}
         className={cn(
-          'border-dark-600 bg-dark-700 flex h-10 w-full items-center gap-2 rounded-lg border px-3 text-sm transition-colors',
+          'border-dark-600 bg-dark-700 flex h-10 items-center gap-2 rounded-lg border text-sm transition-colors',
           'hover:border-dark-500 focus:border-thyme-500 focus:ring-thyme-500 focus:ring-1 focus:outline-none',
+          iconOnly ? 'w-10 justify-center' : 'w-full px-3',
           selectedDate ? 'text-white' : 'text-dark-400'
         )}
       >
         <CalendarIcon className="text-dark-400 h-4 w-4 shrink-0" />
-        <span className="truncate">
-          {selectedDate ? format(selectedDate, 'MMM d, yyyy') : 'Select date'}
-        </span>
+        {!iconOnly && (
+          <span className="truncate">
+            {selectedDate ? format(selectedDate, DATE_FORMAT_FULL) : 'Select date'}
+          </span>
+        )}
       </button>
 
       {isOpen && (
