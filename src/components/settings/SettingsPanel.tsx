@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { Card } from '@/components/ui';
 import { bcClient } from '@/services/bc/bcClient';
 import { useAuth, useProfilePhoto } from '@/services/auth';
-import { useCompanyStore } from '@/hooks';
+import { useCompanyStore, useSettingsStore } from '@/hooks';
 import {
   BuildingOffice2Icon,
   BuildingOfficeIcon,
@@ -33,6 +33,7 @@ export function SettingsPanel() {
   const { account, isAuthenticated } = useAuth();
   const { photoUrl } = useProfilePhoto(isAuthenticated);
   const { selectedCompany } = useCompanyStore();
+  const { requireTimesheetComments, updateSettings } = useSettingsStore();
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -237,6 +238,23 @@ export function SettingsPanel() {
             </div>
             <label className="relative inline-flex cursor-pointer items-center">
               <input type="checkbox" defaultChecked className="peer sr-only" />
+              <div className="peer bg-dark-600 peer-checked:bg-thyme-600 peer-focus:ring-thyme-500 h-6 w-11 rounded-full peer-focus:ring-2 peer-focus:outline-none after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full"></div>
+            </label>
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-dark-100">Require Comments on Time Entries</p>
+              <p className="text-dark-400 text-sm">
+                Enforce adding notes/comments when logging time
+              </p>
+            </div>
+            <label className="relative inline-flex cursor-pointer items-center">
+              <input
+                type="checkbox"
+                checked={requireTimesheetComments}
+                onChange={(e) => updateSettings({ requireTimesheetComments: e.target.checked })}
+                className="peer sr-only"
+              />
               <div className="peer bg-dark-600 peer-checked:bg-thyme-600 peer-focus:ring-thyme-500 h-6 w-11 rounded-full peer-focus:ring-2 peer-focus:outline-none after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full"></div>
             </label>
           </div>

@@ -296,6 +296,7 @@ export interface UserSettings {
   defaultTaskId?: string;
   weeklyHoursTarget: number;
   notificationsEnabled: boolean;
+  requireTimesheetComments: boolean;
   theme: 'light' | 'dark' | 'system';
 }
 
