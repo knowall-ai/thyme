@@ -20,7 +20,7 @@ import type {
   BCJob,
   BCJobTask,
 } from '@/types';
-import { cn, getTimesheetDisplayStatus } from '@/utils';
+import { cn, getTimesheetDisplayStatus, DATE_FORMAT_FULL } from '@/utils';
 
 interface ApprovalCardProps {
   timeSheet: BCTimeSheet;
@@ -69,7 +69,12 @@ export function ApprovalCard({
 
   const formatDate = (dateString: string) => {
     try {
-      return format(parseISO(dateString), 'MMM d, yyyy');
+      const date = parseISO(dateString);
+      // Check for invalid/placeholder dates (year 0001 or 1)
+      if (date.getFullYear() <= 1) {
+        return 'No date';
+      }
+      return format(date, DATE_FORMAT_FULL);
     } catch {
       return dateString;
     }

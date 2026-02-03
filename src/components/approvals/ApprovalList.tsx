@@ -18,7 +18,7 @@ import { useApprovalStore, useCompanyStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
 import { getUserProfilePhoto } from '@/services/auth/graphService';
 import { bcClient } from '@/services/bc/bcClient';
-import { cn } from '@/utils';
+import { cn, DATE_FORMAT_FULL, DATE_FORMAT_SHORT } from '@/utils';
 import type { BCTimeSheet, BCTimeSheetLine, BCJob, BCJobTask } from '@/types';
 
 type GroupBy = 'none' | 'week' | 'person';
@@ -97,7 +97,12 @@ export function ApprovalList() {
           try {
             const startDate = parseISO(items[0].startingDate);
             const endDate = parseISO(items[0].endingDate);
-            label = `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d, yyyy')}`;
+            // Check for invalid/placeholder dates (year 0001 or 1)
+            if (startDate.getFullYear() <= 1 || endDate.getFullYear() <= 1) {
+              label = 'Unknown dates';
+            } else {
+              label = `${format(startDate, DATE_FORMAT_SHORT)} - ${format(endDate, DATE_FORMAT_FULL)}`;
+            }
           } catch {
             label = key;
           }
