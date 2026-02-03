@@ -1594,82 +1594,97 @@ export function PlanPanel() {
     );
   }
 
-  // Main content
-  const planContent = (
-    <div className={cn('space-y-4', isFullscreen && 'flex h-full flex-col')}>
-      {/* Header Row */}
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          {/* View Mode Toggle */}
-          <div className="border-dark-600 flex rounded-lg border">
-            <button
-              onClick={() => setViewMode('team')}
-              className={cn(
-                'flex items-center gap-2 px-3 py-1.5 text-sm font-medium transition-colors',
-                viewMode === 'team'
-                  ? 'bg-knowall-green text-dark-950'
-                  : 'text-dark-400 hover:text-white'
-              )}
-            >
-              <UserGroupIcon className="h-4 w-4" />
-              Team
-            </button>
-            <button
-              onClick={() => setViewMode('projects')}
-              className={cn(
-                'flex items-center gap-2 px-3 py-1.5 text-sm font-medium transition-colors',
-                viewMode === 'projects'
-                  ? 'bg-knowall-green text-dark-950'
-                  : 'text-dark-400 hover:text-white'
-              )}
-            >
-              <FolderIcon className="h-4 w-4" />
-              Projects
-            </button>
-          </div>
-
-          {/* Simple Week Navigation - just prev/next buttons */}
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={handlePrevious} title="Previous week">
-              <ChevronLeftIcon className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleToday}>
-              Today
-            </Button>
-            <Button variant="outline" size="icon" onClick={handleNext} title="Next week">
-              <ChevronRightIcon className="h-4 w-4" />
-            </Button>
-          </div>
+  // Header Row (extracted for fullscreen mode)
+  const headerRow = (
+    <div className="flex shrink-0 flex-wrap items-center justify-between gap-4">
+      <div className="flex items-center gap-4">
+        {/* View Mode Toggle */}
+        <div className="border-dark-600 flex rounded-lg border">
+          <button
+            onClick={() => setViewMode('team')}
+            className={cn(
+              'flex items-center gap-2 px-3 py-1.5 text-sm font-medium transition-colors',
+              viewMode === 'team'
+                ? 'bg-knowall-green text-dark-950'
+                : 'text-dark-400 hover:text-white'
+            )}
+          >
+            <UserGroupIcon className="h-4 w-4" />
+            Team
+          </button>
+          <button
+            onClick={() => setViewMode('projects')}
+            className={cn(
+              'flex items-center gap-2 px-3 py-1.5 text-sm font-medium transition-colors',
+              viewMode === 'projects'
+                ? 'bg-knowall-green text-dark-950'
+                : 'text-dark-400 hover:text-white'
+            )}
+          >
+            <FolderIcon className="h-4 w-4" />
+            Projects
+          </button>
         </div>
 
+        {/* Simple Week Navigation - just prev/next buttons */}
         <div className="flex items-center gap-2">
-          {/* Search */}
-          <div className="relative">
-            <MagnifyingGlassIcon className="text-dark-400 absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="border-dark-600 bg-dark-800 text-dark-100 placeholder:text-dark-500 focus:border-knowall-green w-48 rounded-lg border py-1.5 pr-3 pl-9 text-sm focus:ring-1 focus:outline-none"
-            />
-          </div>
-
-          {/* Fullscreen Toggle */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setIsFullscreen(!isFullscreen)}
-            title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
-          >
-            {isFullscreen ? (
-              <ArrowsPointingInIcon className="h-5 w-5" />
-            ) : (
-              <ArrowsPointingOutIcon className="h-5 w-5" />
-            )}
+          <Button variant="outline" size="icon" onClick={handlePrevious} title="Previous week">
+            <ChevronLeftIcon className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleToday}>
+            Today
+          </Button>
+          <Button variant="outline" size="icon" onClick={handleNext} title="Next week">
+            <ChevronRightIcon className="h-4 w-4" />
           </Button>
         </div>
       </div>
+
+      <div className="flex items-center gap-2">
+        {/* Search */}
+        <div className="relative">
+          <MagnifyingGlassIcon className="text-dark-400 absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="border-dark-600 bg-dark-800 text-dark-100 placeholder:text-dark-500 focus:border-knowall-green w-48 rounded-lg border py-1.5 pr-3 pl-9 text-sm focus:ring-1 focus:outline-none"
+          />
+        </div>
+
+        {/* Fullscreen Toggle */}
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setIsFullscreen(!isFullscreen)}
+          title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
+        >
+          {isFullscreen ? (
+            <ArrowsPointingInIcon className="h-5 w-5" />
+          ) : (
+            <ArrowsPointingOutIcon className="h-5 w-5" />
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+
+  // Calendar content (without header for fullscreen)
+  const calendarContent = (
+    <Card
+      variant="bordered"
+      className={cn('overflow-hidden', isFullscreen && 'flex flex-1 flex-col')}
+    >
+      {/* Calendar Grid content continues below... */}
+    </Card>
+  );
+
+  // Main content
+  const planContent = (
+    <div className={cn(isFullscreen ? 'flex flex-1 flex-col gap-4' : 'space-y-4')}>
+      {/* Header Row */}
+      {headerRow}
 
       {/* Calendar Grid */}
       <Card
@@ -1888,10 +1903,10 @@ export function PlanPanel() {
     return (
       <ExtensionPreviewWrapper extensionNotInstalled={extensionNotInstalled} pageName="Plan">
         <div
-          className="bg-dark-900 flex flex-col p-6"
+          className="bg-dark-900 flex flex-col overflow-hidden p-6"
           style={{
             position: 'fixed',
-            top: 0,
+            top: 64,
             left: 0,
             right: 0,
             bottom: 0,
