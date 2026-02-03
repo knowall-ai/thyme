@@ -354,9 +354,7 @@ export function TeamList() {
   const SortIcon = ({ field }: { field: SortField }) => {
     // Show up/down arrow on all sortable columns
     // Full opacity when sorted, reduced opacity when not sorted
-    return (
-      <ChevronUpDownIcon className={cn('h-4 w-4', sortField !== field && 'opacity-50')} />
-    );
+    return <ChevronUpDownIcon className={cn('h-4 w-4', sortField !== field && 'opacity-50')} />;
   };
 
   // Get aria-sort value for accessible sortable headers
