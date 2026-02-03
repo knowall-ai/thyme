@@ -259,7 +259,7 @@ export function ReportsPanel() {
       const data = dailyData[dateStr] || { hours: 0, billableHours: 0 };
       return {
         date: dateStr,
-        label: format(day, 'EEE, MMM d'),
+        label: format(day, 'EEE, d MMM'),
         hours: data.hours,
         billableHours: data.billableHours,
       };
@@ -276,7 +276,12 @@ export function ReportsPanel() {
 
   const getDateRangeLabel = () => {
     if (dateRange === 'week') {
-      return `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d, yyyy')}`;
+      const startMonth = format(startDate, 'MMM');
+      const endMonth = format(endDate, 'MMM');
+      if (startMonth === endMonth) {
+        return `${format(startDate, 'd')} - ${format(endDate, 'd MMM yyyy')}`;
+      }
+      return `${format(startDate, 'd MMM')} - ${format(endDate, 'd MMM yyyy')}`;
     }
     return format(referenceDate, 'MMMM yyyy');
   };
