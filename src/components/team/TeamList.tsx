@@ -7,7 +7,6 @@ import { Pie } from 'react-chartjs-2';
 import {
   ChevronUpIcon,
   ChevronDownIcon,
-  ChevronUpDownIcon,
   MagnifyingGlassIcon,
   ExclamationTriangleIcon,
   ArrowTopRightOnSquareIcon,
@@ -352,10 +351,11 @@ export function TeamList() {
   };
 
   const SortIcon = ({ field }: { field: SortField }) => {
-    // Show up/down arrow on all sortable columns
-    // Full opacity when sorted, reduced opacity when not sorted
-    return (
-      <ChevronUpDownIcon className={cn('h-4 w-4', sortField !== field && 'opacity-50')} />
+    if (sortField !== field) return null;
+    return sortDirection === 'asc' ? (
+      <ChevronUpIcon className="h-4 w-4" />
+    ) : (
+      <ChevronDownIcon className="h-4 w-4" />
     );
   };
 
@@ -648,7 +648,7 @@ export function TeamList() {
                         </td>
                         <td className="px-4 py-3">
                           <div
-                            className="flex flex-col items-end gap-1"
+                            className="flex flex-col gap-1"
                             role="meter"
                             aria-valuenow={member.utilization}
                             aria-valuemin={0}
