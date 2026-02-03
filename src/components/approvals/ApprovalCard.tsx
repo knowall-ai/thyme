@@ -10,6 +10,7 @@ import {
   ClockIcon,
   UserIcon,
   CalendarDaysIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 import { Card, Button } from '@/components/ui';
 import { getUserProfilePhoto } from '@/services/auth/graphService';
@@ -30,6 +31,7 @@ interface ApprovalCardProps {
   onToggleExpand: () => void;
   onApprove: (comment?: string) => void;
   onReject: (comment: string) => void;
+  onDelete?: () => void;
   /** Hide person name when grouped by person (shown in group header) */
   hidePerson?: boolean;
   /** Hide week dates when grouped by week (shown in group header) */
@@ -50,6 +52,7 @@ export function ApprovalCard({
   onToggleExpand,
   onApprove,
   onReject,
+  onDelete,
   hidePerson,
   hideWeek,
   resourceEmail,
@@ -58,6 +61,7 @@ export function ApprovalCard({
 }: ApprovalCardProps) {
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectForm, setShowRejectForm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
 
   // Fetch profile photo
@@ -186,6 +190,23 @@ export function ApprovalCard({
 
         {/* Action buttons - always visible */}
         <div className="flex items-center gap-2">
+          {onDelete && (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={isProcessing}
+              onClick={() => {
+                setShowDeleteConfirm(true);
+                if (!isExpanded) {
+                  onToggleExpand();
+                }
+              }}
+              title="Delete timesheet"
+              className="text-dark-400 hover:text-red-400"
+            >
+              <TrashIcon className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -294,6 +315,37 @@ export function ApprovalCard({
                 <XMarkIcon className="mr-1 h-4 w-4" />
                 Confirm Reject
               </Button>
+            </div>
+          )}
+
+          {/* Delete confirmation */}
+          {showDeleteConfirm && onDelete && (
+            <div className="border-dark-700 border-t bg-red-500/10 p-4">
+              <p className="mb-3 text-sm text-red-400">
+                <strong>Are you sure you want to delete this timesheet?</strong>
+                <br />
+                This action cannot be undone. The timesheet for{' '}
+                <span className="font-medium text-white">{timeSheet.resourceName}</span> will be
+                permanently removed.
+              </p>
+              <div className="flex items-center justify-end gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setShowDeleteConfirm(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  disabled={isProcessing}
+                  isLoading={isProcessing}
+                  onClick={() => {
+                    onDelete();
+                    setShowDeleteConfirm(false);
+                  }}
+                >
+                  <TrashIcon className="mr-1 h-4 w-4" />
+                  Delete Timesheet
+                </Button>
+              </div>
             </div>
           )}
         </div>

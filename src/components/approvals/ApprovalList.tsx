@@ -47,6 +47,7 @@ export function ApprovalList() {
     clearFilters,
     approveTimeSheet,
     rejectTimeSheet,
+    deleteTimeSheet,
     checkApprovalPermission,
   } = useApprovalStore();
 
@@ -55,6 +56,7 @@ export function ApprovalList() {
   const [photosCache, setPhotosCache] = useState<Record<string, string | null>>({});
   const [jobsCache, setJobsCache] = useState<Record<string, BCJob>>({});
   const [tasksCache, setTasksCache] = useState<Record<string, BCJobTask[]>>({});
+  const [jobsApiFailed, setJobsApiFailed] = useState(false); // Track if jobs API is unavailable
   const [groupBy, setGroupBy] = useState<GroupBy>('week');
 
   // Calculate actual pending hours from lines cache
@@ -197,8 +199,12 @@ export function ApprovalList() {
   }, [pendingApprovals, emailDomain, photosCache]);
 
   // Pre-fetch job and task names for lines
+  // Skip if jobs API has previously failed (e.g., 404 - endpoint not available)
   useEffect(() => {
     async function prefetchJobData() {
+      // Skip if jobs API is known to be unavailable
+      if (jobsApiFailed) return;
+
       // Collect unique job numbers from all lines
       const uniqueJobNos = new Set<string>();
       Object.values(linesCache).forEach((lines) => {
@@ -229,22 +235,25 @@ export function ApprovalList() {
               const tasks = await bcClient.getJobTasks(jobNo);
               setTasksCache((prev) => ({ ...prev, [jobNo]: tasks }));
             } catch {
-              // Silently fail - will show fallback
+              // Silently fail for individual task fetches - will show fallback
             }
           }
         }
-      } catch {
-        // Silently fail - will show fallback (job codes)
+      } catch (err) {
+        // If jobs API returns 404 or similar, mark it as failed to prevent repeated calls
+        // This typically means the Jobs API is not available in this BC environment
+        console.warn('Jobs API unavailable, will show job codes instead:', err);
+        setJobsApiFailed(true);
       }
     }
 
     const hasLinesWithJobs = Object.values(linesCache).some((lines) =>
       lines.some((line) => line.jobNo)
     );
-    if (hasLinesWithJobs) {
+    if (hasLinesWithJobs && !jobsApiFailed) {
       prefetchJobData();
     }
-  }, [linesCache, jobsCache, tasksCache]);
+  }, [linesCache, jobsCache, tasksCache, jobsApiFailed]);
 
   const handleToggleExpand = useCallback(
     async (timeSheet: BCTimeSheet) => {
@@ -299,6 +308,25 @@ export function ApprovalList() {
       }
     },
     [rejectTimeSheet, expandedId, pendingApprovals]
+  );
+
+  const handleDelete = useCallback(
+    async (timeSheetId: string, etag: string) => {
+      // Find the timesheet to get employee name for better error messages
+      const timeSheet = pendingApprovals.find((a) => a.id === timeSheetId);
+      const employeeName = timeSheet?.resourceName || 'Unknown';
+
+      const success = await deleteTimeSheet(timeSheetId, etag);
+      if (success) {
+        toast.success(`Timesheet for ${employeeName} deleted`);
+        if (expandedId === timeSheetId) {
+          setExpandedId(null);
+        }
+      } else {
+        toast.error(`Failed to delete timesheet for ${employeeName}`);
+      }
+    },
+    [deleteTimeSheet, expandedId, pendingApprovals]
   );
 
   // Permission check loading state
@@ -465,6 +493,11 @@ export function ApprovalList() {
                     onToggleExpand={() => handleToggleExpand(timeSheet)}
                     onApprove={(comment) => handleApprove(timeSheet.id, comment)}
                     onReject={(comment) => handleReject(timeSheet.id, comment)}
+                    onDelete={
+                      timeSheet['@odata.etag']
+                        ? () => handleDelete(timeSheet.id, timeSheet['@odata.etag']!)
+                        : undefined
+                    }
                     hidePerson={groupBy === 'person'}
                     hideWeek={groupBy === 'week'}
                     resourceEmail={
