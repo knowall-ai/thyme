@@ -19,7 +19,7 @@ import { useAuth } from '@/services/auth';
 import { getUserProfilePhoto } from '@/services/auth/graphService';
 import { bcClient } from '@/services/bc/bcClient';
 import { cn, DATE_FORMAT_FULL, DATE_FORMAT_SHORT } from '@/utils';
-import type { BCTimeSheet, BCTimeSheetLine, BCJob, BCJobTask } from '@/types';
+import type { BCTimeSheet, BCTimeSheetLine, BCProject, BCJobTask } from '@/types';
 
 type GroupBy = 'none' | 'week' | 'person';
 
@@ -27,6 +27,16 @@ export function ApprovalList() {
   const { selectedCompany, companyVersion } = useCompanyStore();
   const { account } = useAuth();
   const emailDomain = account?.username?.split('@')[1] || '';
+
+  // Helper to get full email - handles both full email and username-only formats
+  const getFullEmail = (resourceEmail: string | undefined): string | null => {
+    if (!resourceEmail) return null;
+    // If already a full email, use it directly
+    if (resourceEmail.includes('@')) return resourceEmail;
+    // Otherwise, append the domain from the logged-in user
+    if (emailDomain) return `${resourceEmail}@${emailDomain}`;
+    return null;
+  };
   const {
     allApprovals,
     pendingApprovals,
@@ -54,7 +64,7 @@ export function ApprovalList() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [linesCache, setLinesCache] = useState<Record<string, BCTimeSheetLine[]>>({});
   const [photosCache, setPhotosCache] = useState<Record<string, string | null>>({});
-  const [jobsCache, setJobsCache] = useState<Record<string, BCJob>>({});
+  const [jobsCache, setJobsCache] = useState<Record<string, BCProject>>({});
   const [tasksCache, setTasksCache] = useState<Record<string, BCJobTask[]>>({});
   const [jobsApiFailed, setJobsApiFailed] = useState(false); // Track if jobs API is unavailable
   const [groupBy, setGroupBy] = useState<GroupBy>('week');
@@ -176,11 +186,9 @@ export function ApprovalList() {
     async function prefetchPhotos() {
       const uniqueEmails = new Set<string>();
       pendingApprovals.forEach((ts) => {
-        if (ts.resourceEmail && emailDomain) {
-          const email = `${ts.resourceEmail}@${emailDomain}`;
-          if (!(email in photosCache)) {
-            uniqueEmails.add(email);
-          }
+        const email = getFullEmail(ts.resourceEmail);
+        if (email && !(email in photosCache)) {
+          uniqueEmails.add(email);
         }
       });
 
@@ -193,9 +201,10 @@ export function ApprovalList() {
         }
       }
     }
-    if (pendingApprovals.length > 0 && emailDomain) {
+    if (pendingApprovals.length > 0) {
       prefetchPhotos();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingApprovals, emailDomain, photosCache]);
 
   // Pre-fetch job and task names for lines
@@ -217,16 +226,17 @@ export function ApprovalList() {
 
       if (uniqueJobNos.size === 0) return;
 
-      // Fetch all jobs and filter for the ones we need
+      // Fetch all projects and filter for the ones we need
+      // Note: Uses /projects endpoint (Thyme extension) instead of /jobs (standard API which may not be available)
       try {
-        const allJobs = await bcClient.getJobs();
-        const jobMap: Record<string, BCJob> = {};
-        allJobs.forEach((job) => {
-          if (uniqueJobNos.has(job.number)) {
-            jobMap[job.number] = job;
+        const allProjects = await bcClient.getProjects();
+        const projectMap: Record<string, BCProject> = {};
+        allProjects.forEach((project) => {
+          if (uniqueJobNos.has(project.number)) {
+            projectMap[project.number] = project;
           }
         });
-        setJobsCache((prev) => ({ ...prev, ...jobMap }));
+        setJobsCache((prev) => ({ ...prev, ...projectMap }));
 
         // Fetch tasks for each job
         for (const jobNo of uniqueJobNos) {
@@ -240,9 +250,8 @@ export function ApprovalList() {
           }
         }
       } catch (err) {
-        // If jobs API returns 404 or similar, mark it as failed to prevent repeated calls
-        // This typically means the Jobs API is not available in this BC environment
-        console.warn('Jobs API unavailable, will show job codes instead:', err);
+        // If projects API returns 404 or similar, mark it as failed to prevent repeated calls
+        console.warn('Projects API unavailable, will show project codes instead:', err);
         setJobsApiFailed(true);
       }
     }
@@ -459,10 +468,7 @@ export function ApprovalList() {
                       // Show profile photo for person group
                       (() => {
                         const firstTs = group.items[0];
-                        const email =
-                          firstTs?.resourceEmail && emailDomain
-                            ? `${firstTs.resourceEmail}@${emailDomain}`
-                            : null;
+                        const email = getFullEmail(firstTs?.resourceEmail);
                         const photo = email ? photosCache[email] : null;
                         return photo ? (
                           <img
@@ -500,11 +506,7 @@ export function ApprovalList() {
                     }
                     hidePerson={groupBy === 'person'}
                     hideWeek={groupBy === 'week'}
-                    resourceEmail={
-                      timeSheet.resourceEmail && emailDomain
-                        ? `${timeSheet.resourceEmail}@${emailDomain}`
-                        : undefined
-                    }
+                    resourceEmail={getFullEmail(timeSheet.resourceEmail) || undefined}
                     jobsCache={jobsCache}
                     tasksCache={tasksCache}
                   />

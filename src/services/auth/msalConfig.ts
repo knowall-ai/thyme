@@ -51,13 +51,17 @@ export const msalConfig: Configuration = {
 export const graphScopes: string[] = ['User.Read', 'User.ReadBasic.All'];
 
 // Scopes for Business Central API
-export const bcScopes: string[] = ['https://api.businesscentral.dynamics.com/.default'];
+// Use specific scope instead of .default so it can be combined with Graph scopes
+export const bcScopes: string[] = [
+  'https://api.businesscentral.dynamics.com/Financials.ReadWrite.All',
+];
 
 // Login request configuration
-// Note: .default scope cannot be combined with other scopes
-// We use BC scopes for login, and acquire Graph tokens separately if needed
+// Include both BC and Graph scopes to get consent for both at login.
+// MSAL handles multi-resource requests by caching refresh tokens that can
+// silently acquire tokens for each resource separately after initial consent.
 export const loginRequest: PopupRequest = {
-  scopes: bcScopes,
+  scopes: [...bcScopes, ...graphScopes],
 };
 
 // Silent token request for BC API

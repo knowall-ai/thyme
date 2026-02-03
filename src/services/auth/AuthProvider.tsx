@@ -13,6 +13,7 @@ import { AccountInfo, InteractionStatus } from '@azure/msal-browser';
 import { loginRequest } from './msalConfig';
 import { msalInstance, initializeMsal } from './msalInstance';
 import { clearProfilePhotoCache } from './graphService';
+import { resetGraphConsentState } from './tokenService';
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -58,6 +59,7 @@ export function useAuth() {
   const logout = async () => {
     try {
       clearProfilePhotoCache();
+      resetGraphConsentState();
       const account = instance.getActiveAccount();
       await instance.logoutRedirect({
         account: account || undefined,

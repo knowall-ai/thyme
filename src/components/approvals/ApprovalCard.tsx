@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import {
   CheckIcon,
@@ -18,7 +19,7 @@ import type {
   BCTimeSheet,
   BCTimeSheetLine,
   TimesheetDisplayStatus,
-  BCJob,
+  BCProject,
   BCJobTask,
 } from '@/types';
 import { cn, getTimesheetDisplayStatus, DATE_FORMAT_FULL } from '@/utils';
@@ -38,8 +39,8 @@ interface ApprovalCardProps {
   hideWeek?: boolean;
   /** Resource email for fetching profile photo */
   resourceEmail?: string;
-  /** Cache of jobs for displaying job names */
-  jobsCache?: Record<string, BCJob>;
+  /** Cache of projects for displaying project names */
+  jobsCache?: Record<string, BCProject>;
   /** Cache of tasks per job for displaying task names */
   tasksCache?: Record<string, BCJobTask[]>;
 }
@@ -94,10 +95,10 @@ export function ApprovalCard({
   // Use timeSheet.totalQuantity as fallback if lines not loaded yet
   const displayHours = totalHours || timeSheet.totalQuantity || 0;
 
-  // Helper to get job name from cache
+  // Helper to get project name from cache
   const getJobName = (jobNo: string): string => {
-    const job = jobsCache[jobNo];
-    return job?.description || jobNo;
+    const project = jobsCache[jobNo];
+    return project?.displayName || jobNo;
   };
 
   // Helper to get task name from cache
@@ -260,7 +261,13 @@ export function ApprovalCard({
                     <p className="text-sm text-white">{line.description || 'No description'}</p>
                     {line.jobNo && (
                       <p className="text-dark-400 text-xs">
-                        {getJobName(line.jobNo)}
+                        <Link
+                          href={`/projects/${line.jobNo}`}
+                          className="hover:text-thyme-400 hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {getJobName(line.jobNo)}
+                        </Link>
                         {line.jobTaskNo && ` / ${getTaskName(line.jobNo, line.jobTaskNo)}`}
                       </p>
                     )}
