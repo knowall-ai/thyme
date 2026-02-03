@@ -40,7 +40,7 @@ interface TeamMember {
   userPrincipalName: string | null; // UPN for fetching profile photo
 }
 
-type SortField = 'name' | 'totalHours' | 'utilization' | 'billablePercent';
+type SortField = 'name' | 'code' | 'totalHours' | 'utilization' | 'capacity' | 'billablePercent';
 type SortDirection = 'asc' | 'desc';
 
 // Build URL to open a resource in BC web client
@@ -324,11 +324,17 @@ export function TeamList() {
         case 'name':
           comparison = a.name.localeCompare(b.name);
           break;
+        case 'code':
+          comparison = a.number.localeCompare(b.number);
+          break;
         case 'totalHours':
           comparison = a.totalHours - b.totalHours;
           break;
         case 'utilization':
           comparison = a.utilization - b.utilization;
+          break;
+        case 'capacity':
+          comparison = a.capacity - b.capacity;
           break;
         case 'billablePercent':
           comparison = a.billablePercent - b.billablePercent;
@@ -536,8 +542,18 @@ export function TeamList() {
                           <SortIcon field="name" />
                         </div>
                       </th>
-                      <th className="text-dark-300 px-4 py-3 text-left text-sm font-medium">
-                        Code
+                      <th
+                        className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-left text-sm font-medium"
+                        onClick={() => handleSort('code')}
+                        role="columnheader"
+                        aria-sort={getAriaSort('code')}
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSort('code')}
+                      >
+                        <div className="flex items-center gap-1">
+                          Code
+                          <SortIcon field="code" />
+                        </div>
                       </th>
                       <th
                         className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
@@ -565,8 +581,18 @@ export function TeamList() {
                           <SortIcon field="utilization" />
                         </div>
                       </th>
-                      <th className="text-dark-300 px-4 py-3 text-right text-sm font-medium">
-                        Capacity
+                      <th
+                        className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
+                        onClick={() => handleSort('capacity')}
+                        role="columnheader"
+                        aria-sort={getAriaSort('capacity')}
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSort('capacity')}
+                      >
+                        <div className="flex items-center justify-end gap-1">
+                          Capacity
+                          <SortIcon field="capacity" />
+                        </div>
                       </th>
                       <th
                         className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
