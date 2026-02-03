@@ -1639,6 +1639,8 @@ export function PlanPanel() {
               setLocalWeekStart(weekStart);
               setCurrentWeekStart(weekStart);
             }}
+            weeksToShow={effectiveWeeksToShow}
+            alwaysShowToday
           />
         </div>
 
