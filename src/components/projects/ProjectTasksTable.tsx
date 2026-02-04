@@ -28,8 +28,7 @@ interface PhotoMap {
 }
 
 export function ProjectTasksTable() {
-  const { analytics, tasks, project, isLoadingAnalytics, showPrices, currencyCode } =
-    useProjectDetailsStore();
+  const { analytics, tasks, project, isLoadingAnalytics } = useProjectDetailsStore();
   const { account } = useAuth();
   const { selectedCompany } = useCompanyStore();
   const [groupBy, setGroupBy] = useState<GroupBy>('task');
@@ -192,8 +191,6 @@ export function ProjectTasksTable() {
           companyName={companyName}
           projectNumber={projectNumber}
           printExpandAll={isPrinting}
-          showPrices={showPrices}
-          currencyCode={currencyCode}
         />
       ) : (
         <TeamBreakdownTable
@@ -203,8 +200,6 @@ export function ProjectTasksTable() {
           photoMap={photoMap}
           companyName={companyName}
           projectNumber={projectNumber}
-          showPrices={showPrices}
-          currencyCode={currencyCode}
         />
       )}
 
@@ -239,14 +234,12 @@ interface TaskBreakdownItem {
   hours: number;
   approvedHours: number;
   pendingHours: number;
-  unitPrice?: number;
   teamMembers?: {
     resourceNo: string;
     name: string;
     hours: number;
     approvedHours: number;
     pendingHours: number;
-    unitPrice?: number;
   }[];
 }
 
@@ -301,8 +294,6 @@ function TaskBreakdownTable({
   companyName,
   projectNumber,
   printExpandAll = false,
-  showPrices,
-  currencyCode,
 }: {
   data: TaskBreakdownItem[];
   tasks: TaskFromStore[];
@@ -312,8 +303,6 @@ function TaskBreakdownTable({
   companyName?: string;
   projectNumber?: string;
   printExpandAll?: boolean;
-  showPrices: boolean;
-  currencyCode: string;
 }) {
   if (data.length === 0) {
     return (
@@ -330,20 +319,6 @@ function TaskBreakdownTable({
   const totalHours = data.reduce((sum, item) => sum + item.hours, 0);
   const totalApproved = data.reduce((sum, item) => sum + item.approvedHours, 0);
   const totalPending = data.reduce((sum, item) => sum + item.pendingHours, 0);
-  const totalPrice = data.reduce(
-    (sum, item) => sum + (item.unitPrice ? item.hours * item.unitPrice : 0),
-    0
-  );
-
-  // Format currency
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: currencyCode,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
 
   return (
     <div className="border-dark-600 overflow-hidden rounded-lg border">
@@ -358,16 +333,6 @@ function TaskBreakdownTable({
             <th className="w-20 px-3 py-3 text-right text-sm font-medium text-amber-400">
               Pending
             </th>
-            {showPrices && (
-              <th className="w-24 px-3 py-3 text-right text-sm font-medium text-gray-400">
-                Unit Price
-              </th>
-            )}
-            {showPrices && (
-              <th className="w-28 px-3 py-3 text-right text-sm font-medium text-gray-400">
-                Total Price
-              </th>
-            )}
           </tr>
         </thead>
         <tbody className="divide-dark-600 divide-y">
@@ -425,16 +390,6 @@ function TaskBreakdownTable({
                   <td className="px-3 py-3 text-right text-amber-400">
                     {item.pendingHours > 0 ? item.pendingHours.toFixed(1) : '-'}
                   </td>
-                  {showPrices && (
-                    <td className="px-3 py-3 text-right text-gray-500">
-                      {item.unitPrice ? formatCurrency(item.unitPrice) : '-'}
-                    </td>
-                  )}
-                  {showPrices && (
-                    <td className="px-3 py-3 text-right text-gray-400">
-                      {item.unitPrice ? formatCurrency(item.hours * item.unitPrice) : '-'}
-                    </td>
-                  )}
                 </tr>
                 {/* Expanded details - always render but hide/show with CSS for print support */}
                 {item.teamMembers?.map((member) => (
@@ -471,16 +426,6 @@ function TaskBreakdownTable({
                     <td className="px-3 py-2 text-right text-sm text-amber-400/70">
                       {member.pendingHours > 0 ? member.pendingHours.toFixed(1) : '-'}
                     </td>
-                    {showPrices && (
-                      <td className="px-3 py-2 text-right text-sm text-gray-500">
-                        {member.unitPrice ? formatCurrency(member.unitPrice) : '-'}
-                      </td>
-                    )}
-                    {showPrices && (
-                      <td className="px-3 py-2 text-right text-sm text-gray-500">
-                        {member.unitPrice ? formatCurrency(member.hours * member.unitPrice) : '-'}
-                      </td>
-                    )}
                   </tr>
                 ))}
               </Fragment>
@@ -497,12 +442,6 @@ function TaskBreakdownTable({
             <td className="px-3 py-3 text-right font-bold text-amber-400">
               {totalPending > 0 ? totalPending.toFixed(1) : '-'}
             </td>
-            {showPrices && <td className="px-3 py-3 text-right text-gray-500">-</td>}
-            {showPrices && (
-              <td className="px-3 py-3 text-right font-bold text-gray-300">
-                {totalPrice > 0 ? formatCurrency(totalPrice) : '-'}
-              </td>
-            )}
           </tr>
         </tfoot>
       </table>
@@ -516,7 +455,6 @@ interface TeamBreakdownItem {
   hours: number;
   approvedHours: number;
   pendingHours: number;
-  unitPrice?: number;
   tasks?: {
     taskNo: string;
     description: string;
@@ -533,8 +471,6 @@ function TeamBreakdownTable({
   photoMap,
   companyName,
   projectNumber,
-  showPrices,
-  currencyCode,
 }: {
   data: TeamBreakdownItem[];
   expanded: ExpandedState;
@@ -542,8 +478,6 @@ function TeamBreakdownTable({
   photoMap: PhotoMap;
   companyName?: string;
   projectNumber?: string;
-  showPrices: boolean;
-  currencyCode: string;
 }) {
   if (data.length === 0) {
     return (
@@ -558,20 +492,6 @@ function TeamBreakdownTable({
   const totalHours = data.reduce((sum, item) => sum + item.hours, 0);
   const totalApproved = data.reduce((sum, item) => sum + item.approvedHours, 0);
   const totalPending = data.reduce((sum, item) => sum + item.pendingHours, 0);
-  const totalPrice = data.reduce(
-    (sum, item) => sum + (item.unitPrice ? item.hours * item.unitPrice : 0),
-    0
-  );
-
-  // Format currency
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: currencyCode,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
 
   return (
     <div className="border-dark-600 overflow-hidden rounded-lg border">
@@ -586,16 +506,6 @@ function TeamBreakdownTable({
             <th className="w-20 px-3 py-3 text-right text-sm font-medium text-amber-400">
               Pending
             </th>
-            {showPrices && (
-              <th className="w-24 px-3 py-3 text-right text-sm font-medium text-gray-400">
-                Unit Price
-              </th>
-            )}
-            {showPrices && (
-              <th className="w-28 px-3 py-3 text-right text-sm font-medium text-gray-400">
-                Total Price
-              </th>
-            )}
           </tr>
         </thead>
         <tbody className="divide-dark-600 divide-y">
@@ -650,16 +560,6 @@ function TeamBreakdownTable({
                   <td className="px-3 py-3 text-right text-amber-400">
                     {item.pendingHours > 0 ? item.pendingHours.toFixed(1) : '-'}
                   </td>
-                  {showPrices && (
-                    <td className="px-3 py-3 text-right text-gray-500">
-                      {item.unitPrice ? formatCurrency(item.unitPrice) : '-'}
-                    </td>
-                  )}
-                  {showPrices && (
-                    <td className="px-3 py-3 text-right text-gray-400">
-                      {item.unitPrice ? formatCurrency(item.hours * item.unitPrice) : '-'}
-                    </td>
-                  )}
                 </tr>
                 {/* Expanded details */}
                 {isExpanded &&
@@ -692,12 +592,6 @@ function TeamBreakdownTable({
                       <td className="px-3 py-2 text-right text-sm text-amber-400/70">
                         {task.pendingHours > 0 ? task.pendingHours.toFixed(1) : '-'}
                       </td>
-                      {showPrices && (
-                        <td className="px-3 py-2 text-right text-sm text-gray-500">-</td>
-                      )}
-                      {showPrices && (
-                        <td className="px-3 py-2 text-right text-sm text-gray-500">-</td>
-                      )}
                     </tr>
                   ))}
               </Fragment>
@@ -714,12 +608,6 @@ function TeamBreakdownTable({
             <td className="px-3 py-3 text-right font-bold text-amber-400">
               {totalPending > 0 ? totalPending.toFixed(1) : '-'}
             </td>
-            {showPrices && <td className="px-3 py-3 text-right text-gray-500">-</td>}
-            {showPrices && (
-              <td className="px-3 py-3 text-right font-bold text-gray-300">
-                {totalPrice > 0 ? formatCurrency(totalPrice) : '-'}
-              </td>
-            )}
           </tr>
         </tfoot>
       </table>
