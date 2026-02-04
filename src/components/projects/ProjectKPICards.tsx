@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, ReactNode } from 'react';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
+import { useCompanyStore } from '@/hooks';
 import { Card } from '@/components/ui';
+import { cn, getBCJobPlanningLinesUrl, getBCJobLedgerEntriesUrl } from '@/utils';
 import {
   ClockIcon,
   CalendarDaysIcon,
@@ -26,7 +28,7 @@ function InfoTooltip({
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="relative">
+    <div className="relative print:hidden">
       <button
         type="button"
         className="focus:ring-thyme-500 focus:ring-offset-dark-800 cursor-help rounded text-gray-600 hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none"
@@ -85,7 +87,11 @@ function formatCurrency(amount: number, currencyCode: string): string {
 }
 
 export function ProjectKPICards() {
-  const { analytics, isLoadingAnalytics, showCosts, currencyCode } = useProjectDetailsStore();
+  const { analytics, isLoadingAnalytics, showCosts, showPrices, currencyCode, project } =
+    useProjectDetailsStore();
+  const selectedCompany = useCompanyStore((state) => state.selectedCompany);
+  const companyName = selectedCompany?.name;
+  const projectCode = project?.code;
 
   if (isLoadingAnalytics) {
     return (
@@ -211,14 +217,64 @@ export function ProjectKPICards() {
     total: 0,
   };
 
+  // Helper to create BC link for subLabel
+  const jobPlanningLinesLink = projectCode ? (
+    <>
+      From{' '}
+      <a
+        href={getBCJobPlanningLinesUrl(projectCode, companyName)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-400 hover:text-blue-300 hover:underline"
+        onClick={(e) => e.stopPropagation()}
+      >
+        Job Planning Lines
+      </a>
+    </>
+  ) : (
+    'From Job Planning Lines'
+  );
+
+  const jobLedgerEntryLink = projectCode ? (
+    <>
+      From{' '}
+      <a
+        href={getBCJobLedgerEntriesUrl(projectCode, companyName)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-400 hover:text-blue-300 hover:underline"
+        onClick={(e) => e.stopPropagation()}
+      >
+        Job Ledger Entry
+      </a>
+    </>
+  ) : (
+    'From Job Ledger Entry'
+  );
+
   // Financial KPIs - 4 cards matching BC structure
   // Budget Cost and Actual Cost are internal (hideable)
   // Billable Price and Invoiced Price are customer-facing
-  const financialKpis = [
+  const financialKpis: {
+    label: string;
+    value: string;
+    subLabel: ReactNode;
+    breakdown: typeof budgetBreakdown | null;
+    icon: typeof BanknotesIcon;
+    color: string;
+    isInternal?: boolean;
+    isHidden?: boolean;
+    tooltip: {
+      title: string;
+      description: string;
+      formula?: string;
+      source: string;
+    };
+  }[] = [
     {
       label: 'Budget Cost',
       value: showCosts ? formatCurrency(budgetCost, currencyCode) : '•••••',
-      subLabel: showCosts ? 'From Job Planning Lines' : 'Hidden',
+      subLabel: showCosts ? jobPlanningLinesLink : 'Hidden',
       breakdown: showCosts ? budgetBreakdown : null,
       icon: BanknotesIcon,
       color: 'text-amber-400',
@@ -235,7 +291,7 @@ export function ProjectKPICards() {
     {
       label: 'Actual Cost',
       value: showCosts ? formatCurrency(actualCost, currencyCode) : '•••••',
-      subLabel: showCosts ? 'From Job Ledger Entry' : 'Hidden',
+      subLabel: showCosts ? jobLedgerEntryLink : 'Hidden',
       breakdown: showCosts ? actualBreakdown : null,
       icon: BanknotesIcon,
       color: showCosts
@@ -256,7 +312,7 @@ export function ProjectKPICards() {
     {
       label: 'Billable Price',
       value: formatCurrency(billablePrice, currencyCode),
-      subLabel: 'From Job Planning Lines',
+      subLabel: jobPlanningLinesLink,
       breakdown: billableBreakdown,
       icon: CurrencyPoundIcon,
       color: 'text-blue-400',
@@ -271,7 +327,7 @@ export function ProjectKPICards() {
     {
       label: 'Invoiced Price',
       value: formatCurrency(invoicedPrice, currencyCode),
-      subLabel: 'From Job Ledger Entry',
+      subLabel: jobLedgerEntryLink,
       breakdown: invoicedBreakdown,
       icon: CurrencyPoundIcon,
       color: 'text-green-400',
@@ -288,7 +344,7 @@ export function ProjectKPICards() {
   return (
     <div className="space-y-4">
       {/* Row 1: Hours (4 cards) */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 print:grid-cols-4">
         {hoursKpis.map((kpi) => (
           <Card key={kpi.label} variant="bordered" className="relative p-4">
             <div className="absolute top-3 right-3">
@@ -321,8 +377,13 @@ export function ProjectKPICards() {
         ))}
       </div>
 
-      {/* Row 2: Financials (4 cards matching BC) */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Row 2: Financials (4 cards matching BC) - hidden in print only for "Without Financials" export */}
+      <div
+        className={cn(
+          'grid gap-4 sm:grid-cols-2 lg:grid-cols-4 print:grid-cols-4',
+          !showPrices && 'print:hidden'
+        )}
+      >
         {financialKpis.map((kpi) => {
           const isHidden = 'isHidden' in kpi && kpi.isHidden;
           const breakdown = 'breakdown' in kpi ? kpi.breakdown : null;

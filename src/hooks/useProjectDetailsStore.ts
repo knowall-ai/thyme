@@ -17,12 +17,14 @@ interface ProjectDetailsStore {
   chartView: 'weekly' | 'progress';
   tableGroupBy: 'task' | 'team';
   showCosts: boolean; // Toggle for internal costs visibility (Budget Cost, Actual Cost)
+  showPrices: boolean; // Toggle for customer-facing prices (Unit Price, Total Price in breakdown)
 
   // Actions
   fetchProjectDetails: (projectNumber: string) => Promise<void>;
   setChartView: (view: 'weekly' | 'progress') => void;
   setTableGroupBy: (groupBy: 'task' | 'team') => void;
   setShowCosts: (show: boolean) => void;
+  setShowPrices: (show: boolean) => void;
   clearProject: () => void;
 }
 
@@ -38,6 +40,7 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
   chartView: 'weekly',
   tableGroupBy: 'task',
   showCosts: false, // Internal costs hidden by default
+  showPrices: true, // Customer-facing prices always visible by default
 
   fetchProjectDetails: async (projectNumber: string) => {
     // Don't refetch if we already have this project
@@ -108,6 +111,8 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
   setTableGroupBy: (groupBy) => set({ tableGroupBy: groupBy }),
 
   setShowCosts: (show) => set({ showCosts: show }),
+
+  setShowPrices: (show) => set({ showPrices: show }),
 
   clearProject: () =>
     set({

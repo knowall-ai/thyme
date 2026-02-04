@@ -22,7 +22,8 @@ export function Layout({ children }: LayoutProps) {
         </main>
         <footer className="border-dark-800 bg-dark-900/50 border-t">
           <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-            <p className="text-dark-500 text-center text-sm">
+            {/* Screen version */}
+            <p className="text-dark-500 text-center text-sm print:hidden">
               Thyme v{appVersion} - Time Tracking for Business Central by{' '}
               <a
                 href="https://knowall.ai"
@@ -30,7 +31,18 @@ export function Layout({ children }: LayoutProps) {
                 rel="noopener noreferrer"
                 className="text-knowall-green hover:text-knowall-green-light transition-colors"
               >
-                KnowAll.ai
+                KnowAll AI
+              </a>
+            </p>
+            {/* Print version */}
+            <p className="text-dark-500 hidden text-center text-sm print:block">
+              Want to get Thyme for Business Central? Go to{' '}
+              <a href="https://getthyme.ai" className="text-knowall-green">
+                www.GetThyme.ai
+              </a>
+              . Built by{' '}
+              <a href="https://knowall.ai" className="text-knowall-green">
+                KnowAll AI
               </a>
             </p>
           </div>

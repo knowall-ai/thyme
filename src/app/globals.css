@@ -147,3 +147,120 @@ body {
   background-color: rgba(0, 210, 106, 0.3);
   color: white;
 }
+
+/* Print styles for PDF export */
+@media print {
+  /* Page setup - minimal margins for full background coverage */
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  /* Preserve exact colors for PDF (not physical print) */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Scale down text slightly for print */
+  html {
+    font-size: 10px !important;
+  }
+
+  /* Full page background coverage */
+  html,
+  body {
+    height: 100% !important;
+    min-height: 100% !important;
+    background-color: #020617 !important;
+  }
+
+  body {
+    padding: 0.5cm !important;
+    padding-bottom: 1cm !important;
+  }
+
+  /* Hide the fixed grid pattern in print */
+  .fixed.inset-0 {
+    display: none !important;
+  }
+
+  /* Make layout not push footer to bottom - target the outer wrapper */
+  .bg-dark-950.min-h-screen {
+    min-height: auto !important;
+    height: auto !important;
+  }
+
+  /* Disable animations during print */
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* Hide nav links but show header with logo */
+  header nav {
+    display: none !important;
+  }
+
+  /* Footer - transparent background, just text */
+  footer {
+    background-color: transparent !important;
+    border-top: none !important;
+  }
+
+  /* Spacing reduction for one-page fit */
+  .space-y-6 > * + * {
+    margin-top: 0.75rem !important;
+  }
+
+  .space-y-4 > * + * {
+    margin-top: 0.5rem !important;
+  }
+
+  /* Preserve original grid gaps (gap-4 = 16px, but root font is 10px so use 1.6rem) */
+  .gap-4 {
+    gap: 16px !important;
+  }
+
+  /* Smaller padding in cards */
+  .p-4 {
+    padding: 0.4rem !important;
+  }
+
+  .p-6 {
+    padding: 0.6rem !important;
+  }
+
+  /* Reduce main content padding, but keep bottom margin for spacing before footer */
+  main {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5cm !important;
+  }
+
+  /* Prevent page breaks inside cards */
+  [class*='rounded-lg'] {
+    break-inside: avoid;
+  }
+
+  /* Ensure charts/tables don't get split */
+  table {
+    break-inside: avoid;
+  }
+
+  svg {
+    break-inside: avoid;
+  }
+
+  /* Compact table rows */
+  tr {
+    line-height: 1.2 !important;
+  }
+
+  td,
+  th {
+    padding-top: 0.2rem !important;
+    padding-bottom: 0.2rem !important;
+  }
+}

@@ -101,7 +101,8 @@ export function ProjectCharts() {
     <Card variant="bordered" className="p-6">
       {/* Header with toggle and navigation */}
       <div className="mb-6 flex items-center justify-between">
-        <div className="flex gap-2">
+        {/* Chart view toggle - interactive on screen, static label in print */}
+        <div className="flex gap-2 print:hidden">
           <button
             onClick={() => setChartView('weekly')}
             className={cn(
@@ -125,9 +126,13 @@ export function ProjectCharts() {
             Spend vs Budget
           </button>
         </div>
+        {/* Static label for print */}
+        <div className="bg-thyme-600 hidden rounded-lg px-4 py-2 text-sm font-medium text-white print:block">
+          {chartView === 'weekly' ? 'Hours per Week' : 'Spend vs Budget'}
+        </div>
 
-        {/* Navigation */}
-        <div className="flex items-center gap-1">
+        {/* Navigation - hidden in print */}
+        <div className="flex items-center gap-1 print:hidden">
           <button
             onMouseDown={canGoBack ? startHoldBack : undefined}
             onMouseUp={clearHoldTimers}

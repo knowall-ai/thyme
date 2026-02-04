@@ -9,6 +9,8 @@ import {
   ChevronRightIcon,
   ArrowTopRightOnSquareIcon,
   UserGroupIcon,
+  ChevronDoubleDownIcon,
+  ChevronDoubleUpIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth, getUserProfilePhoto } from '@/services/auth';
 import { bcClient } from '@/services/bc';
@@ -26,12 +28,28 @@ interface PhotoMap {
 }
 
 export function ProjectTasksTable() {
-  const { analytics, tasks, project, isLoadingAnalytics } = useProjectDetailsStore();
+  const { analytics, tasks, project, isLoadingAnalytics, showPrices, currencyCode } =
+    useProjectDetailsStore();
   const { account } = useAuth();
   const { selectedCompany } = useCompanyStore();
   const [groupBy, setGroupBy] = useState<GroupBy>('task');
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const [photoMap, setPhotoMap] = useState<PhotoMap>({});
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  // Detect print mode to expand all tasks
+  useEffect(() => {
+    const handleBeforePrint = () => setIsPrinting(true);
+    const handleAfterPrint = () => setIsPrinting(false);
+
+    window.addEventListener('beforeprint', handleBeforePrint);
+    window.addEventListener('afterprint', handleAfterPrint);
+
+    return () => {
+      window.removeEventListener('beforeprint', handleBeforePrint);
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+  }, []);
   const companyName = selectedCompany?.name;
   const projectNumber = project?.code;
 
@@ -90,6 +108,40 @@ export function ProjectTasksTable() {
     fetchPhotos();
   }, [resourceNumbers, account?.username]);
 
+  const taskBreakdown = useMemo(() => analytics?.taskBreakdown ?? [], [analytics?.taskBreakdown]);
+  const teamBreakdown = useMemo(() => analytics?.teamBreakdown ?? [], [analytics?.teamBreakdown]);
+
+  // Get all expandable keys for the current view
+  const expandableKeys = useMemo(() => {
+    if (groupBy === 'task') {
+      return taskBreakdown
+        .filter((item) => item.teamMembers && item.teamMembers.length > 0)
+        .map((item) => item.taskNo);
+    } else {
+      return teamBreakdown
+        .filter((item) => item.tasks && item.tasks.length > 0)
+        .map((item) => item.resourceNo);
+    }
+  }, [groupBy, taskBreakdown, teamBreakdown]);
+
+  // Check if all items are expanded
+  const allExpanded = expandableKeys.length > 0 && expandableKeys.every((key) => expanded[key]);
+
+  // Toggle expand all
+  const toggleExpandAll = () => {
+    if (allExpanded) {
+      // Collapse all
+      setExpanded({});
+    } else {
+      // Expand all for current view
+      const newExpanded: ExpandedState = {};
+      expandableKeys.forEach((key) => {
+        newExpanded[key] = true;
+      });
+      setExpanded(newExpanded);
+    }
+  };
+
   if (isLoadingAnalytics) {
     return (
       <Card variant="bordered" className="p-6">
@@ -98,15 +150,12 @@ export function ProjectTasksTable() {
     );
   }
 
-  const taskBreakdown = analytics?.taskBreakdown ?? [];
-  const teamBreakdown = analytics?.teamBreakdown ?? [];
-
   return (
     <Card variant="bordered" className="p-6">
       {/* Header with toggle */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-white">Breakdown</h2>
-        <div className="flex gap-2">
+        <div className="flex gap-2 print:hidden">
           <button
             onClick={() => setGroupBy('task')}
             className={cn(
@@ -132,8 +181,8 @@ export function ProjectTasksTable() {
         </div>
       </div>
 
-      {/* Table */}
-      {groupBy === 'task' ? (
+      {/* Table - always show task view when printing */}
+      {groupBy === 'task' || isPrinting ? (
         <TaskBreakdownTable
           data={taskBreakdown}
           tasks={tasks}
@@ -142,6 +191,9 @@ export function ProjectTasksTable() {
           photoMap={photoMap}
           companyName={companyName}
           projectNumber={projectNumber}
+          printExpandAll={isPrinting}
+          showPrices={showPrices}
+          currencyCode={currencyCode}
         />
       ) : (
         <TeamBreakdownTable
@@ -151,7 +203,31 @@ export function ProjectTasksTable() {
           photoMap={photoMap}
           companyName={companyName}
           projectNumber={projectNumber}
+          showPrices={showPrices}
+          currencyCode={currencyCode}
         />
+      )}
+
+      {/* Expand All button */}
+      {expandableKeys.length > 0 && (
+        <div className="mt-4 flex justify-center print:hidden">
+          <button
+            onClick={toggleExpandAll}
+            className="bg-dark-700 hover:bg-dark-600 flex items-center gap-2 rounded-lg px-4 py-2 text-sm text-gray-400 transition-colors hover:text-white"
+          >
+            {allExpanded ? (
+              <>
+                <ChevronDoubleUpIcon className="h-4 w-4" />
+                Collapse All
+              </>
+            ) : (
+              <>
+                <ChevronDoubleDownIcon className="h-4 w-4" />
+                Expand All
+              </>
+            )}
+          </button>
+        </div>
       )}
     </Card>
   );
@@ -224,6 +300,9 @@ function TaskBreakdownTable({
   photoMap,
   companyName,
   projectNumber,
+  printExpandAll = false,
+  showPrices,
+  currencyCode,
 }: {
   data: TaskBreakdownItem[];
   tasks: TaskFromStore[];
@@ -232,6 +311,9 @@ function TaskBreakdownTable({
   photoMap: PhotoMap;
   companyName?: string;
   projectNumber?: string;
+  printExpandAll?: boolean;
+  showPrices: boolean;
+  currencyCode: string;
 }) {
   if (data.length === 0) {
     return (
@@ -248,6 +330,20 @@ function TaskBreakdownTable({
   const totalHours = data.reduce((sum, item) => sum + item.hours, 0);
   const totalApproved = data.reduce((sum, item) => sum + item.approvedHours, 0);
   const totalPending = data.reduce((sum, item) => sum + item.pendingHours, 0);
+  const totalPrice = data.reduce(
+    (sum, item) => sum + (item.unitPrice ? item.hours * item.unitPrice : 0),
+    0
+  );
+
+  // Format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: currencyCode,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  };
 
   return (
     <div className="border-dark-600 overflow-hidden rounded-lg border">
@@ -262,16 +358,23 @@ function TaskBreakdownTable({
             <th className="w-20 px-3 py-3 text-right text-sm font-medium text-amber-400">
               Pending
             </th>
-            <th className="w-24 px-3 py-3 text-right text-sm font-medium text-gray-400">
-              Unit Price
-            </th>
+            {showPrices && (
+              <th className="w-24 px-3 py-3 text-right text-sm font-medium text-gray-400">
+                Unit Price
+              </th>
+            )}
+            {showPrices && (
+              <th className="w-28 px-3 py-3 text-right text-sm font-medium text-gray-400">
+                Total Price
+              </th>
+            )}
           </tr>
         </thead>
         <tbody className="divide-dark-600 divide-y">
           {data.map((item) => {
             const taskInfo = taskMap.get(item.taskNo);
             const hasDetails = item.teamMembers && item.teamMembers.length > 0;
-            const isExpanded = expanded[item.taskNo];
+            const isExpanded = printExpandAll || expanded[item.taskNo];
 
             return (
               <Fragment key={item.taskNo}>
@@ -285,7 +388,7 @@ function TaskBreakdownTable({
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       {hasDetails && (
-                        <span className="text-gray-500">
+                        <span className="text-gray-500 print:hidden">
                           {isExpanded ? (
                             <ChevronDownIcon className="h-4 w-4" />
                           ) : (
@@ -304,7 +407,7 @@ function TaskBreakdownTable({
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="hover:text-thyme-400 text-gray-500"
+                            className="hover:text-thyme-400 text-gray-500 print:hidden"
                             title="Open task in Business Central"
                           >
                             <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
@@ -322,48 +425,64 @@ function TaskBreakdownTable({
                   <td className="px-3 py-3 text-right text-amber-400">
                     {item.pendingHours > 0 ? item.pendingHours.toFixed(1) : '-'}
                   </td>
-                  <td className="px-3 py-3 text-right text-gray-500">
-                    {item.unitPrice ? `£${item.unitPrice.toFixed(2)}` : '-'}
-                  </td>
+                  {showPrices && (
+                    <td className="px-3 py-3 text-right text-gray-500">
+                      {item.unitPrice ? formatCurrency(item.unitPrice) : '-'}
+                    </td>
+                  )}
+                  {showPrices && (
+                    <td className="px-3 py-3 text-right text-gray-400">
+                      {item.unitPrice ? formatCurrency(item.hours * item.unitPrice) : '-'}
+                    </td>
+                  )}
                 </tr>
-                {/* Expanded details */}
-                {isExpanded &&
-                  item.teamMembers?.map((member) => (
-                    <tr key={`${item.taskNo}-${member.resourceNo}`} className="bg-dark-800/50">
-                      <td className="py-2 pr-4 pl-12">
-                        <div className="flex items-center gap-2">
-                          <ProfileAvatar
-                            name={member.name}
-                            photoUrl={photoMap[member.resourceNo]}
-                            size="sm"
-                          />
-                          <span className="text-sm text-gray-400">{member.name}</span>
-                          <a
-                            href={getBCResourceUrl(member.resourceNo, companyName)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="hover:text-thyme-400 text-gray-500"
-                            title="Open resource in Business Central"
-                          >
-                            <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
-                          </a>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 text-right text-sm text-gray-400">
-                        {member.hours.toFixed(1)}
-                      </td>
-                      <td className="px-3 py-2 text-right text-sm text-green-400/70">
-                        {member.approvedHours.toFixed(1)}
-                      </td>
-                      <td className="px-3 py-2 text-right text-sm text-amber-400/70">
-                        {member.pendingHours > 0 ? member.pendingHours.toFixed(1) : '-'}
-                      </td>
+                {/* Expanded details - always render but hide/show with CSS for print support */}
+                {item.teamMembers?.map((member) => (
+                  <tr
+                    key={`${item.taskNo}-${member.resourceNo}`}
+                    className={cn('bg-dark-800/50 print:table-row', !isExpanded && 'hidden')}
+                  >
+                    <td className="py-2 pr-4 pl-12">
+                      <div className="flex items-center gap-2">
+                        <ProfileAvatar
+                          name={member.name}
+                          photoUrl={photoMap[member.resourceNo]}
+                          size="sm"
+                        />
+                        <span className="text-sm text-gray-400">{member.name}</span>
+                        <a
+                          href={getBCResourceUrl(member.resourceNo, companyName)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="hover:text-thyme-400 text-gray-500 print:hidden"
+                          title="Open resource in Business Central"
+                        >
+                          <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
+                        </a>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-right text-sm text-gray-400">
+                      {member.hours.toFixed(1)}
+                    </td>
+                    <td className="px-3 py-2 text-right text-sm text-green-400/70">
+                      {member.approvedHours.toFixed(1)}
+                    </td>
+                    <td className="px-3 py-2 text-right text-sm text-amber-400/70">
+                      {member.pendingHours > 0 ? member.pendingHours.toFixed(1) : '-'}
+                    </td>
+                    {showPrices && (
                       <td className="px-3 py-2 text-right text-sm text-gray-500">
-                        {member.unitPrice ? `£${member.unitPrice.toFixed(2)}` : '-'}
+                        {member.unitPrice ? formatCurrency(member.unitPrice) : '-'}
                       </td>
-                    </tr>
-                  ))}
+                    )}
+                    {showPrices && (
+                      <td className="px-3 py-2 text-right text-sm text-gray-500">
+                        {member.unitPrice ? formatCurrency(member.hours * member.unitPrice) : '-'}
+                      </td>
+                    )}
+                  </tr>
+                ))}
               </Fragment>
             );
           })}
@@ -378,7 +497,12 @@ function TaskBreakdownTable({
             <td className="px-3 py-3 text-right font-bold text-amber-400">
               {totalPending > 0 ? totalPending.toFixed(1) : '-'}
             </td>
-            <td className="px-3 py-3 text-right text-gray-500">-</td>
+            {showPrices && <td className="px-3 py-3 text-right text-gray-500">-</td>}
+            {showPrices && (
+              <td className="px-3 py-3 text-right font-bold text-gray-300">
+                {totalPrice > 0 ? formatCurrency(totalPrice) : '-'}
+              </td>
+            )}
           </tr>
         </tfoot>
       </table>
@@ -409,6 +533,8 @@ function TeamBreakdownTable({
   photoMap,
   companyName,
   projectNumber,
+  showPrices,
+  currencyCode,
 }: {
   data: TeamBreakdownItem[];
   expanded: ExpandedState;
@@ -416,6 +542,8 @@ function TeamBreakdownTable({
   photoMap: PhotoMap;
   companyName?: string;
   projectNumber?: string;
+  showPrices: boolean;
+  currencyCode: string;
 }) {
   if (data.length === 0) {
     return (
@@ -430,6 +558,20 @@ function TeamBreakdownTable({
   const totalHours = data.reduce((sum, item) => sum + item.hours, 0);
   const totalApproved = data.reduce((sum, item) => sum + item.approvedHours, 0);
   const totalPending = data.reduce((sum, item) => sum + item.pendingHours, 0);
+  const totalPrice = data.reduce(
+    (sum, item) => sum + (item.unitPrice ? item.hours * item.unitPrice : 0),
+    0
+  );
+
+  // Format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: currencyCode,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  };
 
   return (
     <div className="border-dark-600 overflow-hidden rounded-lg border">
@@ -444,9 +586,16 @@ function TeamBreakdownTable({
             <th className="w-20 px-3 py-3 text-right text-sm font-medium text-amber-400">
               Pending
             </th>
-            <th className="w-24 px-3 py-3 text-right text-sm font-medium text-gray-400">
-              Unit Price
-            </th>
+            {showPrices && (
+              <th className="w-24 px-3 py-3 text-right text-sm font-medium text-gray-400">
+                Unit Price
+              </th>
+            )}
+            {showPrices && (
+              <th className="w-28 px-3 py-3 text-right text-sm font-medium text-gray-400">
+                Total Price
+              </th>
+            )}
           </tr>
         </thead>
         <tbody className="divide-dark-600 divide-y">
@@ -485,7 +634,7 @@ function TeamBreakdownTable({
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="hover:text-thyme-400 text-gray-500"
+                        className="hover:text-thyme-400 text-gray-500 print:hidden"
                         title="Open resource in Business Central"
                       >
                         <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
@@ -501,9 +650,16 @@ function TeamBreakdownTable({
                   <td className="px-3 py-3 text-right text-amber-400">
                     {item.pendingHours > 0 ? item.pendingHours.toFixed(1) : '-'}
                   </td>
-                  <td className="px-3 py-3 text-right text-gray-500">
-                    {item.unitPrice ? `£${item.unitPrice.toFixed(2)}` : '-'}
-                  </td>
+                  {showPrices && (
+                    <td className="px-3 py-3 text-right text-gray-500">
+                      {item.unitPrice ? formatCurrency(item.unitPrice) : '-'}
+                    </td>
+                  )}
+                  {showPrices && (
+                    <td className="px-3 py-3 text-right text-gray-400">
+                      {item.unitPrice ? formatCurrency(item.hours * item.unitPrice) : '-'}
+                    </td>
+                  )}
                 </tr>
                 {/* Expanded details */}
                 {isExpanded &&
@@ -519,7 +675,7 @@ function TeamBreakdownTable({
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
-                              className="hover:text-thyme-400 text-gray-500"
+                              className="hover:text-thyme-400 text-gray-500 print:hidden"
                               title="Open task in Business Central"
                             >
                               <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
@@ -536,7 +692,12 @@ function TeamBreakdownTable({
                       <td className="px-3 py-2 text-right text-sm text-amber-400/70">
                         {task.pendingHours > 0 ? task.pendingHours.toFixed(1) : '-'}
                       </td>
-                      <td className="px-3 py-2 text-right text-sm text-gray-500">-</td>
+                      {showPrices && (
+                        <td className="px-3 py-2 text-right text-sm text-gray-500">-</td>
+                      )}
+                      {showPrices && (
+                        <td className="px-3 py-2 text-right text-sm text-gray-500">-</td>
+                      )}
                     </tr>
                   ))}
               </Fragment>
@@ -553,7 +714,12 @@ function TeamBreakdownTable({
             <td className="px-3 py-3 text-right font-bold text-amber-400">
               {totalPending > 0 ? totalPending.toFixed(1) : '-'}
             </td>
-            <td className="px-3 py-3 text-right text-gray-500">-</td>
+            {showPrices && <td className="px-3 py-3 text-right text-gray-500">-</td>}
+            {showPrices && (
+              <td className="px-3 py-3 text-right font-bold text-gray-300">
+                {totalPrice > 0 ? formatCurrency(totalPrice) : '-'}
+              </td>
+            )}
           </tr>
         </tfoot>
       </table>
