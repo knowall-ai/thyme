@@ -484,6 +484,22 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
           </div>
         ))}
       </div>
+
+      {/* Legend */}
+      <div className="mt-3 flex items-center justify-center gap-6 text-xs text-gray-400">
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-gray-600" />
+          <span>Planned</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="bg-thyme-500 inline-block h-2.5 w-2.5 rounded-sm" />
+          <span>Approved</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-500" />
+          <span>Pending</span>
+        </div>
+      </div>
     </div>
   );
 }
