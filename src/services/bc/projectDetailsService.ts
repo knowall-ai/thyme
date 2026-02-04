@@ -385,7 +385,40 @@ export const projectDetailsService = {
     // Map for unit price per task (from Job Planning Lines - fallback if Resource doesn't have unitPrice)
     const unitPriceByTask = new Map<string, number>();
     try {
-      const planningLines = await bcClient.getJobPlanningLines(projectNumber);
+      // Fetch planning lines and unit of measure conversion factors in parallel
+      const [planningLines, resourceUnitsOfMeasure] = await Promise.all([
+        bcClient.getJobPlanningLines(projectNumber),
+        bcClient.getResourceUnitsOfMeasure(),
+      ]);
+
+      // Build a map for unit of measure conversion: (resourceNo, unitCode) → qtyPerUnitOfMeasure
+      // This allows us to convert DAY to HOURS (e.g., 1 DAY = 8 HOURS)
+      const uomConversionMap = new Map<string, number>();
+      for (const uom of resourceUnitsOfMeasure) {
+        const key = `${uom.resourceNo}:${uom.code}`;
+        uomConversionMap.set(key, uom.qtyPerUnitOfMeasure);
+      }
+
+      // Helper to convert quantity to hours using unit of measure
+      const toHours = (
+        resourceNo: string,
+        quantity: number,
+        unitOfMeasureCode?: string
+      ): number => {
+        if (!unitOfMeasureCode || unitOfMeasureCode === 'HOUR') {
+          return quantity; // Already in hours
+        }
+        const key = `${resourceNo}:${unitOfMeasureCode}`;
+        const conversionFactor = uomConversionMap.get(key);
+        if (conversionFactor !== undefined) {
+          return quantity * conversionFactor;
+        }
+        // Fallback: assume hours if no conversion found
+        console.warn(
+          `[ProjectDetails] No UOM conversion found for ${resourceNo}:${unitOfMeasureCode}, assuming hours`
+        );
+        return quantity;
+      };
 
       // Helper to check if lineType includes Budget (handles URL-encoded spaces from API)
       const isBudgetLine = (lineType: string) =>
@@ -400,12 +433,17 @@ export const projectDetailsService = {
         lineType === 'Both_x0020_Budget_x0020_and_x0020_Billable';
 
       // Hours Planned: sum quantity from Resource Budget lines only (hours only apply to resources)
+      // Convert quantity to hours using unit of measure conversion factor
       const resourceLines = planningLines.filter(
         (line: BCJobPlanningLine) => line.type === 'Resource'
       );
       hoursPlanned = resourceLines
         .filter((line: BCJobPlanningLine) => isBudgetLine(line.lineType))
-        .reduce((sum: number, line: BCJobPlanningLine) => sum + line.quantity, 0);
+        .reduce(
+          (sum: number, line: BCJobPlanningLine) =>
+            sum + toHours(line.number, line.quantity, line.unitOfMeasureCode),
+          0
+        );
 
       // Extract unit price per resource from planning lines as fallback
       // (only if Resource Card doesn't have unitPrice set)

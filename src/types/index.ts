@@ -107,12 +107,23 @@ export interface BCJobPlanningLine {
   number: string; // The "No." field - resource/item/GL account number
   description: string;
   quantity: number;
+  unitOfMeasureCode?: string; // e.g., "HOUR", "DAY" - requires Thyme BC Extension v1.7.0+
   unitCost: number;
   unitPrice: number;
   totalCost: number;
   totalPrice: number;
   lastModifiedDateTime: string;
   '@odata.etag'?: string;
+}
+
+// Resource Unit of Measure - conversion factors for time units
+export interface BCResourceUnitOfMeasure {
+  id: string;
+  resourceNo: string;
+  code: string; // e.g., "HOUR", "DAY"
+  qtyPerUnitOfMeasure: number; // Conversion factor (e.g., DAY = 8 HOURS)
+  relatedToBaseUnitOfMeasure: boolean;
+  lastModifiedDateTime: string;
 }
 
 export interface BCJobJournalLine {

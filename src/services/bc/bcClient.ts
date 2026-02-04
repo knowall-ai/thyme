@@ -11,6 +11,7 @@ import type {
   BCJobPlanningLine,
   BCJobJournalLine,
   BCResource,
+  BCResourceUnitOfMeasure,
   BCTimeSheet,
   BCTimeSheetLine,
   BCTimeSheetDetail,
@@ -488,6 +489,44 @@ class BusinessCentralClient {
       return data.value || [];
     } catch (error) {
       console.error('[BC API] Error fetching job planning lines:', error);
+      return [];
+    }
+  }
+
+  // Resource Units of Measure - conversion factors for time units
+  // Requires Thyme BC Extension v1.7.0+
+  async getResourceUnitsOfMeasure(): Promise<BCResourceUnitOfMeasure[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      return [];
+    }
+
+    try {
+      const token = await getBCAccessToken();
+      if (!token) return [];
+
+      const url = `${this.customApiBaseUrl}/resourceUnitsOfMeasure`;
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.warn(
+            '[BC API] resourceUnitsOfMeasure endpoint not found. Upgrade Thyme BC Extension to v1.7.0+.'
+          );
+          return [];
+        }
+        return [];
+      }
+
+      const data = await response.json();
+      return data.value || [];
+    } catch (error) {
+      console.error('[BC API] Error fetching resource units of measure:', error);
       return [];
     }
   }

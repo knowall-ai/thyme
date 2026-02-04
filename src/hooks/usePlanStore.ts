@@ -366,6 +366,31 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
           weekStartsOn: 1,
         });
 
+        // Fetch resource units of measure for converting DAY to HOURS
+        const resourceUnitsOfMeasure = await bcClient.getResourceUnitsOfMeasure();
+        const uomConversionMap = new Map<string, number>();
+        for (const uom of resourceUnitsOfMeasure) {
+          const key = `${uom.resourceNo}:${uom.code}`;
+          uomConversionMap.set(key, uom.qtyPerUnitOfMeasure);
+        }
+
+        // Helper to convert quantity to hours using unit of measure
+        const toHours = (
+          resourceNo: string,
+          quantity: number,
+          unitOfMeasureCode?: string
+        ): number => {
+          if (!unitOfMeasureCode || unitOfMeasureCode === 'HOUR') {
+            return quantity;
+          }
+          const key = `${resourceNo}:${unitOfMeasureCode}`;
+          const conversionFactor = uomConversionMap.get(key);
+          if (conversionFactor !== undefined) {
+            return quantity * conversionFactor;
+          }
+          return quantity; // Fallback: assume hours
+        };
+
         // Fetch planning lines for each project
         await Promise.all(
           projectsData.map(async (project) => {
@@ -381,6 +406,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
               );
 
               for (const line of resourceLines) {
+                const hours = toHours(line.number, line.quantity, line.unitOfMeasureCode);
                 const allocation: AllocationBlock = {
                   id: `${line.jobNo}-${line.jobTaskNo}-${line.lineNo}`,
                   resourceId: resourceIdMap.get(line.number) || line.number,
@@ -394,8 +420,8 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
                   taskName: taskNameMap.get(`${line.jobNo}|${line.jobTaskNo}`) || line.jobTaskNo,
                   startDate: line.planningDate,
                   endDate: line.planningDate,
-                  hoursPerDay: line.quantity,
-                  totalHours: line.quantity,
+                  hoursPerDay: hours,
+                  totalHours: hours,
                   color: projectColorMap.get(line.jobNo) || '#6b7280',
                   lineType: line.lineType,
                   planningLineNo: line.lineNo,
