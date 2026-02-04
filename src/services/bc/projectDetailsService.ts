@@ -80,6 +80,7 @@ interface WeeklyDataPoint {
   hours: number; // Total hours
   approvedHours: number; // Hours from Approved timesheets
   pendingHours: number; // Hours from Open + Submitted timesheets
+  plannedHours: number; // Budgeted hours from Job Planning Lines (by planningDate)
   cumulative: number;
 }
 
@@ -354,10 +355,10 @@ export const projectDetailsService = {
       weeklyMap.set(entry.weekStart, current);
     }
 
-    // Sort weeks and calculate cumulative
+    // Sort weeks and calculate cumulative (plannedHours will be added after fetching planning lines)
     const sortedWeeks = Array.from(weeklyMap.keys()).sort();
     let cumulative = 0;
-    const weeklyData: WeeklyDataPoint[] = sortedWeeks.map((week) => {
+    let weeklyData: WeeklyDataPoint[] = sortedWeeks.map((week) => {
       const data = weeklyMap.get(week) || { total: 0, approved: 0, pending: 0 };
       cumulative += data.total;
       return {
@@ -365,6 +366,7 @@ export const projectDetailsService = {
         hours: data.total,
         approvedHours: data.approved,
         pendingHours: data.pending,
+        plannedHours: 0, // Will be populated from planning lines
         cumulative,
       };
     });
@@ -519,6 +521,51 @@ export const projectDetailsService = {
           .reduce((sum: number, line: BCJobPlanningLine) => sum + line.totalPrice, 0),
         total: billablePrice,
       };
+
+      // Build planned hours by week from Resource Budget lines with valid planningDate
+      // This shows the budgeted hours allocation in the Hours per Week chart
+      const plannedHoursMap = new Map<string, number>();
+      for (const line of resourceLines) {
+        if (!isBudgetLine(line.lineType)) continue;
+        // Skip lines without a valid planning date (0001-01-01 is BC's default empty date)
+        if (!line.planningDate || line.planningDate === '0001-01-01') continue;
+
+        const planDate = new Date(line.planningDate);
+        if (isNaN(planDate.getTime())) continue;
+
+        const weekStr = getISOWeek(planDate);
+        const hours = toHours(line.number, line.quantity, line.unitOfMeasureCode);
+        const current = plannedHoursMap.get(weekStr) || 0;
+        plannedHoursMap.set(weekStr, current + hours);
+      }
+
+      // Merge planned hours into weeklyData
+      const weeklyDataMap = new Map(weeklyData.map((d) => [d.week, d]));
+      for (const [week, plannedHours] of plannedHoursMap) {
+        const existing = weeklyDataMap.get(week);
+        if (existing) {
+          existing.plannedHours = plannedHours;
+        } else {
+          // Add a new week entry for planned-only weeks (no actual hours yet)
+          weeklyDataMap.set(week, {
+            week,
+            hours: 0,
+            approvedHours: 0,
+            pendingHours: 0,
+            plannedHours,
+            cumulative: 0, // Will be recalculated below
+          });
+        }
+      }
+
+      // Rebuild weeklyData array sorted with recalculated cumulative
+      const allWeeks = Array.from(weeklyDataMap.keys()).sort();
+      let newCumulative = 0;
+      weeklyData = allWeeks.map((week) => {
+        const data = weeklyDataMap.get(week)!;
+        newCumulative += data.hours;
+        return { ...data, cumulative: newCumulative };
+      });
     } catch {
       // If planning lines can't be fetched, leave values as 0
     }
