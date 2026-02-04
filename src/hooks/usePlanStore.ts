@@ -375,20 +375,25 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         }
 
         // Helper to convert quantity to hours using unit of measure
+        // When unit is DAY, we need to find the HOUR factor and divide
+        // HOUR factor of 0.133 means 1 HOUR = 0.133 DAY, so 1 DAY = 1/0.133 = 7.5 HOURS
         const toHours = (
           resourceNo: string,
           quantity: number,
           unitOfMeasureCode?: string
         ): number => {
           if (!unitOfMeasureCode || unitOfMeasureCode === 'HOUR') {
-            return quantity;
+            return quantity; // Already in hours
           }
-          const key = `${resourceNo}:${unitOfMeasureCode}`;
-          const conversionFactor = uomConversionMap.get(key);
-          if (conversionFactor !== undefined) {
-            return quantity * conversionFactor;
+          // For non-HOUR units (e.g., DAY), look up the HOUR factor for this resource
+          // and divide to convert to hours
+          const hourKey = `${resourceNo}:HOUR`;
+          const hourFactor = uomConversionMap.get(hourKey);
+          if (hourFactor !== undefined && hourFactor > 0) {
+            // If HOUR = 0.133, then 1.5 DAY = 1.5 / 0.133 = 11.25 HOURS
+            return quantity / hourFactor;
           }
-          return quantity; // Fallback: assume hours
+          return quantity; // Fallback: assume hours if no HOUR conversion found
         };
 
         // Fetch planning lines for each project

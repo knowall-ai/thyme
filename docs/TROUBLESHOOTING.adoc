@@ -74,4 +74,7 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Azure managed SSL certificate fails with "A record must point to..."
 | Azure App Service managed certificates require a proper A record for root domains, not a CNAME or ALIAS. Configure DNS with an A record for `@` pointing to the App Service IP shown in the error message. CNAME records are technically not allowed on root domains by DNS standards. The `www` subdomain can use a CNAME pointing to your App Service hostname.
 
+| Hours and days display incorrectly (e.g., 12h shows as 12d instead of 1.5d)
+| Resources with Base Unit of Measure = DAY need an HOUR unit configured for conversion. In BC: (1) Open the Resource card (2) Go to Related → Resource → Units of Measure (3) The DAY row must stay at Qty per Unit of Measure = 1 (base unit, cannot change) (4) Add a new row for HOUR with Qty per Unit of Measure = 0.125 (for 8-hour days) or 0.133 (for 7.5-hour days). This tells BC that 1 HOUR = 0.125 DAYs. Thyme reads these conversion factors from the `/resourceUnitsOfMeasure` API (requires BC Extension v1.7.0+).
+
 |===

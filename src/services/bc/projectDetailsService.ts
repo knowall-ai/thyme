@@ -38,6 +38,9 @@ export interface ProjectAnalytics {
   // Billing mode - derived from billablePriceBreakdown
   billingMode: BillingMode;
 
+  // Hours per day - from Resource Unit of Measure (DAY conversion factor)
+  hoursPerDay: number; // Default 8 if not configured in BC
+
   // Hours
   hoursSpent: number; // From timesheets (totalQuantity)
   hoursPlanned: number; // From Job Planning Lines (Budget lineType)
@@ -204,6 +207,7 @@ export const projectDetailsService = {
     // Helper to create empty analytics
     const emptyAnalytics = (): ProjectAnalytics => ({
       billingMode: 'Not Set',
+      hoursPerDay: 8,
       hoursSpent: 0,
       hoursPlanned: 0,
       hoursThisWeek: 0,
@@ -378,6 +382,7 @@ export const projectDetailsService = {
     // BC has 3 line types: Resource (labor), Item (products), G/L Account (overhead/services)
     // We include ALL types for totals, but only Resource for hours
     let hoursPlanned = 0;
+    let hoursPerDay = 8; // Default, will be updated from BC if DAY unit is configured
     let budgetCost = 0;
     let budgetCostBreakdown: CostBreakdown = { resource: 0, item: 0, glAccount: 0, total: 0 };
     let billablePrice = 0;
@@ -399,7 +404,20 @@ export const projectDetailsService = {
         uomConversionMap.set(key, uom.qtyPerUnitOfMeasure);
       }
 
+      // Get hours per day from the HOUR unit conversion factor
+      // For DAY-based resources, HOUR has qtyPerUnitOfMeasure < 1 (e.g., 0.133 = 1/7.5)
+      // For HOUR-based resources, HOUR has qtyPerUnitOfMeasure = 1 (base unit)
+      // We want to find an HOUR unit with factor < 1 to determine hours per day
+      const hourUnitForDayConversion = resourceUnitsOfMeasure.find(
+        (uom) => uom.code === 'HOUR' && uom.qtyPerUnitOfMeasure > 0 && uom.qtyPerUnitOfMeasure < 1
+      );
+      hoursPerDay = hourUnitForDayConversion
+        ? Math.round((1 / hourUnitForDayConversion.qtyPerUnitOfMeasure) * 10) / 10 // Round to 1 decimal
+        : 8; // Default to 8 hours/day
+
       // Helper to convert quantity to hours using unit of measure
+      // When unit is DAY, we need to find the HOUR factor and divide
+      // HOUR factor of 0.133 means 1 HOUR = 0.133 DAY, so 1 DAY = 1/0.133 = 7.5 HOURS
       const toHours = (
         resourceNo: string,
         quantity: number,
@@ -408,14 +426,17 @@ export const projectDetailsService = {
         if (!unitOfMeasureCode || unitOfMeasureCode === 'HOUR') {
           return quantity; // Already in hours
         }
-        const key = `${resourceNo}:${unitOfMeasureCode}`;
-        const conversionFactor = uomConversionMap.get(key);
-        if (conversionFactor !== undefined) {
-          return quantity * conversionFactor;
+        // For non-HOUR units (e.g., DAY), look up the HOUR factor for this resource
+        // and divide to convert to hours
+        const hourKey = `${resourceNo}:HOUR`;
+        const hourFactor = uomConversionMap.get(hourKey);
+        if (hourFactor !== undefined && hourFactor > 0) {
+          // If HOUR = 0.133, then 1.5 DAY = 1.5 / 0.133 = 11.25 HOURS
+          return quantity / hourFactor;
         }
-        // Fallback: assume hours if no conversion found
+        // Fallback: assume hours if no HOUR conversion found for this resource
         console.warn(
-          `[ProjectDetails] No UOM conversion found for ${resourceNo}:${unitOfMeasureCode}, assuming hours`
+          `[ProjectDetails] No HOUR UOM conversion found for ${resourceNo}, assuming quantity is in hours`
         );
         return quantity;
       };
@@ -741,6 +762,9 @@ export const projectDetailsService = {
     return {
       // Billing mode
       billingMode,
+
+      // Hours per day conversion factor (from BC Resource Unit of Measure)
+      hoursPerDay,
 
       // New BC-aligned terminology
       hoursSpent: totalHours,

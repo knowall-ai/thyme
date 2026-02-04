@@ -73,6 +73,7 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
         set({
           analytics: {
             billingMode: 'Not Set',
+            hoursPerDay: 8,
             hoursSpent: 0,
             hoursPlanned: 0,
             hoursThisWeek: 0,

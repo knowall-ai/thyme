@@ -66,6 +66,13 @@ function InfoTooltip({
   );
 }
 
+// Format hours with days equivalent
+function formatHoursWithDays(hours: number, hoursPerDay: number): string {
+  const days = hours / hoursPerDay;
+  if (hours === 0) return '0h (0d)';
+  return `${hours.toFixed(1)}h (${days.toFixed(1)}d)`;
+}
+
 // Format currency using the company's currency code from BC
 function formatCurrency(amount: number, currencyCode: string): string {
   // Map currency code to locale for proper formatting
@@ -121,6 +128,7 @@ export function ProjectKPICards() {
   const hoursPlanned = analytics?.hoursPlanned ?? 0;
   const hoursPosted = analytics?.hoursPosted ?? 0;
   const hoursUnposted = analytics?.hoursUnposted ?? 0;
+  const hoursPerDay = analytics?.hoursPerDay ?? 8; // From BC Resource Unit of Measure
   const hoursRemaining = hoursPlanned - hoursSpent;
   const hasPlannedHours = hoursPlanned > 0;
   const percentUsed = hasPlannedHours ? Math.round((hoursSpent / hoursPlanned) * 100) : 0;
@@ -129,7 +137,7 @@ export function ProjectKPICards() {
   const hoursKpis = [
     {
       label: 'Hours Spent',
-      value: `${hoursSpent.toFixed(1)}h`,
+      value: formatHoursWithDays(hoursSpent, hoursPerDay),
       subLabel: hasPlannedHours
         ? `${percentUsed}% of ${hoursPlanned.toFixed(0)}h planned`
         : 'From timesheets',
@@ -140,47 +148,45 @@ export function ProjectKPICards() {
         percentUsed > 100 ? 'bg-red-500' : percentUsed > 80 ? 'bg-amber-500' : 'bg-thyme-500',
       tooltip: {
         title: 'Hours Spent',
-        description:
-          'Total hours logged in timesheets for this project. Includes all timesheet statuses: Open, Submitted, and Approved.',
+        description: `Total hours logged in timesheets for this project. Includes all timesheet statuses: Open, Submitted, and Approved. Days = hours ÷ ${hoursPerDay}.`,
         source: 'BC API: /timeSheetLines → totalQuantity',
       },
     },
     {
-      label: 'Hours Planned',
-      value: hasPlannedHours ? `${hoursPlanned.toFixed(1)}h` : 'N/A',
-      subLabel: hasPlannedHours ? `${hoursRemaining.toFixed(1)}h remaining` : 'No budget set in BC',
+      label: 'Hours Budgeted',
+      value: hasPlannedHours ? formatHoursWithDays(hoursPlanned, hoursPerDay) : 'N/A',
+      subLabel: hasPlannedHours
+        ? `${formatHoursWithDays(hoursRemaining, hoursPerDay)} remaining`
+        : 'No budget set in BC',
       icon: CalendarDaysIcon,
       color: hoursRemaining < 0 ? 'text-red-400' : 'text-blue-400',
       tooltip: {
-        title: 'Hours Planned',
-        description:
-          'Budgeted hours from Job Planning Lines. Only includes Resource lines where lineType is "Budget" or "Both Budget and Billable".',
+        title: 'Hours Budgeted',
+        description: `Budgeted hours from Job Planning Lines. Only includes Resource lines where lineType is "Budget" or "Both Budget and Billable". Days = hours ÷ ${hoursPerDay}.`,
         source: 'BC API: /jobPlanningLines → quantity',
       },
     },
     {
       label: 'Hours Posted',
-      value: `${hoursPosted.toFixed(1)}h`,
+      value: formatHoursWithDays(hoursPosted, hoursPerDay),
       subLabel: 'In Job Ledger Entry',
       icon: ClockIcon,
       color: 'text-green-400',
       tooltip: {
         title: 'Hours Posted',
-        description:
-          "Hours that have been posted to the Job Ledger Entry. Posting creates cost and price entries based on the Resource's Unit Cost and Unit Price.",
+        description: `Hours that have been posted to the Job Ledger Entry. Posting creates cost and price entries based on the Resource's Unit Cost and Unit Price. Days = hours ÷ ${hoursPerDay}.`,
         source: 'BC API: /timeEntries → quantity',
       },
     },
     {
       label: 'Hours Unposted',
-      value: `${hoursUnposted.toFixed(1)}h`,
+      value: formatHoursWithDays(hoursUnposted, hoursPerDay),
       subLabel: hoursUnposted > 0 ? 'In timesheets, not posted' : 'All hours posted',
       icon: ClockIcon,
       color: hoursUnposted > 0 ? 'text-amber-400' : 'text-gray-500',
       tooltip: {
         title: 'Hours Unposted',
-        description:
-          'Hours in timesheets that have not yet been posted to the Job Ledger Entry. These hours are approved but awaiting the "Post Time Sheets" action in BC.',
+        description: `Hours in timesheets that have not yet been posted to the Job Ledger Entry. These hours are approved but awaiting the "Post Time Sheets" action in BC. Days = hours ÷ ${hoursPerDay}.`,
         formula: 'Hours Spent − Hours Posted',
         source: 'Calculated',
       },
