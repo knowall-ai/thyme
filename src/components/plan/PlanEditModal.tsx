@@ -57,19 +57,42 @@ export function PlanEditModal({
     [weekStart, weekEnd]
   );
 
+  // Conversion factor: how many hours in a day (fetched from BC)
+  const [hoursPerDayFactor, setHoursPerDayFactor] = useState(7.5);
+  // Whether this resource is DAY-based (needs conversion when saving)
+  const [isResourceDayBased, setIsResourceDayBased] = useState(true);
+
   // Fetch all existing planning lines for this resource/project/task/week
   const fetchExistingLines = useCallback(async () => {
     if (!allocation) return;
 
     setIsLoadingExisting(true);
     try {
-      const existingLines = await bcClient.getJobPlanningLinesForWeek({
-        jobNo: allocation.projectNumber,
-        jobTaskNo: allocation.taskNumber || '',
-        resourceNo: allocation.resourceNumber,
-        weekStart: format(weekStart, 'yyyy-MM-dd'),
-        weekEnd: format(weekEnd, 'yyyy-MM-dd'),
-      });
+      // Fetch UOM conversion factors and planning lines in parallel
+      const [existingLines, resources, resourceUOMs] = await Promise.all([
+        bcClient.getJobPlanningLinesForWeek({
+          jobNo: allocation.projectNumber,
+          jobTaskNo: allocation.taskNumber || '',
+          resourceNo: allocation.resourceNumber,
+          weekStart: format(weekStart, 'yyyy-MM-dd'),
+          weekEnd: format(weekEnd, 'yyyy-MM-dd'),
+        }),
+        bcClient.getResources(),
+        bcClient.getResourceUnitsOfMeasure(),
+      ]);
+
+      // Find this resource's base unit and HOUR conversion factor
+      const resource = resources.find((r) => r.number === allocation.resourceNumber);
+      const resourceIsDayBased = resource?.baseUnitOfMeasure === 'DAY';
+      setIsResourceDayBased(resourceIsDayBased);
+      const hourUOM = resourceUOMs.find(
+        (u) => u.resourceNo === allocation.resourceNumber && u.code === 'HOUR'
+      );
+      const conversionFactor =
+        hourUOM?.qtyPerUnitOfMeasure && hourUOM.qtyPerUnitOfMeasure > 1
+          ? hourUOM.qtyPerUnitOfMeasure
+          : 7.5;
+      setHoursPerDayFactor(conversionFactor);
 
       // Group lines by date and aggregate hours for display
       const byDate: Record<string, ExistingLine[]> = {};
@@ -87,10 +110,14 @@ export function PlanEditModal({
         });
       }
 
-      // Sum hours for each date for display
+      // Sum and convert to hours for each date
       for (const [date, lines] of Object.entries(byDate)) {
-        const total = lines.reduce((sum, l) => sum + l.quantity, 0);
-        hours[date] = total.toString();
+        const totalQuantity = lines.reduce((sum, l) => sum + l.quantity, 0);
+        // Convert base unit to hours if resource is DAY-based (quantity is in DAYS)
+        const totalHours = resourceIsDayBased ? totalQuantity * conversionFactor : totalQuantity;
+        // Round to nearest 0.5 hour
+        const rounded = Math.round(totalHours * 2) / 2;
+        hours[date] = rounded.toString();
       }
 
       setExistingLinesByDate(byDate);
@@ -237,26 +264,30 @@ export function PlanEditModal({
         deleted++;
       }
 
-      // Update existing lines with new quantity
+      // Update existing lines with new quantity (convert hours back to days)
       for (const item of toUpdate) {
+        const quantityInDays = item.hours / hoursPerDayFactor;
         await bcClient.updateJobPlanningLine(
           item.id,
           {
-            quantity: item.hours,
+            quantity: quantityInDays,
           },
           item.etag
         );
         updated++;
       }
 
-      // Create new lines
+      // Create new lines (convert hours to resource's base unit - typically DAY)
       for (const item of toCreate) {
+        // If resource is DAY-based, convert hours to days; otherwise use hours directly
+        const quantityInBaseUnit = isResourceDayBased ? item.hours / hoursPerDayFactor : item.hours;
         await bcClient.createJobPlanningLine({
           jobNo: allocation.projectNumber,
           jobTaskNo: allocation.taskNumber || '',
           resourceNo: allocation.resourceNumber,
           planningDate: item.date,
-          quantity: item.hours,
+          quantity: quantityInBaseUnit,
+          // Don't specify unitOfMeasureCode - let BC use the resource's default
         });
         created++;
       }

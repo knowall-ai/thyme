@@ -350,8 +350,8 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
   }, [maxHours]);
 
   return (
-    <div className="h-64">
-      <div className="flex h-52">
+    <div>
+      <div className="flex h-48">
         {/* Y-axis */}
         <div className="flex w-8 flex-col justify-between pr-2 text-right text-xs text-gray-500">
           {yAxisLabels.map((label) => (
@@ -655,8 +655,8 @@ function ProgressLineChart({
   const totalBudgetY = maxCost > 0 ? (1 - budgetCost / maxCost) * 100 : 0;
 
   return (
-    <div className="h-64">
-      <div className="flex h-52">
+    <div>
+      <div className="flex h-48">
         {/* Y-axis - £ values */}
         <div className="flex w-12 flex-col justify-between pr-2 text-right text-xs text-gray-500">
           {yAxisLabels.map((label) => (

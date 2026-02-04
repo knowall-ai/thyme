@@ -45,6 +45,9 @@ export function PlanEntryModal({
     Record<string, { id: string; etag: string }>
   >({});
   const [hasExistingData, setHasExistingData] = useState(false);
+  // Resource unit conversion info (fetched once when modal opens)
+  const [isResourceDayBased, setIsResourceDayBased] = useState(true);
+  const [hoursPerDayFactor, setHoursPerDayFactor] = useState(7.5);
 
   // Calculate the week's days based on selected date
   const weekStart = useMemo(() => startOfWeek(selectedDate, { weekStartsOn: 1 }), [selectedDate]);
@@ -54,12 +57,33 @@ export function PlanEntryModal({
     [weekStart, weekEnd]
   );
 
-  // Check if BC extension is installed
+  // Check if BC extension is installed and fetch resource info
   useEffect(() => {
     if (isOpen) {
       bcClient.isExtensionInstalled().then(setExtensionInstalled);
+      // Fetch resource base unit info for unit conversion
+      Promise.all([bcClient.getResources(), bcClient.getResourceUnitsOfMeasure()])
+        .then(([resources, resourceUOMs]) => {
+          const resource = resources.find((r) => r.number === resourceNumber);
+          const resourceIsDayBased = resource?.baseUnitOfMeasure === 'DAY';
+          setIsResourceDayBased(resourceIsDayBased);
+          // Find HOUR conversion factor
+          const hourUOM = resourceUOMs.find(
+            (u) => u.resourceNo === resourceNumber && u.code === 'HOUR'
+          );
+          const factor =
+            hourUOM?.qtyPerUnitOfMeasure && hourUOM.qtyPerUnitOfMeasure > 1
+              ? hourUOM.qtyPerUnitOfMeasure
+              : 7.5;
+          setHoursPerDayFactor(factor);
+        })
+        .catch(() => {
+          // Fall back to DAY-based with 7.5 hours/day
+          setIsResourceDayBased(true);
+          setHoursPerDayFactor(7.5);
+        });
     }
-  }, [isOpen]);
+  }, [isOpen, resourceNumber]);
 
   // Fetch projects when modal opens
   useEffect(() => {
@@ -132,12 +156,16 @@ export function PlanEntryModal({
           newHours[dateKey] = '';
         });
 
-        // Fill in existing values
+        // Fill in existing values (convert base unit to hours for display)
         for (const line of existingLines) {
           const dateKey = line.planningDate;
+          // Convert from resource's base unit to hours
+          const hoursValue = isResourceDayBased ? line.quantity * hoursPerDayFactor : line.quantity;
           // If there are multiple lines for the same day, sum them
           const existingVal = parseFloat(newHours[dateKey] || '0');
-          newHours[dateKey] = (existingVal + line.quantity).toString();
+          // Round to nearest 0.5 hour
+          const rounded = Math.round((existingVal + hoursValue) * 2) / 2;
+          newHours[dateKey] = rounded.toString();
           // Track id and etag for updates (last one wins if multiple)
           newLinesByDate[dateKey] = { id: line.id, etag: line['@odata.etag'] || '' };
         }
@@ -272,26 +300,29 @@ export function PlanEntryModal({
         deleted++;
       }
 
-      // Update existing lines
+      // Update existing lines (convert hours to resource's base unit)
       for (const item of toUpdate) {
+        const quantityInBaseUnit = isResourceDayBased ? item.hours / hoursPerDayFactor : item.hours;
         await bcClient.updateJobPlanningLine(
           item.id,
           {
-            quantity: item.hours,
+            quantity: quantityInBaseUnit,
           },
           item.etag
         );
         updated++;
       }
 
-      // Create new lines
+      // Create new lines (convert hours to resource's base unit - BC uses resource's default UOM)
       for (const item of toCreate) {
+        const quantityInBaseUnit = isResourceDayBased ? item.hours / hoursPerDayFactor : item.hours;
         await bcClient.createJobPlanningLine({
           jobNo: project.code,
           jobTaskNo: task.code,
           resourceNo: resourceNumber,
           planningDate: item.date,
-          quantity: item.hours,
+          quantity: quantityInBaseUnit,
+          // Don't specify unitOfMeasureCode - let BC use resource's base unit
         });
         created++;
       }

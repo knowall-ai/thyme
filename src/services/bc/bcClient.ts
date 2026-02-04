@@ -590,6 +590,7 @@ class BusinessCentralClient {
     planningDate: string; // YYYY-MM-DD
     quantity: number;
     lineType?: 'Budget' | 'Billable' | 'Both Budget and Billable';
+    unitOfMeasureCode?: string; // e.g., 'HOUR' or 'DAY'
   }): Promise<BCJobPlanningLine | null> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
@@ -625,6 +626,7 @@ class BusinessCentralClient {
           planningDate: sanitizedDate,
           quantity: params.quantity,
           lineType: params.lineType || 'Budget',
+          ...(params.unitOfMeasureCode && { unitOfMeasureCode: params.unitOfMeasureCode }),
         }),
       });
 

@@ -392,14 +392,14 @@ export const projectDetailsService = {
     // Map for unit price per task (from Job Planning Lines - fallback if Resource doesn't have unitPrice)
     const unitPriceByTask = new Map<string, number>();
     try {
-      // Fetch planning lines and unit of measure conversion factors in parallel
+      // Fetch planning lines, resources, and unit of measure conversion factors in parallel
       const [planningLines, resourceUnitsOfMeasure] = await Promise.all([
         bcClient.getJobPlanningLines(projectNumber),
         bcClient.getResourceUnitsOfMeasure(),
       ]);
 
       // Build a map for unit of measure conversion: (resourceNo, unitCode) → qtyPerUnitOfMeasure
-      // This allows us to convert DAY to HOURS (e.g., 1 DAY = 8 HOURS)
+      // This allows us to convert DAY to HOURS (e.g., 1 DAY = 7.5 HOURS)
       const uomConversionMap = new Map<string, number>();
       for (const uom of resourceUnitsOfMeasure) {
         const key = `${uom.resourceNo}:${uom.code}`;
@@ -407,39 +407,30 @@ export const projectDetailsService = {
       }
 
       // Get hours per day from the HOUR unit conversion factor
-      // For DAY-based resources, HOUR has qtyPerUnitOfMeasure < 1 (e.g., 0.133 = 1/7.5)
-      // For HOUR-based resources, HOUR has qtyPerUnitOfMeasure = 1 (base unit)
-      // We want to find an HOUR unit with factor < 1 to determine hours per day
+      // For DAY-based resources, HOUR has qtyPerUnitOfMeasure > 1 (e.g., 7.5 means 1 DAY = 7.5 HOURS)
       const hourUnitForDayConversion = resourceUnitsOfMeasure.find(
-        (uom) => uom.code === 'HOUR' && uom.qtyPerUnitOfMeasure > 0 && uom.qtyPerUnitOfMeasure < 1
+        (uom) => uom.code === 'HOUR' && uom.qtyPerUnitOfMeasure > 1
       );
-      hoursPerDay = hourUnitForDayConversion
-        ? Math.round((1 / hourUnitForDayConversion.qtyPerUnitOfMeasure) * 10) / 10 // Round to 1 decimal
-        : 8; // Default to 8 hours/day
+      hoursPerDay = hourUnitForDayConversion?.qtyPerUnitOfMeasure ?? 7.5; // Default to 7.5 hours/day
 
-      // Helper to convert quantity to hours using unit of measure
-      // When unit is DAY, we need to find the HOUR factor and divide
-      // HOUR factor of 0.133 means 1 HOUR = 0.133 DAY, so 1 DAY = 1/0.133 = 7.5 HOURS
+      // Helper to convert quantity to hours based on resource's base unit
+      // BC stores planning lines in the resource's base unit (DAY or HOUR)
+      // If resource is DAY-based (has HOUR factor > 1), quantity is in DAYS → multiply to get hours
+      // If resource is HOUR-based (no HOUR factor or = 1), quantity is already in hours
+      // NOTE: We don't trust unitOfMeasureCode from API because BC may ignore it when creating lines
       const toHours = (
         resourceNo: string,
         quantity: number,
-        unitOfMeasureCode?: string
+        _unitOfMeasureCode?: string // Kept for backwards compatibility but not used
       ): number => {
-        if (!unitOfMeasureCode || unitOfMeasureCode === 'HOUR') {
-          return quantity; // Already in hours
-        }
-        // For non-HOUR units (e.g., DAY), look up the HOUR factor for this resource
-        // and divide to convert to hours
+        // Check if resource is DAY-based by looking for HOUR conversion factor > 1
         const hourKey = `${resourceNo}:HOUR`;
         const hourFactor = uomConversionMap.get(hourKey);
-        if (hourFactor !== undefined && hourFactor > 0) {
-          // If HOUR = 0.133, then 1.5 DAY = 1.5 / 0.133 = 11.25 HOURS
-          return quantity / hourFactor;
+        if (hourFactor !== undefined && hourFactor > 1) {
+          // Resource is DAY-based: quantity × hourFactor = hours
+          return quantity * hourFactor;
         }
-        // Fallback: assume hours if no HOUR conversion found for this resource
-        console.warn(
-          `[ProjectDetails] No HOUR UOM conversion found for ${resourceNo}, assuming quantity is in hours`
-        );
+        // Resource is HOUR-based or no conversion found: quantity is already in hours
         return quantity;
       };
 
