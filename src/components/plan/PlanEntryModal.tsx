@@ -7,6 +7,7 @@ import { Modal, Button, Select } from '@/components/ui';
 import { useProjectsStore, useCompanyStore } from '@/hooks';
 import { bcClient } from '@/services/bc/bcClient';
 import { getBCResourceUrl, getBCJobUrl } from '@/utils/bcUrls';
+import { ResourceWorkload } from './ResourceWorkload';
 import type { SelectOption, BCJobPlanningLine } from '@/types';
 import { format, getWeek, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 
@@ -472,6 +473,23 @@ export function PlanEntryModal({
             })}
           </div>
         </div>
+
+        {/* Resource workload */}
+        {resourceNumber && (
+          <ResourceWorkload
+            resourceNo={resourceNumber}
+            weekStart={weekStart}
+            weekEnd={weekEnd}
+            excludeJobNo={projectId ? projects.find((p) => p.id === projectId)?.code : undefined}
+            excludeJobTaskNo={
+              taskId
+                ? projects.find((p) => p.id === projectId)?.tasks?.find((t) => t.id === taskId)
+                    ?.code
+                : undefined
+            }
+            currentDayHours={dayHours}
+          />
+        )}
 
         {/* Total */}
         <div className="text-dark-300 border-dark-700 flex items-center justify-between border-t pt-3 text-sm">
