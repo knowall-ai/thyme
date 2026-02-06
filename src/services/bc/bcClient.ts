@@ -1012,6 +1012,24 @@ class BusinessCentralClient {
   }
 
   /**
+   * Delete a timesheet. Use with caution - this permanently removes the timesheet.
+   * Typically used for cleaning up invalid/corrupt timesheet data.
+   */
+  async deleteTimeSheet(timeSheetId: string, etag: string): Promise<void> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    await this.customApiFetch(`/timeSheets(${timeSheetId})`, {
+      method: 'DELETE',
+      headers: {
+        'If-Match': etag,
+      },
+    });
+  }
+
+  /**
    * Get lines for a specific timesheet.
    */
   async getTimeSheetLines(timeSheetNo: string): Promise<BCTimeSheetLine[]> {

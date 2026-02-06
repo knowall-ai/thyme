@@ -18,8 +18,8 @@ import { useApprovalStore, useCompanyStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
 import { getUserProfilePhoto } from '@/services/auth/graphService';
 import { bcClient } from '@/services/bc/bcClient';
-import { cn } from '@/utils';
-import type { BCTimeSheet, BCTimeSheetLine, BCJob, BCJobTask } from '@/types';
+import { cn, DATE_FORMAT_FULL, DATE_FORMAT_SHORT } from '@/utils';
+import type { BCTimeSheet, BCTimeSheetLine, BCProject, BCJobTask } from '@/types';
 
 type GroupBy = 'none' | 'week' | 'person';
 
@@ -27,6 +27,16 @@ export function ApprovalList() {
   const { selectedCompany, companyVersion } = useCompanyStore();
   const { account } = useAuth();
   const emailDomain = account?.username?.split('@')[1] || '';
+
+  // Helper to get full email - handles both full email and username-only formats
+  const getFullEmail = (resourceEmail: string | undefined): string | null => {
+    if (!resourceEmail) return null;
+    // If already a full email, use it directly
+    if (resourceEmail.includes('@')) return resourceEmail;
+    // Otherwise, append the domain from the logged-in user
+    if (emailDomain) return `${resourceEmail}@${emailDomain}`;
+    return null;
+  };
   const {
     allApprovals,
     pendingApprovals,
@@ -47,14 +57,16 @@ export function ApprovalList() {
     clearFilters,
     approveTimeSheet,
     rejectTimeSheet,
+    deleteTimeSheet,
     checkApprovalPermission,
   } = useApprovalStore();
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [linesCache, setLinesCache] = useState<Record<string, BCTimeSheetLine[]>>({});
   const [photosCache, setPhotosCache] = useState<Record<string, string | null>>({});
-  const [jobsCache, setJobsCache] = useState<Record<string, BCJob>>({});
+  const [jobsCache, setJobsCache] = useState<Record<string, BCProject>>({});
   const [tasksCache, setTasksCache] = useState<Record<string, BCJobTask[]>>({});
+  const [jobsApiFailed, setJobsApiFailed] = useState(false); // Track if jobs API is unavailable
   const [groupBy, setGroupBy] = useState<GroupBy>('week');
 
   // Calculate actual pending hours from lines cache
@@ -97,7 +109,12 @@ export function ApprovalList() {
           try {
             const startDate = parseISO(items[0].startingDate);
             const endDate = parseISO(items[0].endingDate);
-            label = `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d, yyyy')}`;
+            // Check for invalid/placeholder dates (year 0001 or 1)
+            if (startDate.getFullYear() <= 1 || endDate.getFullYear() <= 1) {
+              label = 'Unknown dates';
+            } else {
+              label = `${format(startDate, DATE_FORMAT_SHORT)} - ${format(endDate, DATE_FORMAT_FULL)}`;
+            }
           } catch {
             label = key;
           }
@@ -169,11 +186,9 @@ export function ApprovalList() {
     async function prefetchPhotos() {
       const uniqueEmails = new Set<string>();
       pendingApprovals.forEach((ts) => {
-        if (ts.resourceEmail && emailDomain) {
-          const email = `${ts.resourceEmail}@${emailDomain}`;
-          if (!(email in photosCache)) {
-            uniqueEmails.add(email);
-          }
+        const email = getFullEmail(ts.resourceEmail);
+        if (email && !(email in photosCache)) {
+          uniqueEmails.add(email);
         }
       });
 
@@ -186,14 +201,19 @@ export function ApprovalList() {
         }
       }
     }
-    if (pendingApprovals.length > 0 && emailDomain) {
+    if (pendingApprovals.length > 0) {
       prefetchPhotos();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingApprovals, emailDomain, photosCache]);
 
   // Pre-fetch job and task names for lines
+  // Skip if jobs API has previously failed (e.g., 404 - endpoint not available)
   useEffect(() => {
     async function prefetchJobData() {
+      // Skip if jobs API is known to be unavailable
+      if (jobsApiFailed) return;
+
       // Collect unique job numbers from all lines
       const uniqueJobNos = new Set<string>();
       Object.values(linesCache).forEach((lines) => {
@@ -206,16 +226,17 @@ export function ApprovalList() {
 
       if (uniqueJobNos.size === 0) return;
 
-      // Fetch all jobs and filter for the ones we need
+      // Fetch all projects and filter for the ones we need
+      // Note: Uses /projects endpoint (Thyme extension) instead of /jobs (standard API which may not be available)
       try {
-        const allJobs = await bcClient.getJobs();
-        const jobMap: Record<string, BCJob> = {};
-        allJobs.forEach((job) => {
-          if (uniqueJobNos.has(job.number)) {
-            jobMap[job.number] = job;
+        const allProjects = await bcClient.getProjects();
+        const projectMap: Record<string, BCProject> = {};
+        allProjects.forEach((project) => {
+          if (uniqueJobNos.has(project.number)) {
+            projectMap[project.number] = project;
           }
         });
-        setJobsCache((prev) => ({ ...prev, ...jobMap }));
+        setJobsCache((prev) => ({ ...prev, ...projectMap }));
 
         // Fetch tasks for each job
         for (const jobNo of uniqueJobNos) {
@@ -224,22 +245,24 @@ export function ApprovalList() {
               const tasks = await bcClient.getJobTasks(jobNo);
               setTasksCache((prev) => ({ ...prev, [jobNo]: tasks }));
             } catch {
-              // Silently fail - will show fallback
+              // Silently fail for individual task fetches - will show fallback
             }
           }
         }
-      } catch {
-        // Silently fail - will show fallback (job codes)
+      } catch (err) {
+        // If projects API returns 404 or similar, mark it as failed to prevent repeated calls
+        console.warn('Projects API unavailable, will show project codes instead:', err);
+        setJobsApiFailed(true);
       }
     }
 
     const hasLinesWithJobs = Object.values(linesCache).some((lines) =>
       lines.some((line) => line.jobNo)
     );
-    if (hasLinesWithJobs) {
+    if (hasLinesWithJobs && !jobsApiFailed) {
       prefetchJobData();
     }
-  }, [linesCache, jobsCache, tasksCache]);
+  }, [linesCache, jobsCache, tasksCache, jobsApiFailed]);
 
   const handleToggleExpand = useCallback(
     async (timeSheet: BCTimeSheet) => {
@@ -294,6 +317,25 @@ export function ApprovalList() {
       }
     },
     [rejectTimeSheet, expandedId, pendingApprovals]
+  );
+
+  const handleDelete = useCallback(
+    async (timeSheetId: string, etag: string) => {
+      // Find the timesheet to get employee name for better error messages
+      const timeSheet = pendingApprovals.find((a) => a.id === timeSheetId);
+      const employeeName = timeSheet?.resourceName || 'Unknown';
+
+      const success = await deleteTimeSheet(timeSheetId, etag);
+      if (success) {
+        toast.success(`Timesheet for ${employeeName} deleted`);
+        if (expandedId === timeSheetId) {
+          setExpandedId(null);
+        }
+      } else {
+        toast.error(`Failed to delete timesheet for ${employeeName}`);
+      }
+    },
+    [deleteTimeSheet, expandedId, pendingApprovals]
   );
 
   // Permission check loading state
@@ -426,10 +468,7 @@ export function ApprovalList() {
                       // Show profile photo for person group
                       (() => {
                         const firstTs = group.items[0];
-                        const email =
-                          firstTs?.resourceEmail && emailDomain
-                            ? `${firstTs.resourceEmail}@${emailDomain}`
-                            : null;
+                        const email = getFullEmail(firstTs?.resourceEmail);
                         const photo = email ? photosCache[email] : null;
                         return photo ? (
                           <img
@@ -460,13 +499,14 @@ export function ApprovalList() {
                     onToggleExpand={() => handleToggleExpand(timeSheet)}
                     onApprove={(comment) => handleApprove(timeSheet.id, comment)}
                     onReject={(comment) => handleReject(timeSheet.id, comment)}
-                    hidePerson={groupBy === 'person'}
-                    hideWeek={groupBy === 'week'}
-                    resourceEmail={
-                      timeSheet.resourceEmail && emailDomain
-                        ? `${timeSheet.resourceEmail}@${emailDomain}`
+                    onDelete={
+                      timeSheet['@odata.etag']
+                        ? () => handleDelete(timeSheet.id, timeSheet['@odata.etag']!)
                         : undefined
                     }
+                    hidePerson={groupBy === 'person'}
+                    hideWeek={groupBy === 'week'}
+                    resourceEmail={getFullEmail(timeSheet.resourceEmail) || undefined}
                     jobsCache={jobsCache}
                     tasksCache={tasksCache}
                   />

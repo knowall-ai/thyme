@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import {
   CheckIcon,
@@ -10,6 +11,7 @@ import {
   ClockIcon,
   UserIcon,
   CalendarDaysIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 import { Card, Button } from '@/components/ui';
 import { getUserProfilePhoto } from '@/services/auth/graphService';
@@ -17,10 +19,10 @@ import type {
   BCTimeSheet,
   BCTimeSheetLine,
   TimesheetDisplayStatus,
-  BCJob,
+  BCProject,
   BCJobTask,
 } from '@/types';
-import { cn, getTimesheetDisplayStatus } from '@/utils';
+import { cn, getTimesheetDisplayStatus, DATE_FORMAT_FULL } from '@/utils';
 
 interface ApprovalCardProps {
   timeSheet: BCTimeSheet;
@@ -30,14 +32,15 @@ interface ApprovalCardProps {
   onToggleExpand: () => void;
   onApprove: (comment?: string) => void;
   onReject: (comment: string) => void;
+  onDelete?: () => void;
   /** Hide person name when grouped by person (shown in group header) */
   hidePerson?: boolean;
   /** Hide week dates when grouped by week (shown in group header) */
   hideWeek?: boolean;
   /** Resource email for fetching profile photo */
   resourceEmail?: string;
-  /** Cache of jobs for displaying job names */
-  jobsCache?: Record<string, BCJob>;
+  /** Cache of projects for displaying project names */
+  jobsCache?: Record<string, BCProject>;
   /** Cache of tasks per job for displaying task names */
   tasksCache?: Record<string, BCJobTask[]>;
 }
@@ -50,6 +53,7 @@ export function ApprovalCard({
   onToggleExpand,
   onApprove,
   onReject,
+  onDelete,
   hidePerson,
   hideWeek,
   resourceEmail,
@@ -58,6 +62,7 @@ export function ApprovalCard({
 }: ApprovalCardProps) {
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectForm, setShowRejectForm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
 
   // Fetch profile photo
@@ -69,7 +74,12 @@ export function ApprovalCard({
 
   const formatDate = (dateString: string) => {
     try {
-      return format(parseISO(dateString), 'MMM d, yyyy');
+      const date = parseISO(dateString);
+      // Check for invalid/placeholder dates (year 0001 or 1)
+      if (date.getFullYear() <= 1) {
+        return 'No date';
+      }
+      return format(date, DATE_FORMAT_FULL);
     } catch {
       return dateString;
     }
@@ -85,10 +95,10 @@ export function ApprovalCard({
   // Use timeSheet.totalQuantity as fallback if lines not loaded yet
   const displayHours = totalHours || timeSheet.totalQuantity || 0;
 
-  // Helper to get job name from cache
+  // Helper to get project name from cache
   const getJobName = (jobNo: string): string => {
-    const job = jobsCache[jobNo];
-    return job?.description || jobNo;
+    const project = jobsCache[jobNo];
+    return project?.displayName || jobNo;
   };
 
   // Helper to get task name from cache
@@ -181,6 +191,24 @@ export function ApprovalCard({
 
         {/* Action buttons - always visible */}
         <div className="flex items-center gap-2">
+          {onDelete && (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={isProcessing}
+              onClick={() => {
+                setShowDeleteConfirm(true);
+                if (!isExpanded) {
+                  onToggleExpand();
+                }
+              }}
+              title="Delete timesheet"
+              aria-label={`Delete timesheet for ${timeSheet.resourceName}`}
+              className="text-dark-400 hover:text-red-400"
+            >
+              <TrashIcon className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -234,7 +262,13 @@ export function ApprovalCard({
                     <p className="text-sm text-white">{line.description || 'No description'}</p>
                     {line.jobNo && (
                       <p className="text-dark-400 text-xs">
-                        {getJobName(line.jobNo)}
+                        <Link
+                          href={`/projects/${line.jobNo}`}
+                          className="hover:text-thyme-400 hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {getJobName(line.jobNo)}
+                        </Link>
                         {line.jobTaskNo && ` / ${getTaskName(line.jobNo, line.jobTaskNo)}`}
                       </p>
                     )}
@@ -289,6 +323,37 @@ export function ApprovalCard({
                 <XMarkIcon className="mr-1 h-4 w-4" />
                 Confirm Reject
               </Button>
+            </div>
+          )}
+
+          {/* Delete confirmation */}
+          {showDeleteConfirm && onDelete && (
+            <div className="border-dark-700 border-t bg-red-500/10 p-4">
+              <p className="mb-3 text-sm text-red-400">
+                <strong>Are you sure you want to delete this timesheet?</strong>
+                <br />
+                This action cannot be undone. The timesheet for{' '}
+                <span className="font-medium text-white">{timeSheet.resourceName}</span> will be
+                permanently removed.
+              </p>
+              <div className="flex items-center justify-end gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setShowDeleteConfirm(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  disabled={isProcessing}
+                  isLoading={isProcessing}
+                  onClick={() => {
+                    onDelete();
+                    setShowDeleteConfirm(false);
+                  }}
+                >
+                  <TrashIcon className="mr-1 h-4 w-4" />
+                  Delete Timesheet
+                </Button>
+              </div>
             </div>
           )}
         </div>
