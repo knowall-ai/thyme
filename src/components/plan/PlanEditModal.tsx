@@ -85,13 +85,19 @@ export function PlanEditModal({
       const resource = resources.find((r) => r.number === allocation.resourceNumber);
       const resourceIsDayBased = resource?.baseUnitOfMeasure === 'DAY';
       setIsResourceDayBased(resourceIsDayBased);
+      // Find HOUR conversion factor
+      // HOUR > 1: qtyPerUnitOfMeasure is hours-per-day (e.g., 7.5)
+      // HOUR < 1: qtyPerUnitOfMeasure is day-per-hour (e.g., 0.125 = 1/8 = 8 hours/day)
       const hourUOM = resourceUOMs.find(
         (u) => u.resourceNo === allocation.resourceNumber && u.code === 'HOUR'
       );
-      const conversionFactor =
-        hourUOM?.qtyPerUnitOfMeasure && hourUOM.qtyPerUnitOfMeasure > 1
-          ? hourUOM.qtyPerUnitOfMeasure
-          : 7.5;
+      let conversionFactor = 7.5; // Default fallback
+      if (hourUOM?.qtyPerUnitOfMeasure && hourUOM.qtyPerUnitOfMeasure !== 1) {
+        conversionFactor =
+          hourUOM.qtyPerUnitOfMeasure > 1
+            ? hourUOM.qtyPerUnitOfMeasure
+            : 1 / hourUOM.qtyPerUnitOfMeasure;
+      }
       setHoursPerDayFactor(conversionFactor);
 
       // Group lines by date and aggregate hours for display

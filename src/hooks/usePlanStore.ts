@@ -385,12 +385,15 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
           quantity: number,
           _unitOfMeasureCode?: string // Kept for backwards compatibility but not used
         ): number => {
-          // Check if resource is DAY-based by looking for HOUR conversion factor > 1
+          // Check if resource is DAY-based by looking for HOUR conversion factor
+          // HOUR > 1: qtyPerUnitOfMeasure is hours-per-day (e.g., 7.5)
+          // HOUR < 1: qtyPerUnitOfMeasure is day-per-hour (e.g., 0.125 = 1/8 = 8 hours/day)
           const hourKey = `${resourceNo}:HOUR`;
           const hourFactor = uomConversionMap.get(hourKey);
-          if (hourFactor !== undefined && hourFactor > 1) {
-            // Resource is DAY-based: quantity × hourFactor = hours
-            return quantity * hourFactor;
+          if (hourFactor !== undefined && hourFactor !== 1) {
+            // Resource is DAY-based: convert to hours
+            const hoursPerDay = hourFactor > 1 ? hourFactor : 1 / hourFactor;
+            return quantity * hoursPerDay;
           }
           // Resource is HOUR-based or no conversion found: quantity is already in hours
           return quantity;

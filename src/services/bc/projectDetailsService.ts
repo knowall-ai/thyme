@@ -407,15 +407,22 @@ export const projectDetailsService = {
       }
 
       // Get hours per day from the HOUR unit conversion factor
-      // For DAY-based resources, HOUR has qtyPerUnitOfMeasure > 1 (e.g., 7.5 means 1 DAY = 7.5 HOURS)
+      // HOUR > 1: qtyPerUnitOfMeasure is hours-per-day (e.g., 7.5)
+      // HOUR < 1: qtyPerUnitOfMeasure is day-per-hour (e.g., 0.125 = 1/8 = 8 hours/day)
       const hourUnitForDayConversion = resourceUnitsOfMeasure.find(
-        (uom) => uom.code === 'HOUR' && uom.qtyPerUnitOfMeasure > 1
+        (uom) => uom.code === 'HOUR' && uom.qtyPerUnitOfMeasure !== 1
       );
-      hoursPerDay = hourUnitForDayConversion?.qtyPerUnitOfMeasure ?? 7.5; // Default to 7.5 hours/day
+      if (hourUnitForDayConversion) {
+        const qty = hourUnitForDayConversion.qtyPerUnitOfMeasure;
+        hoursPerDay = qty > 1 ? qty : 1 / qty;
+      } else {
+        hoursPerDay = 7.5; // Default fallback
+      }
 
       // Helper to convert quantity to hours based on resource's base unit
       // BC stores planning lines in the resource's base unit (DAY or HOUR)
-      // If resource is DAY-based (has HOUR factor > 1), quantity is in DAYS → multiply to get hours
+      // HOUR > 1: qtyPerUnitOfMeasure is hours-per-day (e.g., 7.5)
+      // HOUR < 1: qtyPerUnitOfMeasure is day-per-hour (e.g., 0.125 = 1/8 = 8 hours/day)
       // If resource is HOUR-based (no HOUR factor or = 1), quantity is already in hours
       // NOTE: We don't trust unitOfMeasureCode from API because BC may ignore it when creating lines
       const toHours = (
@@ -423,12 +430,13 @@ export const projectDetailsService = {
         quantity: number,
         _unitOfMeasureCode?: string // Kept for backwards compatibility but not used
       ): number => {
-        // Check if resource is DAY-based by looking for HOUR conversion factor > 1
+        // Check if resource is DAY-based by looking for HOUR conversion factor
         const hourKey = `${resourceNo}:HOUR`;
         const hourFactor = uomConversionMap.get(hourKey);
-        if (hourFactor !== undefined && hourFactor > 1) {
-          // Resource is DAY-based: quantity × hourFactor = hours
-          return quantity * hourFactor;
+        if (hourFactor !== undefined && hourFactor !== 1) {
+          // Resource is DAY-based: convert to hours
+          const hoursPerDay = hourFactor > 1 ? hourFactor : 1 / hourFactor;
+          return quantity * hoursPerDay;
         }
         // Resource is HOUR-based or no conversion found: quantity is already in hours
         return quantity;
