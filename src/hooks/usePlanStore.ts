@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { BCResource, BCTimeSheet, BCJobPlanningLine, TimesheetDisplayStatus } from '@/types';
 import { bcClient, ExtensionNotInstalledError } from '@/services/bc';
-import { getTimesheetDisplayStatus } from '@/utils';
+import { getTimesheetDisplayStatus, buildUOMConversionMap, convertToHours } from '@/utils';
 import { addWeeks, startOfWeek, endOfWeek, format, parseISO, isWithinInterval } from 'date-fns';
 
 // Allocation block representing planned work on a project
@@ -368,36 +368,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
         // Fetch resource units of measure for converting DAY to HOURS
         const resourceUnitsOfMeasure = await bcClient.getResourceUnitsOfMeasure();
-        const uomConversionMap = new Map<string, number>();
-        for (const uom of resourceUnitsOfMeasure) {
-          const key = `${uom.resourceNo}:${uom.code}`;
-          uomConversionMap.set(key, uom.qtyPerUnitOfMeasure);
-        }
-
-        // Get hours per day from HOUR unit with factor > 1 (for DAY-based resources)
-        // Helper to convert quantity to hours based on resource's base unit
-        // BC stores planning lines in the resource's base unit (DAY or HOUR)
-        // If resource is DAY-based (has HOUR factor > 1), quantity is in DAYS → multiply to get hours
-        // If resource is HOUR-based (no HOUR factor or = 1), quantity is already in hours
-        // NOTE: We don't trust unitOfMeasureCode from API because BC may ignore it when creating lines
-        const toHours = (
-          resourceNo: string,
-          quantity: number,
-          _unitOfMeasureCode?: string // Kept for backwards compatibility but not used
-        ): number => {
-          // Check if resource is DAY-based by looking for HOUR conversion factor
-          // HOUR > 1: qtyPerUnitOfMeasure is hours-per-day (e.g., 7.5)
-          // HOUR < 1: qtyPerUnitOfMeasure is day-per-hour (e.g., 0.125 = 1/8 = 8 hours/day)
-          const hourKey = `${resourceNo}:HOUR`;
-          const hourFactor = uomConversionMap.get(hourKey);
-          if (hourFactor !== undefined && hourFactor !== 1) {
-            // Resource is DAY-based: convert to hours
-            const hoursPerDay = hourFactor > 1 ? hourFactor : 1 / hourFactor;
-            return quantity * hoursPerDay;
-          }
-          // Resource is HOUR-based or no conversion found: quantity is already in hours
-          return quantity;
-        };
+        const uomConversionMap = buildUOMConversionMap(resourceUnitsOfMeasure);
 
         // Fetch planning lines for each project
         await Promise.all(
@@ -414,7 +385,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
               );
 
               for (const line of resourceLines) {
-                const hours = toHours(line.number, line.quantity, line.unitOfMeasureCode);
+                const hours = convertToHours(line.number, line.quantity, uomConversionMap);
                 const allocation: AllocationBlock = {
                   id: `${line.jobNo}-${line.jobTaskNo}-${line.lineNo}`,
                   resourceId: resourceIdMap.get(line.number) || line.number,

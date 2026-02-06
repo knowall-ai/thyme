@@ -7,6 +7,12 @@ import { Modal, Button } from '@/components/ui';
 import { useCompanyStore } from '@/hooks';
 import { bcClient } from '@/services/bc/bcClient';
 import { getBCResourceUrl, getBCJobUrl } from '@/utils/bcUrls';
+import {
+  buildUOMConversionMap,
+  convertToHours,
+  convertFromHours,
+  type UOMConversionMap,
+} from '@/utils';
 import type { AllocationBlock } from '@/hooks/usePlanStore';
 import { format, parseISO, eachDayOfInterval, startOfWeek, endOfWeek, getWeek } from 'date-fns';
 
@@ -57,10 +63,8 @@ export function PlanEditModal({
     [weekStart, weekEnd]
   );
 
-  // Conversion factor: how many hours in a day (fetched from BC)
-  const [hoursPerDayFactor, setHoursPerDayFactor] = useState(7.5);
-  // Whether this resource is DAY-based (needs conversion when saving)
-  const [isResourceDayBased, setIsResourceDayBased] = useState(true);
+  // UOM conversion map for converting between hours and resource base units
+  const [uomMap, setUomMap] = useState<UOMConversionMap>(new Map());
 
   // Fetch all existing planning lines for this resource/project/task/week
   const fetchExistingLines = useCallback(async () => {
@@ -69,7 +73,7 @@ export function PlanEditModal({
     setIsLoadingExisting(true);
     try {
       // Fetch UOM conversion factors and planning lines in parallel
-      const [existingLines, resources, resourceUOMs] = await Promise.all([
+      const [existingLines, resourceUOMs] = await Promise.all([
         bcClient.getJobPlanningLinesForWeek({
           jobNo: allocation.projectNumber,
           jobTaskNo: allocation.taskNumber || '',
@@ -77,28 +81,12 @@ export function PlanEditModal({
           weekStart: format(weekStart, 'yyyy-MM-dd'),
           weekEnd: format(weekEnd, 'yyyy-MM-dd'),
         }),
-        bcClient.getResources(),
         bcClient.getResourceUnitsOfMeasure(),
       ]);
 
-      // Find this resource's base unit and HOUR conversion factor
-      const resource = resources.find((r) => r.number === allocation.resourceNumber);
-      const resourceIsDayBased = resource?.baseUnitOfMeasure === 'DAY';
-      setIsResourceDayBased(resourceIsDayBased);
-      // Find HOUR conversion factor
-      // HOUR > 1: qtyPerUnitOfMeasure is hours-per-day (e.g., 7.5)
-      // HOUR < 1: qtyPerUnitOfMeasure is day-per-hour (e.g., 0.125 = 1/8 = 8 hours/day)
-      const hourUOM = resourceUOMs.find(
-        (u) => u.resourceNo === allocation.resourceNumber && u.code === 'HOUR'
-      );
-      let conversionFactor = 7.5; // Default fallback
-      if (hourUOM?.qtyPerUnitOfMeasure && hourUOM.qtyPerUnitOfMeasure !== 1) {
-        conversionFactor =
-          hourUOM.qtyPerUnitOfMeasure > 1
-            ? hourUOM.qtyPerUnitOfMeasure
-            : 1 / hourUOM.qtyPerUnitOfMeasure;
-      }
-      setHoursPerDayFactor(conversionFactor);
+      // Build UOM conversion map for unit conversions
+      const conversionMap = buildUOMConversionMap(resourceUOMs);
+      setUomMap(conversionMap);
 
       // Group lines by date and aggregate hours for display
       const byDate: Record<string, ExistingLine[]> = {};
@@ -119,8 +107,8 @@ export function PlanEditModal({
       // Sum and convert to hours for each date
       for (const [date, lines] of Object.entries(byDate)) {
         const totalQuantity = lines.reduce((sum, l) => sum + l.quantity, 0);
-        // Convert base unit to hours if resource is DAY-based (quantity is in DAYS)
-        const totalHours = resourceIsDayBased ? totalQuantity * conversionFactor : totalQuantity;
+        // Convert base unit to hours using shared conversion utility
+        const totalHours = convertToHours(allocation.resourceNumber, totalQuantity, conversionMap);
         // Round to nearest 0.5 hour
         const rounded = Math.round(totalHours * 2) / 2;
         hours[date] = rounded.toString();
@@ -272,8 +260,7 @@ export function PlanEditModal({
 
       // Update existing lines with new quantity (convert hours to resource's base unit)
       for (const item of toUpdate) {
-        // If resource is DAY-based, convert hours to days; otherwise use hours directly
-        const quantityInBaseUnit = isResourceDayBased ? item.hours / hoursPerDayFactor : item.hours;
+        const quantityInBaseUnit = convertFromHours(allocation.resourceNumber, item.hours, uomMap);
         await bcClient.updateJobPlanningLine(
           item.id,
           {
@@ -286,8 +273,7 @@ export function PlanEditModal({
 
       // Create new lines (convert hours to resource's base unit - typically DAY)
       for (const item of toCreate) {
-        // If resource is DAY-based, convert hours to days; otherwise use hours directly
-        const quantityInBaseUnit = isResourceDayBased ? item.hours / hoursPerDayFactor : item.hours;
+        const quantityInBaseUnit = convertFromHours(allocation.resourceNumber, item.hours, uomMap);
         await bcClient.createJobPlanningLine({
           jobNo: allocation.projectNumber,
           jobTaskNo: allocation.taskNumber || '',

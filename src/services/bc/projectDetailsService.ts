@@ -7,7 +7,7 @@ import type {
   BCJobPlanningLine,
   BCTimeEntry,
 } from '@/types';
-import { getWeekStart } from '@/utils';
+import { getWeekStart, buildUOMConversionMap, convertToHours, getHoursPerDay } from '@/utils';
 
 // Color palette for projects (same as projectService)
 const PROJECT_COLORS = [
@@ -400,47 +400,10 @@ export const projectDetailsService = {
 
       // Build a map for unit of measure conversion: (resourceNo, unitCode) → qtyPerUnitOfMeasure
       // This allows us to convert DAY to HOURS (e.g., 1 DAY = 7.5 HOURS)
-      const uomConversionMap = new Map<string, number>();
-      for (const uom of resourceUnitsOfMeasure) {
-        const key = `${uom.resourceNo}:${uom.code}`;
-        uomConversionMap.set(key, uom.qtyPerUnitOfMeasure);
-      }
+      const uomConversionMap = buildUOMConversionMap(resourceUnitsOfMeasure);
 
       // Get hours per day from the HOUR unit conversion factor
-      // HOUR > 1: qtyPerUnitOfMeasure is hours-per-day (e.g., 7.5)
-      // HOUR < 1: qtyPerUnitOfMeasure is day-per-hour (e.g., 0.125 = 1/8 = 8 hours/day)
-      const hourUnitForDayConversion = resourceUnitsOfMeasure.find(
-        (uom) => uom.code === 'HOUR' && uom.qtyPerUnitOfMeasure !== 1
-      );
-      if (hourUnitForDayConversion) {
-        const qty = hourUnitForDayConversion.qtyPerUnitOfMeasure;
-        hoursPerDay = qty > 1 ? qty : 1 / qty;
-      } else {
-        hoursPerDay = 7.5; // Default fallback
-      }
-
-      // Helper to convert quantity to hours based on resource's base unit
-      // BC stores planning lines in the resource's base unit (DAY or HOUR)
-      // HOUR > 1: qtyPerUnitOfMeasure is hours-per-day (e.g., 7.5)
-      // HOUR < 1: qtyPerUnitOfMeasure is day-per-hour (e.g., 0.125 = 1/8 = 8 hours/day)
-      // If resource is HOUR-based (no HOUR factor or = 1), quantity is already in hours
-      // NOTE: We don't trust unitOfMeasureCode from API because BC may ignore it when creating lines
-      const toHours = (
-        resourceNo: string,
-        quantity: number,
-        _unitOfMeasureCode?: string // Kept for backwards compatibility but not used
-      ): number => {
-        // Check if resource is DAY-based by looking for HOUR conversion factor
-        const hourKey = `${resourceNo}:HOUR`;
-        const hourFactor = uomConversionMap.get(hourKey);
-        if (hourFactor !== undefined && hourFactor !== 1) {
-          // Resource is DAY-based: convert to hours
-          const hoursPerDay = hourFactor > 1 ? hourFactor : 1 / hourFactor;
-          return quantity * hoursPerDay;
-        }
-        // Resource is HOUR-based or no conversion found: quantity is already in hours
-        return quantity;
-      };
+      hoursPerDay = getHoursPerDay(resourceUnitsOfMeasure);
 
       // Helper to check if lineType includes Budget (handles URL-encoded spaces from API)
       const isBudgetLine = (lineType: string) =>
@@ -463,7 +426,7 @@ export const projectDetailsService = {
         .filter((line: BCJobPlanningLine) => isBudgetLine(line.lineType))
         .reduce(
           (sum: number, line: BCJobPlanningLine) =>
-            sum + toHours(line.number, line.quantity, line.unitOfMeasureCode),
+            sum + convertToHours(line.number, line.quantity, uomConversionMap),
           0
         );
 
@@ -533,7 +496,7 @@ export const projectDetailsService = {
         if (isNaN(planDate.getTime())) continue;
 
         const weekStr = getISOWeek(planDate);
-        const hours = toHours(line.number, line.quantity, line.unitOfMeasureCode);
+        const hours = convertToHours(line.number, line.quantity, uomConversionMap);
         const current = plannedHoursMap.get(weekStr) || 0;
         plannedHoursMap.set(weekStr, current + hours);
       }

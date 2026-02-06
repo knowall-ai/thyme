@@ -138,10 +138,12 @@ export function ProjectHeader() {
       };
       window.addEventListener('afterprint', handleAfterPrint);
 
-      // Small delay to let React re-render before printing
-      setTimeout(() => {
-        window.print();
-      }, 100);
+      // Wait for React re-render before printing
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          window.print();
+        }, 0);
+      });
     } else {
       // "With Financials" - no state change needed, print immediately
       window.print();
