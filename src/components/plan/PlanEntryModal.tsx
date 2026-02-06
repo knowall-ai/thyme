@@ -200,6 +200,18 @@ export function PlanEntryModal({
     }, 0);
   }, [dayHours]);
 
+  // Memoize exclude props to avoid unnecessary re-renders of ResourceWorkload
+  const excludeJobNo = useMemo(
+    () => (projectId ? projects.find((p) => p.id === projectId)?.code : undefined),
+    [projectId, projects]
+  );
+
+  const excludeJobTaskNo = useMemo(() => {
+    if (!projectId || !taskId) return undefined;
+    const project = projects.find((p) => p.id === projectId);
+    return project?.tasks?.find((t) => t.id === taskId)?.code;
+  }, [projectId, taskId, projects]);
+
   const handleProjectChange = (value: string) => {
     setProjectId(value);
     setTaskId('');
@@ -480,13 +492,8 @@ export function PlanEntryModal({
             resourceNo={resourceNumber}
             weekStart={weekStart}
             weekEnd={weekEnd}
-            excludeJobNo={projectId ? projects.find((p) => p.id === projectId)?.code : undefined}
-            excludeJobTaskNo={
-              taskId
-                ? projects.find((p) => p.id === projectId)?.tasks?.find((t) => t.id === taskId)
-                    ?.code
-                : undefined
-            }
+            excludeJobNo={excludeJobNo}
+            excludeJobTaskNo={excludeJobTaskNo}
             currentDayHours={dayHours}
           />
         )}

@@ -203,9 +203,16 @@ export function PlanEditModal({
 
       if (hasHours) {
         if (existingLines.length > 0) {
-          // Update existing line
-          const [first] = existingLines;
-          toUpdate.push({ id: first.id, etag: first.etag, hours: newHours });
+          // Update first line, delete any extras (consolidate duplicates)
+          const [first, ...extras] = existingLines;
+          const originalTotal = existingLines.reduce((sum, l) => sum + l.quantity, 0);
+          if (newHours !== originalTotal) {
+            toUpdate.push({ id: first.id, etag: first.etag, hours: newHours });
+          }
+          // Delete duplicate lines
+          for (const extra of extras) {
+            toDelete.push({ id: extra.id, etag: extra.etag });
+          }
         } else {
           // Create new line
           toCreate.push({ date: dateKey, hours: newHours });

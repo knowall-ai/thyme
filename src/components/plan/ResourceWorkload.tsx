@@ -53,7 +53,7 @@ export function ResourceWorkload({
 
   const dateKeys = useMemo(() => weekDays.map((d) => format(d, 'yyyy-MM-dd')), [weekDays]);
 
-  // Lazy-load data only when expanded
+  // Load data when expanded (auto-loads on mount since expanded by default)
   const loadWorkload = useCallback(async () => {
     if (hasLoaded || !resourceNo) return;
 
@@ -176,7 +176,7 @@ export function ResourceWorkload({
         </div>
         {hasLoaded && (
           <span className="text-dark-400 text-xs">
-            {weeklyTotal.toFixed(1)}h / {DAILY_CAPACITY * 5}h this week
+            {weeklyTotal.toFixed(1)}h / {DAILY_CAPACITY * 5}h this business week
           </span>
         )}
       </button>
@@ -197,10 +197,13 @@ export function ResourceWorkload({
                 {weekDays.map((day, i) => {
                   const otherHours = dailyAllocations[i].hours;
                   const combined = combinedDailyHours[i];
-                  const barPct = Math.min((combined.hours / DAILY_CAPACITY) * 100, 100);
                   const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                  // Split bar: other workload portion vs current form portion
                   const otherPct = Math.min((otherHours / DAILY_CAPACITY) * 100, 100);
+                  const formHours = combined.hours - otherHours;
+                  const formPct =
+                    formHours > 0
+                      ? Math.min((formHours / DAILY_CAPACITY) * 100, 100 - otherPct)
+                      : 0;
 
                   return (
                     <div key={combined.date} className="flex flex-col items-center">
@@ -214,25 +217,21 @@ export function ResourceWorkload({
                       </span>
                       {/* Bar container */}
                       <div className="bg-dark-700 relative h-12 w-full overflow-hidden rounded">
-                        {/* Other workload (bottom, dimmer) */}
+                        {/* Other workload (bottom portion) */}
                         {otherHours > 0 && (
                           <div
                             className={cn(
                               'absolute bottom-0 w-full transition-all',
-                              getBarColor(combined.hours),
-                              'opacity-60'
+                              getBarColor(combined.hours)
                             )}
                             style={{ height: `${otherPct}%` }}
                           />
                         )}
-                        {/* Full combined bar */}
-                        {combined.hours > 0 && (
+                        {/* Current form hours (stacked on top, distinct color) */}
+                        {formHours > 0 && (
                           <div
-                            className={cn(
-                              'absolute bottom-0 w-full rounded transition-all',
-                              getBarColor(combined.hours)
-                            )}
-                            style={{ height: `${barPct}%` }}
+                            className="absolute w-full bg-blue-400 transition-all"
+                            style={{ bottom: `${otherPct}%`, height: `${formPct}%` }}
                           />
                         )}
                       </div>

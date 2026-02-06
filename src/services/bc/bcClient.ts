@@ -514,7 +514,9 @@ class BusinessCentralClient {
       const escapedJobNo = this.sanitizeODataString(params.jobNo);
       const escapedTaskNo = this.sanitizeODataString(params.jobTaskNo);
       const escapedResourceNo = this.sanitizeODataString(params.resourceNo);
-      const filter = `jobNo eq '${escapedJobNo}' and jobTaskNo eq '${escapedTaskNo}' and number eq '${escapedResourceNo}' and planningDate ge ${params.weekStart} and planningDate le ${params.weekEnd}`;
+      const weekStart = this.sanitizeDateInput(params.weekStart);
+      const weekEnd = this.sanitizeDateInput(params.weekEnd);
+      const filter = `jobNo eq '${escapedJobNo}' and jobTaskNo eq '${escapedTaskNo}' and number eq '${escapedResourceNo}' and planningDate ge ${weekStart} and planningDate le ${weekEnd}`;
 
       const url = `${this.customApiBaseUrl}/jobPlanningLines?$filter=${encodeURIComponent(filter)}`;
       const response = await fetch(url, {

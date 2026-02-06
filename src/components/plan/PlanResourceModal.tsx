@@ -209,6 +209,12 @@ export function PlanResourceModal({
     }, 0);
   }, [dayHours]);
 
+  // Memoize exclude prop to avoid unnecessary re-renders of ResourceWorkload
+  const excludeJobTaskNo = useMemo(
+    () => (taskId ? currentProject?.tasks?.find((t) => t.id === taskId)?.code : undefined),
+    [taskId, currentProject?.tasks]
+  );
+
   const handleDayHoursChange = (dateKey: string, value: string) => {
     setDayHours((prev) => ({
       ...prev,
@@ -482,9 +488,7 @@ export function PlanResourceModal({
             weekStart={weekStart}
             weekEnd={weekEnd}
             excludeJobNo={projectNumber}
-            excludeJobTaskNo={
-              taskId ? currentProject?.tasks?.find((t) => t.id === taskId)?.code : undefined
-            }
+            excludeJobTaskNo={excludeJobTaskNo}
             currentDayHours={dayHours}
           />
         )}
