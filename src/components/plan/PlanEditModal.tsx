@@ -264,13 +264,14 @@ export function PlanEditModal({
         deleted++;
       }
 
-      // Update existing lines with new quantity (convert hours back to days)
+      // Update existing lines with new quantity (convert hours to resource's base unit)
       for (const item of toUpdate) {
-        const quantityInDays = item.hours / hoursPerDayFactor;
+        // If resource is DAY-based, convert hours to days; otherwise use hours directly
+        const quantityInBaseUnit = isResourceDayBased ? item.hours / hoursPerDayFactor : item.hours;
         await bcClient.updateJobPlanningLine(
           item.id,
           {
-            quantity: quantityInDays,
+            quantity: quantityInBaseUnit,
           },
           item.etag
         );

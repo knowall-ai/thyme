@@ -219,7 +219,7 @@ body {
     margin-top: 0.5rem !important;
   }
 
-  /* Preserve original grid gaps (gap-4 = 16px, but root font is 10px so use 1.6rem) */
+  /* Preserve original grid gaps (gap-4 = 16px) */
   .gap-4 {
     gap: 16px !important;
   }

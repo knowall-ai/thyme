@@ -375,12 +375,6 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         }
 
         // Get hours per day from HOUR unit with factor > 1 (for DAY-based resources)
-        // HOUR = 7.5 means 1 DAY = 7.5 HOURS
-        const hourUnitForDayConversion = resourceUnitsOfMeasure.find(
-          (uom) => uom.code === 'HOUR' && uom.qtyPerUnitOfMeasure > 1
-        );
-        const hoursPerDay = hourUnitForDayConversion?.qtyPerUnitOfMeasure ?? 7.5;
-
         // Helper to convert quantity to hours based on resource's base unit
         // BC stores planning lines in the resource's base unit (DAY or HOUR)
         // If resource is DAY-based (has HOUR factor > 1), quantity is in DAYS → multiply to get hours

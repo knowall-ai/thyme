@@ -129,14 +129,18 @@ export function ProjectHeader() {
       // Hide both internal costs and customer-facing prices
       if (showCosts) setShowCosts(false);
       if (showPrices) setShowPrices(false);
+
+      // Use afterprint event to restore state when print dialog closes (handles cancel too)
+      const handleAfterPrint = () => {
+        setShowCosts(originalShowCosts);
+        setShowPrices(originalShowPrices);
+        window.removeEventListener('afterprint', handleAfterPrint);
+      };
+      window.addEventListener('afterprint', handleAfterPrint);
+
       // Small delay to let React re-render before printing
       setTimeout(() => {
         window.print();
-        // Restore original state after print dialog closes
-        setTimeout(() => {
-          setShowCosts(originalShowCosts);
-          setShowPrices(originalShowPrices);
-        }, 500);
       }, 100);
     } else {
       // "With Financials" - no state change needed, print immediately
