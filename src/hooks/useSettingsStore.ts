@@ -12,6 +12,7 @@ const defaultSettings: UserSettings = {
   defaultTaskId: undefined,
   weeklyHoursTarget: 40,
   notificationsEnabled: true,
+  requireTimesheetComments: false,
   theme: 'system',
 };
 

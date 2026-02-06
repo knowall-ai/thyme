@@ -514,7 +514,9 @@ class BusinessCentralClient {
       const escapedJobNo = this.sanitizeODataString(params.jobNo);
       const escapedTaskNo = this.sanitizeODataString(params.jobTaskNo);
       const escapedResourceNo = this.sanitizeODataString(params.resourceNo);
-      const filter = `jobNo eq '${escapedJobNo}' and jobTaskNo eq '${escapedTaskNo}' and number eq '${escapedResourceNo}' and planningDate ge ${params.weekStart} and planningDate le ${params.weekEnd}`;
+      const weekStart = this.sanitizeDateInput(params.weekStart);
+      const weekEnd = this.sanitizeDateInput(params.weekEnd);
+      const filter = `jobNo eq '${escapedJobNo}' and jobTaskNo eq '${escapedTaskNo}' and number eq '${escapedResourceNo}' and planningDate ge ${weekStart} and planningDate le ${weekEnd}`;
 
       const url = `${this.customApiBaseUrl}/jobPlanningLines?$filter=${encodeURIComponent(filter)}`;
       const response = await fetch(url, {
@@ -538,6 +540,53 @@ class BusinessCentralClient {
       return data.value || [];
     } catch (error) {
       console.error('[BC API] Error fetching job planning lines for week:', error);
+      return [];
+    }
+  }
+
+  // Get ALL Job Planning Lines for a resource in a week (across all projects)
+  // Used to show resource workload/availability when allocating
+  async getResourceWorkloadForWeek(params: {
+    resourceNo: string;
+    weekStart: string; // YYYY-MM-DD
+    weekEnd: string; // YYYY-MM-DD
+  }): Promise<BCJobPlanningLine[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      return [];
+    }
+
+    try {
+      const token = await getBCAccessToken();
+      if (!token) return [];
+
+      const escapedResourceNo = this.sanitizeODataString(params.resourceNo);
+      const weekStart = this.sanitizeDateInput(params.weekStart);
+      const weekEnd = this.sanitizeDateInput(params.weekEnd);
+      const filter = `number eq '${escapedResourceNo}' and planningDate ge ${weekStart} and planningDate le ${weekEnd}`;
+
+      const url = `${this.customApiBaseUrl}/jobPlanningLines?$filter=${encodeURIComponent(filter)}`;
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.warn(
+            '[BC API] jobPlanningLines endpoint not found. Upgrade Thyme BC Extension to v1.6.0+.'
+          );
+          return [];
+        }
+        return [];
+      }
+
+      const data = await response.json();
+      return data.value || [];
+    } catch (error) {
+      console.error('[BC API] Error fetching resource workload for week:', error);
       return [];
     }
   }

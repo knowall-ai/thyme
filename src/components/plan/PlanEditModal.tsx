@@ -7,6 +7,7 @@ import { Modal, Button } from '@/components/ui';
 import { useCompanyStore } from '@/hooks';
 import { bcClient } from '@/services/bc/bcClient';
 import { getBCResourceUrl, getBCJobUrl } from '@/utils/bcUrls';
+import { ResourceWorkload } from './ResourceWorkload';
 import type { AllocationBlock } from '@/hooks/usePlanStore';
 import { format, parseISO, eachDayOfInterval, startOfWeek, endOfWeek, getWeek } from 'date-fns';
 
@@ -43,6 +44,7 @@ export function PlanEditModal({
   );
   // Hours input per day (user edits this)
   const [hoursPerDay, setHoursPerDay] = useState<Record<string, string>>({});
+  const [hasExistingData, setHasExistingData] = useState(false);
 
   // Calculate the week's days based on allocation start date
   const weekStart = useMemo(() => {
@@ -95,11 +97,13 @@ export function PlanEditModal({
 
       setExistingLinesByDate(byDate);
       setHoursPerDay(hours);
+      setHasExistingData(Object.keys(byDate).length > 0);
     } catch (error) {
       console.error('Error fetching existing planning lines:', error);
       // Fall back to empty state
       setExistingLinesByDate({});
       setHoursPerDay({});
+      setHasExistingData(false);
     } finally {
       setIsLoadingExisting(false);
     }
@@ -110,6 +114,7 @@ export function PlanEditModal({
     if (isOpen && allocation) {
       setExistingLinesByDate({});
       setHoursPerDay({});
+      setHasExistingData(false);
       fetchExistingLines();
     }
   }, [isOpen, allocation, fetchExistingLines]);
@@ -185,6 +190,7 @@ export function PlanEditModal({
     }
 
     // Build lists of operations for each day
+    // API handles upsert logic - no frontend duplicate prevention needed
     const toCreate: { date: string; hours: number }[] = [];
     const toUpdate: { id: string; etag: string; hours: number }[] = [];
     const toDelete: { id: string; etag: string }[] = [];
@@ -362,12 +368,18 @@ export function PlanEditModal({
         <div>
           <div className="mb-2 flex items-center justify-between">
             <label className="text-dark-200 text-sm font-medium">Hours per Day</label>
-            {isLoadingExisting && <span className="text-dark-400 text-xs">Loading...</span>}
+            {isLoadingExisting && (
+              <span className="text-dark-400 text-xs">Loading existing...</span>
+            )}
+            {!isLoadingExisting && hasExistingData && (
+              <span className="text-knowall-green text-xs">Editing existing allocation</span>
+            )}
           </div>
           <div className="grid grid-cols-7 gap-1">
             {weekDays.map((day) => {
               const dateKey = format(day, 'yyyy-MM-dd');
               const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+              const hasExistingLine = !!existingLinesByDate[dateKey]?.length;
               return (
                 <div key={dateKey} className="flex flex-col items-center">
                   <span className={`mb-1 text-xs ${isWeekend ? 'text-dark-500' : 'text-dark-400'}`}>
@@ -386,7 +398,7 @@ export function PlanEditModal({
                     max="24"
                     step="0.5"
                     disabled={isLoadingExisting}
-                    className="border-dark-600 bg-dark-700 text-dark-100 focus:ring-knowall-green h-8 w-full [appearance:textfield] rounded border px-1 text-right text-sm focus:ring-1 focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    className={`border-dark-600 bg-dark-700 text-dark-100 focus:ring-knowall-green h-8 w-full [appearance:textfield] rounded border px-1 text-right text-sm focus:ring-1 focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${hasExistingLine ? 'border-knowall-green/50' : ''}`}
                     placeholder="0"
                   />
                 </div>
@@ -394,6 +406,18 @@ export function PlanEditModal({
             })}
           </div>
         </div>
+
+        {/* Resource workload */}
+        {allocation.resourceNumber && (
+          <ResourceWorkload
+            resourceNo={allocation.resourceNumber}
+            weekStart={weekStart}
+            weekEnd={weekEnd}
+            excludeJobNo={allocation.projectNumber}
+            excludeJobTaskNo={allocation.taskNumber}
+            currentDayHours={hoursPerDay}
+          />
+        )}
 
         {/* Total */}
         <div className="text-dark-300 border-dark-700 flex items-center justify-between border-t pt-3 text-sm">
