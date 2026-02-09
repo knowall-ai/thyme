@@ -50,9 +50,9 @@ describe('unitConversion', () => {
       expect(getHoursPerDay(uoms, 'R001')).toBe(8);
     });
 
-    it('falls back to global HOUR factor when resource not found', () => {
+    it('returns default 8 when resource not found (no global fallback)', () => {
       const uoms = [makeUOM('R001', 'HOUR', 7.5)];
-      expect(getHoursPerDay(uoms, 'R999')).toBe(7.5);
+      expect(getHoursPerDay(uoms, 'R999')).toBe(8);
     });
 
     it('returns default 8 when no HOUR factors exist', () => {

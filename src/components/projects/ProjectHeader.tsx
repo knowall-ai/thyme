@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import Link from 'next/link';
 import {
   ArrowLeftIcon,
@@ -130,36 +131,26 @@ export function ProjectHeader() {
 
     // "With Financials" respects current toggle state (internal costs stay hidden if toggle is off)
     // "Without Financials" always hides costs AND unit price/total price for customer-friendly export
-    if (!withFinancials) {
-      // Hide both internal costs and customer-facing prices
-      if (showCosts) setShowCosts(false);
-      if (showPrices) setShowPrices(false);
-
-      // Use afterprint event to restore state when print dialog closes (handles cancel too)
-      const handleAfterPrint = () => {
-        document.title = originalTitle;
+    // Restore title and toggle state after print dialog closes (handles cancel too)
+    const handleAfterPrint = () => {
+      document.title = originalTitle;
+      if (!withFinancials) {
         setShowCosts(originalShowCosts);
         setShowPrices(originalShowPrices);
-        window.removeEventListener('afterprint', handleAfterPrint);
-      };
-      window.addEventListener('afterprint', handleAfterPrint);
+      }
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
 
-      // Wait for React re-render before printing
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          window.print();
-        }, 0);
+    if (!withFinancials) {
+      // Hide both internal costs and customer-facing prices, then print
+      flushSync(() => {
+        if (showCosts) setShowCosts(false);
+        if (showPrices) setShowPrices(false);
       });
-    } else {
-      // "With Financials" - no state change needed, print immediately
-      const handleAfterPrint = () => {
-        document.title = originalTitle;
-        window.removeEventListener('afterprint', handleAfterPrint);
-      };
-      window.addEventListener('afterprint', handleAfterPrint);
-
-      window.print();
     }
+
+    window.print();
   };
 
   return (

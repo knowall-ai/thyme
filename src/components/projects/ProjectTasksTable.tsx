@@ -180,8 +180,8 @@ export function ProjectTasksTable() {
         </div>
       </div>
 
-      {/* Table - always show task view when printing */}
-      {groupBy === 'task' || isPrinting ? (
+      {/* Table - print whichever view the user has selected */}
+      {groupBy === 'task' ? (
         <TaskBreakdownTable
           data={taskBreakdown}
           tasks={tasks}
@@ -200,6 +200,7 @@ export function ProjectTasksTable() {
           photoMap={photoMap}
           companyName={companyName}
           projectNumber={projectNumber}
+          printExpandAll={isPrinting}
         />
       )}
 
@@ -471,6 +472,7 @@ function TeamBreakdownTable({
   photoMap,
   companyName,
   projectNumber,
+  printExpandAll = false,
 }: {
   data: TeamBreakdownItem[];
   expanded: ExpandedState;
@@ -478,6 +480,7 @@ function TeamBreakdownTable({
   photoMap: PhotoMap;
   companyName?: string;
   projectNumber?: string;
+  printExpandAll?: boolean;
 }) {
   if (data.length === 0) {
     return (
@@ -511,7 +514,7 @@ function TeamBreakdownTable({
         <tbody className="divide-dark-600 divide-y">
           {data.map((item) => {
             const hasDetails = item.tasks && item.tasks.length > 0;
-            const isExpanded = expanded[item.resourceNo];
+            const isExpanded = printExpandAll || expanded[item.resourceNo];
 
             return (
               <Fragment key={item.resourceNo}>

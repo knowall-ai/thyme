@@ -1,7 +1,12 @@
 import { create } from 'zustand';
 import type { BCResource, BCTimeSheet, BCJobPlanningLine, TimesheetDisplayStatus } from '@/types';
 import { bcClient, ExtensionNotInstalledError } from '@/services/bc';
-import { getTimesheetDisplayStatus, buildUOMConversionMap, convertToHours } from '@/utils';
+import {
+  getTimesheetDisplayStatus,
+  buildUOMConversionMap,
+  convertToHours,
+  type UOMConversionMap,
+} from '@/utils';
 import { addWeeks, startOfWeek, endOfWeek, format, parseISO, isWithinInterval } from 'date-fns';
 
 // Allocation block representing planned work on a project
@@ -57,6 +62,7 @@ interface CachedData {
   projects: { id: string; number: string; displayName: string; billToCustomerName: string }[];
   loadedWeeks: Map<string, AllocationBlock[]>; // weekStart (YYYY-MM-DD) -> allocations
   resourceTimesheets: Map<string, Map<string, BCTimeSheet>>; // resourceNumber -> (weekStart -> timesheet)
+  uomConversionMap: UOMConversionMap; // Cached UOM conversion map for modals
   lastUpdated: number;
 }
 
@@ -75,6 +81,7 @@ interface PlanStore {
 
   // Cache for lazy loading
   cache: CachedData | null;
+  uomConversionMap: UOMConversionMap; // Exposed for plan modals to avoid redundant API calls
 
   // Selection
   selectedMemberIds: string[];
@@ -265,6 +272,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   currentWeekStart: startOfWeek(new Date(), { weekStartsOn: 1 }),
   weeksToShow: 1,
   cache: null,
+  uomConversionMap: new Map(),
   selectedMemberIds: [],
   selectedAllocationId: null,
   isDragging: false,
@@ -359,16 +367,19 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       // Fetch allocations only for weeks not in cache
       const newAllocations: AllocationBlock[] = [];
 
+      // Use cached UOM map or fetch fresh (hoisted so cache save can access it)
+      let uomConversionMap: UOMConversionMap = cache?.uomConversionMap ?? new Map();
+      if (uomConversionMap.size === 0) {
+        const resourceUnitsOfMeasure = await bcClient.getResourceUnitsOfMeasure();
+        uomConversionMap = buildUOMConversionMap(resourceUnitsOfMeasure);
+      }
+
       if (weeksToLoad.length > 0) {
         // Calculate date range for weeks to load
         const loadStart = parseISO(weeksToLoad[0]);
         const loadEnd = endOfWeek(parseISO(weeksToLoad[weeksToLoad.length - 1]), {
           weekStartsOn: 1,
         });
-
-        // Fetch resource units of measure for converting DAY to HOURS
-        const resourceUnitsOfMeasure = await bcClient.getResourceUnitsOfMeasure();
-        const uomConversionMap = buildUOMConversionMap(resourceUnitsOfMeasure);
 
         // Fetch planning lines for each project
         await Promise.all(
@@ -459,10 +470,11 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         projects: projectsData,
         loadedWeeks,
         resourceTimesheets,
+        uomConversionMap,
         lastUpdated: Date.now(),
       };
 
-      set({ cache: updatedCache, isLoadingWeeks: new Set() });
+      set({ cache: updatedCache, uomConversionMap, isLoadingWeeks: new Set() });
 
       // Rebuild display data from cache
       rebuildFromCache(get, set, weekStart, weeksToShow, emailDomain);

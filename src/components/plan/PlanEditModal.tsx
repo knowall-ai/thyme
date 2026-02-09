@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { ArrowTopRightOnSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { Modal, Button } from '@/components/ui';
 import { useCompanyStore } from '@/hooks';
+import { usePlanStore } from '@/hooks/usePlanStore';
 import { bcClient } from '@/services/bc/bcClient';
 import { getBCResourceUrl, getBCJobUrl } from '@/utils/bcUrls';
 import {
@@ -40,6 +41,7 @@ export function PlanEditModal({
   onDelete,
 }: PlanEditModalProps) {
   const { selectedCompany } = useCompanyStore();
+  const cachedUomMap = usePlanStore((s) => s.uomConversionMap);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
@@ -74,21 +76,23 @@ export function PlanEditModal({
 
     setIsLoadingExisting(true);
     try {
-      // Fetch UOM conversion factors and planning lines in parallel
-      const [existingLines, resourceUOMs] = await Promise.all([
-        bcClient.getJobPlanningLinesForWeek({
-          jobNo: allocation.projectNumber,
-          jobTaskNo: allocation.taskNumber || '',
-          resourceNo: allocation.resourceNumber,
-          weekStart: format(weekStart, 'yyyy-MM-dd'),
-          weekEnd: format(weekEnd, 'yyyy-MM-dd'),
-        }),
-        bcClient.getResourceUnitsOfMeasure(),
-      ]);
-
-      // Build UOM conversion map for unit conversions
-      const conversionMap = buildUOMConversionMap(resourceUOMs);
+      // Use cached UOM map from plan store if available, otherwise fetch
+      let conversionMap: UOMConversionMap;
+      if (cachedUomMap.size > 0) {
+        conversionMap = cachedUomMap;
+      } else {
+        const resourceUOMs = await bcClient.getResourceUnitsOfMeasure();
+        conversionMap = buildUOMConversionMap(resourceUOMs);
+      }
       setUomMap(conversionMap);
+
+      const existingLines = await bcClient.getJobPlanningLinesForWeek({
+        jobNo: allocation.projectNumber,
+        jobTaskNo: allocation.taskNumber || '',
+        resourceNo: allocation.resourceNumber,
+        weekStart: format(weekStart, 'yyyy-MM-dd'),
+        weekEnd: format(weekEnd, 'yyyy-MM-dd'),
+      });
 
       // Group lines by date and aggregate hours for display
       const byDate: Record<string, ExistingLine[]> = {};
@@ -128,7 +132,7 @@ export function PlanEditModal({
     } finally {
       setIsLoadingExisting(false);
     }
-  }, [allocation, weekStart, weekEnd]);
+  }, [allocation, weekStart, weekEnd, cachedUomMap]);
 
   // Fetch existing lines when modal opens
   useEffect(() => {

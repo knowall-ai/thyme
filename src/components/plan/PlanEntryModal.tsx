@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { ExclamationTriangleIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import { Modal, Button, Select } from '@/components/ui';
 import { useProjectsStore, useCompanyStore } from '@/hooks';
+import { usePlanStore } from '@/hooks/usePlanStore';
 import { bcClient } from '@/services/bc/bcClient';
 import { getBCResourceUrl, getBCJobUrl } from '@/utils/bcUrls';
 import {
@@ -40,6 +41,7 @@ export function PlanEntryModal({
 }: PlanEntryModalProps) {
   const { projects, fetchProjects } = useProjectsStore();
   const { selectedCompany } = useCompanyStore();
+  const cachedUomMap = usePlanStore((s) => s.uomConversionMap);
 
   const [projectId, setProjectId] = useState('');
   const [taskId, setTaskId] = useState('');
@@ -63,21 +65,25 @@ export function PlanEntryModal({
     [weekStart, weekEnd]
   );
 
-  // Check if BC extension is installed and fetch resource UOM info
+  // Check if BC extension is installed and load UOM data (prefer cache)
   useEffect(() => {
     if (isOpen) {
       bcClient.isExtensionInstalled().then(setExtensionInstalled);
-      // Fetch resource UOM conversion factors
-      bcClient
-        .getResourceUnitsOfMeasure()
-        .then((resourceUOMs) => {
-          setUomMap(buildUOMConversionMap(resourceUOMs));
-        })
-        .catch(() => {
-          setUomMap(new Map());
-        });
+      // Use cached UOM map from plan store if available, otherwise fetch
+      if (cachedUomMap.size > 0) {
+        setUomMap(cachedUomMap);
+      } else {
+        bcClient
+          .getResourceUnitsOfMeasure()
+          .then((resourceUOMs) => {
+            setUomMap(buildUOMConversionMap(resourceUOMs));
+          })
+          .catch(() => {
+            setUomMap(new Map());
+          });
+      }
     }
-  }, [isOpen, resourceNumber]);
+  }, [isOpen, cachedUomMap]);
 
   // Fetch projects when modal opens
   useEffect(() => {

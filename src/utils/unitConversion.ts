@@ -22,18 +22,19 @@ export function buildUOMConversionMap(resourceUOMs: BCResourceUnitOfMeasure[]): 
 /**
  * Get the hours-per-day factor from resource UOM data.
  *
- * Looks for a specific resource's HOUR factor first, then falls back to any
- * non-1 HOUR factor found in the data (global fallback). Default: 7.5.
+ * Looks for a specific resource's HOUR conversion factor. If no resource is
+ * specified or the resource has no HOUR factor, returns the default (8).
  *
  * BC has two configurations:
  * - HOUR > 1: qtyPerUnitOfMeasure is hours-per-day (e.g., 7.5)
  * - HOUR < 1: qtyPerUnitOfMeasure is day-per-hour (e.g., 0.125 = 1/8 = 8 hours/day)
+ *
+ * Default: 8 hours/day (standard working day).
  */
 export function getHoursPerDay(
   resourceUOMs: BCResourceUnitOfMeasure[],
   resourceNo?: string
 ): number {
-  // Try specific resource first
   if (resourceNo) {
     const hourUOM = resourceUOMs.find(
       (uom) => uom.resourceNo === resourceNo && uom.code === 'HOUR' && uom.qtyPerUnitOfMeasure !== 1
@@ -44,15 +45,6 @@ export function getHoursPerDay(
         return qty > 1 ? qty : 1 / qty;
       }
     }
-  }
-
-  // Global fallback: find any resource with a non-1 HOUR factor
-  const anyHourUOM = resourceUOMs.find(
-    (uom) => uom.code === 'HOUR' && uom.qtyPerUnitOfMeasure > 0 && uom.qtyPerUnitOfMeasure !== 1
-  );
-  if (anyHourUOM) {
-    const qty = anyHourUOM.qtyPerUnitOfMeasure;
-    return qty > 1 ? qty : 1 / qty;
   }
 
   return 8; // Default fallback (standard 8-hour day)
