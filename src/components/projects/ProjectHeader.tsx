@@ -123,6 +123,11 @@ export function ProjectHeader() {
     const originalShowCosts = showCosts;
     const originalShowPrices = showPrices;
 
+    // Set document title for PDF filename: "Customer - Project Code - Project Report"
+    const originalTitle = document.title;
+    const parts = [project.customerName, project.code, 'Project Report'].filter(Boolean);
+    document.title = parts.join(' - ');
+
     // "With Financials" respects current toggle state (internal costs stay hidden if toggle is off)
     // "Without Financials" always hides costs AND unit price/total price for customer-friendly export
     if (!withFinancials) {
@@ -132,6 +137,7 @@ export function ProjectHeader() {
 
       // Use afterprint event to restore state when print dialog closes (handles cancel too)
       const handleAfterPrint = () => {
+        document.title = originalTitle;
         setShowCosts(originalShowCosts);
         setShowPrices(originalShowPrices);
         window.removeEventListener('afterprint', handleAfterPrint);
@@ -146,6 +152,12 @@ export function ProjectHeader() {
       });
     } else {
       // "With Financials" - no state change needed, print immediately
+      const handleAfterPrint = () => {
+        document.title = originalTitle;
+        window.removeEventListener('afterprint', handleAfterPrint);
+      };
+      window.addEventListener('afterprint', handleAfterPrint);
+
       window.print();
     }
   };
