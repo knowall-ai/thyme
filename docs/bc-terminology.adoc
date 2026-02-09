@@ -232,7 +232,7 @@ Provides budget and billable planning data (the "quote").
 | `Resource`, `Item`, or `G/L Account`
 
 | quantity
-| Planned quantity (in unit specified by `unitOfMeasureCode`)
+| Planned quantity in the resource's base unit (DAY or HOUR). Note: Thyme converts based on the resource's Unit of Measure, not `unitOfMeasureCode` (see below)
 
 | unitOfMeasureCode
 | Unit of measure (e.g., `HOUR`, `DAY`) - requires v1.7.0+
@@ -252,17 +252,16 @@ Provides budget and billable planning data (the "quote").
 
 ==== Unit of Measure Conversion
 
-Job Planning Lines may specify quantities in different units (e.g., HOUR or DAY).
-Thyme automatically converts to hours using the Resource Unit of Measure conversion factor.
+BC stores Job Planning Line quantities in the resource's **base unit** (DAY or HOUR).
+Thyme converts to hours using the Resource Unit of Measure conversion factor from the `/resourceUnitsOfMeasure` endpoint.
 
-For example, if a planning line specifies:
+**Important:** Thyme does **not** trust the `unitOfMeasureCode` field from the API because BC may ignore it when creating planning lines. Instead, Thyme detects whether a resource is DAY-based by checking if the resource has an HOUR conversion factor that differs from 1.
 
-* quantity: 1.5
-* unitOfMeasureCode: DAY
+For example, if a planning line has `quantity: 1.5` and the resource has HOUR configured with `qtyPerUnitOfMeasure: 7.5` (meaning 1 DAY = 7.5 HOURS), Thyme displays:
 
-And the resource has DAY configured with `qtyPerUnitOfMeasure: 8`, Thyme displays:
+* Hours Planned: 11.25h (1.5 × 7.5)
 
-* Hours Planned: 12.0h (1.5 × 8)
+BC may also configure HOUR with `qtyPerUnitOfMeasure < 1` (e.g., 0.125 meaning 1 HOUR = 0.125 DAY). Thyme handles both configurations by inverting the factor when it is less than 1 (e.g., 1/0.125 = 8 hours/day).
 
 This conversion is fetched from the `/resourceUnitsOfMeasure` endpoint (requires v1.7.0+).
 

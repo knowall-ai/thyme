@@ -17,7 +17,7 @@ interface ProjectDetailsStore {
   chartView: 'weekly' | 'progress';
   tableGroupBy: 'task' | 'team';
   showCosts: boolean; // Toggle for internal costs visibility (Budget Cost, Actual Cost)
-  showPrices: boolean; // Toggle for customer-facing prices (Unit Price, Total Price in breakdown)
+  showPrices: boolean; // Toggle for customer-facing prices visibility (revenue KPIs, PDF export)
 
   // Actions
   fetchProjectDetails: (projectNumber: string) => Promise<void>;

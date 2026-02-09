@@ -452,12 +452,14 @@ function TeamTaskRow({
   const [hoveredWeekStart, setHoveredWeekStart] = useState<Date | null>(null);
 
   // Find an allocation for a specific week (to fix wrong week bug)
+  // Uses date string comparison to avoid UTC vs local timezone mismatches
   const findAllocationForWeek = (weekStart: Date): AllocationBlock => {
-    const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
-    const allocationInWeek = taskData.allocations.find((a) => {
-      const allocDate = new Date(a.startDate);
-      return allocDate >= weekStart && allocDate <= weekEnd;
-    });
+    const weekEndDate = endOfWeek(weekStart, { weekStartsOn: 1 });
+    const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+    const weekEndStr = format(weekEndDate, 'yyyy-MM-dd');
+    const allocationInWeek = taskData.allocations.find(
+      (a) => a.startDate >= weekStartStr && a.startDate <= weekEndStr
+    );
     return allocationInWeek || firstAllocation;
   };
 
@@ -865,12 +867,14 @@ function ResourceTaskRow({
   const firstAlloc = allocations[0];
 
   // Find an allocation for a specific week (to fix wrong week bug)
+  // Uses date string comparison to avoid UTC vs local timezone mismatches
   const findAllocationForWeek = (weekStart: Date): AllocationBlock => {
-    const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
-    const allocationInWeek = allocations.find((a) => {
-      const allocDate = new Date(a.startDate);
-      return allocDate >= weekStart && allocDate <= weekEnd;
-    });
+    const weekEndDate = endOfWeek(weekStart, { weekStartsOn: 1 });
+    const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+    const weekEndStr = format(weekEndDate, 'yyyy-MM-dd');
+    const allocationInWeek = allocations.find(
+      (a) => a.startDate >= weekStartStr && a.startDate <= weekEndStr
+    );
     return allocationInWeek || firstAlloc;
   };
 

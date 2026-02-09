@@ -40,20 +40,22 @@ export function getHoursPerDay(
     );
     if (hourUOM) {
       const qty = hourUOM.qtyPerUnitOfMeasure;
-      return qty > 1 ? qty : 1 / qty;
+      if (qty > 0 && qty !== 1) {
+        return qty > 1 ? qty : 1 / qty;
+      }
     }
   }
 
   // Global fallback: find any resource with a non-1 HOUR factor
   const anyHourUOM = resourceUOMs.find(
-    (uom) => uom.code === 'HOUR' && uom.qtyPerUnitOfMeasure !== 1
+    (uom) => uom.code === 'HOUR' && uom.qtyPerUnitOfMeasure > 0 && uom.qtyPerUnitOfMeasure !== 1
   );
   if (anyHourUOM) {
     const qty = anyHourUOM.qtyPerUnitOfMeasure;
     return qty > 1 ? qty : 1 / qty;
   }
 
-  return 7.5; // Default fallback
+  return 8; // Default fallback (standard 8-hour day)
 }
 
 /**
@@ -74,7 +76,7 @@ export function convertToHours(
 ): number {
   const hourKey = `${resourceNo}:HOUR`;
   const hourFactor = uomConversionMap.get(hourKey);
-  if (hourFactor !== undefined && hourFactor !== 1) {
+  if (hourFactor !== undefined && hourFactor > 0 && hourFactor !== 1) {
     // Resource is DAY-based: convert to hours
     const hoursPerDay = hourFactor > 1 ? hourFactor : 1 / hourFactor;
     return quantity * hoursPerDay;
@@ -96,7 +98,7 @@ export function convertFromHours(
 ): number {
   const hourKey = `${resourceNo}:HOUR`;
   const hourFactor = uomConversionMap.get(hourKey);
-  if (hourFactor !== undefined && hourFactor !== 1) {
+  if (hourFactor !== undefined && hourFactor > 0 && hourFactor !== 1) {
     // Resource is DAY-based: convert hours to days
     const hoursPerDay = hourFactor > 1 ? hourFactor : 1 / hourFactor;
     return hours / hoursPerDay;
@@ -117,5 +119,5 @@ export function isResourceDayBased(
 ): boolean {
   const hourKey = `${resourceNo}:HOUR`;
   const hourFactor = uomConversionMap.get(hourKey);
-  return hourFactor !== undefined && hourFactor !== 1;
+  return hourFactor !== undefined && hourFactor > 0 && hourFactor !== 1;
 }
