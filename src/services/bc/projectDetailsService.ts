@@ -402,8 +402,22 @@ export const projectDetailsService = {
       // This allows us to convert DAY to HOURS (e.g., 1 DAY = 7.5 HOURS)
       const uomConversionMap = buildUOMConversionMap(resourceUnitsOfMeasure);
 
-      // Get hours per day from the HOUR unit conversion factor
-      hoursPerDay = getHoursPerDay(resourceUnitsOfMeasure);
+      // Derive hoursPerDay from an actual DAY-based resource in the planning lines
+      // (picks the first resource that has a non-1 HOUR factor configured in BC)
+      const resourceNosInProject = [
+        ...new Set(
+          planningLines
+            .filter((l: BCJobPlanningLine) => l.type === 'Resource')
+            .map((l: BCJobPlanningLine) => l.number)
+        ),
+      ];
+      for (const resNo of resourceNosInProject) {
+        const hpd = getHoursPerDay(resourceUnitsOfMeasure, resNo);
+        if (hpd !== 8) {
+          hoursPerDay = hpd;
+          break;
+        }
+      }
 
       // Helper to check if lineType includes Budget (handles URL-encoded spaces from API)
       const isBudgetLine = (lineType: string) =>
@@ -492,7 +506,9 @@ export const projectDetailsService = {
         // Skip lines without a valid planning date (0001-01-01 is BC's default empty date)
         if (!line.planningDate || line.planningDate === '0001-01-01') continue;
 
-        const planDate = new Date(line.planningDate);
+        // Parse as local date to avoid UTC timezone shift with YYYY-MM-DD strings
+        const [y, m, d] = line.planningDate.split('-').map(Number);
+        const planDate = new Date(y, m - 1, d);
         if (isNaN(planDate.getTime())) continue;
 
         const weekStr = getISOWeek(planDate);

@@ -230,8 +230,15 @@ export function PlanEditModal({
         if (existingLines.length > 0) {
           // Update first line, delete any extras (consolidate duplicates)
           const [first, ...extras] = existingLines;
-          const originalTotal = existingLines.reduce((sum, l) => sum + l.quantity, 0);
-          if (newHours !== originalTotal) {
+          // Compare in hours (existing quantity is in base unit, may be DAY)
+          const originalTotalQty = existingLines.reduce((sum, l) => sum + l.quantity, 0);
+          const originalTotalHours = convertToHours(
+            allocation.resourceNumber,
+            originalTotalQty,
+            uomMap
+          );
+          // Round both to avoid floating-point noise triggering unnecessary updates
+          if (Math.round(newHours * 100) !== Math.round(originalTotalHours * 100)) {
             toUpdate.push({ id: first.id, etag: first.etag, hours: newHours });
           }
           // Delete duplicate lines
