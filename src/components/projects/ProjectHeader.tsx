@@ -148,9 +148,11 @@ export function ProjectHeader() {
         if (showCosts) setShowCosts(false);
         if (showPrices) setShowPrices(false);
       });
+      // Give browser a frame to paint the DOM changes before print captures the page
+      requestAnimationFrame(() => window.print());
+    } else {
+      window.print();
     }
-
-    window.print();
   };
 
   return (

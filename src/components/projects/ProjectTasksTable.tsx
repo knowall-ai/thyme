@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, Fragment } from 'react';
+import { flushSync } from 'react-dom';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { Card } from '@/components/ui';
 import { cn, getBCResourceUrl, getBCJobTaskUrl } from '@/utils';
@@ -37,8 +38,10 @@ export function ProjectTasksTable() {
   const [isPrinting, setIsPrinting] = useState(false);
 
   // Detect print mode to expand all tasks
+  // flushSync ensures React commits to DOM synchronously so the browser
+  // captures the expanded state before rendering the print preview
   useEffect(() => {
-    const handleBeforePrint = () => setIsPrinting(true);
+    const handleBeforePrint = () => flushSync(() => setIsPrinting(true));
     const handleAfterPrint = () => setIsPrinting(false);
 
     window.addEventListener('beforeprint', handleBeforePrint);
