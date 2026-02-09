@@ -255,11 +255,13 @@ export function ProjectKPICards() {
     },
     {
       label: 'Billable Price',
-      value: formatCurrency(billablePrice, currencyCode),
-      subLabel: 'From Job Planning Lines',
-      breakdown: billableBreakdown,
+      value: showCosts ? formatCurrency(billablePrice, currencyCode) : '•••••',
+      subLabel: showCosts ? 'From Job Planning Lines' : 'Hidden',
+      breakdown: showCosts ? billableBreakdown : null,
       icon: CurrencyPoundIcon,
       color: 'text-blue-400',
+      isInternal: true,
+      isHidden: !showCosts,
       tooltip: {
         title: 'Billable Price (Customer)',
         description:
