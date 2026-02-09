@@ -451,12 +451,28 @@ function TeamTaskRow({
 }: TeamTaskRowProps) {
   const [hoveredWeekStart, setHoveredWeekStart] = useState<Date | null>(null);
 
+  // Find an allocation for a specific week (to fix wrong week bug)
+  // Uses date string comparison to avoid UTC vs local timezone mismatches
+  const findAllocationForWeek = (weekStart: Date): AllocationBlock => {
+    const weekEndDate = endOfWeek(weekStart, { weekStartsOn: 1 });
+    const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+    const weekEndStr = format(weekEndDate, 'yyyy-MM-dd');
+    const allocationInWeek = taskData.allocations.find(
+      (a) => a.startDate >= weekStartStr && a.startDate <= weekEndStr
+    );
+    return allocationInWeek || firstAllocation;
+  };
+
   return (
     <div className="hover:bg-dark-700/40 flex w-full items-center">
       {/* Sticky name column - deeper indent for tasks */}
       <div className="bg-dark-850 sticky left-0 z-10 flex shrink-0">
         <div
-          className="flex w-[230px] cursor-pointer items-center gap-2 overflow-hidden py-1 pr-4 pl-16"
+          className={cn(
+            'flex w-[230px] cursor-pointer items-center gap-2 overflow-hidden py-1 pr-4 pl-16',
+            hoveredWeekStart &&
+              'outline outline-1 -outline-offset-1 outline-amber-500/50 outline-dashed'
+          )}
           title={taskData.taskName}
           onClick={(e) => {
             e.stopPropagation();
@@ -474,11 +490,17 @@ function TeamTaskRow({
             const dayStr = format(day, 'yyyy-MM-dd');
             return taskData.allocations.some((a) => a.startDate === dayStr);
           });
+          const isHoveredWeek =
+            hoveredWeekStart && isSameDay(hoveredWeekStart, weekGroup.weekStart);
 
           return (
             <div
               key={weekGroup.weekStart.toISOString()}
-              className="group relative flex flex-1"
+              className={cn(
+                'group relative flex flex-1',
+                isHoveredWeek &&
+                  'rounded outline outline-1 -outline-offset-1 outline-amber-500/50 outline-dashed'
+              )}
               onMouseEnter={() => setHoveredWeekStart(weekGroup.weekStart)}
               onMouseLeave={() => setHoveredWeekStart(null)}
             >
@@ -500,7 +522,9 @@ function TeamTaskRow({
                     onClick={(e) => {
                       e.stopPropagation();
                       if (dayHours > 0) {
-                        onEditAllocation(firstAllocation.id);
+                        // Use allocation from the clicked week, not firstAllocation
+                        const alloc = findAllocationForWeek(weekGroup.weekStart);
+                        onEditAllocation(alloc.id);
                       } else {
                         onAddPlan(weekGroup.weekStart, {
                           projectCode: projectData.projectNumber,
@@ -522,23 +546,21 @@ function TeamTaskRow({
               })}
 
               {/* Add Plan button - appears on hover when no hours in this week */}
-              {hoveredWeekStart &&
-                isSameDay(hoveredWeekStart, weekGroup.weekStart) &&
-                !weekHasHours && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAddPlan(weekGroup.weekStart, {
-                        projectCode: projectData.projectNumber,
-                        taskCode: taskData.taskNumber,
-                      });
-                    }}
-                    className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
-                  >
-                    <PlusIcon className="h-3 w-3" />
-                    Add
-                  </button>
-                )}
+              {isHoveredWeek && !weekHasHours && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddPlan(weekGroup.weekStart, {
+                      projectCode: projectData.projectNumber,
+                      taskCode: taskData.taskNumber,
+                    });
+                  }}
+                  className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
+                >
+                  <PlusIcon className="h-3 w-3" />
+                  Add
+                </button>
+              )}
             </div>
           );
         })}
@@ -611,6 +633,8 @@ function TeamProjectRow({
             const dayStr = format(day, 'yyyy-MM-dd');
             return projectData.allocations.some((a) => a.startDate === dayStr);
           });
+          const isHoveredWeek =
+            hoveredWeekStart && isSameDay(hoveredWeekStart, weekGroup.weekStart);
 
           return (
             <div
@@ -658,22 +682,20 @@ function TeamProjectRow({
               })}
 
               {/* Add Plan button - appears on hover when no hours in this week */}
-              {hoveredWeekStart &&
-                isSameDay(hoveredWeekStart, weekGroup.weekStart) &&
-                !weekHasHours && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAddPlan(weekGroup.weekStart, {
-                        projectCode: projectData.projectNumber,
-                      });
-                    }}
-                    className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
-                  >
-                    <PlusIcon className="h-3 w-3" />
-                    Add
-                  </button>
-                )}
+              {isHoveredWeek && !weekHasHours && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddPlan(weekGroup.weekStart, {
+                      projectCode: projectData.projectNumber,
+                    });
+                  }}
+                  className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
+                >
+                  <PlusIcon className="h-3 w-3" />
+                  Add
+                </button>
+              )}
             </div>
           );
         })}
@@ -746,6 +768,8 @@ function TaskRow({
             const dayStr = format(day, 'yyyy-MM-dd');
             return taskData.allocations.some((a) => a.startDate === dayStr);
           });
+          const isHoveredWeek =
+            hoveredWeekStart && isSameDay(hoveredWeekStart, weekGroup.weekStart);
 
           return (
             <div
@@ -791,20 +815,18 @@ function TaskRow({
               })}
 
               {/* Add Plan button - appears on hover when no hours in this week */}
-              {hoveredWeekStart &&
-                isSameDay(hoveredWeekStart, weekGroup.weekStart) &&
-                !weekHasHours && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAddPlan(weekGroup.weekStart, { taskCode: taskData.taskNumber });
-                    }}
-                    className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
-                  >
-                    <PlusIcon className="h-3 w-3" />
-                    Add
-                  </button>
-                )}
+              {isHoveredWeek && !weekHasHours && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddPlan(weekGroup.weekStart, { taskCode: taskData.taskNumber });
+                  }}
+                  className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
+                >
+                  <PlusIcon className="h-3 w-3" />
+                  Add
+                </button>
+              )}
             </div>
           );
         })}
@@ -844,12 +866,28 @@ function ResourceTaskRow({
   const [hoveredWeekStart, setHoveredWeekStart] = useState<Date | null>(null);
   const firstAlloc = allocations[0];
 
+  // Find an allocation for a specific week (to fix wrong week bug)
+  // Uses date string comparison to avoid UTC vs local timezone mismatches
+  const findAllocationForWeek = (weekStart: Date): AllocationBlock => {
+    const weekEndDate = endOfWeek(weekStart, { weekStartsOn: 1 });
+    const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+    const weekEndStr = format(weekEndDate, 'yyyy-MM-dd');
+    const allocationInWeek = allocations.find(
+      (a) => a.startDate >= weekStartStr && a.startDate <= weekEndStr
+    );
+    return allocationInWeek || firstAlloc;
+  };
+
   return (
     <div className="hover:bg-dark-700/40 flex w-full items-center">
       {/* Sticky name column - deeper indent for resources */}
       <div className="bg-dark-850 sticky left-0 z-10 flex shrink-0">
         <div
-          className="flex w-[230px] cursor-pointer items-center gap-2 overflow-hidden py-1 pr-4 pl-16"
+          className={cn(
+            'flex w-[230px] cursor-pointer items-center gap-2 overflow-hidden py-1 pr-4 pl-16',
+            hoveredWeekStart &&
+              'outline outline-1 -outline-offset-1 outline-amber-500/50 outline-dashed'
+          )}
           title={firstAlloc.resourceName}
           onClick={(e) => {
             e.stopPropagation();
@@ -867,11 +905,17 @@ function ResourceTaskRow({
             const dayStr = format(day, 'yyyy-MM-dd');
             return allocations.some((a) => a.startDate === dayStr);
           });
+          const isHoveredWeek =
+            hoveredWeekStart && isSameDay(hoveredWeekStart, weekGroup.weekStart);
 
           return (
             <div
               key={weekGroup.weekStart.toISOString()}
-              className="group relative flex flex-1"
+              className={cn(
+                'group relative flex flex-1',
+                isHoveredWeek &&
+                  'rounded outline outline-1 -outline-offset-1 outline-amber-500/50 outline-dashed'
+              )}
               onMouseEnter={() => setHoveredWeekStart(weekGroup.weekStart)}
               onMouseLeave={() => setHoveredWeekStart(null)}
             >
@@ -893,7 +937,9 @@ function ResourceTaskRow({
                     onClick={(e) => {
                       e.stopPropagation();
                       if (dayHours > 0) {
-                        onEditAllocation(firstAlloc.id);
+                        // Use allocation from the clicked week, not firstAlloc
+                        const alloc = findAllocationForWeek(weekGroup.weekStart);
+                        onEditAllocation(alloc.id);
                       } else {
                         onAddPlan(weekGroup.weekStart, {
                           taskCode: taskNumber,
@@ -915,23 +961,21 @@ function ResourceTaskRow({
               })}
 
               {/* Add Plan button - appears on hover when no hours in this week */}
-              {hoveredWeekStart &&
-                isSameDay(hoveredWeekStart, weekGroup.weekStart) &&
-                !weekHasHours && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAddPlan(weekGroup.weekStart, {
-                        taskCode: taskNumber,
-                        resourceNo: firstAlloc.resourceNumber,
-                      });
-                    }}
-                    className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
-                  >
-                    <PlusIcon className="h-3 w-3" />
-                    Add
-                  </button>
-                )}
+              {isHoveredWeek && !weekHasHours && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddPlan(weekGroup.weekStart, {
+                      taskCode: taskNumber,
+                      resourceNo: firstAlloc.resourceNumber,
+                    });
+                  }}
+                  className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
+                >
+                  <PlusIcon className="h-3 w-3" />
+                  Add
+                </button>
+              )}
             </div>
           );
         })}

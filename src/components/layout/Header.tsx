@@ -94,9 +94,9 @@ export function Header() {
               </div>
             </Link>
 
-            {/* Navigation - only shown when authenticated */}
+            {/* Navigation - only shown when authenticated, hidden in print */}
             {isAuthenticated && (
-              <nav className="hidden sm:ml-8 sm:flex sm:space-x-1">
+              <nav className="hidden sm:ml-8 sm:flex sm:space-x-1 print:!hidden">
                 {navigation.map((item) => {
                   const Icon = item.icon;
                   const active = isActive(item.href);
@@ -120,8 +120,8 @@ export function Header() {
             )}
           </div>
 
-          {/* Right side */}
-          <div className="flex items-center gap-2">
+          {/* Right side - hidden in print */}
+          <div className="flex items-center gap-2 print:hidden">
             {isAuthenticated ? (
               <>
                 {/* Settings icon */}
@@ -232,9 +232,9 @@ export function Header() {
         </div>
       </div>
 
-      {/* Mobile Navigation - only for authenticated users */}
+      {/* Mobile Navigation - only for authenticated users, hidden in print */}
       {isAuthenticated && (
-        <nav className="border-dark-700 border-t sm:hidden">
+        <nav className="border-dark-700 border-t sm:hidden print:!hidden">
           <div className="flex justify-around">
             {navigation.map((item) => {
               const Icon = item.icon;

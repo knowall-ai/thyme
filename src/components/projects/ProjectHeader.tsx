@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import Link from 'next/link';
 import {
   ArrowLeftIcon,
@@ -10,6 +11,7 @@ import {
   DocumentArrowDownIcon,
   CalendarIcon,
   InformationCircleIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { useCompanyStore } from '@/hooks';
@@ -77,7 +79,7 @@ function BillingModeBadge({ mode, showTooltip = true }: BillingModeBadgeProps) {
       {showTooltip && (
         <button
           type="button"
-          className="text-gray-500 hover:text-gray-400"
+          className="text-gray-500 hover:text-gray-400 print:hidden"
           onMouseEnter={() => setIsTooltipVisible(true)}
           onMouseLeave={() => setIsTooltipVisible(false)}
           onFocus={() => setIsTooltipVisible(true)}
@@ -98,15 +100,59 @@ function BillingModeBadge({ mode, showTooltip = true }: BillingModeBadgeProps) {
 }
 
 export function ProjectHeader() {
-  const { project, analytics, showCosts, setShowCosts } = useProjectDetailsStore();
+  const { project, analytics, showCosts, setShowCosts, showPrices, setShowPrices } =
+    useProjectDetailsStore();
   const selectedCompany = useCompanyStore((state) => state.selectedCompany);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close export dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   if (!project) return null;
 
-  const handleExportPDF = () => {
-    // Use browser print functionality with a print-friendly layout
-    // This creates a customer-facing PDF (internal costs are hidden when showCosts is false)
-    window.print();
+  const handleExportPDF = (withFinancials: boolean) => {
+    setIsExportMenuOpen(false);
+    const originalShowCosts = showCosts;
+    const originalShowPrices = showPrices;
+
+    // Set document title for PDF filename: "Customer - Project Code - Project Report"
+    const originalTitle = document.title;
+    const parts = [project.customerName, project.code, 'Project Report'].filter(Boolean);
+    document.title = parts.join(' - ');
+
+    // "With Financials" respects current toggle state (internal costs stay hidden if toggle is off)
+    // "Without Financials" always hides costs AND unit price/total price for customer-friendly export
+    // Restore title and toggle state after print dialog closes (handles cancel too)
+    const handleAfterPrint = () => {
+      document.title = originalTitle;
+      if (!withFinancials) {
+        setShowCosts(originalShowCosts);
+        setShowPrices(originalShowPrices);
+      }
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+
+    if (!withFinancials) {
+      // Hide both internal costs and customer-facing prices, then print
+      flushSync(() => {
+        if (showCosts) setShowCosts(false);
+        if (showPrices) setShowPrices(false);
+      });
+      // Give browser a frame to paint the DOM changes before print captures the page
+      requestAnimationFrame(() => window.print());
+    } else {
+      window.print();
+    }
   };
 
   return (
@@ -114,7 +160,7 @@ export function ProjectHeader() {
       {/* Back link */}
       <Link
         href="/projects"
-        className="inline-flex items-center gap-2 text-sm text-gray-400 transition-colors hover:text-white"
+        className="inline-flex items-center gap-2 text-sm text-gray-400 transition-colors hover:text-white print:hidden"
       >
         <ArrowLeftIcon className="h-4 w-4" />
         Back to Projects
@@ -164,11 +210,11 @@ export function ProjectHeader() {
 
         {/* Action buttons */}
         <div className="flex items-center gap-2">
-          {/* Cost visibility toggle */}
+          {/* Cost visibility toggle - hidden in print */}
           <button
             onClick={() => setShowCosts(!showCosts)}
             className={cn(
-              'flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors',
+              'flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors print:hidden',
               showCosts
                 ? 'border-amber-500/50 bg-amber-900/20 text-amber-400 hover:bg-amber-900/30'
                 : 'border-dark-600 bg-dark-700 text-gray-400 hover:border-gray-500 hover:text-gray-300'
@@ -188,15 +234,40 @@ export function ProjectHeader() {
             )}
           </button>
 
-          {/* PDF Export button */}
-          <button
-            onClick={handleExportPDF}
-            className="border-dark-600 bg-dark-700 hover:border-thyme-500/50 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm text-gray-300 transition-colors hover:text-white print:hidden"
-            title="Export to PDF"
-          >
-            <DocumentArrowDownIcon className="h-4 w-4" />
-            <span className="hidden sm:inline">Export PDF</span>
-          </button>
+          {/* PDF Export dropdown - hidden in print */}
+          <div className="relative print:hidden" ref={exportMenuRef}>
+            <button
+              onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+              className="border-dark-600 bg-dark-700 hover:border-thyme-500/50 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm text-gray-300 transition-colors hover:text-white"
+              title="Export to PDF"
+            >
+              <DocumentArrowDownIcon className="h-4 w-4" />
+              <span className="hidden sm:inline">Export PDF</span>
+              <ChevronDownIcon
+                className={cn('h-4 w-4 transition-transform', isExportMenuOpen && 'rotate-180')}
+              />
+            </button>
+
+            {/* Export dropdown menu */}
+            {isExportMenuOpen && (
+              <div className="border-dark-700 bg-dark-800 absolute top-full right-0 z-50 mt-2 w-48 rounded-lg border py-1 shadow-lg">
+                <button
+                  onClick={() => handleExportPDF(true)}
+                  className="text-dark-300 hover:bg-dark-700 flex w-full items-center gap-2 px-4 py-2 text-sm transition-colors hover:text-white"
+                >
+                  <EyeIcon className="h-4 w-4" />
+                  With Financials
+                </button>
+                <button
+                  onClick={() => handleExportPDF(false)}
+                  className="text-dark-300 hover:bg-dark-700 flex w-full items-center gap-2 px-4 py-2 text-sm transition-colors hover:text-white"
+                >
+                  <EyeSlashIcon className="h-4 w-4" />
+                  Without Financials
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* BC Link */}
           <a

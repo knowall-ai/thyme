@@ -232,7 +232,10 @@ Provides budget and billable planning data (the "quote").
 | `Resource`, `Item`, or `G/L Account`
 
 | quantity
-| Planned quantity (hours for Resources)
+| Planned quantity in the resource's base unit (DAY or HOUR). Note: Thyme converts based on the resource's Unit of Measure, not `unitOfMeasureCode` (see below)
+
+| unitOfMeasureCode
+| Unit of measure (e.g., `HOUR`, `DAY`) - requires v1.7.0+
 
 | unitCost
 | Cost per unit (internal)
@@ -246,6 +249,21 @@ Provides budget and billable planning data (the "quote").
 | totalPrice
 | quantity × unitPrice (customer)
 |===
+
+==== Unit of Measure Conversion
+
+BC stores Job Planning Line quantities in the resource's **base unit** (DAY or HOUR).
+Thyme converts to hours using the Resource Unit of Measure conversion factor from the `/resourceUnitsOfMeasure` endpoint.
+
+**Important:** Thyme does **not** trust the `unitOfMeasureCode` field from the API because BC may ignore it when creating planning lines. Instead, Thyme detects whether a resource is DAY-based by checking if the resource has an HOUR conversion factor that differs from 1.
+
+For example, if a planning line has `quantity: 1.5` and the resource has HOUR configured with `qtyPerUnitOfMeasure: 7.5` (meaning 1 DAY = 7.5 HOURS), Thyme displays:
+
+* Hours Planned: 11.25h (1.5 × 7.5)
+
+BC may also configure HOUR with `qtyPerUnitOfMeasure < 1` (e.g., 0.125 meaning 1 HOUR = 0.125 DAY). Thyme handles both configurations by inverting the factor when it is less than 1 (e.g., 1/0.125 = 8 hours/day).
+
+This conversion is fetched from the `/resourceUnitsOfMeasure` endpoint (requires v1.7.0+).
 
 === Time Entries (`/timeEntries`)
 
@@ -349,6 +367,12 @@ The PDF export creates a customer-friendly report that respects the visibility t
 | v1.6.0+
 
 | Time Entries API (Job Ledger)
+| v1.6.0+
+
+| Unit of Measure Code (on Job Planning Lines)
+| v1.7.0+
+
+| Resource Units of Measure API (conversion factors)
 | v1.7.0+
 |===
 

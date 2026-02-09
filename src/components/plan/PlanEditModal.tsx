@@ -5,8 +5,15 @@ import toast from 'react-hot-toast';
 import { ArrowTopRightOnSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { Modal, Button } from '@/components/ui';
 import { useCompanyStore } from '@/hooks';
+import { usePlanStore } from '@/hooks/usePlanStore';
 import { bcClient } from '@/services/bc/bcClient';
 import { getBCResourceUrl, getBCJobUrl } from '@/utils/bcUrls';
+import {
+  buildUOMConversionMap,
+  convertToHours,
+  convertFromHours,
+  type UOMConversionMap,
+} from '@/utils';
 import { ResourceWorkload } from './ResourceWorkload';
 import type { AllocationBlock } from '@/hooks/usePlanStore';
 import { format, parseISO, eachDayOfInterval, startOfWeek, endOfWeek, getWeek } from 'date-fns';
@@ -34,6 +41,7 @@ export function PlanEditModal({
   onDelete,
 }: PlanEditModalProps) {
   const { selectedCompany } = useCompanyStore();
+  const cachedUomMap = usePlanStore((s) => s.uomConversionMap);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
@@ -59,12 +67,25 @@ export function PlanEditModal({
     [weekStart, weekEnd]
   );
 
+  // UOM conversion map for converting between hours and resource base units
+  const [uomMap, setUomMap] = useState<UOMConversionMap>(new Map());
+
   // Fetch all existing planning lines for this resource/project/task/week
   const fetchExistingLines = useCallback(async () => {
     if (!allocation) return;
 
     setIsLoadingExisting(true);
     try {
+      // Use cached UOM map from plan store if available, otherwise fetch
+      let conversionMap: UOMConversionMap;
+      if (cachedUomMap.size > 0) {
+        conversionMap = cachedUomMap;
+      } else {
+        const resourceUOMs = await bcClient.getResourceUnitsOfMeasure();
+        conversionMap = buildUOMConversionMap(resourceUOMs);
+      }
+      setUomMap(conversionMap);
+
       const existingLines = await bcClient.getJobPlanningLinesForWeek({
         jobNo: allocation.projectNumber,
         jobTaskNo: allocation.taskNumber || '',
@@ -89,10 +110,14 @@ export function PlanEditModal({
         });
       }
 
-      // Sum hours for each date for display
+      // Sum and convert to hours for each date
       for (const [date, lines] of Object.entries(byDate)) {
-        const total = lines.reduce((sum, l) => sum + l.quantity, 0);
-        hours[date] = total.toString();
+        const totalQuantity = lines.reduce((sum, l) => sum + l.quantity, 0);
+        // Convert base unit to hours using shared conversion utility
+        const totalHours = convertToHours(allocation.resourceNumber, totalQuantity, conversionMap);
+        // Round to nearest 0.5 hour
+        const rounded = Math.round(totalHours * 2) / 2;
+        hours[date] = rounded.toString();
       }
 
       setExistingLinesByDate(byDate);
@@ -107,7 +132,7 @@ export function PlanEditModal({
     } finally {
       setIsLoadingExisting(false);
     }
-  }, [allocation, weekStart, weekEnd]);
+  }, [allocation, weekStart, weekEnd, cachedUomMap]);
 
   // Fetch existing lines when modal opens
   useEffect(() => {
@@ -205,8 +230,15 @@ export function PlanEditModal({
         if (existingLines.length > 0) {
           // Update first line, delete any extras (consolidate duplicates)
           const [first, ...extras] = existingLines;
-          const originalTotal = existingLines.reduce((sum, l) => sum + l.quantity, 0);
-          if (newHours !== originalTotal) {
+          // Compare in hours (existing quantity is in base unit, may be DAY)
+          const originalTotalQty = existingLines.reduce((sum, l) => sum + l.quantity, 0);
+          const originalTotalHours = convertToHours(
+            allocation.resourceNumber,
+            originalTotalQty,
+            uomMap
+          );
+          // Round both to avoid floating-point noise triggering unnecessary updates
+          if (Math.round(newHours * 100) !== Math.round(originalTotalHours * 100)) {
             toUpdate.push({ id: first.id, etag: first.etag, hours: newHours });
           }
           // Delete duplicate lines
@@ -243,26 +275,29 @@ export function PlanEditModal({
         deleted++;
       }
 
-      // Update existing lines with new quantity
+      // Update existing lines with new quantity (convert hours to resource's base unit)
       for (const item of toUpdate) {
+        const quantityInBaseUnit = convertFromHours(allocation.resourceNumber, item.hours, uomMap);
         await bcClient.updateJobPlanningLine(
           item.id,
           {
-            quantity: item.hours,
+            quantity: quantityInBaseUnit,
           },
           item.etag
         );
         updated++;
       }
 
-      // Create new lines
+      // Create new lines (convert hours to resource's base unit - typically DAY)
       for (const item of toCreate) {
+        const quantityInBaseUnit = convertFromHours(allocation.resourceNumber, item.hours, uomMap);
         await bcClient.createJobPlanningLine({
           jobNo: allocation.projectNumber,
           jobTaskNo: allocation.taskNumber || '',
           resourceNo: allocation.resourceNumber,
           planningDate: item.date,
-          quantity: item.hours,
+          quantity: quantityInBaseUnit,
+          // Don't specify unitOfMeasureCode - let BC use the resource's default
         });
         created++;
       }

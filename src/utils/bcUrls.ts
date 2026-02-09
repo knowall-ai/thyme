@@ -15,6 +15,8 @@ const BC_PAGES = {
   customer: 21, // Customer card
   resource: 76, // Resource card
   jobTaskLines: 1002, // Job Task Lines subpage
+  jobPlanningLines: 1006, // Job Planning Lines
+  jobLedgerEntries: 92, // Job Ledger Entries
   timeSheetManager: 955, // Time Sheet Manager (for creating timesheets)
   timeSheets: 973, // Time Sheets list (user's own)
   extensionManagement: 2503, // Extension Management page
@@ -139,6 +141,38 @@ export function getBCJobTaskUrl(jobNumber: string, taskNo: string, companyName?:
   // Job tasks are viewed on the Job Card page (page 88), so we open the job
   // The task lines are shown in a subpage on the job card
   return getBCJobUrl(jobNumber, companyName);
+}
+
+/**
+ * Generate a URL to open Job Planning Lines in Business Central filtered by job number
+ * @param jobNumber - The job/project number
+ * @param companyName - Optional company name to include in the URL
+ */
+export function getBCJobPlanningLinesUrl(jobNumber: string, companyName?: string): string {
+  const baseUrl = getBCBaseUrl();
+  let url = `${baseUrl}/?`;
+  if (companyName) {
+    url += `company=${encodeURIComponent(companyName)}&`;
+  }
+  const escapedJobNumber = jobNumber.replace(/'/g, "''");
+  url += `page=${BC_PAGES.jobPlanningLines}&filter=${encodeURIComponent(`'Job No.' IS '${escapedJobNumber}'`)}`;
+  return url;
+}
+
+/**
+ * Generate a URL to open Job Ledger Entries in Business Central filtered by job number
+ * @param jobNumber - The job/project number
+ * @param companyName - Optional company name to include in the URL
+ */
+export function getBCJobLedgerEntriesUrl(jobNumber: string, companyName?: string): string {
+  const baseUrl = getBCBaseUrl();
+  let url = `${baseUrl}/?`;
+  if (companyName) {
+    url += `company=${encodeURIComponent(companyName)}&`;
+  }
+  const escapedJobNumber = jobNumber.replace(/'/g, "''");
+  url += `page=${BC_PAGES.jobLedgerEntries}&filter=${encodeURIComponent(`'Job No.' IS '${escapedJobNumber}'`)}`;
+  return url;
 }
 
 /**

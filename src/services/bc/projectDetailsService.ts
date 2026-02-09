@@ -7,7 +7,7 @@ import type {
   BCJobPlanningLine,
   BCTimeEntry,
 } from '@/types';
-import { getWeekStart } from '@/utils';
+import { getWeekStart, buildUOMConversionMap, convertToHours, getHoursPerDay } from '@/utils';
 
 // Color palette for projects (same as projectService)
 const PROJECT_COLORS = [
@@ -37,6 +37,9 @@ export type BillingMode = 'T&M' | 'Fixed Price' | 'Mixed' | 'Not Set';
 export interface ProjectAnalytics {
   // Billing mode - derived from billablePriceBreakdown
   billingMode: BillingMode;
+
+  // Hours per day - from Resource Unit of Measure (DAY conversion factor)
+  hoursPerDay: number; // Default 8 if not configured in BC
 
   // Hours
   hoursSpent: number; // From timesheets (totalQuantity)
@@ -77,6 +80,7 @@ interface WeeklyDataPoint {
   hours: number; // Total hours
   approvedHours: number; // Hours from Approved timesheets
   pendingHours: number; // Hours from Open + Submitted timesheets
+  plannedHours: number; // Budgeted hours from Job Planning Lines (by planningDate)
   cumulative: number;
 }
 
@@ -204,6 +208,7 @@ export const projectDetailsService = {
     // Helper to create empty analytics
     const emptyAnalytics = (): ProjectAnalytics => ({
       billingMode: 'Not Set',
+      hoursPerDay: 8,
       hoursSpent: 0,
       hoursPlanned: 0,
       hoursThisWeek: 0,
@@ -350,10 +355,10 @@ export const projectDetailsService = {
       weeklyMap.set(entry.weekStart, current);
     }
 
-    // Sort weeks and calculate cumulative
+    // Sort weeks and calculate cumulative (plannedHours will be added after fetching planning lines)
     const sortedWeeks = Array.from(weeklyMap.keys()).sort();
     let cumulative = 0;
-    const weeklyData: WeeklyDataPoint[] = sortedWeeks.map((week) => {
+    let weeklyData: WeeklyDataPoint[] = sortedWeeks.map((week) => {
       const data = weeklyMap.get(week) || { total: 0, approved: 0, pending: 0 };
       cumulative += data.total;
       return {
@@ -361,6 +366,7 @@ export const projectDetailsService = {
         hours: data.total,
         approvedHours: data.approved,
         pendingHours: data.pending,
+        plannedHours: 0, // Will be populated from planning lines
         cumulative,
       };
     });
@@ -378,6 +384,7 @@ export const projectDetailsService = {
     // BC has 3 line types: Resource (labor), Item (products), G/L Account (overhead/services)
     // We include ALL types for totals, but only Resource for hours
     let hoursPlanned = 0;
+    let hoursPerDay = 8; // Default, will be updated from BC if DAY unit is configured
     let budgetCost = 0;
     let budgetCostBreakdown: CostBreakdown = { resource: 0, item: 0, glAccount: 0, total: 0 };
     let billablePrice = 0;
@@ -385,7 +392,32 @@ export const projectDetailsService = {
     // Map for unit price per task (from Job Planning Lines - fallback if Resource doesn't have unitPrice)
     const unitPriceByTask = new Map<string, number>();
     try {
-      const planningLines = await bcClient.getJobPlanningLines(projectNumber);
+      // Fetch planning lines, resources, and unit of measure conversion factors in parallel
+      const [planningLines, resourceUnitsOfMeasure] = await Promise.all([
+        bcClient.getJobPlanningLines(projectNumber),
+        bcClient.getResourceUnitsOfMeasure(),
+      ]);
+
+      // Build a map for unit of measure conversion: (resourceNo, unitCode) → qtyPerUnitOfMeasure
+      // This allows us to convert DAY to HOURS (e.g., 1 DAY = 7.5 HOURS)
+      const uomConversionMap = buildUOMConversionMap(resourceUnitsOfMeasure);
+
+      // Derive hoursPerDay from an actual DAY-based resource in the planning lines
+      // (picks the first resource that has a non-1 HOUR factor configured in BC)
+      const resourceNosInProject = [
+        ...new Set(
+          planningLines
+            .filter((l: BCJobPlanningLine) => l.type === 'Resource')
+            .map((l: BCJobPlanningLine) => l.number)
+        ),
+      ];
+      for (const resNo of resourceNosInProject) {
+        const hpd = getHoursPerDay(resourceUnitsOfMeasure, resNo);
+        if (hpd !== 8) {
+          hoursPerDay = hpd;
+          break;
+        }
+      }
 
       // Helper to check if lineType includes Budget (handles URL-encoded spaces from API)
       const isBudgetLine = (lineType: string) =>
@@ -400,12 +432,17 @@ export const projectDetailsService = {
         lineType === 'Both_x0020_Budget_x0020_and_x0020_Billable';
 
       // Hours Planned: sum quantity from Resource Budget lines only (hours only apply to resources)
+      // Convert quantity to hours using unit of measure conversion factor
       const resourceLines = planningLines.filter(
         (line: BCJobPlanningLine) => line.type === 'Resource'
       );
       hoursPlanned = resourceLines
         .filter((line: BCJobPlanningLine) => isBudgetLine(line.lineType))
-        .reduce((sum: number, line: BCJobPlanningLine) => sum + line.quantity, 0);
+        .reduce(
+          (sum: number, line: BCJobPlanningLine) =>
+            sum + convertToHours(line.number, line.quantity, uomConversionMap),
+          0
+        );
 
       // Extract unit price per resource from planning lines as fallback
       // (only if Resource Card doesn't have unitPrice set)
@@ -460,6 +497,53 @@ export const projectDetailsService = {
           .reduce((sum: number, line: BCJobPlanningLine) => sum + line.totalPrice, 0),
         total: billablePrice,
       };
+
+      // Build planned hours by week from Resource Budget lines with valid planningDate
+      // This shows the budgeted hours allocation in the Hours per Week chart
+      const plannedHoursMap = new Map<string, number>();
+      for (const line of resourceLines) {
+        if (!isBudgetLine(line.lineType)) continue;
+        // Skip lines without a valid planning date (0001-01-01 is BC's default empty date)
+        if (!line.planningDate || line.planningDate === '0001-01-01') continue;
+
+        // Parse as local date to avoid UTC timezone shift with YYYY-MM-DD strings
+        const [y, m, d] = line.planningDate.split('-').map(Number);
+        const planDate = new Date(y, m - 1, d);
+        if (isNaN(planDate.getTime())) continue;
+
+        const weekStr = getISOWeek(planDate);
+        const hours = convertToHours(line.number, line.quantity, uomConversionMap);
+        const current = plannedHoursMap.get(weekStr) || 0;
+        plannedHoursMap.set(weekStr, current + hours);
+      }
+
+      // Merge planned hours into weeklyData
+      const weeklyDataMap = new Map(weeklyData.map((d) => [d.week, d]));
+      for (const [week, plannedHours] of plannedHoursMap) {
+        const existing = weeklyDataMap.get(week);
+        if (existing) {
+          existing.plannedHours = plannedHours;
+        } else {
+          // Add a new week entry for planned-only weeks (no actual hours yet)
+          weeklyDataMap.set(week, {
+            week,
+            hours: 0,
+            approvedHours: 0,
+            pendingHours: 0,
+            plannedHours,
+            cumulative: 0, // Will be recalculated below
+          });
+        }
+      }
+
+      // Rebuild weeklyData array sorted with recalculated cumulative
+      const allWeeks = Array.from(weeklyDataMap.keys()).sort();
+      let newCumulative = 0;
+      weeklyData = allWeeks.map((week) => {
+        const data = weeklyDataMap.get(week)!;
+        newCumulative += data.hours;
+        return { ...data, cumulative: newCumulative };
+      });
     } catch {
       // If planning lines can't be fetched, leave values as 0
     }
@@ -703,6 +787,9 @@ export const projectDetailsService = {
     return {
       // Billing mode
       billingMode,
+
+      // Hours per day conversion factor (from BC Resource Unit of Measure)
+      hoursPerDay,
 
       // New BC-aligned terminology
       hoursSpent: totalHours,

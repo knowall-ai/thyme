@@ -101,7 +101,8 @@ export function ProjectCharts() {
     <Card variant="bordered" className="p-6">
       {/* Header with toggle and navigation */}
       <div className="mb-6 flex items-center justify-between">
-        <div className="flex gap-2">
+        {/* Chart view toggle - interactive on screen, static label in print */}
+        <div className="flex gap-2 print:hidden">
           <button
             onClick={() => setChartView('weekly')}
             className={cn(
@@ -125,9 +126,13 @@ export function ProjectCharts() {
             Spend vs Budget
           </button>
         </div>
+        {/* Static label for print */}
+        <div className="bg-thyme-600 hidden rounded-lg px-4 py-2 text-sm font-medium text-white print:block">
+          {chartView === 'weekly' ? 'Hours per Week' : 'Spend vs Budget'}
+        </div>
 
-        {/* Navigation */}
-        <div className="flex items-center gap-1">
+        {/* Navigation - hidden in print */}
+        <div className="flex items-center gap-1 print:hidden">
           <button
             onMouseDown={canGoBack ? startHoldBack : undefined}
             onMouseUp={clearHoldTimers}
@@ -203,6 +208,7 @@ interface WeeklyDataPoint {
   hours: number;
   approvedHours: number;
   pendingHours: number;
+  plannedHours: number; // Budgeted hours from Job Planning Lines
   cumulative: number;
 }
 
@@ -211,6 +217,7 @@ interface WeekDisplayData {
   hours: number;
   approvedHours: number; // Hours from Approved timesheets
   pendingHours: number; // Hours from Open/Submitted timesheets
+  plannedHours: number; // Budgeted hours from Job Planning Lines
   date: Date;
   isCurrentWeek: boolean;
   monthLabel?: string; // Only set for first week of each month
@@ -253,12 +260,16 @@ function generateWeeklyDisplayData(
   const currentWeekStr = getISOWeek(currentWeekStart);
 
   // Create a map of existing data
-  const dataMap = new Map<string, { hours: number; approvedHours: number; pendingHours: number }>();
+  const dataMap = new Map<
+    string,
+    { hours: number; approvedHours: number; pendingHours: number; plannedHours: number }
+  >();
   for (const d of data) {
     dataMap.set(d.week, {
       hours: d.hours,
       approvedHours: d.approvedHours || 0,
       pendingHours: d.pendingHours || 0,
+      plannedHours: d.plannedHours || 0,
     });
   }
 
@@ -274,7 +285,12 @@ function generateWeeklyDisplayData(
     const weekDate = new Date(endWeekDate);
     weekDate.setDate(weekDate.getDate() - i * 7);
     const weekStr = getISOWeek(weekDate);
-    const weekData = dataMap.get(weekStr) ?? { hours: 0, approvedHours: 0, pendingHours: 0 };
+    const weekData = dataMap.get(weekStr) ?? {
+      hours: 0,
+      approvedHours: 0,
+      pendingHours: 0,
+      plannedHours: 0,
+    };
 
     // Determine if we should show month label
     const month = weekDate.getMonth();
@@ -289,6 +305,7 @@ function generateWeeklyDisplayData(
       hours: weekData.hours,
       approvedHours: weekData.approvedHours,
       pendingHours: weekData.pendingHours,
+      plannedHours: weekData.plannedHours,
       date: weekDate,
       isCurrentWeek: weekStr === currentWeekStr,
       monthLabel,
@@ -312,7 +329,8 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
   );
 
   const maxHours = useMemo(() => {
-    const max = Math.max(...displayData.map((d) => d.hours), 0);
+    // Consider both actual hours and planned hours for the max
+    const max = Math.max(...displayData.map((d) => Math.max(d.hours, d.plannedHours)), 0);
     // Round up to nice number for Y-axis
     if (max <= 5) return 5;
     if (max <= 10) return 10;
@@ -332,8 +350,8 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
   }, [maxHours]);
 
   return (
-    <div className="h-64">
-      <div className="flex h-52">
+    <div>
+      <div className="flex h-48">
         {/* Y-axis */}
         <div className="flex w-8 flex-col justify-between pr-2 text-right text-xs text-gray-500">
           {yAxisLabels.map((label) => (
@@ -357,6 +375,7 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
               const approvedHeightPercent =
                 maxHours > 0 ? (point.approvedHours / maxHours) * 100 : 0;
               const pendingHeightPercent = maxHours > 0 ? (point.pendingHours / maxHours) * 100 : 0;
+              const plannedHeightPercent = maxHours > 0 ? (point.plannedHours / maxHours) * 100 : 0;
               const isHovered = hoveredWeek === point.week;
 
               return (
@@ -366,9 +385,21 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
                   onMouseEnter={() => setHoveredWeek(point.week)}
                   onMouseLeave={() => setHoveredWeek(null)}
                 >
-                  {/* Bar container - stacked bars (approved + pending) */}
-                  <div className="flex h-full w-full items-end justify-center px-0.5">
-                    {/* Stacked actual hours bar (approved bottom, pending top) */}
+                  {/* Two bars side by side: Budgeted (grey, left) | Actual (stacked, right) */}
+                  <div className="flex h-full w-full items-end justify-center gap-0.5 px-0.5">
+                    {/* Budgeted hours bar (grey, left) */}
+                    <div className="flex h-full w-full max-w-3 flex-col-reverse items-stretch">
+                      {plannedHeightPercent > 0 && (
+                        <div
+                          className="w-full rounded-t bg-gray-600 transition-all group-hover:bg-gray-500"
+                          style={{
+                            height: `${plannedHeightPercent}%`,
+                            minHeight: '2px',
+                          }}
+                        />
+                      )}
+                    </div>
+                    {/* Stacked actual hours bar (approved bottom, pending top) - right */}
                     <div className="flex h-full w-full max-w-3 flex-col-reverse items-stretch">
                       {/* Approved hours (bottom of stack - green) */}
                       {approvedHeightPercent > 0 && (
@@ -385,7 +416,7 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
                           }}
                         />
                       )}
-                      {/* Pending hours (top of stack - amber) */}
+                      {/* Pending hours (top of stack - amber/orange) */}
                       {pendingHeightPercent > 0 && (
                         <div
                           className={cn(
@@ -406,7 +437,7 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
 
                   {/* Tooltip */}
                   {isHovered && (
-                    <div className="bg-dark-700 absolute -top-20 left-1/2 z-10 -translate-x-1/2 rounded px-2 py-1 text-xs whitespace-nowrap shadow-lg">
+                    <div className="bg-dark-700 absolute -top-28 left-1/2 z-10 -translate-x-1/2 rounded px-2 py-1 text-xs whitespace-nowrap shadow-lg">
                       <div className="font-medium text-white">
                         {point.date.toLocaleDateString('en-US', {
                           month: 'short',
@@ -414,6 +445,12 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
                           year: 'numeric',
                         })}
                       </div>
+                      {point.plannedHours > 0 && (
+                        <div className="flex items-center gap-2 text-gray-400">
+                          <span className="inline-block h-2 w-2 rounded-sm bg-gray-500" />
+                          Planned: {point.plannedHours.toFixed(1)}h
+                        </div>
+                      )}
                       {point.approvedHours > 0 && (
                         <div className="flex items-center gap-2 text-gray-400">
                           <span className="bg-thyme-500 inline-block h-2 w-2 rounded-sm" />
@@ -426,7 +463,9 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
                           Pending: {point.pendingHours.toFixed(1)}h
                         </div>
                       )}
-                      {point.hours === 0 && <div className="text-gray-400">No hours</div>}
+                      {point.hours === 0 && point.plannedHours === 0 && (
+                        <div className="text-gray-400">No hours</div>
+                      )}
                       {point.isCurrentWeek && <div className="text-thyme-400">This week</div>}
                     </div>
                   )}
@@ -444,6 +483,22 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
             {point.monthLabel && <span className="text-xs text-gray-500">{point.monthLabel}</span>}
           </div>
         ))}
+      </div>
+
+      {/* Legend */}
+      <div className="mt-3 flex items-center justify-center gap-6 text-xs text-gray-400">
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-gray-600" />
+          <span>Planned</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="bg-thyme-500 inline-block h-2.5 w-2.5 rounded-sm" />
+          <span>Approved</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-500" />
+          <span>Pending</span>
+        </div>
       </div>
     </div>
   );
@@ -600,8 +655,8 @@ function ProgressLineChart({
   const totalBudgetY = maxCost > 0 ? (1 - budgetCost / maxCost) * 100 : 0;
 
   return (
-    <div className="h-64">
-      <div className="flex h-52">
+    <div>
+      <div className="flex h-48">
         {/* Y-axis - £ values */}
         <div className="flex w-12 flex-col justify-between pr-2 text-right text-xs text-gray-500">
           {yAxisLabels.map((label) => (
