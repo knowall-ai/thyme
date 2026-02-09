@@ -8,13 +8,20 @@ import {
 } from '@/utils/unitConversion';
 import type { BCResourceUnitOfMeasure } from '@/types';
 
-// Helper to create UOM records
+// Helper to create UOM records with required fields
 function makeUOM(
   resourceNo: string,
   code: string,
   qtyPerUnitOfMeasure: number
 ): BCResourceUnitOfMeasure {
-  return { resourceNo, code, qtyPerUnitOfMeasure };
+  return {
+    id: `${resourceNo}-${code}`,
+    resourceNo,
+    code,
+    qtyPerUnitOfMeasure,
+    relatedToBaseUnitOfMeasure: code === 'DAY',
+    lastModifiedDateTime: '2024-01-01T00:00:00Z',
+  };
 }
 
 describe('unitConversion', () => {

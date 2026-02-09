@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { TrashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { Modal, Button, Input, Select } from '@/components/ui';
-import { useTimeEntriesStore, useProjectsStore } from '@/hooks';
+import { useTimeEntriesStore, useProjectsStore, useSettingsStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
 import { bcClient } from '@/services/bc/bcClient';
 import type { TimeEntry, SelectOption } from '@/types';
@@ -26,6 +26,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
 
   const { addEntry, updateEntry, deleteEntry } = useTimeEntriesStore();
   const { projects, selectedProject, selectedTask, selectProject, selectTask } = useProjectsStore();
+  const { requireTimesheetComments } = useSettingsStore();
 
   const [customerId, setCustomerId] = useState('');
   const [projectId, setProjectId] = useState('');
@@ -193,6 +194,11 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
       return;
     }
 
+    if (requireTimesheetComments && !notes.trim()) {
+      toast.error('Notes are required. Please add a comment before saving.');
+      return;
+    }
+
     if (notes.length > MAX_NOTES_LENGTH) {
       toast.error(`Notes cannot exceed ${MAX_NOTES_LENGTH} characters.`);
       return;
@@ -354,7 +360,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
         {/* Notes */}
         <div>
           <label htmlFor="notes" className="text-dark-200 mb-1 block text-sm font-medium">
-            Notes (optional)
+            Notes ({requireTimesheetComments ? 'required' : 'optional'})
           </label>
           <textarea
             id="notes"
@@ -362,6 +368,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             maxLength={MAX_NOTES_LENGTH}
+            required={requireTimesheetComments}
             className={`border-dark-600 bg-dark-700 text-dark-100 placeholder:text-dark-400 focus:ring-thyme-500 flex w-full rounded-lg border px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:outline-none ${
               notes.length >= MAX_NOTES_LENGTH ? 'border-red-500' : ''
             }`}

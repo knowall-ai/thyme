@@ -13,7 +13,7 @@ import {
   UserCircleIcon,
   EnvelopeIcon,
 } from '@heroicons/react/24/outline';
-import { useTimeEntriesStore, useProjectsStore, useTeammateStore } from '@/hooks';
+import { useTimeEntriesStore, useProjectsStore, useTeammateStore, useSettingsStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
 import { Button, Card, WeekNavigation, ExtensionPreviewWrapper } from '@/components/ui';
 import { TimeEntryCell } from './TimeEntryCell';
@@ -38,6 +38,7 @@ export function WeeklyTimesheet() {
   const userId = account?.localAccountId || '';
   const userEmail = account?.username || '';
   const { selectedTeammate } = useTeammateStore();
+  const { requireTimesheetComments } = useSettingsStore();
   const isViewingTeammate = selectedTeammate !== null;
 
   const searchParams = useSearchParams();
@@ -208,6 +209,17 @@ export function WeeklyTimesheet() {
 
   const handleSubmitTimesheet = async () => {
     if (!currentTimesheet) return;
+
+    if (requireTimesheetComments) {
+      const entriesMissingNotes = entries.filter((e) => !e.notes?.trim());
+      if (entriesMissingNotes.length > 0) {
+        toast.error(
+          `${entriesMissingNotes.length} ${entriesMissingNotes.length === 1 ? 'entry is' : 'entries are'} missing comments. Please add notes to all entries before submitting.`
+        );
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       await submitTimesheet();

@@ -13,6 +13,7 @@ import {
   convertFromHours,
   type UOMConversionMap,
 } from '@/utils';
+import { ResourceWorkload } from './ResourceWorkload';
 import type { SelectOption } from '@/types';
 import { format, getWeek, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 
@@ -219,6 +220,18 @@ export function PlanEntryModal({
       return sum + (isNaN(val) ? 0 : val);
     }, 0);
   }, [dayHours]);
+
+  // Memoize exclude props to avoid unnecessary re-renders of ResourceWorkload
+  const excludeJobNo = useMemo(
+    () => (projectId ? projects.find((p) => p.id === projectId)?.code : undefined),
+    [projectId, projects]
+  );
+
+  const excludeJobTaskNo = useMemo(() => {
+    if (!projectId || !taskId) return undefined;
+    const project = projects.find((p) => p.id === projectId);
+    return project?.tasks?.find((t) => t.id === taskId)?.code;
+  }, [projectId, taskId, projects]);
 
   const handleProjectChange = (value: string) => {
     setProjectId(value);
@@ -496,6 +509,18 @@ export function PlanEntryModal({
             })}
           </div>
         </div>
+
+        {/* Resource workload */}
+        {resourceNumber && (
+          <ResourceWorkload
+            resourceNo={resourceNumber}
+            weekStart={weekStart}
+            weekEnd={weekEnd}
+            excludeJobNo={excludeJobNo}
+            excludeJobTaskNo={excludeJobTaskNo}
+            currentDayHours={dayHours}
+          />
+        )}
 
         {/* Total */}
         <div className="text-dark-300 border-dark-700 flex items-center justify-between border-t pt-3 text-sm">

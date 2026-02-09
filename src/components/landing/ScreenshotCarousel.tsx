@@ -127,8 +127,9 @@ export function ScreenshotCarousel() {
               src={currentScreenshot.src}
               alt={currentScreenshot.alt}
               fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
               className="object-cover object-top"
-              priority={currentIndex === 0}
+              priority
               onError={() => handleImageError(currentIndex)}
             />
           )}
@@ -181,7 +182,7 @@ export function ScreenshotCarousel() {
               index === currentIndex ? 'ring-knowall-green ring-2' : 'opacity-60 hover:opacity-100'
             }`}
           >
-            <div className="aspect-video">
+            <div className="relative aspect-video">
               {imageErrors.has(index) ? (
                 <div className="bg-dark-900 flex h-full items-center justify-center">
                   <span className="text-dark-500 text-xs">{screenshot.title}</span>
@@ -191,6 +192,7 @@ export function ScreenshotCarousel() {
                   src={screenshot.src}
                   alt={screenshot.alt}
                   fill
+                  sizes="(max-width: 1024px) 0px, 150px"
                   className="object-cover object-top"
                   onError={() => handleImageError(index)}
                 />

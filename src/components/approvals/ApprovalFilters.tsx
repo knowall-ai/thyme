@@ -10,6 +10,7 @@ import type {
   SelectOption,
   TimesheetDisplayStatus,
 } from '@/types';
+import { getTimesheetDisplayStatus } from '@/utils';
 
 interface ApprovalFiltersProps {
   filters: FilterType;
@@ -56,15 +57,23 @@ export function ApprovalFilters({
     return [{ value: '', label: 'All Resources' }, ...options];
   }, [resources, allTimesheets]);
 
-  const statusOptions: SelectOption[] = [
-    { value: '', label: 'All Statuses' },
-    { value: 'Submitted', label: 'Submitted' },
-    { value: 'Partially Submitted', label: 'Partially Submitted' },
-    { value: 'Open', label: 'Open' },
-    { value: 'Rejected', label: 'Rejected' },
-    { value: 'Approved', label: 'Approved' },
-    { value: 'Mixed', label: 'Mixed' },
-  ];
+  // Build status options dynamically from actual timesheet data
+  const statusOptions: SelectOption[] = useMemo(() => {
+    const uniqueStatuses = new Set<TimesheetDisplayStatus>();
+
+    if (Array.isArray(allTimesheets) && allTimesheets.length > 0) {
+      allTimesheets.forEach((ts) => {
+        const status = getTimesheetDisplayStatus(ts);
+        uniqueStatuses.add(status);
+      });
+    }
+
+    const options = Array.from(uniqueStatuses)
+      .sort((a, b) => a.localeCompare(b))
+      .map((status) => ({ value: status, label: status }));
+
+    return [{ value: '', label: 'All Statuses' }, ...options];
+  }, [allTimesheets]);
 
   const hasActiveFilters =
     filters.resourceId || filters.startDate || filters.endDate || filters.status;

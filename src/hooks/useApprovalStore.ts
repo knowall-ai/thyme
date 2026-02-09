@@ -35,6 +35,7 @@ interface ApprovalStore {
   // Approval actions
   approveTimeSheet: (timeSheetId: string, comment?: string) => Promise<boolean>;
   rejectTimeSheet: (timeSheetId: string, comment: string) => Promise<boolean>;
+  deleteTimeSheet: (timeSheetId: string, etag: string) => Promise<boolean>;
   approveLines: (lineIds: string[], comment?: string) => Promise<boolean>;
   rejectLines: (lineIds: string[], comment: string) => Promise<boolean>;
   bulkApprove: (timeSheetIds: string[], comment?: string) => Promise<boolean>;
@@ -201,6 +202,22 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to reject time sheet';
+      set({ error: message, isProcessing: false });
+      return false;
+    }
+  },
+
+  // Delete a time sheet (for cleaning up invalid/corrupt data)
+  deleteTimeSheet: async (timeSheetId: string, etag: string) => {
+    set({ isProcessing: true, error: null });
+    try {
+      await bcClient.deleteTimeSheet(timeSheetId, etag);
+      // Refresh the list
+      await get().fetchApprovals();
+      set({ isProcessing: false, selectedTimeSheet: null, selectedLines: [] });
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete time sheet';
       set({ error: message, isProcessing: false });
       return false;
     }
