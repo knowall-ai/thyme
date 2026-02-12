@@ -237,7 +237,12 @@ export function SettingsPanel() {
               <p className="text-dark-400 text-sm">Get reminded to fill in your timesheet</p>
             </div>
             <label className="relative inline-flex cursor-pointer items-center">
-              <input type="checkbox" defaultChecked className="peer sr-only" />
+              <input
+                type="checkbox"
+                defaultChecked
+                aria-label="Timesheet Reminders"
+                className="peer sr-only"
+              />
               <div className="peer bg-dark-600 peer-checked:bg-thyme-600 peer-focus:ring-thyme-500 h-6 w-11 rounded-full peer-focus:ring-2 peer-focus:outline-none after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full"></div>
             </label>
           </div>
@@ -253,6 +258,7 @@ export function SettingsPanel() {
                 type="checkbox"
                 checked={requireTimesheetComments}
                 onChange={(e) => updateSettings({ requireTimesheetComments: e.target.checked })}
+                aria-label="Require Comments on Time Entries"
                 className="peer sr-only"
               />
               <div className="peer bg-dark-600 peer-checked:bg-thyme-600 peer-focus:ring-thyme-500 h-6 w-11 rounded-full peer-focus:ring-2 peer-focus:outline-none after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full"></div>
