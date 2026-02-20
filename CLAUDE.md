@@ -121,8 +121,8 @@ The redirect URI is determined dynamically using `window.location.origin`, so it
 
 **Registered SPA Redirect URIs:**
 
-- `http://localhost:3000` - Default local dev
-- `http://localhost:3001` - Alternate local dev port
+- `http://localhost:3000` - Default Next.js port
+- `http://localhost:3101` - Local dev port (configured in package.json)
 - `https://getthyme.ai` - Production
 - `https://slot1-4.thyme.knowall.ai` - Staging slots
 
@@ -133,7 +133,7 @@ To check or update redirect URIs:
 az ad app show --id "44c618b5-89c3-4673-92ec-f7afb4e403bf" --query "spa.redirectUris"
 
 # Add a new redirect URI (replace with full list)
-az ad app update --id "44c618b5-89c3-4673-92ec-f7afb4e403bf" --spa-redirect-uris "http://localhost:3000" "http://localhost:3001" "https://getthyme.ai"
+az ad app update --id "44c618b5-89c3-4673-92ec-f7afb4e403bf" --spa-redirect-uris "http://localhost:3000" "http://localhost:3101" "https://getthyme.ai"
 ```
 
 ## Adding UI Components
