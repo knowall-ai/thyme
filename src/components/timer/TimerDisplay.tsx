@@ -29,7 +29,7 @@ export function TimerDisplay({ onStartTimer }: TimerDisplayProps) {
       <Button
         onClick={onStartTimer}
         size="lg"
-        className="animate-glow shadow-knowall-green/30 hover:shadow-knowall-green/50 h-14 w-14 !p-0 rounded-full shadow-lg transition-shadow"
+        className="animate-glow shadow-knowall-green/30 hover:shadow-knowall-green/50 h-14 w-14 rounded-full !p-0 shadow-lg transition-shadow"
       >
         <PlayIcon className="h-5 w-5 translate-x-0.5" />
         <span className="sr-only">Start timer</span>
