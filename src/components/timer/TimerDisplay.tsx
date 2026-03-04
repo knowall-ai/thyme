@@ -28,10 +28,10 @@ export function TimerDisplay({ onStartTimer }: TimerDisplayProps) {
     return (
       <Button
         onClick={onStartTimer}
-        size="lg"
+        size="icon"
         className="animate-glow shadow-knowall-green/30 hover:shadow-knowall-green/50 h-14 w-14 rounded-full shadow-lg transition-shadow"
       >
-        <PlayIcon className="h-8 w-8" />
+        <PlayIcon className="h-5 w-5 translate-x-0.5" />
         <span className="sr-only">Start timer</span>
       </Button>
     );
