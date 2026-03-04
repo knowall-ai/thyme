@@ -97,7 +97,7 @@ function InfoTooltip({
 function formatHoursWithDays(hours: number, hoursPerDay: number): string {
   const days = hours / hoursPerDay;
   if (hours === 0) return '0h (0d)';
-  return `${hours.toFixed(1)}h (${days.toFixed(1)}d)`;
+  return `${hours.toFixed(2)}h (${days.toFixed(2)}d)`;
 }
 
 // Format currency using the company's currency code from BC

@@ -617,19 +617,19 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
                       {point.plannedHours > 0 && (
                         <div className="flex items-center gap-2 text-gray-400">
                           <span className="inline-block h-2 w-2 rounded-sm bg-gray-500" />
-                          Planned: {point.plannedHours.toFixed(1)}h
+                          Planned: {point.plannedHours.toFixed(2)}h
                         </div>
                       )}
                       {point.approvedHours > 0 && (
                         <div className="flex items-center gap-2 text-gray-400">
                           <span className="bg-thyme-500 inline-block h-2 w-2 rounded-sm" />
-                          Approved: {point.approvedHours.toFixed(1)}h
+                          Approved: {point.approvedHours.toFixed(2)}h
                         </div>
                       )}
                       {point.pendingHours > 0 && (
                         <div className="flex items-center gap-2 text-gray-400">
                           <span className="inline-block h-2 w-2 rounded-sm bg-amber-500" />
-                          Pending: {point.pendingHours.toFixed(1)}h
+                          Pending: {point.pendingHours.toFixed(2)}h
                         </div>
                       )}
                       {point.hours === 0 && point.plannedHours === 0 && (
@@ -1103,7 +1103,7 @@ function ProgressLineChart({
                     {(
                       displayDataWithCost[hoveredIndex].forecastHours ??
                       displayDataWithCost[hoveredIndex].cumulative
-                    ).toFixed(1)}{' '}
+                    ).toFixed(2)}{' '}
                     hours{displayDataWithCost[hoveredIndex].isFuture ? ' (forecast)' : ''}
                   </div>
                 )}
@@ -1178,7 +1178,7 @@ function ProgressLineChart({
               </div>
               {showTimeSpent && (
                 <div className="text-gray-400">
-                  {displayDataWithCost[hoveredIndex].cumulative.toFixed(1)} hours
+                  {displayDataWithCost[hoveredIndex].cumulative.toFixed(2)} hours
                 </div>
               )}
               {displayDataWithCost[hoveredIndex].isCurrentWeek && (
