@@ -8,6 +8,7 @@ import type {
   BCTimeSheetLine,
   BCJobPlanningLine,
 } from '@/types';
+import { buildUOMConversionMap, convertToHours } from '@/utils';
 
 // Color palette for projects
 const PROJECT_COLORS = [
@@ -209,15 +210,30 @@ export const projectService = {
   async getProjectBudgets(projectCodes: string[]): Promise<Map<string, number>> {
     const projectBudgets = new Map<string, number>();
 
+    // Fetch UOM conversion map once for all projects
+    const resourceUOMs = await bcClient.getResourceUnitsOfMeasure();
+    const uomConversionMap = buildUOMConversionMap(resourceUOMs);
+
+    const isBillableLine = (lineType: string) =>
+      lineType === 'Billable' ||
+      lineType === 'Both Budget and Billable' ||
+      lineType === 'Both_x0020_Budget_x0020_and_x0020_Billable';
+
     // Fetch budget for each project in parallel
     const budgetPromises = projectCodes.map(async (projectCode) => {
       try {
         const planningLines = await bcClient.getJobPlanningLines(projectCode);
 
-        // Sum quantity for Resource type lines (hours-based budgets)
+        // Sum hours for Billable Resource lines (contracted project budget)
         const budgetHours = planningLines
-          .filter((line: BCJobPlanningLine) => line.type === 'Resource')
-          .reduce((sum: number, line: BCJobPlanningLine) => sum + line.quantity, 0);
+          .filter(
+            (line: BCJobPlanningLine) => line.type === 'Resource' && isBillableLine(line.lineType)
+          )
+          .reduce(
+            (sum: number, line: BCJobPlanningLine) =>
+              sum + convertToHours(line.number, line.quantity, uomConversionMap),
+            0
+          );
 
         if (budgetHours > 0) {
           projectBudgets.set(projectCode, budgetHours);
