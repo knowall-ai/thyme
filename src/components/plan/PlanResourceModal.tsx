@@ -5,8 +5,15 @@ import toast from 'react-hot-toast';
 import { ExclamationTriangleIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import { Modal, Button, Select } from '@/components/ui';
 import { useProjectsStore, useCompanyStore } from '@/hooks';
+import { usePlanStore } from '@/hooks/usePlanStore';
 import { bcClient } from '@/services/bc/bcClient';
 import { getBCResourceUrl, getBCJobUrl } from '@/utils/bcUrls';
+import {
+  buildUOMConversionMap,
+  convertToHours,
+  convertFromHours,
+  type UOMConversionMap,
+} from '@/utils';
 import { ResourceWorkload } from './ResourceWorkload';
 import type { SelectOption, BCResource } from '@/types';
 import { format, getWeek, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
@@ -34,8 +41,10 @@ export function PlanResourceModal({
 }: PlanResourceModalProps) {
   const { projects, fetchProjects } = useProjectsStore();
   const { selectedCompany } = useCompanyStore();
+  const cachedUomMap = usePlanStore((s) => s.uomConversionMap);
 
   const [resources, setResources] = useState<BCResource[]>([]);
+  const [uomMap, setUomMap] = useState<UOMConversionMap>(new Map());
   const [resourceId, setResourceId] = useState('');
   const [taskId, setTaskId] = useState('');
   const [dayHours, setDayHours] = useState<Record<string, string>>({});
@@ -64,12 +73,25 @@ export function PlanResourceModal({
     [projects, projectNumber]
   );
 
-  // Check if BC extension is installed
+  // Check if BC extension is installed and load UOM data
   useEffect(() => {
     if (isOpen) {
       bcClient.isExtensionInstalled().then(setExtensionInstalled);
+      // Use cached UOM map from plan store if available, otherwise fetch
+      if (cachedUomMap.size > 0) {
+        setUomMap(cachedUomMap);
+      } else {
+        bcClient
+          .getResourceUnitsOfMeasure()
+          .then((resourceUOMs) => {
+            setUomMap(buildUOMConversionMap(resourceUOMs));
+          })
+          .catch(() => {
+            setUomMap(new Map());
+          });
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, cachedUomMap]);
 
   // Fetch resources and projects when modal opens
   useEffect(() => {
@@ -143,12 +165,14 @@ export function PlanResourceModal({
           newHours[dateKey] = '';
         });
 
-        // Fill in existing values
+        // Fill in existing values (convert base unit to hours for display)
         for (const line of existingLines) {
           const dateKey = line.planningDate;
+          // Convert from resource's base unit to hours
+          const hoursValue = convertToHours(resourceId, line.quantity, uomMap);
           // If there are multiple lines for the same day, sum them
           const existingVal = parseFloat(newHours[dateKey] || '0');
-          newHours[dateKey] = (existingVal + line.quantity).toString();
+          newHours[dateKey] = (existingVal + hoursValue).toString();
           // Track id and etag for updates (last one wins if multiple)
           newLinesByDate[dateKey] = { id: line.id, etag: line['@odata.etag'] || '' };
         }
@@ -172,7 +196,7 @@ export function PlanResourceModal({
     } finally {
       setIsLoadingExisting(false);
     }
-  }, [resourceId, taskId, currentProject, projectNumber, weekStart, weekEnd, weekDays]);
+  }, [resourceId, taskId, currentProject, projectNumber, weekStart, weekEnd, weekDays, uomMap]);
 
   // Trigger fetch when both resource and task are selected
   useEffect(() => {
@@ -282,26 +306,28 @@ export function PlanResourceModal({
         deleted++;
       }
 
-      // Update existing lines
+      // Update existing lines (convert hours to resource's base unit)
       for (const item of toUpdate) {
+        const quantityInBaseUnit = convertFromHours(resourceId, item.hours, uomMap);
         await bcClient.updateJobPlanningLine(
           item.id,
           {
-            quantity: item.hours,
+            quantity: quantityInBaseUnit,
           },
           item.etag
         );
         updated++;
       }
 
-      // Create new lines
+      // Create new lines (convert hours to resource's base unit)
       for (const item of toCreate) {
+        const quantityInBaseUnit = convertFromHours(resourceId, item.hours, uomMap);
         await bcClient.createJobPlanningLine({
           jobNo: projectNumber,
           jobTaskNo: task.code,
           resourceNo: resourceId,
           planningDate: item.date,
-          quantity: item.hours,
+          quantity: quantityInBaseUnit,
         });
         created++;
       }

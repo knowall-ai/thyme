@@ -70,7 +70,7 @@ function InfoTooltip({
 function formatHoursWithDays(hours: number, hoursPerDay: number): string {
   const days = hours / hoursPerDay;
   if (hours === 0) return '0h (0d)';
-  return `${hours.toFixed(1)}h (${days.toFixed(1)}d)`;
+  return `${hours.toFixed(2)}h (${days.toFixed(2)}d)`;
 }
 
 // Format currency using the company's currency code from BC
@@ -145,7 +145,7 @@ export function ProjectKPICards() {
       color: hoursRemaining < 0 ? 'text-red-400' : 'text-blue-400',
       tooltip: {
         title: 'Time Budgeted',
-        description: `Budgeted hours from Job Planning Lines. Only includes Resource lines where lineType is "Budget" or "Both Budget and Billable". Days = hours ÷ ${hoursPerDay}.`,
+        description: `Contracted budget from Billable Job Planning Lines. Only includes Resource lines where lineType is "Billable" or "Both Budget and Billable". Days = hours ÷ ${hoursPerDay}.`,
         source: 'BC API: /jobPlanningLines → quantity',
       },
     },
