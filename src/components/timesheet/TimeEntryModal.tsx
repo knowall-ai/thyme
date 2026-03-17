@@ -118,8 +118,9 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
         // Find task by code and use its id
         const task = project?.tasks.find((t) => t.code === entry.taskId);
         setTaskId(task?.id || '');
-        const h = Math.floor(entry.hours);
-        const m = Math.round((entry.hours - h) * 60);
+        const totalMinutes = Math.round(entry.hours * 60);
+        const h = Math.floor(totalMinutes / 60);
+        const m = totalMinutes % 60;
         setHours(h > 0 ? h.toString() : '');
         setMinutes(m > 0 ? m.toString() : '');
         setNotes(entry.notes || '');
@@ -175,7 +176,9 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
     e.preventDefault();
     if (!date || !projectId || !taskId || isSubmitting) return;
 
-    const totalHours = (parseInt(hours) || 0) + (parseInt(minutes) || 0) / 60;
+    const h = Math.max(0, Math.min(24, parseInt(hours) || 0));
+    const m = h >= 24 ? 0 : Math.max(0, Math.min(59, parseInt(minutes) || 0));
+    const totalHours = h + m / 60;
     if (totalHours <= 0) return;
 
     const project = projects.find((p) => p.id === projectId);
@@ -334,8 +337,14 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
             max="24"
             value={hours}
             onChange={(e) => {
-              setHours(e.target.value);
-              if (parseInt(e.target.value) >= 24) setMinutes('0');
+              const v = e.target.value;
+              if (v === '') {
+                setHours('');
+                return;
+              }
+              const n = Math.max(0, Math.min(24, parseInt(v) || 0));
+              setHours(n.toString());
+              if (n >= 24) setMinutes('0');
             }}
             placeholder="0"
           />
@@ -345,7 +354,15 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
             min="0"
             max="59"
             value={minutes}
-            onChange={(e) => setMinutes(e.target.value)}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === '') {
+                setMinutes('');
+                return;
+              }
+              const n = Math.max(0, Math.min(59, parseInt(v) || 0));
+              setMinutes(n.toString());
+            }}
             placeholder="0"
             disabled={parseInt(hours) >= 24}
           />
