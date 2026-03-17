@@ -33,14 +33,6 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
   const [taskId, setTaskId] = useState('');
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
-
-  // When hours is 24, minutes must be 0
-  const handleHoursChange = (value: string) => {
-    setHours(value);
-    if (parseInt(value) >= 24) {
-      setMinutes('0');
-    }
-  };
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [extensionInstalled, setExtensionInstalled] = useState<boolean | null>(null);
@@ -128,8 +120,8 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
         setTaskId(task?.id || '');
         const h = Math.floor(entry.hours);
         const m = Math.round((entry.hours - h) * 60);
-        setHours(h.toString());
-        setMinutes(m.toString());
+        setHours(h > 0 ? h.toString() : '');
+        setMinutes(m > 0 ? m.toString() : '');
         setNotes(entry.notes || '');
       } else {
         // New entry - use matching customer option value
@@ -341,15 +333,17 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
             min="0"
             max="24"
             value={hours}
-            onChange={(e) => handleHoursChange(e.target.value)}
+            onChange={(e) => {
+              setHours(e.target.value);
+              if (parseInt(e.target.value) >= 24) setMinutes('0');
+            }}
             placeholder="0"
           />
           <Input
             label="Minutes"
             type="number"
             min="0"
-            max="45"
-            step="15"
+            max="59"
             value={minutes}
             onChange={(e) => setMinutes(e.target.value)}
             placeholder="0"
