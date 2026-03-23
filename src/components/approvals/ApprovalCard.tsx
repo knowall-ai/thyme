@@ -65,6 +65,15 @@ export function ApprovalCard({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
 
+  // Reset local UI state when timesheet is no longer actionable
+  useEffect(() => {
+    if (!timeSheet.submittedExists) {
+      setShowRejectForm(false);
+      setShowDeleteConfirm(false);
+      setRejectReason('');
+    }
+  }, [timeSheet.submittedExists]);
+
   // Fetch profile photo
   useEffect(() => {
     if (resourceEmail) {
