@@ -13,6 +13,7 @@ interface ApprovalStore {
   filters: ApprovalFilters;
   isLoading: boolean;
   isProcessing: boolean;
+  processingId: string | null;
   error: string | null;
 
   // Permission state
@@ -58,6 +59,7 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
   filters: {},
   isLoading: false,
   isProcessing: false,
+  processingId: null,
   error: null,
 
   isApprover: false,
@@ -176,16 +178,16 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
   // Approve a time sheet
   // Note: The BC API doesn't support comments on approval currently
   approveTimeSheet: async (timeSheetId: string, _comment?: string) => {
-    set({ isProcessing: true, error: null });
+    set({ isProcessing: true, processingId: timeSheetId, error: null });
     try {
       await bcClient.approveTimeSheet(timeSheetId);
       // Refresh the list
       await get().fetchApprovals();
-      set({ isProcessing: false, selectedTimeSheet: null, selectedLines: [] });
+      set({ isProcessing: false, processingId: null, selectedTimeSheet: null, selectedLines: [] });
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to approve time sheet';
-      set({ error: message, isProcessing: false });
+      set({ error: message, isProcessing: false, processingId: null });
       return false;
     }
   },
@@ -193,32 +195,32 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
   // Reject a time sheet
   // Note: The BC API doesn't support comments on rejection currently
   rejectTimeSheet: async (timeSheetId: string, _comment: string) => {
-    set({ isProcessing: true, error: null });
+    set({ isProcessing: true, processingId: timeSheetId, error: null });
     try {
       await bcClient.rejectTimeSheet(timeSheetId);
       // Refresh the list
       await get().fetchApprovals();
-      set({ isProcessing: false, selectedTimeSheet: null, selectedLines: [] });
+      set({ isProcessing: false, processingId: null, selectedTimeSheet: null, selectedLines: [] });
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to reject time sheet';
-      set({ error: message, isProcessing: false });
+      set({ error: message, isProcessing: false, processingId: null });
       return false;
     }
   },
 
   // Delete a time sheet (for cleaning up invalid/corrupt data)
   deleteTimeSheet: async (timeSheetId: string, etag: string) => {
-    set({ isProcessing: true, error: null });
+    set({ isProcessing: true, processingId: timeSheetId, error: null });
     try {
       await bcClient.deleteTimeSheet(timeSheetId, etag);
       // Refresh the list
       await get().fetchApprovals();
-      set({ isProcessing: false, selectedTimeSheet: null, selectedLines: [] });
+      set({ isProcessing: false, processingId: null, selectedTimeSheet: null, selectedLines: [] });
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to delete time sheet';
-      set({ error: message, isProcessing: false });
+      set({ error: message, isProcessing: false, processingId: null });
       return false;
     }
   },
