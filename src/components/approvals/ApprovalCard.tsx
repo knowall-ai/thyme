@@ -189,51 +189,53 @@ export function ApprovalCard({
           );
         })()}
 
-        {/* Action buttons - always visible */}
-        <div className="flex items-center gap-2">
-          {onDelete && (
+        {/* Action buttons - only show when there are submitted lines to act on */}
+        {timeSheet.submittedExists && (
+          <div className="flex items-center gap-2">
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={isProcessing}
+                onClick={() => {
+                  setShowDeleteConfirm(true);
+                  if (!isExpanded) {
+                    onToggleExpand();
+                  }
+                }}
+                title="Delete timesheet"
+                aria-label={`Delete timesheet for ${timeSheet.resourceName}`}
+                className="text-dark-400 hover:text-red-400"
+              >
+                <TrashIcon className="h-4 w-4" />
+              </Button>
+            )}
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               disabled={isProcessing}
               onClick={() => {
-                setShowDeleteConfirm(true);
+                setShowRejectForm(true);
                 if (!isExpanded) {
                   onToggleExpand();
                 }
               }}
-              title="Delete timesheet"
-              aria-label={`Delete timesheet for ${timeSheet.resourceName}`}
-              className="text-dark-400 hover:text-red-400"
             >
-              <TrashIcon className="h-4 w-4" />
+              <XMarkIcon className="mr-1 h-4 w-4" />
+              Reject
             </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={isProcessing}
-            onClick={() => {
-              setShowRejectForm(true);
-              if (!isExpanded) {
-                onToggleExpand();
-              }
-            }}
-          >
-            <XMarkIcon className="mr-1 h-4 w-4" />
-            Reject
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            disabled={isProcessing}
-            isLoading={isProcessing}
-            onClick={handleApprove}
-          >
-            <CheckIcon className="mr-1 h-4 w-4" />
-            Approve
-          </Button>
-        </div>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={isProcessing}
+              isLoading={isProcessing}
+              onClick={handleApprove}
+            >
+              <CheckIcon className="mr-1 h-4 w-4" />
+              Approve
+            </Button>
+          </div>
+        )}
 
         {/* Expand button */}
         <button
