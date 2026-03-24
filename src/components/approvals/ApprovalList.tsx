@@ -45,7 +45,7 @@ export function ApprovalList() {
     selectedLines,
     filters,
     isLoading,
-    isProcessing,
+    processingId,
     error,
     isApprover,
     permissionChecked,
@@ -495,7 +495,8 @@ export function ApprovalList() {
                     timeSheet={timeSheet}
                     lines={linesCache[timeSheet.id] || []}
                     isExpanded={expandedId === timeSheet.id}
-                    isProcessing={isProcessing}
+                    isProcessing={processingId === timeSheet.id}
+                    isAnyProcessing={processingId !== null}
                     onToggleExpand={() => handleToggleExpand(timeSheet)}
                     onApprove={(comment) => handleApprove(timeSheet.id, comment)}
                     onReject={(comment) => handleReject(timeSheet.id, comment)}
