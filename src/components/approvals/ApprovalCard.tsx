@@ -29,6 +29,8 @@ interface ApprovalCardProps {
   lines: BCTimeSheetLine[];
   isExpanded: boolean;
   isProcessing: boolean;
+  /** Disables action buttons when any card is being processed */
+  isAnyProcessing?: boolean;
   onToggleExpand: () => void;
   onApprove: (comment?: string) => void;
   onReject: (comment: string) => void;
@@ -57,6 +59,7 @@ export function ApprovalCard({
   hidePerson,
   hideWeek,
   resourceEmail,
+  isAnyProcessing = false,
   jobsCache = {},
   tasksCache = {},
 }: ApprovalCardProps) {
@@ -205,7 +208,7 @@ export function ApprovalCard({
               <Button
                 variant="ghost"
                 size="sm"
-                disabled={isProcessing}
+                disabled={isAnyProcessing}
                 onClick={() => {
                   setShowDeleteConfirm(true);
                   if (!isExpanded) {
@@ -222,7 +225,7 @@ export function ApprovalCard({
             <Button
               variant="outline"
               size="sm"
-              disabled={isProcessing}
+              disabled={isAnyProcessing}
               onClick={() => {
                 setShowRejectForm(true);
                 if (!isExpanded) {
@@ -236,7 +239,7 @@ export function ApprovalCard({
             <Button
               variant="primary"
               size="sm"
-              disabled={isProcessing}
+              disabled={isAnyProcessing}
               isLoading={isProcessing}
               onClick={handleApprove}
             >
@@ -327,7 +330,7 @@ export function ApprovalCard({
               <Button
                 variant="danger"
                 size="sm"
-                disabled={!rejectReason.trim() || isProcessing}
+                disabled={!rejectReason.trim() || isAnyProcessing}
                 isLoading={isProcessing}
                 onClick={handleReject}
               >
@@ -354,7 +357,7 @@ export function ApprovalCard({
                 <Button
                   variant="danger"
                   size="sm"
-                  disabled={isProcessing}
+                  disabled={isAnyProcessing}
                   isLoading={isProcessing}
                   onClick={() => {
                     onDelete();

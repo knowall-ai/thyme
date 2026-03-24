@@ -496,6 +496,7 @@ export function ApprovalList() {
                     lines={linesCache[timeSheet.id] || []}
                     isExpanded={expandedId === timeSheet.id}
                     isProcessing={processingId === timeSheet.id}
+                    isAnyProcessing={processingId !== null}
                     onToggleExpand={() => handleToggleExpand(timeSheet)}
                     onApprove={(comment) => handleApprove(timeSheet.id, comment)}
                     onReject={(comment) => handleReject(timeSheet.id, comment)}
