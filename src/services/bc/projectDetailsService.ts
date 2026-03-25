@@ -431,18 +431,19 @@ export const projectDetailsService = {
         lineType === 'Both Budget and Billable' ||
         lineType === 'Both_x0020_Budget_x0020_and_x0020_Billable';
 
-      // Hours Planned: sum quantity from Resource Budget lines only (hours only apply to resources)
-      // Convert quantity to hours using unit of measure conversion factor
+      // Hours Planned: sum quantity from Billable Resource lines (the contracted project budget)
+      // Budget lines are weekly allocations from the Plan screen and are not included here
       const resourceLines = planningLines.filter(
         (line: BCJobPlanningLine) => line.type === 'Resource'
       );
-      hoursPlanned = resourceLines
-        .filter((line: BCJobPlanningLine) => isBudgetLine(line.lineType))
-        .reduce(
-          (sum: number, line: BCJobPlanningLine) =>
-            sum + convertToHours(line.number, line.quantity, uomConversionMap),
-          0
-        );
+      const billableResourceLines = resourceLines.filter((line: BCJobPlanningLine) =>
+        isBillableLine(line.lineType)
+      );
+      hoursPlanned = billableResourceLines.reduce(
+        (sum: number, line: BCJobPlanningLine) =>
+          sum + convertToHours(line.number, line.quantity, uomConversionMap),
+        0
+      );
 
       // Extract unit price per resource from planning lines as fallback
       // (only if Resource Card doesn't have unitPrice set)
@@ -456,31 +457,31 @@ export const projectDetailsService = {
         }
       }
 
-      // Budget Cost: sum totalCost from ALL Budget lines with breakdown by type
-      const budgetLines = planningLines.filter((line: BCJobPlanningLine) =>
-        isBudgetLine(line.lineType)
-      );
-      budgetCost = budgetLines.reduce(
-        (sum: number, line: BCJobPlanningLine) => sum + line.totalCost,
-        0
-      );
-      budgetCostBreakdown = {
-        resource: budgetLines
-          .filter((line: BCJobPlanningLine) => line.type === 'Resource')
-          .reduce((sum: number, line: BCJobPlanningLine) => sum + line.totalCost, 0),
-        item: budgetLines
-          .filter((line: BCJobPlanningLine) => line.type === 'Item')
-          .reduce((sum: number, line: BCJobPlanningLine) => sum + line.totalCost, 0),
-        glAccount: budgetLines
-          .filter((line: BCJobPlanningLine) => line.type === 'G/L Account')
-          .reduce((sum: number, line: BCJobPlanningLine) => sum + line.totalCost, 0),
-        total: budgetCost,
-      };
-
-      // Billable Price: sum totalPrice from ALL Billable lines with breakdown by type
+      // Billable lines represent the contracted project budget
+      // Budget lines are weekly allocations from the Plan screen and are not included in budget/price totals
       const billableLines = planningLines.filter((line: BCJobPlanningLine) =>
         isBillableLine(line.lineType)
       );
+
+      // Budget Cost: sum totalPrice from Billable lines (contracted budget) with breakdown by type
+      budgetCost = billableLines.reduce(
+        (sum: number, line: BCJobPlanningLine) => sum + line.totalPrice,
+        0
+      );
+      budgetCostBreakdown = {
+        resource: billableLines
+          .filter((line: BCJobPlanningLine) => line.type === 'Resource')
+          .reduce((sum: number, line: BCJobPlanningLine) => sum + line.totalPrice, 0),
+        item: billableLines
+          .filter((line: BCJobPlanningLine) => line.type === 'Item')
+          .reduce((sum: number, line: BCJobPlanningLine) => sum + line.totalPrice, 0),
+        glAccount: billableLines
+          .filter((line: BCJobPlanningLine) => line.type === 'G/L Account')
+          .reduce((sum: number, line: BCJobPlanningLine) => sum + line.totalPrice, 0),
+        total: budgetCost,
+      };
+
+      // Billable Price: sum totalPrice from Billable lines with breakdown by type
       billablePrice = billableLines.reduce(
         (sum: number, line: BCJobPlanningLine) => sum + line.totalPrice,
         0
