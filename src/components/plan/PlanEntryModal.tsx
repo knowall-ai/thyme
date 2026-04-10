@@ -167,9 +167,9 @@ export function PlanEntryModal({
           // Track id and etag for updates (last one wins if multiple)
           newLinesByDate[dateKey] = { id: line.id, etag: line['@odata.etag'] || '' };
         }
-        // Round each date's total once
+        // Round each date's total once to the existing 0.5-hour granularity
         for (const [dateKey, total] of Object.entries(rawHours)) {
-          const rounded = Math.round(total * 4) / 4;
+          const rounded = Math.round(total * 2) / 2;
           newHours[dateKey] = rounded.toString();
         }
 
