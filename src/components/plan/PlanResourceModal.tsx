@@ -11,6 +11,7 @@ import {
   buildUOMConversionMap,
   convertToHours,
   convertFromHours,
+  formatHours,
   type UOMConversionMap,
 } from '@/utils';
 import { usePlanStore } from '@/hooks/usePlanStore';
@@ -496,7 +497,7 @@ export function PlanResourceModal({
                     onChange={(e) => handleDayHoursChange(dateKey, e.target.value)}
                     min="0"
                     max="24"
-                    step="0.5"
+                    step="0.25"
                     disabled={isLoadingExisting}
                     className={`border-dark-600 bg-dark-700 text-dark-100 focus:ring-knowall-green h-8 w-full [appearance:textfield] rounded border px-1 text-right text-sm focus:ring-1 focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${hasExistingLine ? 'border-knowall-green/50' : ''}`}
                     placeholder="0"
@@ -523,7 +524,7 @@ export function PlanResourceModal({
         {/* Total */}
         <div className="text-dark-300 border-dark-700 flex items-center justify-between border-t pt-3 text-sm">
           <span>Total Hours</span>
-          <span className="text-dark-100 font-medium">{totalHours.toFixed(1)}h</span>
+          <span className="text-dark-100 font-medium">{formatHours(totalHours)}h</span>
         </div>
 
         {/* Actions */}
