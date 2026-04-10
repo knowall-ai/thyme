@@ -176,7 +176,7 @@ export function ResourceWorkload({
         </div>
         {hasLoaded && (
           <span className="text-dark-400 text-xs">
-            {weeklyTotal.toFixed(1)}h / {DAILY_CAPACITY * 5}h this business week
+            {parseFloat(weeklyTotal.toFixed(2))}h / {DAILY_CAPACITY * 5}h this business week
           </span>
         )}
       </button>
@@ -244,7 +244,7 @@ export function ResourceWorkload({
                             : 'text-dark-400'
                         )}
                       >
-                        {combined.hours > 0 ? `${combined.hours.toFixed(1)}h` : '-'}
+                        {combined.hours > 0 ? `${parseFloat(combined.hours.toFixed(2))}h` : '-'}
                       </span>
                     </div>
                   );
@@ -276,11 +276,11 @@ export function ResourceWorkload({
                         </td>
                         {dateKeys.map((date) => (
                           <td key={date} className="py-0.5 text-right">
-                            {proj.days[date] ? proj.days[date].toFixed(1) : '-'}
+                            {proj.days[date] ? parseFloat(proj.days[date].toFixed(2)) : '-'}
                           </td>
                         ))}
                         <td className="text-dark-200 py-0.5 text-right font-medium">
-                          {proj.total.toFixed(1)}
+                          {parseFloat(proj.total.toFixed(2))}
                         </td>
                       </tr>
                     ))}
@@ -309,7 +309,7 @@ export function ResourceWorkload({
                                 : 'text-emerald-400'
                         )}
                       >
-                        {isWeekend ? '-' : `${available.toFixed(1)}h`}
+                        {isWeekend ? '-' : `${parseFloat(available.toFixed(2))}h`}
                       </span>
                       <span className="text-dark-500 text-[10px]">avail</span>
                     </div>
