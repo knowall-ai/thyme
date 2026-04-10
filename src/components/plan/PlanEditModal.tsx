@@ -451,6 +451,7 @@ export function PlanEditModal({
             excludeJobNo={allocation.projectNumber}
             excludeJobTaskNo={allocation.taskNumber}
             currentDayHours={hoursPerDay}
+            uomMap={uomMap}
           />
         )}
 

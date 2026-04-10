@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { cn } from '@/utils/cn';
+import { convertToHours, type UOMConversionMap } from '@/utils';
 import { useProjectsStore } from '@/hooks';
 import { bcClient } from '@/services/bc/bcClient';
 import type { BCJobPlanningLine } from '@/types';
@@ -18,6 +19,8 @@ interface ResourceWorkloadProps {
   excludeJobTaskNo?: string;
   /** Current form hours (date key → string value) to reflect in bars live */
   currentDayHours?: Record<string, string>;
+  /** UOM conversion map for converting quantities to hours */
+  uomMap?: UOMConversionMap;
 }
 
 interface DayAllocation {
@@ -39,6 +42,7 @@ export function ResourceWorkload({
   excludeJobNo,
   excludeJobTaskNo,
   currentDayHours,
+  uomMap = new Map(),
 }: ResourceWorkloadProps) {
   const { projects } = useProjectsStore();
   const [isExpanded, setIsExpanded] = useState(true);
@@ -98,15 +102,15 @@ export function ResourceWorkload({
     });
   }, [lines, excludeJobNo, excludeJobTaskNo]);
 
-  // Aggregate hours per day
+  // Aggregate hours per day (convert from resource base unit)
   const dailyAllocations: DayAllocation[] = useMemo(() => {
     return dateKeys.map((date) => {
       const hours = filteredLines
         .filter((l) => l.planningDate === date)
-        .reduce((sum, l) => sum + l.quantity, 0);
+        .reduce((sum, l) => sum + convertToHours(resourceNo, l.quantity, uomMap), 0);
       return { date, hours };
     });
-  }, [dateKeys, filteredLines]);
+  }, [dateKeys, filteredLines, resourceNo, uomMap]);
 
   // Combined total per day (other workload + current form hours)
   const combinedDailyHours: DayAllocation[] = useMemo(() => {
@@ -139,12 +143,13 @@ export function ResourceWorkload({
         });
       }
       const entry = map.get(key)!;
-      entry.days[line.planningDate] = (entry.days[line.planningDate] || 0) + line.quantity;
-      entry.total += line.quantity;
+      const hours = convertToHours(resourceNo, line.quantity, uomMap);
+      entry.days[line.planningDate] = (entry.days[line.planningDate] || 0) + hours;
+      entry.total += hours;
     }
 
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [filteredLines, projects]);
+  }, [filteredLines, projects, resourceNo, uomMap]);
 
   // Color for capacity bar
   const getBarColor = (hours: number) => {
