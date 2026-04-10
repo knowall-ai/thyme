@@ -12,6 +12,7 @@ import {
   buildUOMConversionMap,
   convertToHours,
   convertFromHours,
+  formatHours,
   type UOMConversionMap,
 } from '@/utils';
 import { ResourceWorkload } from './ResourceWorkload';
@@ -457,7 +458,7 @@ export function PlanEditModal({
         {/* Total */}
         <div className="text-dark-300 border-dark-700 flex items-center justify-between border-t pt-3 text-sm">
           <span>Total Hours</span>
-          <span className="text-dark-100 font-medium">{parseFloat(totalHours.toFixed(2))}h</span>
+          <span className="text-dark-100 font-medium">{formatHours(totalHours)}h</span>
         </div>
 
         {/* Actions */}

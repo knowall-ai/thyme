@@ -7,6 +7,7 @@ import { Modal, Button, Select } from '@/components/ui';
 import { useProjectsStore, useCompanyStore } from '@/hooks';
 import { bcClient } from '@/services/bc/bcClient';
 import { getBCResourceUrl, getBCJobUrl } from '@/utils/bcUrls';
+import { formatHours } from '@/utils';
 import { ResourceWorkload } from './ResourceWorkload';
 import type { SelectOption, BCResource } from '@/types';
 import { format, getWeek, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
@@ -496,7 +497,7 @@ export function PlanResourceModal({
         {/* Total */}
         <div className="text-dark-300 border-dark-700 flex items-center justify-between border-t pt-3 text-sm">
           <span>Total Hours</span>
-          <span className="text-dark-100 font-medium">{parseFloat(totalHours.toFixed(2))}h</span>
+          <span className="text-dark-100 font-medium">{formatHours(totalHours)}h</span>
         </div>
 
         {/* Actions */}

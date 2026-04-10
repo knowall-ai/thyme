@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import { cn } from '@/utils/cn';
+import { cn, formatHours } from '@/utils';
 import { useProjectsStore } from '@/hooks';
 import { bcClient } from '@/services/bc/bcClient';
 import type { BCJobPlanningLine } from '@/types';
@@ -176,7 +176,7 @@ export function ResourceWorkload({
         </div>
         {hasLoaded && (
           <span className="text-dark-400 text-xs">
-            {parseFloat(weeklyTotal.toFixed(2))}h / {DAILY_CAPACITY * 5}h this business week
+            {formatHours(weeklyTotal)}h / {DAILY_CAPACITY * 5}h this business week
           </span>
         )}
       </button>
@@ -244,7 +244,7 @@ export function ResourceWorkload({
                             : 'text-dark-400'
                         )}
                       >
-                        {combined.hours > 0 ? `${parseFloat(combined.hours.toFixed(2))}h` : '-'}
+                        {combined.hours > 0 ? `${formatHours(combined.hours)}h` : '-'}
                       </span>
                     </div>
                   );
@@ -276,11 +276,11 @@ export function ResourceWorkload({
                         </td>
                         {dateKeys.map((date) => (
                           <td key={date} className="py-0.5 text-right">
-                            {proj.days[date] ? parseFloat(proj.days[date].toFixed(2)) : '-'}
+                            {proj.days[date] ? formatHours(proj.days[date]) : '-'}
                           </td>
                         ))}
                         <td className="text-dark-200 py-0.5 text-right font-medium">
-                          {parseFloat(proj.total.toFixed(2))}
+                          {formatHours(proj.total)}
                         </td>
                       </tr>
                     ))}
@@ -309,7 +309,7 @@ export function ResourceWorkload({
                                 : 'text-emerald-400'
                         )}
                       >
-                        {isWeekend ? '-' : `${parseFloat(available.toFixed(2))}h`}
+                        {isWeekend ? '-' : `${formatHours(available)}h`}
                       </span>
                       <span className="text-dark-500 text-[10px]">avail</span>
                     </div>
