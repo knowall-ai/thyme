@@ -158,17 +158,20 @@ export function PlanEntryModal({
         });
 
         // Fill in existing values (convert base unit to hours for display)
+        // Sum all raw hours per date first, then round once to avoid cumulative drift
+        const rawHours: Record<string, number> = {};
         for (const line of existingLines) {
           const dateKey = line.planningDate;
           // Convert from resource's base unit to hours
           const hoursValue = convertToHours(resourceNumber, line.quantity, uomMap);
-          // If there are multiple lines for the same day, sum them
-          const existingVal = parseFloat(newHours[dateKey] || '0');
-          // Round to nearest 0.25 hour (15-minute increments)
-          const rounded = Math.round((existingVal + hoursValue) * 4) / 4;
-          newHours[dateKey] = rounded.toString();
+          rawHours[dateKey] = (rawHours[dateKey] || 0) + hoursValue;
           // Track id and etag for updates (last one wins if multiple)
           newLinesByDate[dateKey] = { id: line.id, etag: line['@odata.etag'] || '' };
+        }
+        // Round each date's total once to 0.25-hour (15-minute) granularity
+        for (const [dateKey, total] of Object.entries(rawHours)) {
+          const rounded = Math.round(total * 4) / 4;
+          newHours[dateKey] = rounded.toString();
         }
 
         setDayHours(newHours);
@@ -526,6 +529,7 @@ export function PlanEntryModal({
             excludeJobNo={excludeJobNo}
             excludeJobTaskNo={excludeJobTaskNo}
             currentDayHours={dayHours}
+            uomMap={uomMap}
           />
         )}
 
