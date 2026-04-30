@@ -5,6 +5,7 @@ import type {
   BCEnvironmentType,
   BCJob,
   BCProject,
+  BCStandardProject,
   BCCustomer,
   BCEmployee,
   BCJobTask,
@@ -370,6 +371,25 @@ class BusinessCentralClient {
 
   async getProject(projectId: string): Promise<BCProject> {
     return this.fetchCustomApi<BCProject>(`/projects(${projectId})`);
+  }
+
+  /**
+   * Fetch blocked project numbers from the standard BC v2.0 API.
+   * The standard /projects endpoint exposes the 'blocked' enum field
+   * which the Thyme BC Extension may not include.
+   * Returns a Set of project numbers that are blocked.
+   */
+  async getBlockedProjectNumbers(): Promise<Set<string>> {
+    try {
+      const filter = "blocked ne ' '";
+      const select = '$select=number,blocked';
+      const endpoint = `/projects?$filter=${encodeURIComponent(filter)}&${select}`;
+      const response = await this.fetch<PaginatedResponse<BCStandardProject>>(endpoint);
+      return new Set(response.value.map((p) => p.number));
+    } catch {
+      // If the standard API doesn't support this endpoint/filter, return empty set
+      return new Set();
+    }
   }
 
   // Customers

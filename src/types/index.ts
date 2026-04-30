@@ -61,9 +61,20 @@ export interface BCProject {
   billToCustomerNo?: string;
   billToCustomerName?: string;
   status?: 'Open' | 'Completed' | 'Planning';
+  blocked?: boolean;
   startingDate?: string;
   endingDate?: string;
   lastModifiedDateTime?: string;
+}
+
+// Standard BC v2.0 API project (from /projects endpoint)
+// Has the 'blocked' enum field that the extension API may not expose
+export interface BCStandardProject {
+  id: string;
+  number: string;
+  displayName: string;
+  blocked: ' ' | 'Posting' | 'All';
+  status?: 'Open' | 'Completed' | 'Planning';
 }
 
 export interface BCCustomer {

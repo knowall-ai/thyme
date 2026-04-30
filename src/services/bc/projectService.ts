@@ -30,8 +30,12 @@ function getProjectColor(index: number): string {
 // The Thyme BC Extension API (v1.7+) returns displayName, billToCustomerName and status fields.
 
 function mapBCProjectToProject(bcProject: BCProject, index: number, favorites: string[]): Project {
-  // Map BC status to Thyme status
-  const status: 'active' | 'completed' = bcProject.status === 'Completed' ? 'completed' : 'active';
+  // Map BC status to Thyme status — blocked projects are archived
+  const status: Project['status'] = bcProject.blocked
+    ? 'archived'
+    : bcProject.status === 'Completed'
+      ? 'completed'
+      : 'active';
 
   return {
     id: bcProject.id,
@@ -71,10 +75,19 @@ function saveFavorites(favorites: string[]): void {
 
 export const projectService = {
   async getProjects(_includeCompleted = false): Promise<Project[]> {
-    const bcProjects = await bcClient.getProjects();
+    // Fetch projects from extension API and blocked status from standard API in parallel
+    const [bcProjects, blockedNumbers] = await Promise.all([
+      bcClient.getProjects(),
+      bcClient.getBlockedProjectNumbers(),
+    ]);
     const favorites = getFavorites();
 
-    return bcProjects.map((bcProject, index) => mapBCProjectToProject(bcProject, index, favorites));
+    return bcProjects.map((bcProject, index) => {
+      // Merge blocked status from standard API (extension API may not expose it)
+      const isBlocked = bcProject.blocked || blockedNumbers.has(bcProject.number);
+      const merged = { ...bcProject, blocked: isBlocked };
+      return mapBCProjectToProject(merged, index, favorites);
+    });
   },
 
   async getProject(projectId: string): Promise<Project | null> {

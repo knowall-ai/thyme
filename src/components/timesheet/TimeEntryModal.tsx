@@ -74,16 +74,18 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
     (customerOptions.length === 1 && customerOptions[0].value !== 'Unknown');
 
   // Filter projects by selected customer (or show all if customer dropdown is hidden)
+  // Only show active projects for time entry (exclude archived and completed)
   const filteredProjects = useMemo(() => {
+    const activeProjects = projects.filter((p) => p.status === 'active');
     if (!showCustomerDropdown) {
-      return projects;
+      return activeProjects;
     }
     if (!customerId) {
       return [];
     }
     // Use case-insensitive, trimmed comparison for robustness
     const normalizedCustomerId = customerId.trim().toLowerCase();
-    return projects.filter((p) => {
+    return activeProjects.filter((p) => {
       const projectCustomer = (p.customerName || 'Unknown').trim().toLowerCase();
       return projectCustomer === normalizedCustomerId;
     });

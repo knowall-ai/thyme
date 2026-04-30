@@ -153,8 +153,10 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
       result = result.filter((p) => p.isFavorite);
     }
 
-    // Apply status filter
-    if (statusFilter !== 'all') {
+    // Apply status filter — hide archived by default
+    if (statusFilter === 'all') {
+      result = result.filter((p) => p.status !== 'archived');
+    } else {
       result = result.filter((p) => p.status === statusFilter);
     }
 
