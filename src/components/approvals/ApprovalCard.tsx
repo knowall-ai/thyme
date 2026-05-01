@@ -29,6 +29,8 @@ interface ApprovalCardProps {
   lines: BCTimeSheetLine[];
   isExpanded: boolean;
   isProcessing: boolean;
+  /** Disables action buttons when any card is being processed */
+  isAnyProcessing?: boolean;
   onToggleExpand: () => void;
   onApprove: (comment?: string) => void;
   onReject: (comment: string) => void;
@@ -57,6 +59,7 @@ export function ApprovalCard({
   hidePerson,
   hideWeek,
   resourceEmail,
+  isAnyProcessing = false,
   jobsCache = {},
   tasksCache = {},
 }: ApprovalCardProps) {
@@ -64,6 +67,15 @@ export function ApprovalCard({
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+
+  // Reset local UI state when timesheet is no longer actionable
+  useEffect(() => {
+    if (!timeSheet.submittedExists) {
+      setShowRejectForm(false);
+      setShowDeleteConfirm(false);
+      setRejectReason('');
+    }
+  }, [timeSheet.submittedExists]);
 
   // Fetch profile photo
   useEffect(() => {
@@ -189,51 +201,53 @@ export function ApprovalCard({
           );
         })()}
 
-        {/* Action buttons - always visible */}
-        <div className="flex items-center gap-2">
-          {onDelete && (
+        {/* Action buttons - only show when there are submitted lines to act on */}
+        {timeSheet.submittedExists && (
+          <div className="flex items-center gap-2">
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={isAnyProcessing}
+                onClick={() => {
+                  setShowDeleteConfirm(true);
+                  if (!isExpanded) {
+                    onToggleExpand();
+                  }
+                }}
+                title="Delete timesheet"
+                aria-label={`Delete timesheet for ${timeSheet.resourceName}`}
+                className="text-dark-400 hover:text-red-400"
+              >
+                <TrashIcon className="h-4 w-4" />
+              </Button>
+            )}
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              disabled={isProcessing}
+              disabled={isAnyProcessing}
               onClick={() => {
-                setShowDeleteConfirm(true);
+                setShowRejectForm(true);
                 if (!isExpanded) {
                   onToggleExpand();
                 }
               }}
-              title="Delete timesheet"
-              aria-label={`Delete timesheet for ${timeSheet.resourceName}`}
-              className="text-dark-400 hover:text-red-400"
             >
-              <TrashIcon className="h-4 w-4" />
+              <XMarkIcon className="mr-1 h-4 w-4" />
+              Reject
             </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={isProcessing}
-            onClick={() => {
-              setShowRejectForm(true);
-              if (!isExpanded) {
-                onToggleExpand();
-              }
-            }}
-          >
-            <XMarkIcon className="mr-1 h-4 w-4" />
-            Reject
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            disabled={isProcessing}
-            isLoading={isProcessing}
-            onClick={handleApprove}
-          >
-            <CheckIcon className="mr-1 h-4 w-4" />
-            Approve
-          </Button>
-        </div>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={isAnyProcessing}
+              isLoading={isProcessing}
+              onClick={handleApprove}
+            >
+              <CheckIcon className="mr-1 h-4 w-4" />
+              Approve
+            </Button>
+          </div>
+        )}
 
         {/* Expand button */}
         <button
@@ -316,7 +330,7 @@ export function ApprovalCard({
               <Button
                 variant="danger"
                 size="sm"
-                disabled={!rejectReason.trim() || isProcessing}
+                disabled={!rejectReason.trim() || isAnyProcessing}
                 isLoading={isProcessing}
                 onClick={handleReject}
               >
@@ -343,7 +357,7 @@ export function ApprovalCard({
                 <Button
                   variant="danger"
                   size="sm"
-                  disabled={isProcessing}
+                  disabled={isAnyProcessing}
                   isLoading={isProcessing}
                   onClick={() => {
                     onDelete();

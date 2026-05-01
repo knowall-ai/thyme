@@ -22,7 +22,7 @@ import { usePlanStore } from '@/hooks';
 import { useCompanyStore } from '@/hooks';
 import { useAuth, getUserProfilePhoto } from '@/services/auth';
 import { ExtensionNotInstalledError } from '@/services/bc';
-import { cn, getBCResourceUrl, getBCJobUrl } from '@/utils';
+import { cn, getBCResourceUrl, getBCJobUrl, formatHours } from '@/utils';
 import type { AllocationBlock, PlanTeamMember, PlanProject, ViewMode } from '@/hooks/usePlanStore';
 import {
   addWeeks,
@@ -266,7 +266,7 @@ function ResourceRow({
                         onClick={onToggleExpand}
                         title="Click to expand and edit allocations"
                       >
-                        {dayHours % 1 === 0 ? dayHours : dayHours.toFixed(1)}
+                        {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
                       </div>
                     )}
                   </div>
@@ -294,7 +294,7 @@ function ResourceRow({
 
         {/* Total Hours */}
         <div className="text-dark-300 w-16 shrink-0 px-2 text-right text-sm">
-          {member.totalHours > 0 && `${member.totalHours.toFixed(1)}h`}
+          {member.totalHours > 0 && `${formatHours(member.totalHours)}h`}
         </div>
       </div>
 
@@ -538,7 +538,7 @@ function TeamTaskRow({
                         className="absolute inset-0.5 flex items-center justify-center rounded text-[10px] font-medium text-white/80"
                         style={{ backgroundColor: `${projectData.color}99` }}
                       >
-                        {dayHours % 1 === 0 ? dayHours : dayHours.toFixed(1)}
+                        {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
                       </div>
                     )}
                   </div>
@@ -567,7 +567,7 @@ function TeamTaskRow({
       </div>
       {/* Total hours */}
       <div className="text-dark-500 w-16 shrink-0 px-2 text-right text-[10px]">
-        {taskTotalHours.toFixed(1)}h
+        {formatHours(taskTotalHours)}h
       </div>
     </div>
   );
@@ -674,7 +674,7 @@ function TeamProjectRow({
                         className="absolute inset-0.5 flex items-center justify-center rounded text-[10px] font-semibold text-white"
                         style={{ backgroundColor: projectData.color }}
                       >
-                        {dayHours % 1 === 0 ? dayHours : dayHours.toFixed(1)}
+                        {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
                       </div>
                     )}
                   </div>
@@ -702,7 +702,7 @@ function TeamProjectRow({
       </div>
       {/* Total hours */}
       <div className="text-dark-400 w-16 shrink-0 px-2 text-right text-xs">
-        {projectTotalHours.toFixed(1)}h
+        {formatHours(projectTotalHours)}h
       </div>
     </div>
   );
@@ -807,7 +807,7 @@ function TaskRow({
                         className="absolute inset-0.5 flex items-center justify-center rounded text-[10px] font-semibold text-white"
                         style={{ backgroundColor: projectColor }}
                       >
-                        {dayHours % 1 === 0 ? dayHours : dayHours.toFixed(1)}
+                        {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
                       </div>
                     )}
                   </div>
@@ -833,7 +833,7 @@ function TaskRow({
       </div>
       {/* Total hours */}
       <div className="text-dark-400 w-16 shrink-0 px-2 text-right text-xs">
-        {taskTotalHours.toFixed(1)}h
+        {formatHours(taskTotalHours)}h
       </div>
     </div>
   );
@@ -953,7 +953,7 @@ function ResourceTaskRow({
                         className="absolute inset-0.5 flex items-center justify-center rounded text-[10px] font-medium text-white/80"
                         style={{ backgroundColor: `${projectColor}99` }}
                       >
-                        {dayHours % 1 === 0 ? dayHours : dayHours.toFixed(1)}
+                        {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
                       </div>
                     )}
                   </div>
@@ -982,7 +982,7 @@ function ResourceTaskRow({
       </div>
       {/* Total hours */}
       <div className="text-dark-500 w-16 shrink-0 px-2 text-right text-[10px]">
-        {allocations.reduce((sum, a) => sum + a.totalHours, 0).toFixed(1)}h
+        {formatHours(allocations.reduce((sum, a) => sum + a.totalHours, 0))}h
       </div>
     </div>
   );
@@ -1182,7 +1182,7 @@ function ProjectRow({
                         className="absolute inset-0.5 flex items-center justify-center rounded text-xs font-semibold text-white"
                         style={{ backgroundColor: project.color }}
                       >
-                        {dayHours % 1 === 0 ? dayHours : dayHours.toFixed(1)}
+                        {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
                       </div>
                     )}
                   </div>
@@ -1210,7 +1210,7 @@ function ProjectRow({
 
         {/* Total Hours */}
         <div className="text-dark-300 w-16 shrink-0 px-2 text-right text-sm">
-          {project.totalHours > 0 && `${project.totalHours.toFixed(1)}h`}
+          {project.totalHours > 0 && `${formatHours(project.totalHours)}h`}
         </div>
       </div>
 

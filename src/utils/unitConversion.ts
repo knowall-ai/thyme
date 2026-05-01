@@ -113,3 +113,13 @@ export function isResourceDayBased(
   const hourFactor = uomConversionMap.get(hourKey);
   return hourFactor !== undefined && hourFactor > 0 && hourFactor !== 1;
 }
+
+/**
+ * Format hours for display, stripping unnecessary trailing zeros.
+ * Supports 15-minute (0.25h) increments.
+ *
+ * Examples: 1.00 → "1", 0.50 → "0.5", 0.25 → "0.25", 8.75 → "8.75"
+ */
+export function formatHours(hours: number): string {
+  return parseFloat(hours.toFixed(2)).toString();
+}
