@@ -6,9 +6,9 @@
 #   - Owners can be @user, @org/team-name, or email addresses.
 #
 # Paired with branch protection → "Require review from Code Owners", the matched
-# owner's approval becomes mandatory before merge. Repo admins can bypass this
-# review if branch protection is configured with "Do not require approvals for
-# administrators" / `enforce_admins: false`.
+# owner's approval becomes mandatory before merge.
+# Repo admins can bypass when "Allow administrators to bypass" is enabled on the
+# branch protection rule.
 
-# Default — Edi reviews everything
-*  @EdiWeeks
+# Default owner — applies to the entire repo
+*   @EdiWeeks
