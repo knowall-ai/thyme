@@ -31,7 +31,12 @@ jobs:
 
           fail=0
 
-          # 1. Title must use conventional-commit style:
+          # 1. Title must use a simplified prefix-only convention:
+          #    `<type>: <subject>`. Note this is intentionally narrower than
+          #    full Conventional Commits — scope (`feat(auth): ...`) and
+          #    breaking-change (`feat!: ...`) forms are NOT accepted, to keep
+          #    titles uniform across knowall-ai repos.
+          #
           #      feat: ...     (new feature, requires Fixes #nnn)
           #      fix: ...      (bug fix, requires Fixes #nnn)
           #      perf: ...     (perf improvement, requires Fixes #nnn)
@@ -41,7 +46,7 @@ jobs:
           #    A trailing "(#nnn)" or "(#nnn, #mmm)" reference is allowed but optional.
           title_regex='^(feat|fix|perf|refactor|chore|ci|docs|deps|test|build|style): .+'
           if ! echo "$PR_TITLE" | grep -Eq "$title_regex"; then
-            echo "::error::PR title must start with a conventional-commit prefix:"
+            echo "::error::PR title must use one of these prefixes (no scope, no '!'):"
             echo "::error::  feat: ...     fix: ...     perf: ...     refactor: ..."
             echo "::error::  chore: ...    ci: ...      docs: ...     deps: ..."
             echo "::error::  test: ...     build: ...   style: ..."
