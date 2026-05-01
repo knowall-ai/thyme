@@ -1,0 +1,81 @@
+name: PR Lint
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+    branches: [main]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  pr-lint:
+    name: Title and body
+    runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]' && github.actor != 'github-actions[bot]'
+    steps:
+      - name: Validate PR title and body
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -u
+          fail=0
+
+          # 1. Title must use a Conventional Commits prefix.
+          #    Allowed: feat, fix, chore, ci, docs, deps, refactor, test, perf, style, build, revert.
+          #    Optional scope is allowed: e.g. "feat(auth): ..."
+          title_regex='^(feat|fix|chore|ci|docs|deps|refactor|test|perf|style|build|revert)(\([a-z0-9-]+\))?!?: .+'
+          if ! echo "$PR_TITLE" | grep -Eq "$title_regex"; then
+            echo "::error::PR title must start with a Conventional Commits prefix:"
+            echo "::error::  feat: …  fix: …  chore: …  ci: …  docs: …  deps: …"
+            echo "::error::  refactor: …  test: …  perf: …  style: …  build: …  revert: …"
+            echo "::error::Optional scope is allowed, e.g. 'feat(auth): add MSAL redirect handling'."
+            echo "::error::Got: '$PR_TITLE'"
+            fail=1
+          fi
+
+          # 2. Body must not be empty and must be a meaningful length.
+          body_len=$(echo -n "${PR_BODY:-}" | wc -c)
+          if [ "$body_len" -lt 40 ]; then
+            echo "::error::PR body is missing or too short (<40 chars). Describe what changed and why."
+            fail=1
+          fi
+
+          # 3. Body must contain at least one 'Fixes #N' line,
+          #    UNLESS the title uses a non-feature prefix (chore/ci/docs/deps/refactor/test/style/build/revert).
+          if echo "$PR_TITLE" | grep -Eq '^(chore|ci|docs|deps|refactor|test|style|build|revert)(\([a-z0-9-]+\))?!?: '; then
+            echo "Non-feature PR prefix detected — skipping 'Fixes #N' requirement."
+          else
+            fixes_regex='(^|[[:space:]])(Fixes|Closes|Resolves) #[0-9]+'
+            if ! echo "$PR_BODY" | grep -Eiq "$fixes_regex"; then
+              echo "::error::PR body must contain at least one 'Fixes #N' line linking a GitHub issue."
+              echo "::error::Accepted forms: 'Fixes #123', 'Closes #123', 'Resolves #123'."
+              echo "::error::Use the title prefixes 'chore:', 'ci:', 'docs:', 'deps:', 'refactor:', 'test:',"
+              echo "::error::'style:', 'build:' or 'revert:' to skip this requirement for non-feature work."
+              fail=1
+            fi
+          fi
+
+          # 4. Body must include a 'Test plan' section with non-template content.
+          if ! echo "$PR_BODY" | grep -Eq '^## Test plan'; then
+            echo "::error::PR body must include a '## Test plan' section."
+            echo "::error::Provide step-by-step actions a tester can follow, or 'N/A — <reason>'"
+            echo "::error::for pure refactor / docs / ci / deps PRs."
+            fail=1
+          else
+            tp_content=$(echo "$PR_BODY" | awk '
+              /^## Test plan/ {intp=1; next}
+              /^## / {intp=0}
+              intp {print}
+            ' | sed 's/<!--.*-->//g' | tr -d '[:space:]')
+            if [ -z "$tp_content" ]; then
+              echo "::error::'## Test plan' section is empty. Add steps or 'N/A — <reason>'."
+              fail=1
+            fi
+          fi
+
+          if [ "$fail" -ne 0 ]; then
+            exit 1
+          fi
+          echo "PR lint passed."
