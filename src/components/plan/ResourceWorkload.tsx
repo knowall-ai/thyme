@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import { cn } from '@/utils/cn';
+import { cn, convertToHours, formatHours, type UOMConversionMap } from '@/utils';
 import { useProjectsStore } from '@/hooks';
 import { bcClient } from '@/services/bc/bcClient';
 import type { BCJobPlanningLine } from '@/types';
@@ -18,6 +18,8 @@ interface ResourceWorkloadProps {
   excludeJobTaskNo?: string;
   /** Current form hours (date key → string value) to reflect in bars live */
   currentDayHours?: Record<string, string>;
+  /** UOM conversion map for converting quantities to hours */
+  uomMap?: UOMConversionMap;
 }
 
 interface DayAllocation {
@@ -39,6 +41,7 @@ export function ResourceWorkload({
   excludeJobNo,
   excludeJobTaskNo,
   currentDayHours,
+  uomMap = new Map(),
 }: ResourceWorkloadProps) {
   const { projects } = useProjectsStore();
   const [isExpanded, setIsExpanded] = useState(true);
@@ -98,15 +101,15 @@ export function ResourceWorkload({
     });
   }, [lines, excludeJobNo, excludeJobTaskNo]);
 
-  // Aggregate hours per day
+  // Aggregate hours per day (convert from resource base unit)
   const dailyAllocations: DayAllocation[] = useMemo(() => {
     return dateKeys.map((date) => {
       const hours = filteredLines
         .filter((l) => l.planningDate === date)
-        .reduce((sum, l) => sum + l.quantity, 0);
+        .reduce((sum, l) => sum + convertToHours(resourceNo, l.quantity, uomMap), 0);
       return { date, hours };
     });
-  }, [dateKeys, filteredLines]);
+  }, [dateKeys, filteredLines, resourceNo, uomMap]);
 
   // Combined total per day (other workload + current form hours)
   const combinedDailyHours: DayAllocation[] = useMemo(() => {
@@ -139,12 +142,13 @@ export function ResourceWorkload({
         });
       }
       const entry = map.get(key)!;
-      entry.days[line.planningDate] = (entry.days[line.planningDate] || 0) + line.quantity;
-      entry.total += line.quantity;
+      const hours = convertToHours(resourceNo, line.quantity, uomMap);
+      entry.days[line.planningDate] = (entry.days[line.planningDate] || 0) + hours;
+      entry.total += hours;
     }
 
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [filteredLines, projects]);
+  }, [filteredLines, projects, resourceNo, uomMap]);
 
   // Color for capacity bar
   const getBarColor = (hours: number) => {
@@ -176,7 +180,7 @@ export function ResourceWorkload({
         </div>
         {hasLoaded && (
           <span className="text-dark-400 text-xs">
-            {weeklyTotal.toFixed(1)}h / {DAILY_CAPACITY * 5}h this business week
+            {formatHours(weeklyTotal)}h / {DAILY_CAPACITY * 5}h this business week
           </span>
         )}
       </button>
@@ -244,7 +248,7 @@ export function ResourceWorkload({
                             : 'text-dark-400'
                         )}
                       >
-                        {combined.hours > 0 ? `${combined.hours.toFixed(1)}h` : '-'}
+                        {combined.hours > 0 ? `${formatHours(combined.hours)}h` : '-'}
                       </span>
                     </div>
                   );
@@ -276,11 +280,11 @@ export function ResourceWorkload({
                         </td>
                         {dateKeys.map((date) => (
                           <td key={date} className="py-0.5 text-right">
-                            {proj.days[date] ? proj.days[date].toFixed(1) : '-'}
+                            {proj.days[date] ? formatHours(proj.days[date]) : '-'}
                           </td>
                         ))}
                         <td className="text-dark-200 py-0.5 text-right font-medium">
-                          {proj.total.toFixed(1)}
+                          {formatHours(proj.total)}
                         </td>
                       </tr>
                     ))}
@@ -309,7 +313,7 @@ export function ResourceWorkload({
                                 : 'text-emerald-400'
                         )}
                       >
-                        {isWeekend ? '-' : `${available.toFixed(1)}h`}
+                        {isWeekend ? '-' : `${formatHours(available)}h`}
                       </span>
                       <span className="text-dark-500 text-[10px]">avail</span>
                     </div>

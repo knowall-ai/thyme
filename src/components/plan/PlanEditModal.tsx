@@ -12,6 +12,7 @@ import {
   buildUOMConversionMap,
   convertToHours,
   convertFromHours,
+  formatHours,
   type UOMConversionMap,
 } from '@/utils';
 import { ResourceWorkload } from './ResourceWorkload';
@@ -115,8 +116,8 @@ export function PlanEditModal({
         const totalQuantity = lines.reduce((sum, l) => sum + l.quantity, 0);
         // Convert base unit to hours using shared conversion utility
         const totalHours = convertToHours(allocation.resourceNumber, totalQuantity, conversionMap);
-        // Round to nearest 0.5 hour
-        const rounded = Math.round(totalHours * 2) / 2;
+        // Round to nearest 0.25 hour (15-minute increments)
+        const rounded = Math.round(totalHours * 4) / 4;
         hours[date] = rounded.toString();
       }
 
@@ -431,7 +432,7 @@ export function PlanEditModal({
                     onChange={(e) => handleHoursChange(dateKey, e.target.value)}
                     min="0"
                     max="24"
-                    step="0.5"
+                    step="0.25"
                     disabled={isLoadingExisting}
                     className={`border-dark-600 bg-dark-700 text-dark-100 focus:ring-knowall-green h-8 w-full [appearance:textfield] rounded border px-1 text-right text-sm focus:ring-1 focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${hasExistingLine ? 'border-knowall-green/50' : ''}`}
                     placeholder="0"
@@ -451,13 +452,14 @@ export function PlanEditModal({
             excludeJobNo={allocation.projectNumber}
             excludeJobTaskNo={allocation.taskNumber}
             currentDayHours={hoursPerDay}
+            uomMap={uomMap}
           />
         )}
 
         {/* Total */}
         <div className="text-dark-300 border-dark-700 flex items-center justify-between border-t pt-3 text-sm">
           <span>Total Hours</span>
-          <span className="text-dark-100 font-medium">{totalHours.toFixed(1)}h</span>
+          <span className="text-dark-100 font-medium">{formatHours(totalHours)}h</span>
         </div>
 
         {/* Actions */}

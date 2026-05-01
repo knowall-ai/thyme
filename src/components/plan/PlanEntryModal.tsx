@@ -12,6 +12,7 @@ import {
   buildUOMConversionMap,
   convertToHours,
   convertFromHours,
+  formatHours,
   type UOMConversionMap,
 } from '@/utils';
 import { ResourceWorkload } from './ResourceWorkload';
@@ -157,17 +158,20 @@ export function PlanEntryModal({
         });
 
         // Fill in existing values (convert base unit to hours for display)
+        // Sum all raw hours per date first, then round once to avoid cumulative drift
+        const rawHours: Record<string, number> = {};
         for (const line of existingLines) {
           const dateKey = line.planningDate;
           // Convert from resource's base unit to hours
           const hoursValue = convertToHours(resourceNumber, line.quantity, uomMap);
-          // If there are multiple lines for the same day, sum them
-          const existingVal = parseFloat(newHours[dateKey] || '0');
-          // Round to nearest 0.5 hour
-          const rounded = Math.round((existingVal + hoursValue) * 2) / 2;
-          newHours[dateKey] = rounded.toString();
+          rawHours[dateKey] = (rawHours[dateKey] || 0) + hoursValue;
           // Track id and etag for updates (last one wins if multiple)
           newLinesByDate[dateKey] = { id: line.id, etag: line['@odata.etag'] || '' };
+        }
+        // Round each date's total once to 0.25-hour (15-minute) granularity
+        for (const [dateKey, total] of Object.entries(rawHours)) {
+          const rounded = Math.round(total * 4) / 4;
+          newHours[dateKey] = rounded.toString();
         }
 
         setDayHours(newHours);
@@ -505,7 +509,7 @@ export function PlanEntryModal({
                     onChange={(e) => handleDayHoursChange(dateKey, e.target.value)}
                     min="0"
                     max="24"
-                    step="0.5"
+                    step="0.25"
                     disabled={isLoadingExisting}
                     className={`border-dark-600 bg-dark-700 text-dark-100 focus:ring-knowall-green h-8 w-full [appearance:textfield] rounded border px-1 text-right text-sm focus:ring-1 focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${hasExistingLine ? 'border-knowall-green/50' : ''}`}
                     placeholder="0"
@@ -525,13 +529,14 @@ export function PlanEntryModal({
             excludeJobNo={excludeJobNo}
             excludeJobTaskNo={excludeJobTaskNo}
             currentDayHours={dayHours}
+            uomMap={uomMap}
           />
         )}
 
         {/* Total */}
         <div className="text-dark-300 border-dark-700 flex items-center justify-between border-t pt-3 text-sm">
           <span>Total Hours</span>
-          <span className="text-dark-100 font-medium">{totalHours.toFixed(1)}h</span>
+          <span className="text-dark-100 font-medium">{formatHours(totalHours)}h</span>
         </div>
 
         {/* Actions */}
