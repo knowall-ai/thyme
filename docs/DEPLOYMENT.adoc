@@ -181,6 +181,66 @@ git push && git push --tags
 
 The production deployment workflow triggers on release tags (`v*`), which builds and deploys to production with the new version number displayed in the footer.
 
+NOTE: `main` is protected and direct pushes are blocked for non-admins. The
+one-liner above only works for repository admins (who can bypass branch
+protection). Other contributors must release via a PR — see the next section.
+
+=== Releasing as a non-admin (via PR)
+
+Non-admin contributors cannot push the version-bump commit directly to `main`.
+The release flow becomes:
+
+[source,bash]
+----
+# 1. Branch and bump the version in package.json only.
+#    --no-git-tag-version skips the commit + tag — we don't tag yet because
+#    the PR is likely to be squash- or rebase-merged, which rewrites the SHA
+#    and would leave any pre-created tag pointing at a commit that never
+#    lands on main.
+git switch -c release/v1.2.1
+npm version patch --no-git-tag-version   # or minor / major
+
+# 2. Commit the version bump and push the branch.
+git commit -am "chore: release v1.2.1"
+git push -u origin release/v1.2.1
+
+# 3. Open a PR for review and merge it via the normal flow.
+#    Either install the GitHub CLI (https://cli.github.com) and run:
+gh pr create --fill
+#    …or open the PR from the branch page in the GitHub web UI.
+
+# 4. After the PR is merged, tag the merge commit on main and push the tag.
+git switch main && git pull --ff-only
+git tag v1.2.1
+git push origin v1.2.1
+----
+
+The tag push triggers the production deployment workflow, just as for the
+admin one-liner.
+
+=== Who can deploy what
+
+[cols="2,1,3"]
+|===
+| Action | Permission required | Notes
+
+| Deploy a PR to a staging slot (`slot1`–`slot4`)
+| Repo write
+| Run the *Deploy PR to Azure Slot* workflow from the Actions tab.
+
+| Bump version + push to `main` (admin one-liner)
+| Repo admin
+| Branch protection blocks the direct push for non-admins.
+
+| Push a `v*` tag to trigger production deploy
+| Repo write
+| Tags are not gated by branch protection — anyone with write access can push *any* `v*` tag and trigger the production deploy. There is no enforcement that the tagged commit is reachable from `main`; team convention is to tag merge commits on `main` only.
+
+| Approve a production deploy at an environment gate
+| (not configured)
+| `deploy-production.yml` does not declare `environment: production` on its job, so adding required reviewers to the `production` Actions environment would not currently pause the workflow. To add an approval gate, set `environment: production` on the deploy job and configure required reviewers.
+|===
+
 == PR Testing with Deployment Slots
 
 === Overview
