@@ -143,7 +143,6 @@ export const projectDetailsService = {
    * Fetch project details and tasks by project number
    */
   async getProjectDetails(projectNumber: string): Promise<{ project: Project; tasks: Task[] }> {
-    // Fetch all projects and filter by number (the /jobs endpoint isn't available in all environments)
     const bcProjects = await bcClient.getProjects();
     const bcProject = bcProjects.find((p) => p.number === projectNumber);
 
@@ -158,9 +157,13 @@ export const projectDetailsService = {
     const startDate = bcProject.startingDate;
     const endDate = bcProject.endingDate;
 
-    // Map BC status to Thyme status
-    const status: 'active' | 'completed' =
-      bcProject.status === 'Completed' ? 'completed' : 'active';
+    // Map BC status to Thyme status — blocked projects are archived
+    const isBlocked = bcProject.blocked && bcProject.blocked !== ' ';
+    const status: Project['status'] = isBlocked
+      ? 'archived'
+      : bcProject.status === 'Completed'
+        ? 'completed'
+        : 'active';
 
     const project: Project = {
       id: bcProject.id,
