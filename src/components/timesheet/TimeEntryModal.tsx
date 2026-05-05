@@ -232,13 +232,16 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
           const lineId = entry.bcTimeSheetLineId || entry.id.replace(/_\d{4}-\d{2}-\d{2}$/, '');
           targetEntryId = `${lineId}_${selectedDate}`;
         }
-        await updateEntry(targetEntryId, {
-          projectId: jobNo,
-          taskId: jobTaskNo,
-          hours: totalHours,
-          notes,
-          isBillable: task?.isBillable ?? true,
-        });
+        // Only forward fields the user actually changed. If only the date
+        // changed, skipping updateEntry preserves any same-line merge that
+        // moveEntryDate produced — otherwise the form's hours would clobber
+        // the merged total on the target date.
+        const updates: Partial<TimeEntry> = {};
+        if (totalHours !== entry.hours) updates.hours = totalHours;
+        if (notes !== (entry.notes || '')) updates.notes = notes;
+        if (Object.keys(updates).length > 0) {
+          await updateEntry(targetEntryId, updates);
+        }
       } else {
         // Create new entry
         await addEntry({
