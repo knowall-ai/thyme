@@ -143,11 +143,7 @@ export const projectDetailsService = {
    * Fetch project details and tasks by project number
    */
   async getProjectDetails(projectNumber: string): Promise<{ project: Project; tasks: Task[] }> {
-    // Fetch projects from extension API and blocked status from standard API in parallel
-    const [bcProjects, blockedNumbers] = await Promise.all([
-      bcClient.getProjects(),
-      bcClient.getBlockedProjectNumbers(),
-    ]);
+    const bcProjects = await bcClient.getProjects();
     const bcProject = bcProjects.find((p) => p.number === projectNumber);
 
     if (!bcProject) {
@@ -162,8 +158,7 @@ export const projectDetailsService = {
     const endDate = bcProject.endingDate;
 
     // Map BC status to Thyme status — blocked projects are archived
-    // Merge blocked status from standard API (extension API may not expose it)
-    const isBlocked = bcProject.blocked || blockedNumbers.has(bcProject.number);
+    const isBlocked = bcProject.blocked && bcProject.blocked !== ' ';
     const status: Project['status'] = isBlocked
       ? 'archived'
       : bcProject.status === 'Completed'

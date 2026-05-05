@@ -5,7 +5,6 @@ import type {
   BCEnvironmentType,
   BCJob,
   BCProject,
-  BCStandardProject,
   BCCustomer,
   BCEmployee,
   BCJobTask,
@@ -44,6 +43,21 @@ const VALID_TIMESHEET_STATUSES = ['Open', 'Submitted', 'Rejected', 'Approved', '
 
 // Available environments to query
 const BC_ENVIRONMENTS: BCEnvironmentType[] = ['sandbox', 'production'];
+
+/**
+ * Normalize a BCProject coming off the OData wire.
+ *
+ * BC's OData JSON serializer encodes the leading-space enum value (`' '`,
+ * the "not blocked" sentinel) as the literal string `"_x0020_"`
+ * (XML schema escape for U+0020). Translate it back to a real space so
+ * downstream code can use the documented enum values.
+ */
+function normalizeBCProject(project: BCProject): BCProject {
+  if (project.blocked === ('_x0020_' as unknown as BCProject['blocked'])) {
+    return { ...project, blocked: ' ' };
+  }
+  return project;
+}
 
 class BusinessCentralClient {
   private _companyId: string;
@@ -366,30 +380,12 @@ class BusinessCentralClient {
       endpoint += `?$filter=${encodeURIComponent(filter)}`;
     }
     const response = await this.fetchCustomApi<PaginatedResponse<BCProject>>(endpoint);
-    return response.value;
+    return response.value.map(normalizeBCProject);
   }
 
   async getProject(projectId: string): Promise<BCProject> {
-    return this.fetchCustomApi<BCProject>(`/projects(${projectId})`);
-  }
-
-  /**
-   * Fetch blocked project numbers from the standard BC v2.0 API.
-   * The standard /projects endpoint exposes the 'blocked' enum field
-   * which the Thyme BC Extension may not include.
-   * Returns a Set of project numbers that are blocked.
-   */
-  async getBlockedProjectNumbers(): Promise<Set<string>> {
-    try {
-      const filter = "blocked ne ' '";
-      const select = '$select=number,blocked';
-      const endpoint = `/projects?$filter=${encodeURIComponent(filter)}&${select}`;
-      const response = await this.fetch<PaginatedResponse<BCStandardProject>>(endpoint);
-      return new Set(response.value.map((p) => p.number));
-    } catch {
-      // If the standard API doesn't support this endpoint/filter, return empty set
-      return new Set();
-    }
+    const project = await this.fetchCustomApi<BCProject>(`/projects(${projectId})`);
+    return normalizeBCProject(project);
   }
 
   // Customers
