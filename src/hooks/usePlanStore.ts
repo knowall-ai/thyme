@@ -26,7 +26,11 @@ export interface AllocationBlock {
   hoursPerDay: number;
   totalHours: number;
   color: string;
-  lineType: 'Budget' | 'Billable' | 'Both Budget and Billable';
+  lineType:
+    | 'Budget'
+    | 'Billable'
+    | 'Both Budget and Billable'
+    | 'Both_x0020_Budget_x0020_and_x0020_Billable';
   planningLineNo?: number;
   planningLineId?: string; // BC SystemId (GUID) for PATCH/DELETE operations
 }

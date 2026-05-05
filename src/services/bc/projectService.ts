@@ -208,6 +208,7 @@ export const projectService = {
    */
   async getProjectBudgets(projectCodes: string[]): Promise<Map<string, number>> {
     const projectBudgets = new Map<string, number>();
+    if (projectCodes.length === 0) return projectBudgets;
 
     // Resource UoM map is per-tenant; fetch once and reuse for every project.
     const resourceUOMs = await bcClient.getResourceUnitsOfMeasure();

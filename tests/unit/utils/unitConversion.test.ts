@@ -5,8 +5,31 @@ import {
   convertToHours,
   convertFromHours,
   isResourceDayBased,
+  isBudgetPlanningLine,
+  sumPlannedHours,
 } from '@/utils/unitConversion';
-import type { BCResourceUnitOfMeasure } from '@/types';
+import type { BCJobPlanningLine, BCResourceUnitOfMeasure } from '@/types';
+
+// Helper to create planning-line records with the fields the helpers care about.
+function makeLine(partial: Partial<BCJobPlanningLine>): BCJobPlanningLine {
+  return {
+    id: 'planning-line',
+    jobNo: 'PR00010',
+    jobTaskNo: '1000',
+    lineNo: 1000,
+    planningDate: '2026-01-01',
+    lineType: 'Budget',
+    type: 'Resource',
+    number: 'R001',
+    description: '',
+    quantity: 0,
+    unitCost: 0,
+    unitPrice: 0,
+    totalCost: 0,
+    totalPrice: 0,
+    ...partial,
+  } as BCJobPlanningLine;
+}
 
 // Helper to create UOM records with required fields
 function makeUOM(
@@ -151,6 +174,85 @@ describe('unitConversion', () => {
     it('returns false for zero factor', () => {
       const map = new Map([['R001:HOUR', 0]]);
       expect(isResourceDayBased('R001', map)).toBe(false);
+    });
+  });
+
+  describe('isBudgetPlanningLine', () => {
+    it('accepts the plain "Budget" lineType', () => {
+      expect(isBudgetPlanningLine('Budget')).toBe(true);
+    });
+
+    it('accepts the plain "Both Budget and Billable" lineType', () => {
+      expect(isBudgetPlanningLine('Both Budget and Billable')).toBe(true);
+    });
+
+    it('accepts the URL-encoded "Both_x0020_Budget_x0020_and_x0020_Billable" lineType', () => {
+      expect(isBudgetPlanningLine('Both_x0020_Budget_x0020_and_x0020_Billable')).toBe(true);
+    });
+
+    it('rejects the "Billable" lineType', () => {
+      expect(isBudgetPlanningLine('Billable')).toBe(false);
+    });
+
+    it('rejects undefined and unknown values', () => {
+      expect(isBudgetPlanningLine(undefined)).toBe(false);
+      expect(isBudgetPlanningLine('Something Else')).toBe(false);
+      expect(isBudgetPlanningLine('')).toBe(false);
+    });
+  });
+
+  describe('sumPlannedHours', () => {
+    it('sums Resource Budget lines, converting DAY quantities to hours', () => {
+      const map = buildUOMConversionMap([makeUOM('R001', 'HOUR', 7.5)]);
+      const lines = [
+        makeLine({ type: 'Resource', lineType: 'Budget', number: 'R001', quantity: 4 }),
+        makeLine({ type: 'Resource', lineType: 'Budget', number: 'R001', quantity: 2 }),
+      ];
+      // 4d × 7.5 + 2d × 7.5 = 30 + 15 = 45h
+      expect(sumPlannedHours(lines, map)).toBeCloseTo(45);
+    });
+
+    it('counts "Both Budget and Billable" lines (plain and encoded forms)', () => {
+      const map = buildUOMConversionMap([makeUOM('R001', 'HOUR', 1)]);
+      const lines = [
+        makeLine({ type: 'Resource', lineType: 'Both Budget and Billable', quantity: 3 }),
+        makeLine({
+          type: 'Resource',
+          lineType: 'Both_x0020_Budget_x0020_and_x0020_Billable',
+          quantity: 5,
+        }),
+      ];
+      expect(sumPlannedHours(lines, map)).toBe(8);
+    });
+
+    it('excludes Billable-only lines', () => {
+      const map = buildUOMConversionMap([makeUOM('R001', 'HOUR', 1)]);
+      const lines = [
+        makeLine({ type: 'Resource', lineType: 'Budget', quantity: 4 }),
+        makeLine({ type: 'Resource', lineType: 'Billable', quantity: 100 }),
+      ];
+      expect(sumPlannedHours(lines, map)).toBe(4);
+    });
+
+    it('excludes non-Resource lines (Item, G/L Account)', () => {
+      const map = buildUOMConversionMap([makeUOM('R001', 'HOUR', 1)]);
+      const lines = [
+        makeLine({ type: 'Resource', lineType: 'Budget', quantity: 4 }),
+        makeLine({ type: 'Item', lineType: 'Budget', quantity: 100 }),
+        makeLine({ type: 'G/L Account', lineType: 'Budget', quantity: 100 }),
+      ];
+      expect(sumPlannedHours(lines, map)).toBe(4);
+    });
+
+    it('returns 0 for an empty list', () => {
+      const map = buildUOMConversionMap([]);
+      expect(sumPlannedHours([], map)).toBe(0);
+    });
+
+    it('uses raw quantity when the resource has no UoM conversion', () => {
+      const map = buildUOMConversionMap([]);
+      const lines = [makeLine({ type: 'Resource', lineType: 'Budget', quantity: 6.5 })];
+      expect(sumPlannedHours(lines, map)).toBe(6.5);
     });
   });
 });

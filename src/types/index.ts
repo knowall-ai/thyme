@@ -102,7 +102,15 @@ export interface BCJobPlanningLine {
   jobTaskNo: string;
   lineNo: number;
   planningDate: string;
-  lineType: 'Budget' | 'Billable' | 'Both Budget and Billable';
+  // BC's OData JSON serializer URL-encodes spaces in named enum values, so
+  // "Both Budget and Billable" can also arrive as the `_x0020_` form. Both
+  // shapes are valid at runtime; helpers like `isBudgetPlanningLine` accept
+  // either. Keep the union honest so narrowing comparisons can't miss it.
+  lineType:
+    | 'Budget'
+    | 'Billable'
+    | 'Both Budget and Billable'
+    | 'Both_x0020_Budget_x0020_and_x0020_Billable';
   type: 'Resource' | 'Item' | 'G/L Account';
   number: string; // The "No." field - resource/item/GL account number
   description: string;
