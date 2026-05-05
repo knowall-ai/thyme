@@ -15,22 +15,22 @@ import {
 } from '@heroicons/react/24/outline';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { useCompanyStore } from '@/hooks';
-import { getBCJobUrl } from '@/utils';
-import { cn } from '@/utils';
+import { cn, DATE_FORMAT_FULL, formatDate as formatDateUtil, getBCJobUrl } from '@/utils';
 import type { BillingMode } from '@/services/bc/projectDetailsService';
 
 /**
- * Format a date string for display (e.g., "15 Jan 2025")
+ * Format a date string for display (e.g., "15 Jan 2025").
+ *
+ * Treats BC's null-date sentinel ("0001-..." — typically "0001-01-01") as
+ * unspecified. The sentinel arrives as a non-empty ISO string, so the
+ * empty-check alone misses it and `new Date()` would render it as a year-1
+ * garbage date (a timezone shift can also flip it to "31 Dec 1" in negative
+ * UTC zones).
  */
 function formatDate(dateStr?: string): string {
-  if (!dateStr) return 'Unspecified';
+  if (!dateStr || dateStr.startsWith('0001-')) return 'Unspecified';
   try {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
+    return formatDateUtil(dateStr, DATE_FORMAT_FULL);
   } catch {
     return 'Unspecified';
   }
