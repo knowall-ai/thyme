@@ -23,9 +23,9 @@ import type { BillingMode } from '@/services/bc/projectDetailsService';
  *
  * Treats BC's null-date sentinel ("0001-..." — typically "0001-01-01") as
  * unspecified. The sentinel arrives as a non-empty ISO string, so the
- * empty-check alone misses it and `new Date()` would render it as a year-1
- * garbage date (a timezone shift can also flip it to "31 Dec 1" in negative
- * UTC zones).
+ * empty-check alone misses it; `new Date(...).toLocaleDateString` then
+ * renders it as e.g. "31 Dec 1" — the timezone shift in negative-UTC zones
+ * flips the calendar day, and the year prints unpadded as "1".
  */
 function formatDate(dateStr?: string): string {
   if (!dateStr || dateStr.startsWith('0001-')) return 'Unspecified';
