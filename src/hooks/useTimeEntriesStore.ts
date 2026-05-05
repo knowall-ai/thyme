@@ -34,6 +34,7 @@ interface TimeEntriesStore {
     >
   ) => Promise<TimeEntry>;
   updateEntry: (entryId: string, updates: Partial<TimeEntry>) => Promise<void>;
+  moveEntryDate: (entryId: string, newDate: string) => Promise<void>;
   deleteEntry: (entryId: string) => Promise<void>;
   clearEntries: () => void;
   copyPreviousWeek: (userId: string) => Promise<void>;
@@ -189,6 +190,24 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
         set({ error: error.message });
       } else {
         const message = error instanceof Error ? error.message : 'Failed to update entry';
+        set({ error: message });
+      }
+      throw error;
+    }
+  },
+
+  moveEntryDate: async (entryId: string, newDate: string) => {
+    const { userEmail } = get();
+    try {
+      await timeEntryService.moveEntryDate(entryId, newDate);
+      // Re-derive entries from the service's cache so merges/splits are reflected
+      const refreshed = timeEntryService.getCachedEntries(userEmail || '');
+      set({ entries: refreshed });
+    } catch (error) {
+      if (error instanceof TimesheetNotEditableError) {
+        set({ error: error.message });
+      } else {
+        const message = error instanceof Error ? error.message : 'Failed to move entry';
         set({ error: message });
       }
       throw error;
