@@ -1,13 +1,6 @@
 import { bcClient } from './bcClient';
-import type {
-  Project,
-  Task,
-  BCProject,
-  BCJobTask,
-  BCTimeSheet,
-  BCTimeSheetLine,
-  BCJobPlanningLine,
-} from '@/types';
+import type { Project, Task, BCProject, BCJobTask, BCTimeSheet, BCTimeSheetLine } from '@/types';
+import { buildUOMConversionMap, sumPlannedHours } from '@/utils';
 
 // Color palette for projects
 const PROJECT_COLORS = [
@@ -232,20 +225,26 @@ export const projectService = {
   /**
    * Fetch budget hours for all projects from Job Planning Lines.
    * Returns a map of project code -> budget hours.
+   *
+   * Uses the same rule as the project details page: only Resource Budget
+   * lines count, and each line's quantity is converted to hours via the
+   * UoM map (so DAY-based resources are scaled by their hours-per-day
+   * factor). Without the conversion the list would show raw days against
+   * a column labelled "h", and the Remaining figure would go strongly
+   * negative (issue #192).
    */
   async getProjectBudgets(projectCodes: string[]): Promise<Map<string, number>> {
     const projectBudgets = new Map<string, number>();
+    if (projectCodes.length === 0) return projectBudgets;
 
-    // Fetch budget for each project in parallel
+    // Resource UoM map is per-tenant; fetch once and reuse for every project.
+    const resourceUOMs = await bcClient.getResourceUnitsOfMeasure();
+    const uomConversionMap = buildUOMConversionMap(resourceUOMs);
+
     const budgetPromises = projectCodes.map(async (projectCode) => {
       try {
         const planningLines = await bcClient.getJobPlanningLines(projectCode);
-
-        // Sum quantity for Resource type lines (hours-based budgets)
-        const budgetHours = planningLines
-          .filter((line: BCJobPlanningLine) => line.type === 'Resource')
-          .reduce((sum: number, line: BCJobPlanningLine) => sum + line.quantity, 0);
-
+        const budgetHours = sumPlannedHours(planningLines, uomConversionMap);
         if (budgetHours > 0) {
           projectBudgets.set(projectCode, budgetHours);
         }
