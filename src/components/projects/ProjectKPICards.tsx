@@ -153,7 +153,7 @@ export function ProjectKPICards() {
       label: 'Time Spent',
       value: formatHoursWithDays(hoursSpent, hoursPerDay),
       subLabel: hasPlannedHours
-        ? `${percentUsed}% of ${hoursPlanned.toFixed(0)}h budgeted`
+        ? `${percentUsed}% of ${formatHoursWithDays(hoursPlanned, hoursPerDay)} budgeted`
         : 'From timesheets',
       icon: ClockIcon,
       color: 'text-thyme-400',
