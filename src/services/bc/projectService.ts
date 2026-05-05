@@ -20,11 +20,37 @@ function getProjectColor(index: number): string {
   return PROJECT_COLORS[index % PROJECT_COLORS.length];
 }
 
+// Latch so the older-extension warning logs once per session.
+let warnedNoBlockedField = false;
+
+/**
+ * Warn (once per session) if no project in the response carries a `blocked`
+ * field. That signals the Thyme BC Extension is older than the version that
+ * exposes `blocked` on /projects, in which case archived projects will fall
+ * through to "active" and the hide-archived feature won't apply.
+ */
+function warnIfBlockedFieldMissing(bcProjects: BCProject[]): void {
+  if (warnedNoBlockedField || bcProjects.length === 0) return;
+  const anyHasBlocked = bcProjects.some((p) => p.blocked !== undefined);
+  if (!anyHasBlocked) {
+    warnedNoBlockedField = true;
+    console.warn(
+      '[Thyme] No project returned a `blocked` field. Archived projects will not be hidden — ' +
+        'install the latest Thyme BC Extension to enable the hide-archived feature.'
+    );
+  }
+}
+
 // The Thyme BC Extension API (v1.7+) returns displayName, billToCustomerName and status fields.
 
 function mapBCProjectToProject(bcProject: BCProject, index: number, favorites: string[]): Project {
-  // Map BC status to Thyme status
-  const status: 'active' | 'completed' = bcProject.status === 'Completed' ? 'completed' : 'active';
+  // Map BC status to Thyme status — blocked projects are archived
+  const isBlocked = bcProject.blocked && bcProject.blocked !== ' ';
+  const status: Project['status'] = isBlocked
+    ? 'archived'
+    : bcProject.status === 'Completed'
+      ? 'completed'
+      : 'active';
 
   return {
     id: bcProject.id,
@@ -65,6 +91,7 @@ function saveFavorites(favorites: string[]): void {
 export const projectService = {
   async getProjects(_includeCompleted = false): Promise<Project[]> {
     const bcProjects = await bcClient.getProjects();
+    warnIfBlockedFieldMissing(bcProjects);
     const favorites = getFavorites();
 
     return bcProjects.map((bcProject, index) => mapBCProjectToProject(bcProject, index, favorites));

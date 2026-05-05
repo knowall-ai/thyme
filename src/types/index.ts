@@ -61,6 +61,7 @@ export interface BCProject {
   billToCustomerNo?: string;
   billToCustomerName?: string;
   status?: 'Open' | 'Completed' | 'Planning';
+  blocked?: ' ' | 'Posting' | 'All';
   startingDate?: string;
   endingDate?: string;
   lastModifiedDateTime?: string;
