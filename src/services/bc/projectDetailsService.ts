@@ -7,7 +7,14 @@ import type {
   BCJobPlanningLine,
   BCTimeEntry,
 } from '@/types';
-import { getWeekStart, buildUOMConversionMap, convertToHours, getHoursPerDay } from '@/utils';
+import {
+  getWeekStart,
+  buildUOMConversionMap,
+  convertToHours,
+  getHoursPerDay,
+  isBudgetPlanningLine,
+  sumPlannedHours,
+} from '@/utils';
 
 // Color palette for projects (same as projectService)
 const PROJECT_COLORS = [
@@ -419,30 +426,18 @@ export const projectDetailsService = {
         }
       }
 
-      // Helper to check if lineType includes Budget (handles URL-encoded spaces from API)
-      const isBudgetLine = (lineType: string) =>
-        lineType === 'Budget' ||
-        lineType === 'Both Budget and Billable' ||
-        lineType === 'Both_x0020_Budget_x0020_and_x0020_Billable';
-
       // Helper to check if lineType includes Billable (handles URL-encoded spaces from API)
       const isBillableLine = (lineType: string) =>
         lineType === 'Billable' ||
         lineType === 'Both Budget and Billable' ||
         lineType === 'Both_x0020_Budget_x0020_and_x0020_Billable';
 
-      // Hours Planned: sum quantity from Resource Budget lines only (hours only apply to resources)
-      // Convert quantity to hours using unit of measure conversion factor
+      // Hours Planned: shared helper — sums Resource Budget lines and converts
+      // each quantity to hours via the per-resource UoM map.
+      hoursPlanned = sumPlannedHours(planningLines, uomConversionMap);
       const resourceLines = planningLines.filter(
         (line: BCJobPlanningLine) => line.type === 'Resource'
       );
-      hoursPlanned = resourceLines
-        .filter((line: BCJobPlanningLine) => isBudgetLine(line.lineType))
-        .reduce(
-          (sum: number, line: BCJobPlanningLine) =>
-            sum + convertToHours(line.number, line.quantity, uomConversionMap),
-          0
-        );
 
       // Extract unit price per resource from planning lines as fallback
       // (only if Resource Card doesn't have unitPrice set)
@@ -458,7 +453,7 @@ export const projectDetailsService = {
 
       // Budget Cost: sum totalCost from ALL Budget lines with breakdown by type
       const budgetLines = planningLines.filter((line: BCJobPlanningLine) =>
-        isBudgetLine(line.lineType)
+        isBudgetPlanningLine(line.lineType)
       );
       budgetCost = budgetLines.reduce(
         (sum: number, line: BCJobPlanningLine) => sum + line.totalCost,
@@ -502,7 +497,7 @@ export const projectDetailsService = {
       // This shows the budgeted hours allocation in the Hours per Week chart
       const plannedHoursMap = new Map<string, number>();
       for (const line of resourceLines) {
-        if (!isBudgetLine(line.lineType)) continue;
+        if (!isBudgetPlanningLine(line.lineType)) continue;
         // Skip lines without a valid planning date (0001-01-01 is BC's default empty date)
         if (!line.planningDate || line.planningDate === '0001-01-01') continue;
 

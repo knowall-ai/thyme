@@ -1,4 +1,4 @@
-import type { BCResourceUnitOfMeasure } from '@/types';
+import type { BCJobPlanningLine, BCResourceUnitOfMeasure } from '@/types';
 
 /**
  * UOM conversion map: "resourceNo:code" → qtyPerUnitOfMeasure
@@ -122,4 +122,36 @@ export function isResourceDayBased(
  */
 export function formatHours(hours: number): string {
   return parseFloat(hours.toFixed(2)).toString();
+}
+
+/**
+ * Whether a planning line's `lineType` counts as a Budget line.
+ *
+ * BC's OData layer URL-encodes spaces in named enum values, so
+ * "Both Budget and Billable" arrives over the wire as
+ * "Both_x0020_Budget_x0020_and_x0020_Billable" — handle both forms.
+ */
+export function isBudgetPlanningLine(lineType: string | undefined): boolean {
+  return (
+    lineType === 'Budget' ||
+    lineType === 'Both Budget and Billable' ||
+    lineType === 'Both_x0020_Budget_x0020_and_x0020_Billable'
+  );
+}
+
+/**
+ * Sum the planned hours from a project's planning lines.
+ *
+ * Mirrors the rule used on the project details page: only Resource lines
+ * tagged as Budget (or Both Budget and Billable) count, and each line's
+ * quantity is converted to hours via the UoM map (so DAY-based resources
+ * are scaled by the per-resource hours-per-day factor).
+ */
+export function sumPlannedHours(
+  planningLines: BCJobPlanningLine[],
+  uomConversionMap: UOMConversionMap
+): number {
+  return planningLines
+    .filter((line) => line.type === 'Resource' && isBudgetPlanningLine(line.lineType))
+    .reduce((sum, line) => sum + convertToHours(line.number, line.quantity, uomConversionMap), 0);
 }
