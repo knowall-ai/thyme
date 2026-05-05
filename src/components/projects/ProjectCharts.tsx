@@ -328,6 +328,19 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
     [data, offsetWeeks]
   );
 
+  const legendTotals = useMemo(
+    () =>
+      displayData.reduce(
+        (acc, d) => ({
+          planned: acc.planned + d.plannedHours,
+          approved: acc.approved + d.approvedHours,
+          pending: acc.pending + d.pendingHours,
+        }),
+        { planned: 0, approved: 0, pending: 0 }
+      ),
+    [displayData]
+  );
+
   const maxHours = useMemo(() => {
     // Consider both actual hours and planned hours for the max
     const max = Math.max(...displayData.map((d) => Math.max(d.hours, d.plannedHours)), 0);
@@ -485,19 +498,19 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
         ))}
       </div>
 
-      {/* Legend */}
+      {/* Legend — totals are summed across the visible weeks */}
       <div className="mt-3 flex items-center justify-center gap-6 text-xs text-gray-400">
         <div className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-sm bg-gray-600" />
-          <span>Planned</span>
+          <span>Planned ({legendTotals.planned.toFixed(1)}h)</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="bg-thyme-500 inline-block h-2.5 w-2.5 rounded-sm" />
-          <span>Approved</span>
+          <span>Approved ({legendTotals.approved.toFixed(1)}h)</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-500" />
-          <span>Pending</span>
+          <span>Pending ({legendTotals.pending.toFixed(1)}h)</span>
         </div>
       </div>
     </div>
