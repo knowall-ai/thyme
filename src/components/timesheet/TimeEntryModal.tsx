@@ -63,10 +63,25 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
     }
   }, [isOpen]);
 
-  // Get unique customers from projects
+  // Available projects for selection in this modal: active projects only,
+  // plus the entry's current project if editing — so reopening an entry
+  // logged against a project that has since been archived still shows the
+  // original selection. Customer/project dropdowns both derive from this.
+  const availableProjects = useMemo(() => {
+    const result = projects.filter((p) => p.status === 'active');
+    if (entry) {
+      const entryProject = projects.find((p) => p.code === entry.projectId);
+      if (entryProject && entryProject.status !== 'active') {
+        result.push(entryProject);
+      }
+    }
+    return result;
+  }, [projects, entry]);
+
+  // Get unique customers from available projects
   const customerOptions: SelectOption[] = useMemo(() => {
     const customers = new Map<string, string>();
-    projects.forEach((p) => {
+    availableProjects.forEach((p) => {
       const customerName = (p.customerName || 'Unknown').trim();
       const normalizedKey = customerName.toLowerCase();
       // Use the first occurrence's display name, but dedupe by normalized key
@@ -77,30 +92,28 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
     return Array.from(customers.values())
       .sort()
       .map((name) => ({ value: name, label: name }));
-  }, [projects]);
+  }, [availableProjects]);
 
   // Check if we should show customer dropdown (hide if only one customer or all "Unknown")
   const showCustomerDropdown =
     customerOptions.length > 1 ||
     (customerOptions.length === 1 && customerOptions[0].value !== 'Unknown');
 
-  // Filter projects by selected customer (or show all if customer dropdown is hidden)
-  // Only show active projects for time entry (exclude archived and completed)
+  // Filter available projects by selected customer (or show all if customer dropdown is hidden)
   const filteredProjects = useMemo(() => {
-    const activeProjects = projects.filter((p) => p.status === 'active');
     if (!showCustomerDropdown) {
-      return activeProjects;
+      return availableProjects;
     }
     if (!customerId) {
       return [];
     }
     // Use case-insensitive, trimmed comparison for robustness
     const normalizedCustomerId = customerId.trim().toLowerCase();
-    return activeProjects.filter((p) => {
+    return availableProjects.filter((p) => {
       const projectCustomer = (p.customerName || 'Unknown').trim().toLowerCase();
       return projectCustomer === normalizedCustomerId;
     });
-  }, [projects, customerId, showCustomerDropdown]);
+  }, [availableProjects, customerId, showCustomerDropdown]);
 
   // Helper to find the matching customerOption value for a customer name
   // This ensures the Select dropdown value matches exactly

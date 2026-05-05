@@ -301,7 +301,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="w-40"
                 options={[
-                  { value: 'all', label: 'All Status' },
+                  { value: 'all', label: 'Active & Completed' },
                   ...uniqueStatuses.map((status) => ({
                     value: status,
                     label: status.charAt(0).toUpperCase() + status.slice(1),
