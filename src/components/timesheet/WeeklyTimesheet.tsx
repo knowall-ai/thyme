@@ -65,6 +65,7 @@ export function WeeklyTimesheet() {
     submitTimesheet,
     reopenTimesheet,
     isTimesheetEditable,
+    moveEntryDate,
   } = useTimeEntriesStore();
 
   const {
@@ -191,6 +192,21 @@ export function WeeklyTimesheet() {
     setIsModalOpen(false);
     setSelectedDate(null);
     setSelectedEntry(null);
+  };
+
+  const handleMoveEntry = async (entryId: string, newDate: string) => {
+    if (!canEdit) {
+      toast.error('Timesheet is not editable. Please reopen it first.');
+      return;
+    }
+    const sourceEntry = entries.find((e) => e.id === entryId);
+    if (sourceEntry && sourceEntry.date === newDate) return;
+    try {
+      await moveEntryDate(entryId, newDate);
+      toast.success('Time entry moved');
+    } catch {
+      toast.error('Failed to move time entry. Please try again.');
+    }
   };
 
   const handleCopyPreviousWeek = async () => {
@@ -610,6 +626,7 @@ Thank you!`)}`}
                     projects={projects}
                     onAddEntry={handleAddEntry}
                     onEditEntry={handleEditEntry}
+                    onMoveEntry={handleMoveEntry}
                     readOnly={!canEdit}
                   />
                 );
@@ -648,6 +665,7 @@ Thank you!`)}`}
           onClose={handleCloseModal}
           date={selectedDate}
           entry={selectedEntry}
+          weekStart={currentWeekStart}
         />
       </div>
     </ExtensionPreviewWrapper>

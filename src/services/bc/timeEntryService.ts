@@ -346,6 +346,87 @@ export const timeEntryService = {
   },
 
   /**
+   * Move an entry to a different date on the same timesheet line.
+   *
+   * BC stores time entries as line+date detail records, so a "date change" is
+   * implemented by writing the hours to the new date and zeroing the old date.
+   * If the same line already has hours on the target date, the hours are summed
+   * (since the line is the same project/task/notes, this is the only sensible merge).
+   */
+  async moveEntryDate(entryId: string, newDate: string): Promise<void> {
+    if (!this._currentTimesheet) {
+      throw new Error('No timesheet loaded. Please refresh the page.');
+    }
+
+    if (!this.isTimesheetEditable()) {
+      const status = bcClient.getTimesheetDisplayStatus(this._currentTimesheet);
+      throw new TimesheetNotEditableError(status);
+    }
+
+    const parsed = parseEntryId(entryId);
+    if (!parsed) {
+      throw new Error('Invalid entry ID format.');
+    }
+
+    const { lineId, date: oldDate } = parsed;
+
+    if (oldDate === newDate) return;
+
+    const line = this._currentTimesheetLines.find((l) => l.id === lineId);
+    if (!line) {
+      throw new Error('Timesheet line not found.');
+    }
+
+    const oldDetail = this._currentTimesheetDetails.find(
+      (d) => d.timeSheetLineNo === line.lineNo && d.date === oldDate
+    );
+    if (!oldDetail || oldDetail.quantity <= 0) {
+      throw new Error('Entry has no hours to move.');
+    }
+
+    const movingHours = oldDetail.quantity;
+    const existingNewDateDetail = this._currentTimesheetDetails.find(
+      (d) => d.timeSheetLineNo === line.lineNo && d.date === newDate
+    );
+    const newTotalHours = movingHours + (existingNewDateDetail?.quantity || 0);
+
+    // Write new date first so the line keeps at least one detail when the old
+    // date is zeroed out — otherwise BC may auto-remove the line.
+    await bcClient.setHoursForDate(lineId, newDate, newTotalHours);
+    await bcClient.setHoursForDate(lineId, oldDate, 0);
+
+    this._currentTimesheetDetails = this._currentTimesheetDetails.filter(
+      (d) => !(d.timeSheetLineNo === line.lineNo && d.date === oldDate)
+    );
+    if (existingNewDateDetail) {
+      existingNewDateDetail.quantity = newTotalHours;
+    } else {
+      this._currentTimesheetDetails.push({
+        id: `temp_${lineId}_${newDate}`,
+        timeSheetNo: this._currentTimesheet.number,
+        timeSheetLineNo: line.lineNo,
+        date: newDate,
+        quantity: newTotalHours,
+      });
+    }
+  },
+
+  /**
+   * Re-derive TimeEntry objects from the cached BC timesheet state without
+   * a network round-trip. Used after mutations that may merge/split entries
+   * (e.g. moveEntryDate) to refresh the store consistently.
+   */
+  getCachedEntries(userId: string): TimeEntry[] {
+    if (!this._currentTimesheet) return [];
+    return bcDataToTimeEntries(
+      this._currentTimesheetLines,
+      this._currentTimesheetDetails,
+      this._currentTimesheet,
+      userId
+    );
+  },
+
+  /**
    * Delete an entry.
    * Sets hours to 0 for the date. If no other hours exist on the line, deletes the line too.
    */
