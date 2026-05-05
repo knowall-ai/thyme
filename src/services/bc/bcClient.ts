@@ -44,6 +44,21 @@ const VALID_TIMESHEET_STATUSES = ['Open', 'Submitted', 'Rejected', 'Approved', '
 // Available environments to query
 const BC_ENVIRONMENTS: BCEnvironmentType[] = ['sandbox', 'production'];
 
+/**
+ * Normalize a BCProject coming off the OData wire.
+ *
+ * BC's OData JSON serializer encodes the leading-space enum value (`' '`,
+ * the "not blocked" sentinel) as the literal string `"_x0020_"`
+ * (XML schema escape for U+0020). Translate it back to a real space so
+ * downstream code can use the documented enum values.
+ */
+function normalizeBCProject(project: BCProject): BCProject {
+  if (project.blocked === ('_x0020_' as unknown as BCProject['blocked'])) {
+    return { ...project, blocked: ' ' };
+  }
+  return project;
+}
+
 class BusinessCentralClient {
   private _companyId: string;
   private _environment: BCEnvironmentType;
@@ -365,11 +380,12 @@ class BusinessCentralClient {
       endpoint += `?$filter=${encodeURIComponent(filter)}`;
     }
     const response = await this.fetchCustomApi<PaginatedResponse<BCProject>>(endpoint);
-    return response.value;
+    return response.value.map(normalizeBCProject);
   }
 
   async getProject(projectId: string): Promise<BCProject> {
-    return this.fetchCustomApi<BCProject>(`/projects(${projectId})`);
+    const project = await this.fetchCustomApi<BCProject>(`/projects(${projectId})`);
+    return normalizeBCProject(project);
   }
 
   // Customers

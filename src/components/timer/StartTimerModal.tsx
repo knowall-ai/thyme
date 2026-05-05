@@ -41,7 +41,10 @@ export function StartTimerModal({ isOpen, onClose }: StartTimerModalProps) {
     }
   }, [isOpen, selectedProject]);
 
-  const projectOptions: SelectOption[] = projects.map((p) => ({
+  // Only show active projects for timer (exclude archived and completed)
+  const activeProjects = projects.filter((p) => p.status === 'active');
+
+  const projectOptions: SelectOption[] = activeProjects.map((p) => ({
     value: p.id,
     label: `${p.code} - ${p.name}`,
   }));
