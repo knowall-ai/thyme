@@ -8,7 +8,7 @@ import { useTimeEntriesStore, useProjectsStore, useSettingsStore } from '@/hooks
 import { useAuth } from '@/services/auth';
 import { bcClient } from '@/services/bc/bcClient';
 import type { TimeEntry, SelectOption } from '@/types';
-import { formatDateForDisplay } from '@/utils';
+import { formatDate, formatDateForDisplay, getWeekDays } from '@/utils';
 
 // BC Time Sheet Line Description field has a 100-character limit
 const MAX_NOTES_LENGTH = 100;
@@ -18,21 +18,32 @@ interface TimeEntryModalProps {
   onClose: () => void;
   date: string | null;
   entry: TimeEntry | null;
+  weekStart: Date;
 }
 
-export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalProps) {
+export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: TimeEntryModalProps) {
   const { account } = useAuth();
   const userId = account?.localAccountId || '';
 
-  const { addEntry, updateEntry, deleteEntry } = useTimeEntriesStore();
+  const { addEntry, updateEntry, moveEntryDate, deleteEntry } = useTimeEntriesStore();
   const { projects, selectedProject, selectedTask, selectProject, selectTask } = useProjectsStore();
   const { requireTimesheetComments } = useSettingsStore();
 
   const [customerId, setCustomerId] = useState('');
   const [projectId, setProjectId] = useState('');
   const [taskId, setTaskId] = useState('');
+  const [selectedDate, setSelectedDate] = useState('');
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
+
+  const dateOptions: SelectOption[] = useMemo(
+    () =>
+      getWeekDays(weekStart).map((d) => {
+        const value = formatDate(d);
+        return { value, label: formatDateForDisplay(value) };
+      }),
+    [weekStart]
+  );
 
   // When hours is 24, minutes must be 0
   const handleHoursChange = (value: string) => {
@@ -128,6 +139,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
         // Find task by code and use its id
         const task = project?.tasks.find((t) => t.code === entry.taskId);
         setTaskId(task?.id || '');
+        setSelectedDate(entry.date);
         const h = Math.floor(entry.hours);
         const m = Math.round((entry.hours - h) * 60);
         setHours(h.toString());
@@ -139,12 +151,13 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
         setCustomerId(matchedCustomer);
         setProjectId(selectedProject?.id || '');
         setTaskId(selectedTask?.id || '');
+        setSelectedDate(date || '');
         setHours('');
         setMinutes('');
         setNotes('');
       }
     }
-  }, [isOpen, entry, selectedProject, selectedTask, projects, findMatchingCustomerOption]);
+  }, [isOpen, entry, date, selectedProject, selectedTask, projects, findMatchingCustomerOption]);
 
   const projectOptions: SelectOption[] = filteredProjects.map((p) => ({
     value: p.id,
@@ -183,7 +196,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!date || !projectId || !taskId || isSubmitting) return;
+    if (!selectedDate || !projectId || !taskId || isSubmitting) return;
 
     const totalHours = (parseInt(hours) || 0) + (parseInt(minutes) || 0) / 60;
     if (totalHours <= 0) return;
@@ -213,21 +226,31 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
     setIsSubmitting(true);
     try {
       if (entry) {
-        // Update existing entry
-        await updateEntry(entry.id, {
-          projectId: jobNo,
-          taskId: jobTaskNo,
-          hours: totalHours,
-          notes,
-          isBillable: task?.isBillable ?? true,
-        });
+        // If date changed, move the entry first so subsequent updates target the new detail
+        let targetEntryId = entry.id;
+        if (selectedDate !== entry.date) {
+          await moveEntryDate(entry.id, selectedDate);
+          // Composite ID format is `{lineId}_{date}` — recompute for follow-up update
+          const lineId = entry.bcTimeSheetLineId || entry.id.replace(/_\d{4}-\d{2}-\d{2}$/, '');
+          targetEntryId = `${lineId}_${selectedDate}`;
+        }
+        // Only forward fields the user actually changed. If only the date
+        // changed, skipping updateEntry preserves any same-line merge that
+        // moveEntryDate produced — otherwise the form's hours would clobber
+        // the merged total on the target date.
+        const updates: Partial<TimeEntry> = {};
+        if (totalHours !== entry.hours) updates.hours = totalHours;
+        if (notes !== (entry.notes || '')) updates.notes = notes;
+        if (Object.keys(updates).length > 0) {
+          await updateEntry(targetEntryId, updates);
+        }
       } else {
         // Create new entry
         await addEntry({
           projectId: jobNo,
           taskId: jobTaskNo,
           userId,
-          date,
+          date: selectedDate,
           hours: totalHours,
           notes,
           isBillable: task?.isBillable ?? true,
@@ -264,9 +287,10 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
     }
   };
 
+  const titleDate = selectedDate || date;
   const title = entry
-    ? `Edit time entry for ${date ? formatDateForDisplay(date) : ''}`
-    : `New time entry for ${date ? formatDateForDisplay(date) : ''}`;
+    ? `Edit time entry for ${titleDate ? formatDateForDisplay(titleDate) : ''}`
+    : `New time entry for ${titleDate ? formatDateForDisplay(titleDate) : ''}`;
 
   // Show extension required message if not installed
   if (extensionInstalled === false) {
@@ -301,6 +325,15 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Date - constrained to the current week */}
+        <Select
+          label="Date"
+          options={dateOptions}
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(e.target.value)}
+          required
+        />
+
         {/* Customer - only show if multiple customers exist */}
         {showCustomerDropdown && (
           <Select

@@ -1,31 +1,39 @@
+<!--
+Title format: conventional-commit prefix + short description.
+  feat: ...      fix: ...      perf: ...      refactor: ...     (require Fixes #nnn)
+  chore: ...     ci: ...       docs: ...      deps: ...
+  test: ...      build: ...    style: ...
+
+Body: keep the sections below. Put each `Fixes #nnn` on its own line — one per
+issue. GitHub auto-closes those issues when this PR merges.
+-->
+
 ## Summary
 
-Brief description of the changes in this PR.
+<!-- 1–3 bullets: what changed and why. -->
 
-## Related Issue
+## Fixes
 
-Fixes #(issue number)
+Fixes #
 
-## Type of Change
+<!-- One `Fixes #nnn` per issue resolved. Delete this section for chore/ci/docs/deps PRs that aren't tied to an issue. -->
 
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Enhancement
-- [ ] Documentation update
-- [ ] Refactoring
+## Test plan
 
-## Changes Made
+<!--
+Step-by-step actions a reviewer or tester can follow, with expected results.
+Example:
+  1. Sign in with a Business Central account.
+  2. Open the Time Tracking page.
+  3. **Expected:** today's entries load without errors.
+  4. Add a new entry for project X, 30 minutes.
+  5. **Expected:** entry appears and totals update.
 
-- Change 1
-- Change 2
+For pure-refactor / docs / CI / deps PRs with no user-visible change, replace the steps with:
 
-## Testing
+  N/A — <one-line reason, e.g. "internal refactor, covered by existing tests">
+-->
 
-Describe how you tested these changes.
+## Screenshots (if applicable)
 
-## Checklist
-
-- [ ] I have run `npm run check` and all checks pass
-- [ ] My code follows the project's coding style
-- [ ] I have tested my changes locally
-- [ ] I have updated documentation if needed
+<!-- Add screenshots for visual changes. -->
