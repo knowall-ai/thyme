@@ -25,7 +25,7 @@ export function Dashboard() {
               <h1 className="text-2xl font-bold text-white">Timesheet</h1>
               <p className="text-dark-400 mt-1">
                 {isViewingTeammate
-                  ? `Viewing ${selectedTeammate.displayName}'s timesheet`
+                  ? `Viewing ${selectedTeammate.name || selectedTeammate.displayName || selectedTeammate.number}'s timesheet`
                   : 'Track your time and sync to Business Central'}
               </p>
             </div>

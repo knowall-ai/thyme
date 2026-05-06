@@ -11,7 +11,18 @@ import {
 import { useTeammateStore, useCompanyStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
 import { cn } from '@/utils';
-import type { BCEmployee } from '@/types';
+import { bcClient } from '@/services/bc';
+import type { BCResource } from '@/types';
+
+// Resources expose `name` (and sometimes `displayName`); pick the best label.
+function teammateLabel(t: BCResource): string {
+  return t.name || t.displayName || t.number;
+}
+
+function teammateInitial(t: BCResource): string {
+  const label = teammateLabel(t);
+  return label?.[0] || '?';
+}
 
 export function TeammateSelector() {
   const [isOpen, setIsOpen] = useState(false);
@@ -52,31 +63,32 @@ export function TeammateSelector() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
-  const handleSelect = (teammate: BCEmployee | null) => {
+  const handleSelect = (teammate: BCResource | null) => {
     selectTeammate(teammate);
     setIsOpen(false);
     setSearchQuery('');
   };
 
-  // Filter teammates by search query, excluding current user
+  // Filter teammates by search query
   const filteredTeammates = teammates.filter((teammate) => {
-    // Filter by search
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      const matchesName = teammate.displayName.toLowerCase().includes(query);
-      const matchesEmail = teammate.email?.toLowerCase().includes(query);
-      if (!matchesName && !matchesEmail) return false;
+      const matchesName = teammateLabel(teammate).toLowerCase().includes(query);
+      const matchesUserId = teammate.timeSheetOwnerUserId?.toLowerCase().includes(query);
+      const matchesNumber = teammate.number.toLowerCase().includes(query);
+      if (!matchesName && !matchesUserId && !matchesNumber) return false;
     }
     return true;
   });
 
-  // Separate current user from other teammates
-  const currentUserEmail = account?.username?.toLowerCase();
+  // Identify the current user's resource by deriving the BC User ID from their UPN
+  // (matches the convention used in bcClient.deriveBCUserId).
+  const currentUserBCId = account?.username ? bcClient.deriveBCUserId(account.username) : undefined;
   const currentUserTeammate = filteredTeammates.find(
-    (t) => t.email?.toLowerCase() === currentUserEmail
+    (t) => t.timeSheetOwnerUserId?.toUpperCase() === currentUserBCId
   );
   const otherTeammates = filteredTeammates.filter(
-    (t) => t.email?.toLowerCase() !== currentUserEmail
+    (t) => t.timeSheetOwnerUserId?.toUpperCase() !== currentUserBCId
   );
 
   // Don't show if no teammates available (only self)
@@ -84,7 +96,7 @@ export function TeammateSelector() {
     return null;
   }
 
-  const displayName = selectedTeammate ? selectedTeammate.displayName : 'My Timesheet';
+  const displayName = selectedTeammate ? teammateLabel(selectedTeammate) : 'My Timesheet';
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -160,7 +172,7 @@ export function TeammateSelector() {
                       <span className="text-dark-200">My Timesheet</span>
                       {currentUserTeammate && (
                         <span className="text-dark-400 ml-2 text-xs">
-                          ({currentUserTeammate.displayName})
+                          ({teammateLabel(currentUserTeammate)})
                         </span>
                       )}
                     </div>
@@ -198,19 +210,11 @@ export function TeammateSelector() {
                           aria-selected={isSelected}
                         >
                           <div className="bg-dark-600 text-dark-200 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-medium">
-                            {teammate.givenName?.[0] ||
-                              teammate.surname?.[0] ||
-                              teammate.displayName?.[0] ||
-                              '?'}
-                            {teammate.givenName?.[0] && teammate.surname?.[0]
-                              ? teammate.surname[0]
-                              : ''}
+                            {teammateInitial(teammate)}
                           </div>
                           <div className="flex-1 truncate">
-                            <div className="text-dark-200">{teammate.displayName}</div>
-                            {teammate.jobTitle && (
-                              <div className="text-dark-400 text-xs">{teammate.jobTitle}</div>
-                            )}
+                            <div className="text-dark-200">{teammateLabel(teammate)}</div>
+                            <div className="text-dark-400 text-xs">{teammate.number}</div>
                           </div>
                           {isSelected && (
                             <CheckIcon className="text-knowall-green h-5 w-5 flex-shrink-0" />
