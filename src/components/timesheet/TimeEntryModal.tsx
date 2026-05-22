@@ -265,8 +265,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
           if (selectedDate !== entry.date) {
             await moveEntryDate(entry.id, selectedDate);
             // Composite ID format is `{lineId}_{date}` — recompute for follow-up update
-            const lineId =
-              entry.bcTimeSheetLineId || entry.id.replace(/_\d{4}-\d{2}-\d{2}$/, '');
+            const lineId = entry.bcTimeSheetLineId || entry.id.replace(/_\d{4}-\d{2}-\d{2}$/, '');
             targetEntryId = `${lineId}_${selectedDate}`;
           }
           // Only forward fields the user actually changed. If only the date
