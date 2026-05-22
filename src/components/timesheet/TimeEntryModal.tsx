@@ -138,7 +138,12 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
     [customerOptions]
   );
 
-  // Reset form when modal opens
+  // Reset form when modal opens or a different entry is loaded.
+  // Intentionally omits selectedProject/selectedTask/projects/findMatchingCustomerOption
+  // from deps: handleProjectChange/handleTaskChange call selectProject/selectTask,
+  // which would otherwise re-run this effect and clobber the user's new selection
+  // with the original entry values (#208).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isOpen) {
       if (entry) {
@@ -170,7 +175,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
         setNotes('');
       }
     }
-  }, [isOpen, entry, date, selectedProject, selectedTask, projects, findMatchingCustomerOption]);
+  }, [isOpen, entry, date]);
 
   const projectOptions: SelectOption[] = filteredProjects.map((p) => ({
     value: p.id,
@@ -239,23 +244,41 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
     setIsSubmitting(true);
     try {
       if (entry) {
-        // If date changed, move the entry first so subsequent updates target the new detail
-        let targetEntryId = entry.id;
-        if (selectedDate !== entry.date) {
-          await moveEntryDate(entry.id, selectedDate);
-          // Composite ID format is `{lineId}_{date}` — recompute for follow-up update
-          const lineId = entry.bcTimeSheetLineId || entry.id.replace(/_\d{4}-\d{2}-\d{2}$/, '');
-          targetEntryId = `${lineId}_${selectedDate}`;
-        }
-        // Only forward fields the user actually changed. If only the date
-        // changed, skipping updateEntry preserves any same-line merge that
-        // moveEntryDate produced — otherwise the form's hours would clobber
-        // the merged total on the target date.
-        const updates: Partial<TimeEntry> = {};
-        if (totalHours !== entry.hours) updates.hours = totalHours;
-        if (notes !== (entry.notes || '')) updates.notes = notes;
-        if (Object.keys(updates).length > 0) {
-          await updateEntry(targetEntryId, updates);
+        // A BC timesheet line is bound to a single project+task, so a project
+        // or task change can't be patched in place — replace the entry by
+        // deleting the original and creating a new one on the chosen date.
+        if (jobNo !== entry.projectId || jobTaskNo !== entry.taskId) {
+          await deleteEntry(entry.id);
+          await addEntry({
+            projectId: jobNo,
+            taskId: jobTaskNo,
+            userId,
+            date: selectedDate,
+            hours: totalHours,
+            notes,
+            isBillable: task?.isBillable ?? true,
+            isRunning: false,
+          });
+        } else {
+          // If date changed, move the entry first so subsequent updates target the new detail
+          let targetEntryId = entry.id;
+          if (selectedDate !== entry.date) {
+            await moveEntryDate(entry.id, selectedDate);
+            // Composite ID format is `{lineId}_{date}` — recompute for follow-up update
+            const lineId =
+              entry.bcTimeSheetLineId || entry.id.replace(/_\d{4}-\d{2}-\d{2}$/, '');
+            targetEntryId = `${lineId}_${selectedDate}`;
+          }
+          // Only forward fields the user actually changed. If only the date
+          // changed, skipping updateEntry preserves any same-line merge that
+          // moveEntryDate produced — otherwise the form's hours would clobber
+          // the merged total on the target date.
+          const updates: Partial<TimeEntry> = {};
+          if (totalHours !== entry.hours) updates.hours = totalHours;
+          if (notes !== (entry.notes || '')) updates.notes = notes;
+          if (Object.keys(updates).length > 0) {
+            await updateEntry(targetEntryId, updates);
+          }
         }
       } else {
         // Create new entry
