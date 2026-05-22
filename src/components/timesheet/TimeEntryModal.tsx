@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { TrashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { Modal, Button, Input, Select } from '@/components/ui';
@@ -138,44 +138,51 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
     [customerOptions]
   );
 
-  // Reset form when modal opens or a different entry is loaded.
-  // Intentionally omits selectedProject/selectedTask/projects/findMatchingCustomerOption
-  // from deps: handleProjectChange/handleTaskChange call selectProject/selectTask,
-  // which would otherwise re-run this effect and clobber the user's new selection
-  // with the original entry values (#208).
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Reset form only when the modal opens or the entry/date being edited
+  // changes. The effect still depends on projects/findMatchingCustomerOption
+  // so a background refresh produces consistent state, but a resetKey guard
+  // skips the body on incidental dep changes (e.g. handleProjectChange firing
+  // selectProject mid-edit) so the user's in-progress selection is not
+  // clobbered with the original entry values (#208).
+  const lastResetKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    if (isOpen) {
-      if (entry) {
-        // Editing existing entry - entry.projectId is a job code (e.g., "PR00030"), not a GUID
-        const project = projects.find((p) => p.code === entry.projectId);
-        // Use matching customer option value to ensure Select works correctly
-        const matchedCustomer = findMatchingCustomerOption(project?.customerName);
-        setCustomerId(matchedCustomer);
-        // Use project.id (GUID) for form state since dropdown options use GUIDs
-        setProjectId(project?.id || '');
-        // Find task by code and use its id
-        const task = project?.tasks.find((t) => t.code === entry.taskId);
-        setTaskId(task?.id || '');
-        setSelectedDate(entry.date);
-        const h = Math.floor(entry.hours);
-        const m = Math.round((entry.hours - h) * 60);
-        setHours(h.toString());
-        setMinutes(m.toString());
-        setNotes(entry.notes || '');
-      } else {
-        // New entry - use matching customer option value
-        const matchedCustomer = findMatchingCustomerOption(selectedProject?.customerName);
-        setCustomerId(matchedCustomer);
-        setProjectId(selectedProject?.id || '');
-        setTaskId(selectedTask?.id || '');
-        setSelectedDate(date || '');
-        setHours('');
-        setMinutes('');
-        setNotes('');
-      }
+    const resetKey = isOpen ? `${entry?.id ?? 'new'}|${date ?? ''}` : null;
+    if (!isOpen) {
+      lastResetKeyRef.current = null;
+      return;
     }
-  }, [isOpen, entry, date]);
+    if (lastResetKeyRef.current === resetKey) return;
+    lastResetKeyRef.current = resetKey;
+
+    if (entry) {
+      // Editing existing entry - entry.projectId is a job code (e.g., "PR00030"), not a GUID
+      const project = projects.find((p) => p.code === entry.projectId);
+      // Use matching customer option value to ensure Select works correctly
+      const matchedCustomer = findMatchingCustomerOption(project?.customerName);
+      setCustomerId(matchedCustomer);
+      // Use project.id (GUID) for form state since dropdown options use GUIDs
+      setProjectId(project?.id || '');
+      // Find task by code and use its id
+      const task = project?.tasks.find((t) => t.code === entry.taskId);
+      setTaskId(task?.id || '');
+      setSelectedDate(entry.date);
+      const h = Math.floor(entry.hours);
+      const m = Math.round((entry.hours - h) * 60);
+      setHours(h.toString());
+      setMinutes(m.toString());
+      setNotes(entry.notes || '');
+    } else {
+      // New entry - use matching customer option value
+      const matchedCustomer = findMatchingCustomerOption(selectedProject?.customerName);
+      setCustomerId(matchedCustomer);
+      setProjectId(selectedProject?.id || '');
+      setTaskId(selectedTask?.id || '');
+      setSelectedDate(date || '');
+      setHours('');
+      setMinutes('');
+      setNotes('');
+    }
+  }, [isOpen, entry, date, projects, findMatchingCustomerOption, selectedProject, selectedTask]);
 
   const projectOptions: SelectOption[] = filteredProjects.map((p) => ({
     value: p.id,
@@ -246,9 +253,10 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
       if (entry) {
         // A BC timesheet line is bound to a single project+task, so a project
         // or task change can't be patched in place — replace the entry by
-        // deleting the original and creating a new one on the chosen date.
+        // creating the new one first and then deleting the original. Doing
+        // the create before the delete means a BC failure mid-flight leaves
+        // the original hours intact instead of silently losing them.
         if (jobNo !== entry.projectId || jobTaskNo !== entry.taskId) {
-          await deleteEntry(entry.id);
           await addEntry({
             projectId: jobNo,
             taskId: jobTaskNo,
@@ -259,6 +267,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
             isBillable: task?.isBillable ?? true,
             isRunning: false,
           });
+          await deleteEntry(entry.id);
         } else {
           // If date changed, move the entry first so subsequent updates target the new detail
           let targetEntryId = entry.id;
