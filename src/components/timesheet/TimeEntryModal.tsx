@@ -139,11 +139,11 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
   );
 
   // Reset form only when the modal opens or the entry/date being edited
-  // changes. The effect still depends on projects/findMatchingCustomerOption
-  // so a background refresh produces consistent state, but a resetKey guard
-  // skips the body on incidental dep changes (e.g. handleProjectChange firing
-  // selectProject mid-edit) so the user's in-progress selection is not
-  // clobbered with the original entry values (#208).
+  // changes. A resetKey ref gates the body to the open-transition and entry
+  // identity, so unrelated dep changes — selectProject/selectTask firing
+  // mid-edit, or a background projects refresh — don't clobber the user's
+  // in-progress selection with the original entry values (#208). Deps are
+  // still listed honestly for exhaustive-deps; the guard makes them no-ops.
   const lastResetKeyRef = useRef<string | null>(null);
   useEffect(() => {
     const resetKey = isOpen ? `${entry?.id ?? 'new'}|${date ?? ''}` : null;
@@ -267,7 +267,18 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
             isBillable: task?.isBillable ?? true,
             isRunning: false,
           });
-          await deleteEntry(entry.id);
+          // The add succeeded; if the delete fails the user briefly has both
+          // the old and new entries. Surface a specific message so they know
+          // exactly what to clean up rather than a generic save failure.
+          try {
+            await deleteEntry(entry.id);
+          } catch {
+            toast.error(
+              'New entry saved, but the original could not be removed. Please delete it manually.'
+            );
+            onClose();
+            return;
+          }
         } else {
           // If date changed, move the entry first so subsequent updates target the new detail
           let targetEntryId = entry.id;
