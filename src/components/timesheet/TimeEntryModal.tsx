@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { TrashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { Modal, Button, Input, Select } from '@/components/ui';
@@ -138,39 +138,51 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
     [customerOptions]
   );
 
-  // Reset form when modal opens
+  // Reset form only when the modal opens or the entry/date being edited
+  // changes. A resetKey ref gates the body to the open-transition and entry
+  // identity, so unrelated dep changes — selectProject/selectTask firing
+  // mid-edit, or a background projects refresh — don't clobber the user's
+  // in-progress selection with the original entry values (#208). Deps are
+  // still listed honestly for exhaustive-deps; the guard makes them no-ops.
+  const lastResetKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    if (isOpen) {
-      if (entry) {
-        // Editing existing entry - entry.projectId is a job code (e.g., "PR00030"), not a GUID
-        const project = projects.find((p) => p.code === entry.projectId);
-        // Use matching customer option value to ensure Select works correctly
-        const matchedCustomer = findMatchingCustomerOption(project?.customerName);
-        setCustomerId(matchedCustomer);
-        // Use project.id (GUID) for form state since dropdown options use GUIDs
-        setProjectId(project?.id || '');
-        // Find task by code and use its id
-        const task = project?.tasks.find((t) => t.code === entry.taskId);
-        setTaskId(task?.id || '');
-        setSelectedDate(entry.date);
-        const h = Math.floor(entry.hours);
-        const m = Math.round((entry.hours - h) * 60);
-        setHours(h.toString());
-        setMinutes(m.toString());
-        setNotes(entry.notes || '');
-      } else {
-        // New entry - use matching customer option value
-        const matchedCustomer = findMatchingCustomerOption(selectedProject?.customerName);
-        setCustomerId(matchedCustomer);
-        setProjectId(selectedProject?.id || '');
-        setTaskId(selectedTask?.id || '');
-        setSelectedDate(date || '');
-        setHours('');
-        setMinutes('');
-        setNotes('');
-      }
+    const resetKey = isOpen ? `${entry?.id ?? 'new'}|${date ?? ''}` : null;
+    if (!isOpen) {
+      lastResetKeyRef.current = null;
+      return;
     }
-  }, [isOpen, entry, date, selectedProject, selectedTask, projects, findMatchingCustomerOption]);
+    if (lastResetKeyRef.current === resetKey) return;
+    lastResetKeyRef.current = resetKey;
+
+    if (entry) {
+      // Editing existing entry - entry.projectId is a job code (e.g., "PR00030"), not a GUID
+      const project = projects.find((p) => p.code === entry.projectId);
+      // Use matching customer option value to ensure Select works correctly
+      const matchedCustomer = findMatchingCustomerOption(project?.customerName);
+      setCustomerId(matchedCustomer);
+      // Use project.id (GUID) for form state since dropdown options use GUIDs
+      setProjectId(project?.id || '');
+      // Find task by code and use its id
+      const task = project?.tasks.find((t) => t.code === entry.taskId);
+      setTaskId(task?.id || '');
+      setSelectedDate(entry.date);
+      const h = Math.floor(entry.hours);
+      const m = Math.round((entry.hours - h) * 60);
+      setHours(h.toString());
+      setMinutes(m.toString());
+      setNotes(entry.notes || '');
+    } else {
+      // New entry - use matching customer option value
+      const matchedCustomer = findMatchingCustomerOption(selectedProject?.customerName);
+      setCustomerId(matchedCustomer);
+      setProjectId(selectedProject?.id || '');
+      setTaskId(selectedTask?.id || '');
+      setSelectedDate(date || '');
+      setHours('');
+      setMinutes('');
+      setNotes('');
+    }
+  }, [isOpen, entry, date, projects, findMatchingCustomerOption, selectedProject, selectedTask]);
 
   const projectOptions: SelectOption[] = filteredProjects.map((p) => ({
     value: p.id,
@@ -239,23 +251,53 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
     setIsSubmitting(true);
     try {
       if (entry) {
-        // If date changed, move the entry first so subsequent updates target the new detail
-        let targetEntryId = entry.id;
-        if (selectedDate !== entry.date) {
-          await moveEntryDate(entry.id, selectedDate);
-          // Composite ID format is `{lineId}_{date}` — recompute for follow-up update
-          const lineId = entry.bcTimeSheetLineId || entry.id.replace(/_\d{4}-\d{2}-\d{2}$/, '');
-          targetEntryId = `${lineId}_${selectedDate}`;
-        }
-        // Only forward fields the user actually changed. If only the date
-        // changed, skipping updateEntry preserves any same-line merge that
-        // moveEntryDate produced — otherwise the form's hours would clobber
-        // the merged total on the target date.
-        const updates: Partial<TimeEntry> = {};
-        if (totalHours !== entry.hours) updates.hours = totalHours;
-        if (notes !== (entry.notes || '')) updates.notes = notes;
-        if (Object.keys(updates).length > 0) {
-          await updateEntry(targetEntryId, updates);
+        // A BC timesheet line is bound to a single project+task, so a project
+        // or task change can't be patched in place — replace the entry by
+        // creating the new one first and then deleting the original. Doing
+        // the create before the delete means a BC failure mid-flight leaves
+        // the original hours intact instead of silently losing them.
+        if (jobNo !== entry.projectId || jobTaskNo !== entry.taskId) {
+          await addEntry({
+            projectId: jobNo,
+            taskId: jobTaskNo,
+            userId,
+            date: selectedDate,
+            hours: totalHours,
+            notes,
+            isBillable: task?.isBillable ?? true,
+            isRunning: false,
+          });
+          // The add succeeded; if the delete fails the user briefly has both
+          // the old and new entries. Surface a specific message so they know
+          // exactly what to clean up rather than a generic save failure.
+          try {
+            await deleteEntry(entry.id);
+          } catch {
+            toast.error(
+              'New entry saved, but the original could not be removed. Please delete it manually.'
+            );
+            onClose();
+            return;
+          }
+        } else {
+          // If date changed, move the entry first so subsequent updates target the new detail
+          let targetEntryId = entry.id;
+          if (selectedDate !== entry.date) {
+            await moveEntryDate(entry.id, selectedDate);
+            // Composite ID format is `{lineId}_{date}` — recompute for follow-up update
+            const lineId = entry.bcTimeSheetLineId || entry.id.replace(/_\d{4}-\d{2}-\d{2}$/, '');
+            targetEntryId = `${lineId}_${selectedDate}`;
+          }
+          // Only forward fields the user actually changed. If only the date
+          // changed, skipping updateEntry preserves any same-line merge that
+          // moveEntryDate produced — otherwise the form's hours would clobber
+          // the merged total on the target date.
+          const updates: Partial<TimeEntry> = {};
+          if (totalHours !== entry.hours) updates.hours = totalHours;
+          if (notes !== (entry.notes || '')) updates.notes = notes;
+          if (Object.keys(updates).length > 0) {
+            await updateEntry(targetEntryId, updates);
+          }
         }
       } else {
         // Create new entry
