@@ -45,11 +45,7 @@ const VALID_TIMESHEET_STATUSES = ['Open', 'Submitted', 'Rejected', 'Approved', '
 // the typed unions. An unrecognized decode falls back to the original value
 // rather than being blindly cast, so unexpected BC enums aren't masked.
 const PLANNING_LINE_TYPES = ['Resource', 'Item', 'G/L Account'] as const;
-const PLANNING_LINE_LINE_TYPES = [
-  'Budget',
-  'Billable',
-  'Both Budget and Billable',
-] as const;
+const PLANNING_LINE_LINE_TYPES = ['Budget', 'Billable', 'Both Budget and Billable'] as const;
 
 // Narrow a decoded enum string to one of the allowed values, falling back to
 // the original (still-typed) value when the decode isn't a recognized member.
