@@ -20,7 +20,7 @@ import type {
   TimesheetDisplayStatus,
   PaginatedResponse,
 } from '@/types';
-import { getTimesheetDisplayStatus } from '@/utils';
+import { getTimesheetDisplayStatus, decodeBCEnum } from '@/utils';
 
 const BC_BASE_URL =
   process.env.NEXT_PUBLIC_BC_BASE_URL || 'https://api.businesscentral.dynamics.com/v2.0';
@@ -466,6 +466,18 @@ class BusinessCentralClient {
     return this.fetch<BCJobTask>(`/jobTasks(${jobTaskId})`);
   }
 
+  // Decode BC's OData enum encoding on planning-line fields so downstream code
+  // can compare against the plain values. BC serializes named enums like
+  // `type` "G/L Account" as "G_x002F_L_x0020_Account" and `lineType`
+  // "Both Budget and Billable" as "Both_x0020_Budget_x0020_and_x0020_Billable".
+  private normalizePlanningLines(lines: BCJobPlanningLine[]): BCJobPlanningLine[] {
+    return lines.map((line) => ({
+      ...line,
+      type: decodeBCEnum(line.type) as BCJobPlanningLine['type'],
+      lineType: decodeBCEnum(line.lineType) as BCJobPlanningLine['lineType'],
+    }));
+  }
+
   // Job Planning Lines - requires Thyme BC Extension v1.6.0+
   // Provides budget/planned hours data for projects
   async getJobPlanningLines(jobNumber: string): Promise<BCJobPlanningLine[]> {
@@ -502,7 +514,7 @@ class BusinessCentralClient {
       }
 
       const data = await response.json();
-      return data.value || [];
+      return this.normalizePlanningLines(data.value || []);
     } catch (error) {
       console.error('[BC API] Error fetching job planning lines:', error);
       return [];
@@ -592,7 +604,7 @@ class BusinessCentralClient {
       }
 
       const data = await response.json();
-      return data.value || [];
+      return this.normalizePlanningLines(data.value || []);
     } catch (error) {
       console.error('[BC API] Error fetching job planning lines for week:', error);
       return [];

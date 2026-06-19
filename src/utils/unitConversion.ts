@@ -125,6 +125,25 @@ export function formatHours(hours: number): string {
 }
 
 /**
+ * Decode BC's OData enum-value encoding.
+ *
+ * BC's OData JSON serializer URL-encodes any character that isn't valid in an
+ * identifier as `_xHHHH_`, where HHHH is the UTF-16 code unit in hex. So the
+ * planning-line type "G/L Account" arrives as "G_x002F_L_x0020_Account"
+ * (`/` → `_x002F_`, space → `_x0020_`), and the lineType "Both Budget and
+ * Billable" arrives as "Both_x0020_Budget_x0020_and_x0020_Billable".
+ *
+ * Decoding once at the data boundary lets all downstream comparisons use the
+ * plain, human-readable values (e.g. `type === 'G/L Account'`).
+ */
+export function decodeBCEnum(value: string | undefined): string {
+  if (!value) return '';
+  return value.replace(/_x([0-9A-Fa-f]{4})_/g, (_match, hex) =>
+    String.fromCharCode(parseInt(hex, 16))
+  );
+}
+
+/**
  * Whether a planning line's `lineType` counts as a Budget line.
  *
  * BC's OData layer URL-encodes spaces in named enum values, so

@@ -7,6 +7,7 @@ import {
   isResourceDayBased,
   isBudgetPlanningLine,
   sumPlannedHours,
+  decodeBCEnum,
 } from '@/utils/unitConversion';
 import type { BCJobPlanningLine, BCResourceUnitOfMeasure } from '@/types';
 
@@ -198,6 +199,30 @@ describe('unitConversion', () => {
       expect(isBudgetPlanningLine(undefined)).toBe(false);
       expect(isBudgetPlanningLine('Something Else')).toBe(false);
       expect(isBudgetPlanningLine('')).toBe(false);
+    });
+  });
+
+  describe('decodeBCEnum', () => {
+    it('decodes the "G/L Account" type encoded by BC as "G_x002F_L_x0020_Account"', () => {
+      // Confirmed against the live /jobPlanningLines response for PR00100 task 9999.
+      expect(decodeBCEnum('G_x002F_L_x0020_Account')).toBe('G/L Account');
+    });
+
+    it('decodes the "Both Budget and Billable" lineType', () => {
+      expect(decodeBCEnum('Both_x0020_Budget_x0020_and_x0020_Billable')).toBe(
+        'Both Budget and Billable'
+      );
+    });
+
+    it('leaves already-plain values unchanged', () => {
+      expect(decodeBCEnum('Resource')).toBe('Resource');
+      expect(decodeBCEnum('Budget')).toBe('Budget');
+      expect(decodeBCEnum('G/L Account')).toBe('G/L Account');
+    });
+
+    it('returns an empty string for undefined or empty input', () => {
+      expect(decodeBCEnum(undefined)).toBe('');
+      expect(decodeBCEnum('')).toBe('');
     });
   });
 
