@@ -20,7 +20,7 @@ import type {
   TimesheetDisplayStatus,
   PaginatedResponse,
 } from '@/types';
-import { getTimesheetDisplayStatus } from '@/utils';
+import { getTimesheetDisplayStatus, decodeBCEnum } from '@/utils';
 
 const BC_BASE_URL =
   process.env.NEXT_PUBLIC_BC_BASE_URL || 'https://api.businesscentral.dynamics.com/v2.0';
@@ -40,6 +40,18 @@ const THYME_API_VERSION = 'v1.0';
 
 // Valid TimeSheetStatus values for whitelist validation
 const VALID_TIMESHEET_STATUSES = ['Open', 'Submitted', 'Rejected', 'Approved', 'Posted'] as const;
+
+// Known planning-line enum values, used to narrow decoded BC strings back to
+// the typed unions. An unrecognized decode falls back to the original value
+// rather than being blindly cast, so unexpected BC enums aren't masked.
+const PLANNING_LINE_TYPES = ['Resource', 'Item', 'G/L Account'] as const;
+const PLANNING_LINE_LINE_TYPES = ['Budget', 'Billable', 'Both Budget and Billable'] as const;
+
+// Narrow a decoded enum string to one of the allowed values, falling back to
+// the original (still-typed) value when the decode isn't a recognized member.
+function narrowEnum<T extends string>(decoded: string, allowed: readonly T[], fallback: T): T {
+  return (allowed as readonly string[]).includes(decoded) ? (decoded as T) : fallback;
+}
 
 // Available environments to query
 const BC_ENVIRONMENTS: BCEnvironmentType[] = ['sandbox', 'production'];
@@ -466,6 +478,18 @@ class BusinessCentralClient {
     return this.fetch<BCJobTask>(`/jobTasks(${jobTaskId})`);
   }
 
+  // Decode BC's OData enum encoding on planning-line fields so downstream code
+  // can compare against the plain values. BC serializes named enums like
+  // `type` "G/L Account" as "G_x002F_L_x0020_Account" and `lineType`
+  // "Both Budget and Billable" as "Both_x0020_Budget_x0020_and_x0020_Billable".
+  private normalizePlanningLines(lines: BCJobPlanningLine[]): BCJobPlanningLine[] {
+    return lines.map((line) => ({
+      ...line,
+      type: narrowEnum(decodeBCEnum(line.type), PLANNING_LINE_TYPES, line.type),
+      lineType: narrowEnum(decodeBCEnum(line.lineType), PLANNING_LINE_LINE_TYPES, line.lineType),
+    }));
+  }
+
   // Job Planning Lines - requires Thyme BC Extension v1.6.0+
   // Provides budget/planned hours data for projects
   async getJobPlanningLines(jobNumber: string): Promise<BCJobPlanningLine[]> {
@@ -502,7 +526,7 @@ class BusinessCentralClient {
       }
 
       const data = await response.json();
-      return data.value || [];
+      return this.normalizePlanningLines(data.value || []);
     } catch (error) {
       console.error('[BC API] Error fetching job planning lines:', error);
       return [];
@@ -592,7 +616,7 @@ class BusinessCentralClient {
       }
 
       const data = await response.json();
-      return data.value || [];
+      return this.normalizePlanningLines(data.value || []);
     } catch (error) {
       console.error('[BC API] Error fetching job planning lines for week:', error);
       return [];

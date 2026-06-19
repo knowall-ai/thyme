@@ -125,6 +125,45 @@ export function formatHours(hours: number): string {
 }
 
 /**
+ * Decode BC's OData enum-value encoding.
+ *
+ * BC's OData JSON serializer URL-encodes any character that isn't valid in an
+ * identifier as `_xHHHH_`, where HHHH is the UTF-16 code unit in hex. So the
+ * planning-line type "G/L Account" arrives as "G_x002F_L_x0020_Account"
+ * (`/` → `_x002F_`, space → `_x0020_`), and the lineType "Both Budget and
+ * Billable" arrives as "Both_x0020_Budget_x0020_and_x0020_Billable".
+ *
+ * A literal underscore that would otherwise start an escape is itself encoded
+ * as `_x005F_`, so a source value that genuinely contains `_x0020_` arrives as
+ * `_x005F_x0020_`. We scan left-to-right and consume each `_xHHHH_` as a single
+ * unit, so the `_x005F_` decodes to a literal `_` and the following `x0020_` is
+ * left untouched (rather than being re-read as a space).
+ *
+ * Decoding once at the data boundary lets all downstream comparisons use the
+ * plain, human-readable values (e.g. `type === 'G/L Account'`).
+ */
+export function decodeBCEnum(value: string | undefined): string {
+  if (!value) return '';
+  // Sticky regex anchors each match at the current scan position, so we never
+  // re-scan already-decoded output or share a delimiter `_` between escapes.
+  const escape = /_x([0-9A-Fa-f]{4})_/y;
+  let result = '';
+  let i = 0;
+  while (i < value.length) {
+    escape.lastIndex = i;
+    const match = escape.exec(value);
+    if (match) {
+      result += String.fromCharCode(parseInt(match[1], 16));
+      i += match[0].length;
+    } else {
+      result += value[i];
+      i += 1;
+    }
+  }
+  return result;
+}
+
+/**
  * Whether a planning line's `lineType` counts as a Budget line.
  *
  * BC's OData layer URL-encodes spaces in named enum values, so
