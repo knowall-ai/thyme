@@ -220,6 +220,17 @@ describe('unitConversion', () => {
       expect(decodeBCEnum('G/L Account')).toBe('G/L Account');
     });
 
+    it('treats _x005F_ as a literal underscore and leaves the following escape intact', () => {
+      // A source value that genuinely contains "_x0020_" is encoded as
+      // "_x005F_x0020_"; it must decode back to the literal "_x0020_", not " ".
+      expect(decodeBCEnum('_x005F_x0020_')).toBe('_x0020_');
+    });
+
+    it('decodes adjacent escapes independently', () => {
+      // "//" → each "/" encoded separately as "_x002F_".
+      expect(decodeBCEnum('_x002F__x002F_')).toBe('//');
+    });
+
     it('returns an empty string for undefined or empty input', () => {
       expect(decodeBCEnum(undefined)).toBe('');
       expect(decodeBCEnum('')).toBe('');

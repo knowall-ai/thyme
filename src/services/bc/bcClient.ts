@@ -41,6 +41,22 @@ const THYME_API_VERSION = 'v1.0';
 // Valid TimeSheetStatus values for whitelist validation
 const VALID_TIMESHEET_STATUSES = ['Open', 'Submitted', 'Rejected', 'Approved', 'Posted'] as const;
 
+// Known planning-line enum values, used to narrow decoded BC strings back to
+// the typed unions. An unrecognized decode falls back to the original value
+// rather than being blindly cast, so unexpected BC enums aren't masked.
+const PLANNING_LINE_TYPES = ['Resource', 'Item', 'G/L Account'] as const;
+const PLANNING_LINE_LINE_TYPES = [
+  'Budget',
+  'Billable',
+  'Both Budget and Billable',
+] as const;
+
+// Narrow a decoded enum string to one of the allowed values, falling back to
+// the original (still-typed) value when the decode isn't a recognized member.
+function narrowEnum<T extends string>(decoded: string, allowed: readonly T[], fallback: T): T {
+  return (allowed as readonly string[]).includes(decoded) ? (decoded as T) : fallback;
+}
+
 // Available environments to query
 const BC_ENVIRONMENTS: BCEnvironmentType[] = ['sandbox', 'production'];
 
@@ -473,8 +489,8 @@ class BusinessCentralClient {
   private normalizePlanningLines(lines: BCJobPlanningLine[]): BCJobPlanningLine[] {
     return lines.map((line) => ({
       ...line,
-      type: decodeBCEnum(line.type) as BCJobPlanningLine['type'],
-      lineType: decodeBCEnum(line.lineType) as BCJobPlanningLine['lineType'],
+      type: narrowEnum(decodeBCEnum(line.type), PLANNING_LINE_TYPES, line.type),
+      lineType: narrowEnum(decodeBCEnum(line.lineType), PLANNING_LINE_LINE_TYPES, line.lineType),
     }));
   }
 
