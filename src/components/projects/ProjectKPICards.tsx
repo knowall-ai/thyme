@@ -324,7 +324,7 @@ export function ProjectKPICards() {
       >
         {financialKpis.map((kpi) => {
           const isHidden = hiddenCards.has(kpi.label);
-          const breakdown = 'breakdown' in kpi ? kpi.breakdown : null;
+          const breakdown = kpi.breakdown;
           return (
             <Card key={kpi.label} variant="bordered" className="relative p-4">
               <div className="absolute top-3 right-3">
