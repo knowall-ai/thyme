@@ -461,12 +461,12 @@ Thank you!`)}`}
             <div className="flex-1">
               <span className="text-dark-200 text-sm">
                 Viewing{' '}
-                <span className="font-medium text-white">{selectedTeammate.displayName}</span>
+                <span className="font-medium text-white">
+                  {selectedTeammate.name || selectedTeammate.displayName || selectedTeammate.number}
+                </span>
                 &apos;s timesheet
               </span>
-              {selectedTeammate.jobTitle && (
-                <span className="text-dark-400 ml-2 text-xs">({selectedTeammate.jobTitle})</span>
-              )}
+              <span className="text-dark-400 ml-2 text-xs">({selectedTeammate.number})</span>
             </div>
             <span className="bg-thyme-600/20 text-thyme-400 rounded px-2 py-1 text-xs">
               Read-only
@@ -640,7 +640,11 @@ Thank you!`)}`}
               {isViewingTeammate ? (
                 <>
                   <p className="text-dark-300 mb-2">
-                    No time entries found for {selectedTeammate.displayName} this week.
+                    No time entries found for{' '}
+                    {selectedTeammate.name ||
+                      selectedTeammate.displayName ||
+                      selectedTeammate.number}{' '}
+                    this week.
                   </p>
                   <p className="text-dark-500 text-sm">
                     Time entries will appear here once added to their timesheet.

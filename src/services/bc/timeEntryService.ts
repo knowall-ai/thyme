@@ -5,7 +5,7 @@ import type {
   BCTimeSheet,
   BCTimeSheetLine,
   BCTimeSheetDetail,
-  BCEmployee,
+  BCResource,
 } from '@/types';
 import { format, startOfWeek } from 'date-fns';
 
@@ -659,17 +659,12 @@ export const timeEntryService = {
 
   /**
    * Get entries for a teammate from Business Central.
+   * The teammate is a BC Resource — we already have its number, so we can fetch
+   * the timesheet directly without an email→resource lookup.
    */
-  async getTeammateEntries(weekStart: Date, teammate: BCEmployee): Promise<TimeEntry[]> {
+  async getTeammateEntries(weekStart: Date, teammate: BCResource): Promise<TimeEntry[]> {
     try {
-      // Get resource by employee email
-      const resource = teammate.email ? await bcClient.getResourceByEmail(teammate.email) : null;
-
-      if (!resource) {
-        return [];
-      }
-
-      const timesheet = await this.getTimesheet(resource.number, weekStart);
+      const timesheet = await this.getTimesheet(teammate.number, weekStart);
       const [lines, details] = await Promise.all([
         bcClient.getTimeSheetLines(timesheet.number),
         bcClient.getAllTimeSheetDetails(timesheet.number),
@@ -677,13 +672,15 @@ export const timeEntryService = {
 
       return bcDataToTimeEntries(lines, details, timesheet, teammate.id);
     } catch (error) {
-      // Log error for debugging but don't expose to user
-      // This can fail for various reasons: no timesheet, no resource, network issues
+      // Common case: teammate has no timesheet for this week — return empty.
+      if (error instanceof NoTimesheetError) {
+        return [];
+      }
       if (process.env.NODE_ENV === 'development') {
         console.error('Failed to get teammate entries:', {
           weekStart,
           teammateId: teammate.id,
-          teammateEmail: teammate.email,
+          teammateNumber: teammate.number,
           error,
         });
       }

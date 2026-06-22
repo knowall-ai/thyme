@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { TimeEntry, WeekData, BCEmployee, BCTimeSheet, TimesheetDisplayStatus } from '@/types';
+import type { TimeEntry, WeekData, BCResource, BCTimeSheet, TimesheetDisplayStatus } from '@/types';
 import {
   timeEntryService,
   NoResourceError,
@@ -26,7 +26,7 @@ interface TimeEntriesStore {
 
   // Entry operations
   fetchWeekEntries: (userId: string, weekStart?: Date) => Promise<void>;
-  fetchTeammateEntries: (teammate: BCEmployee, weekStart?: Date) => Promise<void>;
+  fetchTeammateEntries: (teammate: BCResource, weekStart?: Date) => Promise<void>;
   addEntry: (
     entry: Omit<
       TimeEntry,
@@ -137,7 +137,7 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
     }
   },
 
-  fetchTeammateEntries: async (teammate: BCEmployee, weekStart?: Date) => {
+  fetchTeammateEntries: async (teammate: BCResource, weekStart?: Date) => {
     const week = weekStart || get().currentWeekStart;
     set({ isLoading: true, error: null, currentWeekStart: week });
 
