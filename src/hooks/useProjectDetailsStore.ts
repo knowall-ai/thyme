@@ -39,7 +39,7 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
   error: null,
   chartView: 'weekly',
   tableGroupBy: 'task',
-  showCosts: false, // Internal costs hidden by default
+  showCosts: true, // Internal costs visible by default (per-widget Eye toggles hide individually); also gates the Spend vs Budget chart and PDF export
   showPrices: true, // Customer-facing prices always visible by default
 
   fetchProjectDetails: async (projectNumber: string) => {
