@@ -210,30 +210,6 @@ export function ProjectHeader() {
 
         {/* Action buttons */}
         <div className="flex items-center gap-2">
-          {/* Cost visibility toggle - hidden in print */}
-          <button
-            onClick={() => setShowCosts(!showCosts)}
-            className={cn(
-              'flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors print:hidden',
-              showCosts
-                ? 'border-amber-500/50 bg-amber-900/20 text-amber-400 hover:bg-amber-900/30'
-                : 'border-dark-600 bg-dark-700 text-gray-400 hover:border-gray-500 hover:text-gray-300'
-            )}
-            title={showCosts ? 'Hide internal costs' : 'Show internal costs'}
-          >
-            {showCosts ? (
-              <>
-                <EyeIcon className="h-4 w-4" />
-                <span className="hidden sm:inline">Costs visible</span>
-              </>
-            ) : (
-              <>
-                <EyeSlashIcon className="h-4 w-4" />
-                <span className="hidden sm:inline">Costs hidden</span>
-              </>
-            )}
-          </button>
-
           {/* PDF Export dropdown - hidden in print */}
           <div className="relative print:hidden" ref={exportMenuRef}>
             <button
