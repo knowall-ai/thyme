@@ -87,8 +87,18 @@ export function WeeklyTimesheet() {
   const handleCreateTimesheet = async () => {
     setIsCreatingTimesheet(true);
     try {
-      await createTimesheet(userEmail);
-      toast.success('Timesheet created');
+      await createTimesheet();
+      toast.success(
+        selectedTeammate
+          ? `Timesheet created for ${selectedTeammate.displayName}`
+          : 'Timesheet created'
+      );
+      // Re-read whichever timesheet is on screen so the new one becomes current
+      if (selectedTeammate) {
+        await fetchTeammateEntries(selectedTeammate, currentWeekStart);
+      } else {
+        await fetchWeekEntries(userEmail, currentWeekStart);
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to create timesheet');
     } finally {
@@ -370,7 +380,7 @@ Thank you!`)}`}
   }
 
   // No timesheet exists state
-  if (noTimesheetExists && !isViewingTeammate) {
+  if (noTimesheetExists) {
     const weekStartStr = format(currentWeekStart, 'MMM d');
     const weekEndStr = format(
       new Date(currentWeekStart.getTime() + 6 * 24 * 60 * 60 * 1000),
@@ -380,7 +390,8 @@ Thank you!`)}`}
 
     return (
       <div className="space-y-6">
-        {/* Header */}
+        {/* Header - the teammate selector lives in the page header above, and stays
+            usable here so a missing timesheet can be created for a colleague */}
         <div className="flex items-center justify-between">
           <WeekNavigation
             currentWeekStart={currentWeekStart}
@@ -397,14 +408,19 @@ Thank you!`)}`}
             <ExclamationTriangleIcon className="mb-4 h-12 w-12 text-yellow-500" />
             <h3 className="mb-2 text-lg font-semibold text-white">No Timesheet Available</h3>
             <p className="text-dark-300 mb-4 max-w-md">
-              There is no timesheet created for the week of {weekStartStr} - {weekEndStr}. A
-              timesheet must be created before you can enter time.
+              There is no timesheet created for{' '}
+              {selectedTeammate ? selectedTeammate.displayName : 'you'} for the week of{' '}
+              {weekStartStr} - {weekEndStr}. A timesheet must be created before time can be entered.
             </p>
 
             {missingTimesheetResourceNo && (
               <div className="mb-6 flex flex-col items-center">
                 <Button onClick={handleCreateTimesheet} disabled={isCreatingTimesheet}>
-                  {isCreatingTimesheet ? 'Creating...' : 'Create timesheet'}
+                  {isCreatingTimesheet
+                    ? 'Creating...'
+                    : selectedTeammate
+                      ? `Create timesheet for ${selectedTeammate.displayName}`
+                      : 'Create timesheet'}
                 </Button>
                 <p className="text-dark-400 mt-2 text-xs">
                   Creates it in Business Central for resource {missingTimesheetResourceNo}

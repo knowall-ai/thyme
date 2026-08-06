@@ -1,12 +1,6 @@
 import toast from 'react-hot-toast';
 import { bcClient } from './bcClient';
-import type {
-  TimeEntry,
-  BCTimeSheet,
-  BCTimeSheetLine,
-  BCTimeSheetDetail,
-  BCEmployee,
-} from '@/types';
+import type { TimeEntry, BCTimeSheet, BCTimeSheetLine, BCTimeSheetDetail, Teammate } from '@/types';
 import { format, startOfWeek } from 'date-fns';
 
 // Error thrown when no resource record exists in BC for the user
@@ -663,16 +657,9 @@ export const timeEntryService = {
   /**
    * Get entries for a teammate from Business Central.
    */
-  async getTeammateEntries(weekStart: Date, teammate: BCEmployee): Promise<TimeEntry[]> {
+  async getTeammateEntries(weekStart: Date, teammate: Teammate): Promise<TimeEntry[]> {
     try {
-      // Get resource by employee email
-      const resource = teammate.email ? await bcClient.getResourceByEmail(teammate.email) : null;
-
-      if (!resource) {
-        return [];
-      }
-
-      const timesheet = await this.getTimesheet(resource.number, weekStart);
+      const timesheet = await this.getTimesheet(teammate.resourceNo, weekStart);
       const [lines, details] = await Promise.all([
         bcClient.getTimeSheetLines(timesheet.number),
         bcClient.getAllTimeSheetDetails(timesheet.number),
@@ -680,13 +667,18 @@ export const timeEntryService = {
 
       return bcDataToTimeEntries(lines, details, timesheet, teammate.id);
     } catch (error) {
+      // A missing timesheet is actionable - the caller can offer to create one - so
+      // it travels up rather than being flattened into an empty week like the rest.
+      if (error instanceof NoTimesheetError) {
+        throw error;
+      }
       // Log error for debugging but don't expose to user
-      // This can fail for various reasons: no timesheet, no resource, network issues
+      // This can fail for various reasons: no resource, network issues
       if (process.env.NODE_ENV === 'development') {
         console.error('Failed to get teammate entries:', {
           weekStart,
           teammateId: teammate.id,
-          teammateEmail: teammate.email,
+          teammateResourceNo: teammate.resourceNo,
           error,
         });
       }
