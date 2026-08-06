@@ -9,6 +9,7 @@ import {
   bcClient,
 } from '@/services/bc';
 import { getWeekStart, getWeekEnd } from '@/utils';
+import { format } from 'date-fns';
 
 interface TimeEntriesStore {
   entries: TimeEntry[];
@@ -23,6 +24,8 @@ interface TimeEntriesStore {
   noResourceExists: boolean;
   extensionNotInstalled: boolean;
   userEmail: string | null;
+  // Resource the missing timesheet would belong to, so it can be created from the UI
+  missingTimesheetResourceNo: string | null;
 
   // Entry operations
   fetchWeekEntries: (userId: string, weekStart?: Date) => Promise<void>;
@@ -45,6 +48,7 @@ interface TimeEntriesStore {
   goToDate: (date: Date) => void;
 
   // Timesheet operations
+  createTimesheet: (userId: string) => Promise<void>;
   submitTimesheet: () => Promise<void>;
   reopenTimesheet: () => Promise<void>;
   isTimesheetEditable: () => boolean;
@@ -69,6 +73,7 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
   noResourceExists: false,
   extensionNotInstalled: false,
   userEmail: null,
+  missingTimesheetResourceNo: null,
 
   fetchWeekEntries: async (userId: string, weekStart?: Date) => {
     const week = weekStart || get().currentWeekStart;
@@ -127,6 +132,7 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
           noTimesheetExists: true,
           noResourceExists: false,
           extensionNotInstalled: false,
+          missingTimesheetResourceNo: error.resourceNo,
           isLoading: false,
           error: error.message,
         });
@@ -287,6 +293,26 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
 
   goToDate: (date: Date) => {
     set({ currentWeekStart: getWeekStart(date) });
+  },
+
+  createTimesheet: async (userId: string) => {
+    const resourceNo = get().missingTimesheetResourceNo;
+    if (!resourceNo) {
+      throw new Error('No resource is available to create a timesheet for');
+    }
+
+    const week = get().currentWeekStart;
+    try {
+      set({ isLoading: true, error: null });
+      await bcClient.createTimeSheet(resourceNo, format(week, 'yyyy-MM-dd'));
+      set({ missingTimesheetResourceNo: null });
+      // Re-read the week so the newly created timesheet becomes the current one
+      await get().fetchWeekEntries(userId, week);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to create timesheet';
+      set({ error: message, isLoading: false });
+      throw error;
+    }
   },
 
   submitTimesheet: async () => {
