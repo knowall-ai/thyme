@@ -54,6 +54,8 @@ export function WeeklyTimesheet() {
     noTimesheetExists,
     noResourceExists,
     extensionNotInstalled,
+    missingTimesheetResourceNo,
+    createTimesheet,
     fetchWeekEntries,
     fetchTeammateEntries,
     navigateToWeek,
@@ -80,6 +82,19 @@ export function WeeklyTimesheet() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCreatingTimesheet, setIsCreatingTimesheet] = useState(false);
+
+  const handleCreateTimesheet = async () => {
+    setIsCreatingTimesheet(true);
+    try {
+      await createTimesheet(userEmail);
+      toast.success('Timesheet created');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create timesheet');
+    } finally {
+      setIsCreatingTimesheet(false);
+    }
+  };
 
   // Pick a random quote on mount
   const quote = useMemo(() => getRandomQuote(), []);
@@ -386,9 +401,20 @@ Thank you!`)}`}
               timesheet must be created before you can enter time.
             </p>
 
+            {missingTimesheetResourceNo && (
+              <div className="mb-6 flex flex-col items-center">
+                <Button onClick={handleCreateTimesheet} disabled={isCreatingTimesheet}>
+                  {isCreatingTimesheet ? 'Creating...' : 'Create timesheet'}
+                </Button>
+                <p className="text-dark-400 mt-2 text-xs">
+                  Creates it in Business Central for resource {missingTimesheetResourceNo}
+                </p>
+              </div>
+            )}
+
             <div className="max-w-lg text-left">
               <p className="text-dark-300 mb-2 text-sm font-medium">
-                To resolve this, ask your timesheet manager to:
+                Or create it manually in Business Central:
               </p>
               <ol className="text-dark-400 list-inside list-decimal space-y-2 text-sm">
                 <li>

@@ -35,11 +35,14 @@ export class ExtensionNotInstalledError extends Error {
 
 // Error thrown when no timesheet exists for the user/week
 export class NoTimesheetError extends Error {
+  resourceNo: string;
+
   constructor(resourceNo: string, weekStart: Date) {
     super(
       `No timesheet exists for resource ${resourceNo} for week starting ${format(weekStart, 'yyyy-MM-dd')}. Please contact your manager to create one.`
     );
     this.name = 'NoTimesheetError';
+    this.resourceNo = resourceNo;
   }
 }
 
