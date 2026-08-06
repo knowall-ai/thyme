@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { TimeEntry, WeekData, BCEmployee, BCTimeSheet, TimesheetDisplayStatus } from '@/types';
+import type { TimeEntry, WeekData, Teammate, BCTimeSheet, TimesheetDisplayStatus } from '@/types';
 import {
   timeEntryService,
   NoResourceError,
@@ -9,6 +9,7 @@ import {
   bcClient,
 } from '@/services/bc';
 import { getWeekStart, getWeekEnd } from '@/utils';
+import { format } from 'date-fns';
 
 interface TimeEntriesStore {
   entries: TimeEntry[];
@@ -23,10 +24,12 @@ interface TimeEntriesStore {
   noResourceExists: boolean;
   extensionNotInstalled: boolean;
   userEmail: string | null;
+  // Resource the missing timesheet would belong to, so it can be created from the UI
+  missingTimesheetResourceNo: string | null;
 
   // Entry operations
   fetchWeekEntries: (userId: string, weekStart?: Date) => Promise<void>;
-  fetchTeammateEntries: (teammate: BCEmployee, weekStart?: Date) => Promise<void>;
+  fetchTeammateEntries: (teammate: Teammate, weekStart?: Date) => Promise<void>;
   addEntry: (
     entry: Omit<
       TimeEntry,
@@ -45,6 +48,7 @@ interface TimeEntriesStore {
   goToDate: (date: Date) => void;
 
   // Timesheet operations
+  createTimesheet: () => Promise<void>;
   submitTimesheet: () => Promise<void>;
   reopenTimesheet: () => Promise<void>;
   isTimesheetEditable: () => boolean;
@@ -69,6 +73,7 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
   noResourceExists: false,
   extensionNotInstalled: false,
   userEmail: null,
+  missingTimesheetResourceNo: null,
 
   fetchWeekEntries: async (userId: string, weekStart?: Date) => {
     const week = weekStart || get().currentWeekStart;
@@ -127,6 +132,7 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
           noTimesheetExists: true,
           noResourceExists: false,
           extensionNotInstalled: false,
+          missingTimesheetResourceNo: error.resourceNo,
           isLoading: false,
           error: error.message,
         });
@@ -137,14 +143,30 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
     }
   },
 
-  fetchTeammateEntries: async (teammate: BCEmployee, weekStart?: Date) => {
+  fetchTeammateEntries: async (teammate: Teammate, weekStart?: Date) => {
     const week = weekStart || get().currentWeekStart;
-    set({ isLoading: true, error: null, currentWeekStart: week });
+    set({
+      isLoading: true,
+      error: null,
+      currentWeekStart: week,
+      noTimesheetExists: false,
+      missingTimesheetResourceNo: null,
+    });
 
     try {
       const entries = await timeEntryService.getTeammateEntries(week, teammate);
       set({ entries, isLoading: false });
     } catch (error) {
+      if (error instanceof NoTimesheetError) {
+        set({
+          entries: [],
+          noTimesheetExists: true,
+          missingTimesheetResourceNo: error.resourceNo,
+          isLoading: false,
+          error: error.message,
+        });
+        return;
+      }
       const message = error instanceof Error ? error.message : 'Failed to fetch teammate entries';
       set({ error: message, isLoading: false });
     }
@@ -287,6 +309,26 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
 
   goToDate: (date: Date) => {
     set({ currentWeekStart: getWeekStart(date) });
+  },
+
+  // Creates the timesheet only. The caller re-reads the week afterwards, since whether
+  // that means your own timesheet or a teammate's depends on what is being viewed.
+  createTimesheet: async () => {
+    const resourceNo = get().missingTimesheetResourceNo;
+    if (!resourceNo) {
+      throw new Error('No resource is available to create a timesheet for');
+    }
+
+    const week = get().currentWeekStart;
+    try {
+      set({ isLoading: true, error: null });
+      await bcClient.createTimeSheet(resourceNo, format(week, 'yyyy-MM-dd'));
+      set({ missingTimesheetResourceNo: null, noTimesheetExists: false });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to create timesheet';
+      set({ error: message, isLoading: false });
+      throw error;
+    }
   },
 
   submitTimesheet: async () => {

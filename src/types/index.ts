@@ -88,6 +88,22 @@ export interface BCEmployee {
   lastModifiedDateTime?: string;
 }
 
+/**
+ * A person whose timesheet can be viewed. Sourced from BC resources rather than
+ * employees, because timesheets are keyed on the resource - a company can have
+ * resources set up for time tracking and no employee records at all.
+ */
+export interface Teammate {
+  id: string;
+  resourceNo: string;
+  displayName: string;
+  givenName?: string;
+  surname?: string;
+  jobTitle?: string;
+  email?: string;
+  isCurrentUser?: boolean;
+}
+
 export interface BCJobTask {
   id: string;
   jobNo: string;
