@@ -13,6 +13,15 @@ const HOLD_REPEAT_INTERVAL = 100; // Speed of repeat
 
 type ChartView = 'weekly' | 'progress';
 
+// Units for the Spend vs Budget chart. Effort (hours/days) shows no money, so the chart
+// can go in a PDF for a customer without exposing internal costs.
+type SpendUnit = 'hours' | 'days' | 'cost';
+const SPEND_UNITS: { value: SpendUnit; label: string; title: string }[] = [
+  { value: 'hours', label: 'Hours', title: 'Effort in hours against Time Budgeted' },
+  { value: 'days', label: 'Days', title: 'Effort in days against Time Budgeted' },
+  { value: 'cost', label: '£', title: 'Internal cost against Budget Cost' },
+];
+
 const WEEKS_TO_SHOW = 24;
 
 // Map currency codes to symbols for compact chart labels
@@ -62,7 +71,11 @@ export function ProjectCharts() {
   // Follow the Budget Cost / Actual Cost KPI card Eye toggles
   const showBudgetCost = !hiddenKpis.includes('Budget Cost');
   const showActualCost = !hiddenKpis.includes('Actual Cost');
+  // ...and the Time Budgeted / Time Spent eyes in effort (hours/days) mode
+  const showTimeBudgeted = !hiddenKpis.includes('Time Budgeted');
+  const showTimeSpent = !hiddenKpis.includes('Time Spent');
   const [chartView, setChartView] = useState<ChartView>('weekly');
+  const [spendUnit, setSpendUnit] = useState<SpendUnit>('cost');
   // Weeks back from the current week (negative = scrolled into the future)
   const [offsetWeeks, setOffsetWeeks] = useState(0);
 
@@ -177,6 +190,31 @@ export function ProjectCharts() {
           >
             Spend vs Budget
           </button>
+          {/* Unit toggle for Spend vs Budget: effort (no money) or internal cost */}
+          {chartView === 'progress' && (
+            <div
+              className="border-dark-600 ml-2 flex overflow-hidden rounded-lg border"
+              role="group"
+              aria-label="Spend vs Budget units"
+            >
+              {SPEND_UNITS.map((u) => (
+                <button
+                  key={u.value}
+                  onClick={() => setSpendUnit(u.value)}
+                  title={u.title}
+                  aria-pressed={spendUnit === u.value}
+                  className={cn(
+                    'px-3 py-2 text-sm font-medium transition-colors',
+                    spendUnit === u.value
+                      ? 'bg-dark-500 text-white'
+                      : 'bg-dark-700 text-gray-400 hover:text-white'
+                  )}
+                >
+                  {u.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         {/* Navigation - hidden in print */}
         <div className="flex items-center gap-1 print:hidden">
@@ -235,7 +273,9 @@ export function ProjectCharts() {
         <WeeklyBarChart data={weeklyData} offsetWeeks={offsetWeeks} />
       </div>
       <div className={cn('print:mt-6', chartView !== 'progress' && 'hidden print:block')}>
-        <PrintChartTitle>Spend vs Budget</PrintChartTitle>
+        <PrintChartTitle>
+          {spendUnit === 'cost' ? 'Spend vs Budget' : `Effort vs Budget (${spendUnit})`}
+        </PrintChartTitle>
         <ProgressLineChart
           data={weeklyData}
           offsetWeeks={offsetWeeks}
@@ -249,6 +289,10 @@ export function ProjectCharts() {
           unpostedCost={analytics?.unpostedCost ?? 0}
           showBudgetCost={showBudgetCost}
           showActualCost={showActualCost}
+          showTimeBudgeted={showTimeBudgeted}
+          showTimeSpent={showTimeSpent}
+          unit={spendUnit}
+          hoursPerDay={analytics?.hoursPerDay ?? 8}
           currencyCode={currencyCode}
         />
       </div>
@@ -715,6 +759,10 @@ function ProgressLineChart({
   unpostedCost,
   showBudgetCost,
   showActualCost,
+  showTimeBudgeted,
+  showTimeSpent,
+  unit,
+  hoursPerDay,
   currencyCode,
 }: {
   data: WeeklyDataPoint[];
@@ -727,10 +775,23 @@ function ProgressLineChart({
   unpostedCost: number;
   showBudgetCost: boolean;
   showActualCost: boolean;
+  showTimeBudgeted: boolean;
+  showTimeSpent: boolean;
+  unit: SpendUnit;
+  hoursPerDay: number;
   currencyCode: string;
 }) {
-  // Y-axis £ labels plus the spend line would reveal both figures, so only label it when both are visible
-  const showCostAxis = showBudgetCost && showActualCost;
+  const isCost = unit === 'cost';
+  // Which KPI card eyes govern the chart: cost cards for £, time cards for effort
+  const showBudget = isCost ? showBudgetCost : showTimeBudgeted;
+  const showActual = isCost ? showActualCost : showTimeSpent;
+  // Y-axis labels plus the spent line would reveal both figures, so only label it when both are visible
+  const showValueAxis = showBudget && showActual;
+  const formatValue = (value: number) => {
+    if (unit === 'cost') return formatCurrencyShort(value, currencyCode);
+    const rounded = value >= 100 ? Math.round(value) : Math.round(value * 10) / 10;
+    return `${rounded.toLocaleString('en-GB')}${unit === 'hours' ? 'h' : 'd'}`;
+  };
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const displayData = useMemo(
@@ -742,7 +803,7 @@ function ProgressLineChart({
   // hours (at posted rates, or budget rates when nothing is posted yet), so the line
   // rises as timesheets are entered rather than only once they're posted to BC.
   // Before any time is spent, fall back to the budget resource rate for the forecast.
-  const avgCostRate = useMemo(() => {
+  const costRate = useMemo(() => {
     const spentCost = actualCost + unpostedCost;
     if (spentCost > 0 && hoursSpent > 0) return spentCost / hoursSpent;
     if (budgetCostBreakdown.resource > 0 && hoursPlanned > 0) {
@@ -750,6 +811,11 @@ function ProgressLineChart({
     }
     return null;
   }, [actualCost, unpostedCost, hoursSpent, budgetCostBreakdown.resource, hoursPlanned]);
+  // Value per hour in the chosen unit; the rest of the chart works in that unit
+  const effortRate = unit === 'hours' ? 1 : 1 / (hoursPerDay || 8);
+  const avgCostRate = isCost ? costRate : effortRate;
+  // Budget in the chosen unit: Budget Cost (£) or Time Budgeted (hours/days)
+  const budgetValue = isCost ? budgetCost : hoursPlanned * effortRate;
 
   // Forecast cumulative hours for future weeks: hours spent to date plus the planned
   // hours (from Job Planning Lines, i.e. the Plan page) of each week after this one
@@ -767,7 +833,7 @@ function ProgressLineChart({
     return { forecastHoursByWeek: byWeek, forecastHoursAtCompletion: running };
   }, [data]);
   // The forecast is spend too, so it's hidden along with Actual Cost
-  const hasForecast = showActualCost && avgCostRate !== null && forecastHoursByWeek.size > 0;
+  const hasForecast = showActual && avgCostRate !== null && forecastHoursByWeek.size > 0;
   const forecastAtCompletion = hasForecast ? forecastHoursAtCompletion * avgCostRate : 0;
 
   // Convert cumulative hours to cumulative cost for display. Future weeks get a
@@ -781,11 +847,10 @@ function ProgressLineChart({
     let lastForecastHours: number | null = null;
     for (const d of displayData) {
       const isFuture = d.week > currentWeek;
-      const cumulativeCost =
-        showActualCost && avgCostRate !== null ? d.cumulative * avgCostRate : 0;
+      const cumulativeCost = showActual && avgCostRate !== null ? d.cumulative * avgCostRate : 0;
       let forecastHours: number | null = null;
       let forecastCost: number | null = null;
-      if (showActualCost && avgCostRate !== null && isFuture) {
+      if (showActual && avgCostRate !== null && isFuture) {
         // Weeks with no planning lines carry the latest earlier forecast forward, including
         // from weeks before the visible window (ISO week strings sort correctly as text)
         let carried: number | null = forecastHoursByWeek.get(d.week) ?? lastForecastHours;
@@ -802,7 +867,7 @@ function ProgressLineChart({
       points.push({ ...d, isFuture, cumulativeCost, forecastHours, forecastCost });
     }
     return points;
-  }, [displayData, avgCostRate, forecastHoursByWeek, showActualCost]);
+  }, [displayData, avgCostRate, forecastHoursByWeek, showActual]);
 
   // Height used for a point: forecast for future weeks, spent otherwise
   const pointCost = (d: (typeof displayDataWithCost)[number]) =>
@@ -818,10 +883,11 @@ function ProgressLineChart({
     // Budget-only while Actual Cost is hidden, so the scale can't hint at the hidden spend
     // (forecastAtCompletion is already 0 then)
     const maxCumulativeCost =
-      showActualCost && avgCostRate !== null ? maxCumulativeHours * avgCostRate : 0;
-    const max = Math.max(maxCumulativeCost, forecastAtCompletion, budgetCost * 1.1); // Add 10% buffer above budget
-    return getNiceScale(max, 500);
-  }, [data, avgCostRate, forecastAtCompletion, budgetCost, showActualCost]);
+      showActual && avgCostRate !== null ? maxCumulativeHours * avgCostRate : 0;
+    const max = Math.max(maxCumulativeCost, forecastAtCompletion, budgetValue * 1.1); // Add 10% buffer above budget
+    // Minimum axis height: £500, 5 hours or 1 day
+    return getNiceScale(max, isCost ? 500 : unit === 'hours' ? 5 : 1);
+  }, [data, avgCostRate, forecastAtCompletion, budgetValue, showActual, isCost, unit]);
 
   const currentWeekIndex = displayDataWithCost.findIndex((d) => d.isCurrentWeek);
 
@@ -831,17 +897,15 @@ function ProgressLineChart({
     maxCost > 0
       ? (1 - (budgetCostBreakdown.resource + budgetCostBreakdown.item) / maxCost) * 100
       : 100;
-  const totalBudgetY = maxCost > 0 ? (1 - budgetCost / maxCost) * 100 : 0;
+  const totalBudgetY = maxCost > 0 ? (1 - budgetValue / maxCost) * 100 : 0;
 
   return (
     <div>
       <div className="flex h-48">
-        {/* Y-axis - £ values */}
+        {/* Y-axis - values in the chosen unit */}
         <div className="flex w-12 flex-col justify-between pr-2 text-right text-xs text-gray-500">
           {yAxisLabels.map((label) => (
-            <span key={label}>
-              {showCostAxis ? formatCurrencyShort(label, currencyCode) : '•••'}
-            </span>
+            <span key={label}>{showValueAxis ? formatValue(label) : '•••'}</span>
           ))}
         </div>
 
@@ -854,18 +918,18 @@ function ProgressLineChart({
             ))}
           </div>
 
-          {/* Budget breakdown bands (stacked from bottom) */}
-          {showBudgetCost && budgetCost > 0 && (
+          {/* Budget breakdown bands (£ only) and total budget line */}
+          {showBudget && budgetValue > 0 && (
             <>
               {/* Resource budget band (bottom) */}
-              {budgetCostBreakdown.resource > 0 && (
+              {isCost && budgetCostBreakdown.resource > 0 && (
                 <div
                   className="absolute right-0 bottom-0 left-0 bg-blue-500/10"
                   style={{ height: `${100 - resourceBudgetY}%` }}
                 />
               )}
               {/* Item budget band (middle) */}
-              {budgetCostBreakdown.item > 0 && (
+              {isCost && budgetCostBreakdown.item > 0 && (
                 <div
                   className="absolute right-0 left-0 bg-purple-500/10"
                   style={{
@@ -875,7 +939,7 @@ function ProgressLineChart({
                 />
               )}
               {/* G/L Account budget band (top) */}
-              {budgetCostBreakdown.glAccount > 0 && (
+              {isCost && budgetCostBreakdown.glAccount > 0 && (
                 <div
                   className="absolute right-0 left-0 bg-amber-500/10"
                   style={{
@@ -891,7 +955,7 @@ function ProgressLineChart({
                 style={{ top: `${totalBudgetY}%` }}
               >
                 <span className="absolute -top-5 right-0 text-xs text-amber-400">
-                  Budget: {formatCurrencyShort(budgetCost, currencyCode)}
+                  Budget: {formatValue(budgetValue)}
                 </span>
               </div>
             </>
@@ -915,7 +979,7 @@ function ProgressLineChart({
             {/* Area fill - spent to date only */}
             <path
               d={(() => {
-                if (!showActualCost || displayDataWithCost.length < 2) return '';
+                if (!showActual || displayDataWithCost.length < 2) return '';
                 const past = displayDataWithCost.filter((d) => !d.isFuture);
                 if (past.length < 2) return '';
                 const points = past.map((d, i) => {
@@ -931,7 +995,7 @@ function ProgressLineChart({
             {/* Spent line - to date only */}
             <path
               d={(() => {
-                if (!showActualCost || displayDataWithCost.length < 2) return '';
+                if (!showActual || displayDataWithCost.length < 2) return '';
                 const points = displayDataWithCost
                   .map((d, i) => ({ d, i }))
                   .filter(({ d }) => !d.isFuture)
@@ -1008,7 +1072,7 @@ function ProgressLineChart({
           </div>
 
           {/* Tooltip with breakdown */}
-          {hoveredIndex !== null && (showBudgetCost || showActualCost) && (
+          {hoveredIndex !== null && (showBudget || showActual) && (
             <div
               className="bg-dark-700 pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded px-3 py-2 text-xs whitespace-nowrap shadow-lg"
               style={{
@@ -1032,29 +1096,26 @@ function ProgressLineChart({
                   ).toFixed(1)}{' '}
                   hours{displayDataWithCost[hoveredIndex].isFuture ? ' (forecast)' : ''}
                 </div>
-                {showActualCost &&
+                {showActual &&
                   avgCostRate !== null &&
+                  unit !== 'hours' &&
                   (displayDataWithCost[hoveredIndex].isFuture ? (
                     <div className="text-sky-400">
-                      ~
-                      {formatCurrencyShort(
-                        pointCost(displayDataWithCost[hoveredIndex]),
-                        currencyCode
-                      )}{' '}
-                      forecast (incl. planned hours)
+                      ~{formatValue(pointCost(displayDataWithCost[hoveredIndex]))} forecast (incl.
+                      planned hours)
                     </div>
                   ) : (
                     <div className="text-thyme-400">
-                      ~
-                      {formatCurrencyShort(
-                        displayDataWithCost[hoveredIndex].cumulativeCost,
-                        currencyCode
-                      )}{' '}
-                      spent
+                      ~{formatValue(displayDataWithCost[hoveredIndex].cumulativeCost)} spent
                     </div>
                   ))}
               </div>
-              {showBudgetCost && budgetCost > 0 && (
+              {showBudget && budgetValue > 0 && !isCost && (
+                <div className="border-dark-500 mt-1 border-t pt-1 text-amber-400">
+                  Budget: {formatValue(budgetValue)}
+                </div>
+              )}
+              {showBudget && isCost && budgetCost > 0 && (
                 <div className="border-dark-500 mt-1 border-t pt-1">
                   <div className="mb-1 text-gray-500">Budget breakdown:</div>
                   {budgetCostBreakdown.resource > 0 && (
@@ -1088,7 +1149,7 @@ function ProgressLineChart({
           )}
 
           {/* Simple tooltip when costs are hidden */}
-          {hoveredIndex !== null && !showBudgetCost && !showActualCost && (
+          {hoveredIndex !== null && !showBudget && !showActual && (
             <div
               className="bg-dark-700 pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded px-2 py-1 text-xs whitespace-nowrap shadow-lg"
               style={{
@@ -1125,7 +1186,7 @@ function ProgressLineChart({
       </div>
 
       {/* Legend */}
-      {showBudgetCost && budgetCost > 0 && (
+      {showBudget && budgetValue > 0 && (
         <div className="mt-2 ml-12 flex items-center gap-4 text-xs text-gray-500">
           <div className="flex items-center gap-1">
             <span className="bg-thyme-500/50 inline-block h-2 w-4 rounded" />
@@ -1134,24 +1195,22 @@ function ProgressLineChart({
           {hasForecast && (
             <div className="flex items-center gap-1">
               <span className="inline-block w-4 border-t-2 border-dashed border-sky-400" />
-              <span>
-                Forecast ({formatCurrencyShort(forecastAtCompletion, currencyCode)} at completion)
-              </span>
+              <span>Forecast ({formatValue(forecastAtCompletion)} at completion)</span>
             </div>
           )}
-          {budgetCostBreakdown.resource > 0 && (
+          {isCost && budgetCostBreakdown.resource > 0 && (
             <div className="flex items-center gap-1">
               <span className="inline-block h-2 w-4 rounded bg-blue-500/30" />
               <span>Resource</span>
             </div>
           )}
-          {budgetCostBreakdown.item > 0 && (
+          {isCost && budgetCostBreakdown.item > 0 && (
             <div className="flex items-center gap-1">
               <span className="inline-block h-2 w-4 rounded bg-purple-500/30" />
               <span>Item</span>
             </div>
           )}
-          {budgetCostBreakdown.glAccount > 0 && (
+          {isCost && budgetCostBreakdown.glAccount > 0 && (
             <div className="flex items-center gap-1">
               <span className="inline-block h-2 w-4 rounded bg-amber-500/30" />
               <span>G/L Acct</span>
