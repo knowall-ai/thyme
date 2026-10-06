@@ -650,7 +650,8 @@ Thank you!`)}`}
                     No time entries found for {getResourceDisplayName(selectedTeammate)} this week.
                   </p>
                   <p className="text-dark-500 text-sm">
-                    Time entries will appear here once added to their timesheet.
+                    Check that a timesheet exists for this week in Business Central and that entries
+                    have been added to it.
                   </p>
                 </>
               ) : (

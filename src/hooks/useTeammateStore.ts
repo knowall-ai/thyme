@@ -28,10 +28,20 @@ export const useTeammateStore = create<TeammateStore>((set, get) => ({
       const resources = await bcClient.getResources();
       // Only show resources that actually use timesheets — others have nothing to display.
       const withTimesheet = resources.filter((r) => r.useTimeSheet);
-      set({ teammates: withTimesheet, isLoading: false });
+      set((state) => ({
+        teammates: withTimesheet,
+        isLoading: false,
+        // Drop a selection that no longer exists in the fetched list (e.g. after a
+        // company switch) so we never query one company's timesheets with a
+        // resource picked from another.
+        selectedTeammate:
+          state.selectedTeammate && withTimesheet.some((r) => r.id === state.selectedTeammate?.id)
+            ? state.selectedTeammate
+            : null,
+      }));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch teammates';
-      set({ error: message, isLoading: false, teammates: [] });
+      set({ error: message, isLoading: false, teammates: [], selectedTeammate: null });
     }
   },
 
