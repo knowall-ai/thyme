@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { bcClient } from '@/services/bc/bcClient';
 import { buildUOMConversionMap, type UOMConversionMap } from '@/utils';
@@ -30,9 +30,13 @@ export function useSaveSafeUomMap(isOpen: boolean, cachedUomMap: UOMConversionMa
   const [fetchedMap, setFetchedMap] = useState<UOMConversionMap | null>(null);
   const [fetchFailed, setFetchFailed] = useState(false);
   const usingCache = cachedUomMap.size > 0;
+  // Identifies the current opening; initial loads and retries only apply results for it,
+  // so a request still in flight when the modal closes can't mark a later opening ready
+  const openingRef = useRef(0);
 
   // Only a non-empty map is usable: an empty one would make every conversion an identity
-  const applyResult = useCallback((map: UOMConversionMap | null) => {
+  const applyResult = useCallback((map: UOMConversionMap | null, opening: number) => {
+    if (opening !== openingRef.current) return;
     const usableMap = map && map.size > 0 ? map : null;
     setFetchedMap(usableMap);
     setFetchFailed(usableMap === null);
@@ -40,21 +44,20 @@ export function useSaveSafeUomMap(isOpen: boolean, cachedUomMap: UOMConversionMa
 
   useEffect(() => {
     if (!isOpen || usingCache) return;
-    let cancelled = false;
-    fetchUomMap().then((map) => {
-      if (!cancelled) applyResult(map);
-    });
+    const opening = ++openingRef.current;
+    fetchUomMap().then((map) => applyResult(map, opening));
     return () => {
-      cancelled = true;
-      // Forget this opening's result, so a reopen isn't treated as ready (and able to
-      // save) with a stale map while its fresh fetch is still pending
+      // End this opening: in-flight initial and retry requests no longer apply, and the
+      // next opening isn't treated as ready (able to save) with this opening's map
+      openingRef.current += 1;
       setFetchedMap(null);
       setFetchFailed(false);
     };
   }, [isOpen, usingCache, applyResult]);
 
   const retryUomLoad = useCallback(() => {
-    fetchUomMap().then(applyResult);
+    const opening = openingRef.current;
+    fetchUomMap().then((map) => applyResult(map, opening));
   }, [applyResult]);
 
   return {
