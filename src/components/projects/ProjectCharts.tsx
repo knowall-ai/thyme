@@ -16,8 +16,16 @@ type ChartView = 'weekly' | 'progress';
 // can go in a PDF for a customer without exposing internal costs.
 type SpendUnit = 'hours' | 'days' | 'cost';
 const SPEND_UNITS: { value: SpendUnit; label: string; title: string }[] = [
-  { value: 'hours', label: 'Hours', title: 'Effort in hours against Time Budgeted' },
-  { value: 'days', label: 'Days', title: 'Effort in days against Time Budgeted' },
+  {
+    value: 'hours',
+    label: 'Hours',
+    title: 'Effort in hours against the quoted estimate (or the Plan if there is no estimate)',
+  },
+  {
+    value: 'days',
+    label: 'Days',
+    title: 'Effort in days against the quoted estimate (or the Plan if there is no estimate)',
+  },
   { value: 'cost', label: '£', title: 'Time at selling rates against the quoted Billable Price' }, // label replaced by the company currency symbol
 ];
 

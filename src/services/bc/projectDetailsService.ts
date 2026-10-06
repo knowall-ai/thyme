@@ -770,16 +770,17 @@ export const projectDetailsService = {
         const avgBillableRate = invoicedPrice / hoursPosted;
         unpostedCost = hoursUnposted * avgCostRate;
         unpostedBillable = hoursUnposted * avgBillableRate;
-      } else if (hoursPlanned > 0) {
-        // Fallback: use resource-only budget rates from planning lines
-        // (hoursPlanned only includes resources, so use resource breakdown for accurate rate)
-        // Note: if resource breakdown is 0, avgRate = 0 which is correct (no budget defined)
-        const avgBudgetCostRate = budgetCostBreakdown.resource / hoursPlanned;
+      } else if (hoursPlanned > 0 || estimateHours > 0) {
+        // Fallback: use resource-only rates from planning lines (resource hours only, so
+        // the resource breakdown gives an accurate rate). If a breakdown is 0, the rate is 0,
+        // which is correct (nothing defined). Either hours source enables it, so
+        // estimate-only projects (no Plan yet) still value unposted time at selling rates.
+        if (hoursPlanned > 0) {
+          unpostedCost = hoursUnposted * (budgetCostBreakdown.resource / hoursPlanned);
+        }
         // Billable price belongs to the estimate's hours, not the Plan's
-        const avgBillableRate =
-          billablePriceBreakdown.resource / (estimateHours > 0 ? estimateHours : hoursPlanned);
-        unpostedCost = hoursUnposted * avgBudgetCostRate;
-        unpostedBillable = hoursUnposted * avgBillableRate;
+        const billableHours = estimateHours > 0 ? estimateHours : hoursPlanned;
+        unpostedBillable = hoursUnposted * (billablePriceBreakdown.resource / billableHours);
       }
     }
 
