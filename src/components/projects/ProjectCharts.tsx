@@ -831,7 +831,7 @@ function ProgressLineChart({
   const showValueAxis = showBudget && showActual;
   const formatValue = (value: number) => {
     if (unit === 'cost') return formatCurrencyShort(value, currencyCode);
-    const rounded = value >= 100 ? Math.round(value) : Math.round(value * 10) / 10;
+    const rounded = Math.round(value * 10) / 10;
     return `${rounded.toLocaleString('en-GB')}${unit === 'hours' ? 'h' : 'd'}`;
   };
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -962,6 +962,24 @@ function ProgressLineChart({
   // Budget line Y position
   const totalBudgetY = maxCost > 0 ? (1 - budgetValue / maxCost) * 100 : 0;
 
+  // Label the forecast where it reaches its final value, if that's in view (not part-way off the edge)
+  const completionIndex = hasForecast
+    ? displayDataWithCost.findIndex(
+        (d) => d.isFuture && d.forecastHours === forecastHoursAtCompletion
+      )
+    : -1;
+  const forecastEnd =
+    completionIndex >= 0
+      ? {
+          x: xFor(completionIndex),
+          y: yFor(forecastAtCompletion),
+          value: forecastAtCompletion,
+        }
+      : null;
+  // Move the budget label below its line when the forecast label would sit on top of it
+  const forecastLabelNearBudget =
+    !!forecastEnd && showBudget && Math.abs(forecastEnd.y - totalBudgetY) < 8;
+
   return (
     <div>
       <div className="flex h-48">
@@ -994,7 +1012,12 @@ function ProgressLineChart({
                 className="absolute right-0 left-0 border-t-2 border-dashed border-amber-500/50"
                 style={{ top: `${totalBudgetY}%` }}
               >
-                <span className="absolute -top-5 right-0 text-xs text-amber-400">
+                <span
+                  className={cn(
+                    'absolute right-0 text-xs text-amber-400',
+                    forecastLabelNearBudget ? 'top-1' : '-top-5'
+                  )}
+                >
                   Budget: {formatValue(budgetValue)}
                 </span>
               </div>
@@ -1088,6 +1111,19 @@ function ProgressLineChart({
               vectorEffect="non-scaling-stroke"
             />
           </svg>
+
+          {/* Forecast label at the end of the forecast line, like the budget line's */}
+          {forecastEnd && (
+            <span
+              className={cn(
+                'absolute -translate-y-full pb-1 text-xs whitespace-nowrap text-sky-400',
+                forecastEnd.x > 20 ? '-translate-x-full pr-1' : 'pl-1'
+              )}
+              style={{ left: `${forecastEnd.x}%`, top: `${forecastEnd.y}%` }}
+            >
+              Forecast: {formatValue(forecastEnd.value)}
+            </span>
+          )}
 
           {/* Points - separate layer to avoid stretching */}
           <div className="absolute inset-0">
