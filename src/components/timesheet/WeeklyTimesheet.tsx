@@ -413,8 +413,10 @@ Thank you!`)}`}
               {weekStartStr} - {weekEndStr}. A timesheet must be created before time can be entered.
             </p>
 
-            {missingTimesheetResourceNo && (
-              <div className="mb-6 flex flex-col items-center">
+            {/* Both routes to a timesheet sit together: do it yourself, or ask someone
+                who can. The manual Business Central steps follow as a last resort. */}
+            <div className="mb-2 flex flex-wrap items-center justify-center gap-3">
+              {missingTimesheetResourceNo && (
                 <Button onClick={handleCreateTimesheet} disabled={isCreatingTimesheet}>
                   {isCreatingTimesheet
                     ? 'Creating...'
@@ -422,10 +424,32 @@ Thank you!`)}`}
                       ? `Create timesheet for ${selectedTeammate.displayName}`
                       : 'Create timesheet'}
                 </Button>
-                <p className="text-dark-400 mt-2 text-xs">
-                  Creates it in Business Central for resource {missingTimesheetResourceNo}
-                </p>
-              </div>
+              )}
+              <a
+                href={`mailto:?subject=${encodeURIComponent(`Thyme: Timesheet Needed for Week of ${weekStartStr}`)}&body=${encodeURIComponent(`Hi,
+
+I need a timesheet created in Business Central for the week of ${weekStartStr} - ${weekEndStr} so I can enter my time in Thyme.
+
+Please create a timesheet using the following steps:
+
+1. Open my Resource in Business Central
+2. Click Create Time Sheets...
+3. Set Starting Date to ${weekStartDate}
+4. Set No. of Periods to 1
+5. Click OK
+
+Thank you!`)}`}
+                className="border-dark-600 bg-dark-800 text-dark-200 hover:border-dark-500 hover:bg-dark-700 inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium"
+              >
+                <EnvelopeIcon className="h-4 w-4" />
+                Email request to manager
+              </a>
+            </div>
+
+            {missingTimesheetResourceNo && (
+              <p className="text-dark-400 mb-6 text-xs">
+                Creates it in Business Central for resource {missingTimesheetResourceNo}
+              </p>
             )}
 
             <div className="max-w-lg text-left">
@@ -461,28 +485,6 @@ Thank you!`)}`}
                   timesheet
                 </li>
               </ol>
-
-              <div className="mt-4 flex justify-center">
-                <a
-                  href={`mailto:?subject=${encodeURIComponent(`Thyme: Timesheet Needed for Week of ${weekStartStr}`)}&body=${encodeURIComponent(`Hi,
-
-I need a timesheet created in Business Central for the week of ${weekStartStr} - ${weekEndStr} so I can enter my time in Thyme.
-
-Please create a timesheet using the following steps:
-
-1. Open my Resource in Business Central
-2. Click Create Time Sheets...
-3. Set Starting Date to ${weekStartDate}
-4. Set No. of Periods to 1
-5. Click OK
-
-Thank you!`)}`}
-                  className="bg-thyme-600 hover:bg-thyme-500 inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white"
-                >
-                  <EnvelopeIcon className="h-4 w-4" />
-                  Email request to manager
-                </a>
-              </div>
             </div>
           </div>
         </Card>
