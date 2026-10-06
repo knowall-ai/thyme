@@ -211,6 +211,7 @@ export interface BCTimeSheetLine {
   description?: string;
   totalQuantity: number;
   status: 'Open' | 'Submitted' | 'Rejected' | 'Approved';
+  timeSheetStartingDate?: string; // ISO date of the parent timesheet's start
   '@odata.etag'?: string;
 }
 
@@ -221,6 +222,7 @@ export interface BCTimeSheetDetail {
   timeSheetLineNo: number;
   date: string; // ISO date format YYYY-MM-DD
   quantity: number;
+  jobNo?: string;
   '@odata.etag'?: string;
 }
 

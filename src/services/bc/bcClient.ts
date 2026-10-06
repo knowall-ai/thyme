@@ -1042,6 +1042,29 @@ class BusinessCentralClient {
   // Timesheet API (requires Thyme BC Extension)
   // ============================================
 
+  /**
+   * GET a custom API collection, following @odata.nextLink so large result sets
+   * aren't silently truncated at BC's page size.
+   */
+  private async customApiFetchAll<T>(endpoint: string): Promise<T[]> {
+    const items: T[] = [];
+    let next: string | undefined = endpoint;
+    while (next) {
+      const response: PaginatedResponse<T> = await this.customApiFetch<PaginatedResponse<T>>(next);
+      items.push(...response.value);
+      const nextLink = response['@odata.nextLink'];
+      if (!nextLink) break;
+      // Resolve relative links against the current page, and only follow links back into
+      // the same custom API (the request carries the BC bearer token)
+      const resolved: string = new URL(nextLink, `${this.customApiBaseUrl}${next}`).href;
+      if (!resolved.startsWith(this.customApiBaseUrl)) {
+        throw new Error('Unexpected @odata.nextLink outside the Business Central API');
+      }
+      next = resolved.slice(this.customApiBaseUrl.length);
+    }
+    return items;
+  }
+
   private async customApiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const token = await getBCAccessToken();
 
@@ -1175,6 +1198,37 @@ class BusinessCentralClient {
   }
 
   /**
+   * Get every resource's timesheets starting on or after a date (YYYY-MM-DD) in one query.
+   */
+  async getTimeSheetsFrom(fromDate: string): Promise<BCTimeSheet[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    const filter = `startingDate ge ${this.sanitizeDateInput(fromDate)}`;
+    return this.customApiFetchAll<BCTimeSheet>(`/timeSheets?$filter=${encodeURIComponent(filter)}`);
+  }
+
+  /**
+   * Get every timesheet line for a project (across all timesheets) in one query,
+   * optionally only from timesheets starting on or after a date (YYYY-MM-DD).
+   */
+  async getTimeSheetLinesForJob(jobNo: string, fromDate?: string): Promise<BCTimeSheetLine[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    const escaped = jobNo.replace(/'/g, "''");
+    let filter = `jobNo eq '${escaped}'`;
+    if (fromDate) filter += ` and timeSheetStartingDate ge ${this.sanitizeDateInput(fromDate)}`;
+    return this.customApiFetchAll<BCTimeSheetLine>(
+      `/timeSheetLines?$filter=${encodeURIComponent(filter)}`
+    );
+  }
+
+  /**
    * Create a new timesheet line (time entry).
    */
   async createTimeSheetLine(
@@ -1255,6 +1309,24 @@ class BusinessCentralClient {
       `/timeSheetDetails?$filter=${filter}`
     );
     return response.value;
+  }
+
+  /**
+   * Get every timesheet detail (daily hours) for a project in one query,
+   * optionally only on or after a date (YYYY-MM-DD).
+   */
+  async getTimeSheetDetailsForJob(jobNo: string, fromDate?: string): Promise<BCTimeSheetDetail[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+
+    const escaped = jobNo.replace(/'/g, "''");
+    let filter = `jobNo eq '${escaped}'`;
+    if (fromDate) filter += ` and date ge ${this.sanitizeDateInput(fromDate)}`;
+    return this.customApiFetchAll<BCTimeSheetDetail>(
+      `/timeSheetDetails?$filter=${encodeURIComponent(filter)}`
+    );
   }
 
   /**

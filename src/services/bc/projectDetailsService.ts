@@ -1,12 +1,5 @@
 import { bcClient } from './bcClient';
-import type {
-  Project,
-  Task,
-  BCTimeSheet,
-  BCTimeSheetLine,
-  BCJobPlanningLine,
-  BCTimeEntry,
-} from '@/types';
+import type { Project, Task, BCTimeSheetLine, BCJobPlanningLine, BCTimeEntry } from '@/types';
 import {
   getWeekStart,
   buildUOMConversionMap,
@@ -250,10 +243,45 @@ export const projectDetailsService = {
       return emptyAnalytics();
     }
 
+    // Get the date 6 months ago for filtering timesheets
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const filterDate = sixMonthsAgo.toISOString().split('T')[0];
+    // Details are pre-filtered a week early so a timesheet starting on/after filterDate
+    // keeps all its days; the join to the date-filtered lines applies the exact rule
+    const detailsFromDate = new Date(sixMonthsAgo);
+    detailsFromDate.setDate(detailsFromDate.getDate() - 7);
+
+    // Start every independent BC request at once (they used to run one after another);
+    // each is awaited, with its own error handling, where its result is used. The no-op
+    // catches only stop a rejection being reported as unhandled before it's awaited.
+    const resourcesPromise = bcClient.getResources();
+    const timesheetsPromise = bcClient.getTimeSheetsFrom(filterDate);
+    const jobLinesPromise = bcClient.getTimeSheetLinesForJob(projectNumber, filterDate);
+    const jobDetailsPromise = bcClient.getTimeSheetDetailsForJob(
+      projectNumber,
+      detailsFromDate.toISOString().split('T')[0]
+    );
+    const planningPromise = Promise.all([
+      bcClient.getJobPlanningLines(projectNumber),
+      bcClient.getResourceUnitsOfMeasure(),
+    ]);
+    const postedEntriesPromise = bcClient.getTimeEntries(projectNumber);
+    for (const p of [
+      resourcesPromise,
+      timesheetsPromise,
+      jobLinesPromise,
+      jobDetailsPromise,
+      planningPromise,
+      postedEntriesPromise,
+    ]) {
+      p.catch(() => {});
+    }
+
     // Get all resources (team members)
     let resources;
     try {
-      resources = await bcClient.getResources();
+      resources = await resourcesPromise;
     } catch {
       // If resources can't be fetched, return empty analytics
       return emptyAnalytics();
@@ -274,67 +302,48 @@ export const projectDetailsService = {
     const timeEntries: TimeEntryData[] = [];
     const teamMembersSet = new Set<string>();
 
-    // Get the date 6 months ago for filtering
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    const filterDate = sixMonthsAgo.toISOString().split('T')[0];
+    // This project's timesheet lines and daily details come from project-wide queries,
+    // rather than walking every resource's timesheets, then their lines, then each line's
+    // details (hundreds of sequential requests). Details don't carry the resource, so it
+    // comes from the parent timesheet.
+    // A failure here rejects the whole analytics load: one query covers the entire
+    // project, so swallowing it would show zero hours that look real
+    const [timesheets, jobLines, jobDetails] = await Promise.all([
+      timesheetsPromise,
+      jobLinesPromise,
+      jobDetailsPromise,
+    ]);
+    const resourceNoByTimesheet = new Map(timesheets.map((ts) => [ts.number, ts.resourceNo]));
 
-    // Fetch timesheets for each resource
-    const timesheetPromises = resources.map(async (resource) => {
-      try {
-        // Get timesheets for this resource from the last 6 months
-        const timesheets = await bcClient.getTimeSheets(resource.number);
+    const resourcesByNumber = new Map(resources.map((r) => [r.number, r]));
+    const linesByKey = new Map<string, BCTimeSheetLine>();
+    for (const line of jobLines) {
+      if (line.type !== 'Job' || line.jobNo !== projectNumber || !(line.totalQuantity > 0))
+        continue;
+      if (line.timeSheetStartingDate && line.timeSheetStartingDate < filterDate) continue;
+      linesByKey.set(`${line.timeSheetNo}|${line.lineNo}`, line);
+    }
 
-        // Filter to timesheets that started after our filter date
-        const recentTimesheets = timesheets.filter(
-          (ts: BCTimeSheet) => ts.startingDate >= filterDate
-        );
+    for (const detail of jobDetails) {
+      if (!(detail.quantity > 0)) continue;
+      const line = linesByKey.get(`${detail.timeSheetNo}|${detail.timeSheetLineNo}`);
+      // Only people resources (as returned by getResources) count, matching the previous per-resource walk
+      const resourceNo = resourceNoByTimesheet.get(detail.timeSheetNo);
+      const resource = resourceNo ? resourcesByNumber.get(resourceNo) : undefined;
+      if (!line || !resource) continue;
 
-        // For each timesheet, get lines filtered by project
-        for (const timesheet of recentTimesheets) {
-          try {
-            const lines = await bcClient.getTimeSheetLines(timesheet.number);
-
-            // Filter lines for this project
-            const projectLines = lines.filter(
-              (line: BCTimeSheetLine) => line.type === 'Job' && line.jobNo === projectNumber
-            );
-
-            // Get details for each line to get daily hours
-            for (const line of projectLines) {
-              if (line.totalQuantity > 0) {
-                teamMembersSet.add(resource.number);
-
-                // Get the line details for daily breakdown
-                const details = await bcClient.getTimeSheetDetails(timesheet.number, line.lineNo);
-
-                for (const detail of details) {
-                  if (detail.quantity > 0) {
-                    const detailDate = new Date(detail.date);
-                    timeEntries.push({
-                      resourceNo: resource.number,
-                      resourceName: resource.name || resource.number,
-                      taskNo: line.jobTaskNo || '',
-                      description: line.description || '',
-                      hours: detail.quantity,
-                      date: detail.date,
-                      weekStart: getISOWeek(detailDate),
-                      status: line.status,
-                    });
-                  }
-                }
-              }
-            }
-          } catch {
-            // Skip timesheet if lines can't be fetched
-          }
-        }
-      } catch {
-        // Skip resource if timesheets can't be fetched
-      }
-    });
-
-    await Promise.all(timesheetPromises);
+      teamMembersSet.add(resource.number);
+      timeEntries.push({
+        resourceNo: resource.number,
+        resourceName: resource.name || resource.number,
+        taskNo: line.jobTaskNo || '',
+        description: line.description || '',
+        hours: detail.quantity,
+        date: detail.date,
+        weekStart: getISOWeek(new Date(detail.date)),
+        status: line.status,
+      });
+    }
 
     // Calculate analytics from collected data
     const totalHours = timeEntries.reduce((sum, e) => sum + e.hours, 0);
@@ -402,11 +411,8 @@ export const projectDetailsService = {
     // Map for unit price per task (from Job Planning Lines - fallback if Resource doesn't have unitPrice)
     const unitPriceByTask = new Map<string, number>();
     try {
-      // Fetch planning lines, resources, and unit of measure conversion factors in parallel
-      const [planningLines, resourceUnitsOfMeasure] = await Promise.all([
-        bcClient.getJobPlanningLines(projectNumber),
-        bcClient.getResourceUnitsOfMeasure(),
-      ]);
+      // Planning lines and unit of measure conversion factors (started above)
+      const [planningLines, resourceUnitsOfMeasure] = await planningPromise;
 
       // Build a map for unit of measure conversion: (resourceNo, unitCode) → qtyPerUnitOfMeasure
       // This allows us to convert DAY to HOURS (e.g., 1 DAY = 7.5 HOURS)
@@ -556,7 +562,7 @@ export const projectDetailsService = {
     const postedByResource = new Map<string, number>();
     const postedByTaskResource = new Map<string, number>(); // key: "taskNo|resourceNo"
     try {
-      const postedEntries = await bcClient.getTimeEntries(projectNumber);
+      const postedEntries = await postedEntriesPromise;
       hoursPosted = postedEntries.reduce(
         (sum: number, entry: BCTimeEntry) => sum + entry.quantity,
         0
