@@ -10,10 +10,10 @@ Thyme is a time tracking application that integrates with Microsoft Dynamics 365
 
 **This repository is public.** Never put real client or customer data in anything pushed to GitHub: PR titles and descriptions, issues, commit messages, code comments, test fixtures, docs, or screenshots.
 
-That includes customer names, project names and descriptions, job/task names that identify a client, and contact names.
+That includes customer names, project names and descriptions, job/task names that identify a client, contact names, and **monetary amounts** (budgets, costs, prices, rates, invoice totals, chart axes in £).
 
 - **Use demo data for screenshots and examples.** Take screenshots from the Business Central demo company **CRONUS UK Ltd.** (in a sandbox environment), or describe examples with **Contoso**. Populate the demo company with whatever projects, timesheets and plan allocations the screenshot needs.
-- **If a screenshot must come from a real company**, blur every client-identifying area _before_ committing it, e.g. the project title and customer line, the Plan grid's project column, and customer labels. Then open the image and check it yourself; OCR alone misses small text.
+- **If a screenshot must come from a real company**, blur every client-identifying area and every monetary amount _before_ committing it, e.g. the project title and customer line, the Plan grid's project column, customer labels, the cost and price cards, and £ chart axes, labels and legends. Then open the image and check it yourself; OCR alone misses small text.
 - **Before pushing or opening a PR**, check the description and every image for client names.
 - **If client data does get pushed**, rewrite the branch history so the original never appears, then force-push. Replacing the file in a new commit isn't enough. Old commits stay reachable on GitHub by SHA, so also ask GitHub Support to purge the cached commits.
 
