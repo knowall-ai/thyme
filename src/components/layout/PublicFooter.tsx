@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/16/solid';
 import { ThymeLogo } from '@/components/icons';
@@ -56,9 +57,15 @@ export function PublicFooter() {
               href="https://knowall.ai"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-knowall-green hover:text-knowall-green-light mt-3 inline-block text-sm transition-colors"
+              className="mt-6 inline-block opacity-80 transition-opacity hover:opacity-100"
             >
-              Built by KnowAll.ai
+              <Image
+                src="/knowall-logo.png"
+                alt="KnowAll AI"
+                width={207}
+                height={151}
+                className="h-14 w-auto"
+              />
             </a>
           </div>
 
