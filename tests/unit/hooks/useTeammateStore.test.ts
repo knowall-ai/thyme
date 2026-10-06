@@ -65,3 +65,36 @@ describe('useTeammateStore.fetchTeammates', () => {
     expect(useTeammateStore.getState().teammates).toEqual([]);
   });
 });
+
+describe('useTeammateStore employee enrichment', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getResourceByEmail.mockResolvedValue(null);
+    useTeammateStore.setState({ teammates: [], selectedTeammate: null, error: null });
+  });
+
+  it('enriches a resource from the one employee with the same name', async () => {
+    getResources.mockResolvedValue([resource('r1', 'RES01', 'Jane Doe')]);
+    getEmployees.mockResolvedValue([{ displayName: 'Jane Doe', jobTitle: 'Consultant' }]);
+    await useTeammateStore.getState().fetchTeammates();
+    expect(useTeammateStore.getState().teammates[0].jobTitle).toBe('Consultant');
+  });
+
+  it('does not enrich when the name is ambiguous', async () => {
+    getResources.mockResolvedValue([
+      resource('r1', 'RES01', 'Alex Smith'),
+      resource('r2', 'RES02', 'Alex Smith'),
+      resource('r3', 'RES03', 'Sam Lee'),
+    ]);
+    getEmployees.mockResolvedValue([
+      { displayName: 'Alex Smith', jobTitle: 'Developer' },
+      { displayName: 'Sam Lee', jobTitle: 'Analyst' },
+      { displayName: 'Sam Lee', jobTitle: 'Designer' },
+    ]);
+    await useTeammateStore.getState().fetchTeammates();
+    const byNo = Object.fromEntries(
+      useTeammateStore.getState().teammates.map((t) => [t.resourceNo, t.jobTitle])
+    );
+    expect(byNo).toEqual({ RES01: undefined, RES02: undefined, RES03: undefined });
+  });
+});

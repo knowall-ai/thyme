@@ -19,13 +19,20 @@ interface TeammateStore {
  * in BC - a company can run timesheets with resources alone. Match on name so the
  * extra detail is used where it exists, without the list depending on it.
  */
+const resourceNameKey = (resource: BCResource) =>
+  (resource.name || resource.displayName || '').trim().toLowerCase();
+
 function findMatchingEmployee(
   resource: BCResource,
-  employees: BCEmployee[]
+  employees: BCEmployee[],
+  duplicateResourceNames: Set<string>
 ): BCEmployee | undefined {
-  const resourceName = (resource.name || resource.displayName || '').trim().toLowerCase();
-  if (!resourceName) return undefined;
-  return employees.find((e) => e.displayName?.trim().toLowerCase() === resourceName);
+  const resourceName = resourceNameKey(resource);
+  // Only enrich on an unambiguous name: two people with the same name would otherwise
+  // swap job titles and emails (and email feeds the current-user check)
+  if (!resourceName || duplicateResourceNames.has(resourceName)) return undefined;
+  const matches = employees.filter((e) => e.displayName?.trim().toLowerCase() === resourceName);
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
 export const useTeammateStore = create<TeammateStore>((set, get) => ({
@@ -40,9 +47,12 @@ export const useTeammateStore = create<TeammateStore>((set, get) => ({
       // Sourced from resources, not employees: timesheets are keyed on the resource,
       // and a company can have resources set up for time tracking with no employee
       // records at all. Only resources flagged for time sheets can have one, so
-      // anything else would just be a dead entry in the list.
+      // anything else would just be a dead entry in the list; blocked resources
+      // (typically leavers) are left out too.
       const [resources, employees] = await Promise.all([
-        bcClient.getResources('useTimeSheet eq true'),
+        bcClient.getResources(
+          'useTimeSheet eq true and blocked eq false and privacyBlocked eq false'
+        ),
         bcClient.getEmployees("status eq 'Active'").catch(() => [] as BCEmployee[]),
       ]);
 
@@ -56,8 +66,16 @@ export const useTeammateStore = create<TeammateStore>((set, get) => ({
         }
       }
 
+      const seenNames = new Set<string>();
+      const duplicateResourceNames = new Set<string>();
+      for (const resource of resources) {
+        const key = resourceNameKey(resource);
+        if (key && seenNames.has(key)) duplicateResourceNames.add(key);
+        seenNames.add(key);
+      }
+
       const teammates: Teammate[] = resources.map((resource) => {
-        const employee = findMatchingEmployee(resource, employees);
+        const employee = findMatchingEmployee(resource, employees, duplicateResourceNames);
         return {
           id: resource.id,
           resourceNo: resource.number,

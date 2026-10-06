@@ -33,6 +33,8 @@ export interface BCResource {
   type: 'Person' | 'Machine';
   baseUnitOfMeasure?: string;
   useTimeSheet?: boolean;
+  blocked?: boolean;
+  privacyBlocked?: boolean;
   timeSheetOwnerUserId?: string;
   timeSheetApproverUserId?: string;
   searchName?: string;
