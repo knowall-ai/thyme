@@ -11,7 +11,7 @@ import {
 import { useTeammateStore, useCompanyStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
 import { cn } from '@/utils';
-import type { BCEmployee } from '@/types';
+import type { Teammate } from '@/types';
 
 export function TeammateSelector() {
   const [isOpen, setIsOpen] = useState(false);
@@ -25,8 +25,8 @@ export function TeammateSelector() {
 
   // Fetch teammates on mount and when company changes
   useEffect(() => {
-    fetchTeammates();
-  }, [fetchTeammates, selectedCompany]);
+    fetchTeammates(account?.username);
+  }, [fetchTeammates, selectedCompany, account?.username]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -52,7 +52,7 @@ export function TeammateSelector() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
-  const handleSelect = (teammate: BCEmployee | null) => {
+  const handleSelect = (teammate: Teammate | null) => {
     selectTeammate(teammate);
     setIsOpen(false);
     setSearchQuery('');
@@ -70,19 +70,19 @@ export function TeammateSelector() {
     return true;
   });
 
-  // Separate current user from other teammates
+  // Separate current user from other teammates. isCurrentUser comes from matching the
+  // signed-in user to a BC resource; the email comparison is a fallback for when the
+  // resource could not be resolved.
   const currentUserEmail = account?.username?.toLowerCase();
-  const currentUserTeammate = filteredTeammates.find(
-    (t) => t.email?.toLowerCase() === currentUserEmail
-  );
-  const otherTeammates = filteredTeammates.filter(
-    (t) => t.email?.toLowerCase() !== currentUserEmail
-  );
+  const isCurrentUser = (t: Teammate) =>
+    t.isCurrentUser || (!!t.email && t.email.toLowerCase() === currentUserEmail);
+  const currentUserTeammate = filteredTeammates.find(isCurrentUser);
+  const otherTeammates = filteredTeammates.filter((t) => !isCurrentUser(t));
 
-  // Don't show if no teammates available (only self)
-  if (teammates.length <= 1 && !isLoading) {
-    return null;
-  }
+  // Shown even when there is nobody else, so the capability is discoverable rather
+  // than silently absent - disabled with a reason instead of hidden.
+  const hasOthers = teammates.some((t) => !isCurrentUser(t));
+  const isDisabled = !isLoading && !hasOthers;
 
   const displayName = selectedTeammate ? selectedTeammate.displayName : 'My Timesheet';
 
@@ -90,14 +90,21 @@ export function TeammateSelector() {
     <div className="relative" ref={dropdownRef}>
       {/* Trigger Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => !isDisabled && setIsOpen(!isOpen)}
+        disabled={isDisabled}
         className={cn(
           'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
-          'border-dark-600 bg-dark-800 hover:border-dark-500 hover:bg-dark-700 border',
+          'border-dark-600 bg-dark-800 border',
+          !isDisabled && 'hover:border-dark-500 hover:bg-dark-700',
+          isDisabled && 'cursor-not-allowed opacity-50',
           isOpen && 'border-knowall-green bg-dark-700',
           selectedTeammate && 'border-thyme-600'
         )}
-        title="View teammate timesheets"
+        title={
+          isDisabled
+            ? 'You are the only person set up for timesheets in this company'
+            : "View and create your team's timesheets"
+        }
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
@@ -117,7 +124,9 @@ export function TeammateSelector() {
           {/* Header */}
           <div className="border-dark-600 border-b px-4 py-3">
             <h3 className="text-sm font-medium text-white">Teammates</h3>
-            <p className="text-dark-400 mt-0.5 text-xs">View your team&apos;s timesheets</p>
+            <p className="text-dark-400 mt-0.5 text-xs">
+              View and create your team&apos;s timesheets
+            </p>
           </div>
 
           {/* Search */}

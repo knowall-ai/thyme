@@ -33,6 +33,8 @@ export interface BCResource {
   type: 'Person' | 'Machine';
   baseUnitOfMeasure?: string;
   useTimeSheet?: boolean;
+  blocked?: boolean;
+  privacyBlocked?: boolean;
   timeSheetOwnerUserId?: string;
   timeSheetApproverUserId?: string;
   searchName?: string;
@@ -86,6 +88,22 @@ export interface BCEmployee {
   email?: string;
   status: 'Active' | 'Inactive';
   lastModifiedDateTime?: string;
+}
+
+/**
+ * A person whose timesheet can be viewed. Sourced from BC resources rather than
+ * employees, because timesheets are keyed on the resource - a company can have
+ * resources set up for time tracking and no employee records at all.
+ */
+export interface Teammate {
+  id: string;
+  resourceNo: string;
+  displayName: string;
+  givenName?: string;
+  surname?: string;
+  jobTitle?: string;
+  email?: string;
+  isCurrentUser?: boolean;
 }
 
 export interface BCJobTask {
