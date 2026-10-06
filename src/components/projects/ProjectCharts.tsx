@@ -5,7 +5,6 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { Card } from '@/components/ui';
 import { cn } from '@/utils';
-import type { CostBreakdown } from '@/services/bc/projectDetailsService';
 
 // Interval for auto-repeat when holding navigation buttons (ms)
 const HOLD_INITIAL_DELAY = 400; // Delay before repeat starts
@@ -19,7 +18,7 @@ type SpendUnit = 'hours' | 'days' | 'cost';
 const SPEND_UNITS: { value: SpendUnit; label: string; title: string }[] = [
   { value: 'hours', label: 'Hours', title: 'Effort in hours against Time Budgeted' },
   { value: 'days', label: 'Days', title: 'Effort in days against Time Budgeted' },
-  { value: 'cost', label: '£', title: 'Internal cost against Budget Cost' }, // label replaced by the company currency symbol
+  { value: 'cost', label: '£', title: 'Time at selling rates against the quoted Billable Price' }, // label replaced by the company currency symbol
 ];
 
 const WEEKS_TO_SHOW = 24;
@@ -69,8 +68,8 @@ export function ProjectCharts() {
   const { analytics, isLoadingAnalytics, hiddenKpis, currencyCode, project } =
     useProjectDetailsStore();
   // Follow the Budget Cost / Actual Cost KPI card Eye toggles
-  const showBudgetCost = !hiddenKpis.includes('Budget Cost');
-  const showActualCost = !hiddenKpis.includes('Actual Cost');
+  // £ mode is customer-facing (selling rates vs Billable Price), so it follows that card's eye
+  const showBillablePrice = !hiddenKpis.includes('Billable Price');
   // ...and the Time Budgeted / Time Spent eyes in effort (hours/days) mode
   const showTimeBudgeted = !hiddenKpis.includes('Time Budgeted');
   const showTimeSpent = !hiddenKpis.includes('Time Spent');
@@ -298,16 +297,13 @@ export function ProjectCharts() {
         <ProgressLineChart
           data={weeklyData}
           offsetWeeks={offsetWeeks}
-          budgetCost={analytics?.budgetCost ?? 0}
-          budgetCostBreakdown={
-            analytics?.budgetCostBreakdown ?? { resource: 0, item: 0, glAccount: 0, total: 0 }
-          }
           hoursSpent={analytics?.hoursSpent ?? 0}
           hoursPlanned={analytics?.hoursPlanned ?? 0}
-          actualCost={analytics?.actualCost ?? 0}
-          unpostedCost={analytics?.unpostedCost ?? 0}
-          showBudgetCost={showBudgetCost}
-          showActualCost={showActualCost}
+          estimateHours={analytics?.estimateHours ?? 0}
+          billableResourcePrice={analytics?.billablePriceBreakdown?.resource ?? 0}
+          invoicedPrice={analytics?.invoicedPrice ?? 0}
+          unpostedBillable={analytics?.unpostedBillable ?? 0}
+          showBillablePrice={showBillablePrice}
           showTimeBudgeted={showTimeBudgeted}
           showTimeSpent={showTimeSpent}
           unit={spendUnit}
@@ -786,14 +782,13 @@ function generateProgressDisplayData(
 function ProgressLineChart({
   data,
   offsetWeeks,
-  budgetCost,
-  budgetCostBreakdown,
   hoursSpent,
   hoursPlanned,
-  actualCost,
-  unpostedCost,
-  showBudgetCost,
-  showActualCost,
+  estimateHours,
+  billableResourcePrice,
+  invoicedPrice,
+  unpostedBillable,
+  showBillablePrice,
   showTimeBudgeted,
   showTimeSpent,
   unit,
@@ -804,14 +799,13 @@ function ProgressLineChart({
 }: {
   data: WeeklyDataPoint[];
   offsetWeeks: number;
-  budgetCost: number;
-  budgetCostBreakdown: CostBreakdown;
   hoursSpent: number;
   hoursPlanned: number;
-  actualCost: number;
-  unpostedCost: number;
-  showBudgetCost: boolean;
-  showActualCost: boolean;
+  estimateHours: number;
+  billableResourcePrice: number;
+  invoicedPrice: number;
+  unpostedBillable: number;
+  showBillablePrice: boolean;
   showTimeBudgeted: boolean;
   showTimeSpent: boolean;
   unit: SpendUnit;
@@ -822,8 +816,8 @@ function ProgressLineChart({
 }) {
   const isCost = unit === 'cost';
   // Which KPI card eyes govern the chart: cost cards for £, time cards for effort
-  const showBudget = isCost ? showBudgetCost : showTimeBudgeted;
-  const showActual = isCost ? showActualCost : showTimeSpent;
+  const showBudget = isCost ? showBillablePrice : showTimeBudgeted;
+  const showActual = isCost ? showBillablePrice : showTimeSpent;
   // Y-axis labels plus the spent line would reveal both figures, so only label it when both are visible
   const showValueAxis = showBudget && showActual;
   const formatValue = (value: number) => {
@@ -838,23 +832,23 @@ function ProgressLineChart({
     [data, offsetWeeks]
   );
 
-  // Average cost per hour. Spent = posted cost + the service's estimate for unposted
-  // hours (at posted rates, or budget rates when nothing is posted yet), so the line
-  // rises as timesheets are entered rather than only once they're posted to BC.
-  // Before any time is spent, fall back to the budget resource rate for the forecast.
-  const costRate = useMemo(() => {
-    const spentCost = actualCost + unpostedCost;
-    if (spentCost > 0 && hoursSpent > 0) return spentCost / hoursSpent;
-    if (budgetCostBreakdown.resource > 0 && hoursPlanned > 0) {
-      return budgetCostBreakdown.resource / hoursPlanned;
-    }
+  // The budget is the quoted estimate (Billable Resource lines), not the Plan's Budget lines.
+  // Falls back to the Plan's hours for projects without an estimate (e.g. internal work).
+  const budgetHours = estimateHours > 0 ? estimateHours : hoursPlanned;
+  // Selling rate per hour, so £ compares like with like against the Billable Price:
+  // posted invoiced price + the service's estimate for unposted hours, over hours spent;
+  // before any time is spent, the estimate's own rate.
+  const priceRate = useMemo(() => {
+    const spentPrice = invoicedPrice + unpostedBillable;
+    if (spentPrice > 0 && hoursSpent > 0) return spentPrice / hoursSpent;
+    if (billableResourcePrice > 0 && budgetHours > 0) return billableResourcePrice / budgetHours;
     return null;
-  }, [actualCost, unpostedCost, hoursSpent, budgetCostBreakdown.resource, hoursPlanned]);
+  }, [invoicedPrice, unpostedBillable, hoursSpent, billableResourcePrice, budgetHours]);
   // Value per hour in the chosen unit; the rest of the chart works in that unit
   const effortRate = unit === 'hours' ? 1 : 1 / (hoursPerDay || 8);
-  const avgCostRate = isCost ? costRate : effortRate;
-  // Budget in the chosen unit: Budget Cost (£) or Time Budgeted (hours/days)
-  const budgetValue = isCost ? budgetCost : hoursPlanned * effortRate;
+  const avgCostRate = isCost ? priceRate : effortRate;
+  // Budget in the chosen unit: Billable Price of the estimate (£) or its time (hours/days)
+  const budgetValue = isCost ? billableResourcePrice : budgetHours * effortRate;
 
   // Forecast cumulative hours for future weeks: hours spent to date plus the planned
   // hours (from Job Planning Lines, i.e. the Plan page) of each week after this one
@@ -956,12 +950,7 @@ function ProgressLineChart({
 
   const currentWeekIndex = displayDataWithCost.findIndex((d) => d.isCurrentWeek);
 
-  // Budget breakdown line Y positions
-  const resourceBudgetY = maxCost > 0 ? (1 - budgetCostBreakdown.resource / maxCost) * 100 : 100;
-  const resourceItemBudgetY =
-    maxCost > 0
-      ? (1 - (budgetCostBreakdown.resource + budgetCostBreakdown.item) / maxCost) * 100
-      : 100;
+  // Budget line Y position
   const totalBudgetY = maxCost > 0 ? (1 - budgetValue / maxCost) * 100 : 0;
 
   return (
@@ -983,43 +972,13 @@ function ProgressLineChart({
             ))}
           </div>
 
-          {/* Budget breakdown bands (£ only) and total budget line */}
+          {/* Estimate band and budget line */}
           {showBudget && budgetValue > 0 && (
             <>
-              {/* Effort: budgeted time is all resource time, so one band up to the budget */}
-              {!isCost && (
-                <div
-                  className="absolute right-0 bottom-0 left-0 bg-blue-500/10"
-                  style={{ height: `${100 - totalBudgetY}%` }}
-                />
-              )}
-              {/* Resource budget band (bottom) */}
-              {isCost && budgetCostBreakdown.resource > 0 && (
-                <div
-                  className="absolute right-0 bottom-0 left-0 bg-blue-500/10"
-                  style={{ height: `${100 - resourceBudgetY}%` }}
-                />
-              )}
-              {/* Item budget band (middle) */}
-              {isCost && budgetCostBreakdown.item > 0 && (
-                <div
-                  className="absolute right-0 left-0 bg-purple-500/10"
-                  style={{
-                    top: `${resourceItemBudgetY}%`,
-                    height: `${resourceBudgetY - resourceItemBudgetY}%`,
-                  }}
-                />
-              )}
-              {/* G/L Account budget band (top) */}
-              {isCost && budgetCostBreakdown.glAccount > 0 && (
-                <div
-                  className="absolute right-0 left-0 bg-amber-500/10"
-                  style={{
-                    top: `${totalBudgetY}%`,
-                    height: `${resourceItemBudgetY - totalBudgetY}%`,
-                  }}
-                />
-              )}
+              <div
+                className="absolute right-0 bottom-0 left-0 bg-blue-500/10"
+                style={{ height: `${100 - totalBudgetY}%` }}
+              />
 
               {/* Total budget line */}
               <div
@@ -1206,36 +1165,9 @@ function ProgressLineChart({
                   {formatValue(onTrack.valueAt(displayDataWithCost[hoveredIndex].date.getTime()))}
                 </div>
               )}
-              {showBudget && budgetValue > 0 && !isCost && (
+              {showBudget && budgetValue > 0 && (
                 <div className="border-dark-500 mt-1 border-t pt-1 text-amber-400">
                   Budget: {formatValue(budgetValue)}
-                </div>
-              )}
-              {showBudget && isCost && budgetCost > 0 && (
-                <div className="border-dark-500 mt-1 border-t pt-1">
-                  <div className="mb-1 text-gray-500">Budget breakdown:</div>
-                  {budgetCostBreakdown.resource > 0 && (
-                    <div className="flex items-center gap-2 text-blue-400">
-                      <span className="inline-block h-2 w-2 rounded-sm bg-blue-500/50" />
-                      Resource: {formatCurrencyShort(budgetCostBreakdown.resource, currencyCode)}
-                    </div>
-                  )}
-                  {budgetCostBreakdown.item > 0 && (
-                    <div className="flex items-center gap-2 text-purple-400">
-                      <span className="inline-block h-2 w-2 rounded-sm bg-purple-500/50" />
-                      Item: {formatCurrencyShort(budgetCostBreakdown.item, currencyCode)}
-                    </div>
-                  )}
-                  {budgetCostBreakdown.glAccount > 0 && (
-                    <div className="flex items-center gap-2 text-amber-400">
-                      <span className="inline-block h-2 w-2 rounded-sm bg-amber-500/50" />
-                      G/L Account:{' '}
-                      {formatCurrencyShort(budgetCostBreakdown.glAccount, currencyCode)}
-                    </div>
-                  )}
-                  <div className="mt-1 font-medium text-amber-400">
-                    Total: {formatCurrencyShort(budgetCost, currencyCode)}
-                  </div>
                 </div>
               )}
               {displayDataWithCost[hoveredIndex].isCurrentWeek && (
@@ -1302,30 +1234,10 @@ function ProgressLineChart({
               <span>Forecast ({formatValue(forecastAtCompletion)} at completion)</span>
             </div>
           )}
-          {!isCost && (
-            <div className="flex items-center gap-1">
-              <span className="inline-block h-2 w-4 rounded bg-blue-500/30" />
-              <span>Budgeted time</span>
-            </div>
-          )}
-          {isCost && budgetCostBreakdown.resource > 0 && (
-            <div className="flex items-center gap-1">
-              <span className="inline-block h-2 w-4 rounded bg-blue-500/30" />
-              <span>Resource</span>
-            </div>
-          )}
-          {isCost && budgetCostBreakdown.item > 0 && (
-            <div className="flex items-center gap-1">
-              <span className="inline-block h-2 w-4 rounded bg-purple-500/30" />
-              <span>Item</span>
-            </div>
-          )}
-          {isCost && budgetCostBreakdown.glAccount > 0 && (
-            <div className="flex items-center gap-1">
-              <span className="inline-block h-2 w-4 rounded bg-amber-500/30" />
-              <span>G/L Acct</span>
-            </div>
-          )}
+          <div className="flex items-center gap-1">
+            <span className="inline-block h-2 w-4 rounded bg-blue-500/30" />
+            <span>Estimate</span>
+          </div>
         </div>
       )}
     </div>

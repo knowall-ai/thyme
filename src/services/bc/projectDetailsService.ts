@@ -44,6 +44,7 @@ export interface ProjectAnalytics {
   // Hours
   hoursSpent: number; // From timesheets (totalQuantity)
   hoursPlanned: number; // From Job Planning Lines (Budget lineType)
+  estimateHours: number; // Quoted estimate: Resource Billable lines (incl. Both Budget and Billable)
   hoursThisWeek: number;
   hoursPosted: number; // From timeEntries (Job Ledger Entry) - posted to ledger
   hoursUnposted: number; // hoursSpent - hoursPosted (in timesheets but not posted)
@@ -214,6 +215,7 @@ export const projectDetailsService = {
       hoursPerDay: 8,
       hoursSpent: 0,
       hoursPlanned: 0,
+      estimateHours: 0,
       hoursThisWeek: 0,
       hoursPosted: 0,
       hoursUnposted: 0,
@@ -403,6 +405,7 @@ export const projectDetailsService = {
     // BC has 3 line types: Resource (labor), Item (products), G/L Account (overhead/services)
     // We include ALL types for totals, but only Resource for hours
     let hoursPlanned = 0;
+    let estimateHours = 0;
     let hoursPerDay = 8; // Default, will be updated from BC if DAY unit is configured
     let budgetCost = 0;
     let budgetCostBreakdown: CostBreakdown = { resource: 0, item: 0, glAccount: 0, total: 0 };
@@ -489,6 +492,15 @@ export const projectDetailsService = {
         (sum: number, line: BCJobPlanningLine) => sum + line.totalPrice,
         0
       );
+      // Estimate: the quoted time on Billable Resource lines (Budget lines are the Plan
+      // screen's weekly allocations), converted to hours via the UoM map
+      estimateHours = billableLines
+        .filter((line: BCJobPlanningLine) => line.type === 'Resource')
+        .reduce(
+          (sum: number, line: BCJobPlanningLine) =>
+            sum + convertToHours(line.number, line.quantity, uomConversionMap),
+          0
+        );
       billablePriceBreakdown = {
         resource: billableLines
           .filter((line: BCJobPlanningLine) => line.type === 'Resource')
@@ -755,7 +767,9 @@ export const projectDetailsService = {
         // (hoursPlanned only includes resources, so use resource breakdown for accurate rate)
         // Note: if resource breakdown is 0, avgRate = 0 which is correct (no budget defined)
         const avgBudgetCostRate = budgetCostBreakdown.resource / hoursPlanned;
-        const avgBillableRate = billablePriceBreakdown.resource / hoursPlanned;
+        // Billable price belongs to the estimate's hours, not the Plan's
+        const avgBillableRate =
+          billablePriceBreakdown.resource / (estimateHours > 0 ? estimateHours : hoursPlanned);
         unpostedCost = hoursUnposted * avgBudgetCostRate;
         unpostedBillable = hoursUnposted * avgBillableRate;
       }
@@ -798,6 +812,7 @@ export const projectDetailsService = {
       // New BC-aligned terminology
       hoursSpent: totalHours,
       hoursPlanned,
+      estimateHours,
       hoursThisWeek,
       hoursPosted,
       hoursUnposted,
