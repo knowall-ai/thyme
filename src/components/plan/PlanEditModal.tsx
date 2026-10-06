@@ -7,6 +7,7 @@ import { Modal, Button } from '@/components/ui';
 import { useCompanyStore } from '@/hooks';
 import { usePlanStore } from '@/hooks/usePlanStore';
 import { bcClient } from '@/services/bc/bcClient';
+import { UomLoadError } from './UomLoadError';
 import { getBCResourceUrl, getBCJobUrl } from '@/utils/bcUrls';
 import {
   buildUOMConversionMap,
@@ -70,6 +71,9 @@ export function PlanEditModal({
 
   // UOM conversion map for converting between hours and resource base units
   const [uomMap, setUomMap] = useState<UOMConversionMap>(new Map());
+  // Units of measure failed to load: saving is blocked, as DAY-based quantities
+  // would otherwise be written as hours (#249)
+  const [uomLoadFailed, setUomLoadFailed] = useState(false);
 
   // Fetch all existing planning lines for this resource/project/task/week
   const fetchExistingLines = useCallback(async () => {
@@ -82,8 +86,16 @@ export function PlanEditModal({
       if (cachedUomMap.size > 0) {
         conversionMap = cachedUomMap;
       } else {
-        const resourceUOMs = await bcClient.getResourceUnitsOfMeasure();
-        conversionMap = buildUOMConversionMap(resourceUOMs);
+        try {
+          const resourceUOMs = await bcClient.getResourceUnitsOfMeasure({ strict: true });
+          conversionMap = buildUOMConversionMap(resourceUOMs);
+          setUomLoadFailed(false);
+        } catch (uomError) {
+          console.error('Failed to load resource units of measure', uomError);
+          conversionMap = new Map();
+          setUomLoadFailed(true);
+          toast.error('Failed to load resource units of measure');
+        }
       }
       setUomMap(conversionMap);
 
@@ -205,6 +217,11 @@ export function PlanEditModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!allocation || isSubmitting) return;
+
+    if (uomLoadFailed) {
+      toast.error('Units of measure could not be loaded, so hours cannot be saved safely.');
+      return;
+    }
 
     // Validate no entry exceeds 24 hours
     for (const [, hoursStr] of Object.entries(hoursPerDay)) {
@@ -462,6 +479,8 @@ export function PlanEditModal({
           <span className="text-dark-100 font-medium">{formatHours(totalHours)}h</span>
         </div>
 
+        {uomLoadFailed && <UomLoadError onRetry={fetchExistingLines} />}
+
         {/* Actions */}
         <div className="border-dark-700 flex items-center justify-between border-t pt-4">
           <Button
@@ -478,7 +497,11 @@ export function PlanEditModal({
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" isLoading={isSubmitting} disabled={isLoadingExisting}>
+            <Button
+              type="submit"
+              isLoading={isSubmitting}
+              disabled={isLoadingExisting || uomLoadFailed}
+            >
               Save Changes
             </Button>
           </div>

@@ -535,7 +535,16 @@ class BusinessCentralClient {
 
   // Resource Units of Measure - conversion factors for time units
   // Requires Thyme BC Extension v1.7.0+
-  async getResourceUnitsOfMeasure(): Promise<BCResourceUnitOfMeasure[]> {
+  /**
+   * Get every resource's units of measure (e.g. DAY = 7.5 HOURS).
+   * By default failures return [] so read-only views degrade gracefully. Pass
+   * `{ strict: true }` when the result is used to write quantities back to BC:
+   * a real failure then throws instead of silently treating every unit as hours.
+   * (No extension, or an old extension without the endpoint, still returns [].)
+   */
+  async getResourceUnitsOfMeasure(
+    options: { strict?: boolean } = {}
+  ): Promise<BCResourceUnitOfMeasure[]> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
       return [];
@@ -543,7 +552,10 @@ class BusinessCentralClient {
 
     try {
       const token = await getBCAccessToken();
-      if (!token) return [];
+      if (!token) {
+        if (options.strict) throw new Error('No Business Central access token');
+        return [];
+      }
 
       const url = `${this.customApiBaseUrl}/resourceUnitsOfMeasure`;
       const response = await fetch(url, {
@@ -560,6 +572,9 @@ class BusinessCentralClient {
           );
           return [];
         }
+        if (options.strict) {
+          throw new Error(`Failed to load resource units of measure (HTTP ${response.status})`);
+        }
         return [];
       }
 
@@ -567,6 +582,7 @@ class BusinessCentralClient {
       return data.value || [];
     } catch (error) {
       console.error('[BC API] Error fetching resource units of measure:', error);
+      if (options.strict) throw error;
       return [];
     }
   }
