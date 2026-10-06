@@ -314,8 +314,12 @@ function isoWeekToDate(isoWeek: string): Date | null {
 function parseLocalDate(value: string | undefined): Date | null {
   const match = value ? /^(\d{4})-(\d{2})-(\d{2})/.exec(value) : null;
   if (!match || match[1] === '0001') return null;
-  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-  return Number.isNaN(date.getTime()) ? null : date;
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const date = new Date(year, month - 1, day);
+  // Reject dates Date would roll over (e.g. 2026-02-30 -> 2 March)
+  const isRealDate =
+    date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+  return isRealDate ? date : null;
 }
 
 /**
