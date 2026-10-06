@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
+import Image from 'next/image';
 import { Header } from './Header';
 
 interface LayoutProps {
@@ -23,17 +24,25 @@ export function Layout({ children }: LayoutProps) {
         <footer className="border-dark-800 bg-dark-900/50 border-t">
           <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
             {/* Screen version */}
-            <p className="text-dark-500 text-center text-sm print:hidden">
-              Thyme v{appVersion} - Time Tracking for Business Central by{' '}
+            <div className="flex flex-col items-center gap-3 print:hidden">
+              <p className="text-dark-500 text-center text-sm">
+                Thyme v{appVersion} - Time Tracking for Business Central
+              </p>
               <a
                 href="https://knowall.ai"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-knowall-green hover:text-knowall-green-light transition-colors"
+                className="inline-block opacity-80 transition-opacity hover:opacity-100"
               >
-                KnowAll AI
+                <Image
+                  src="/knowall-logo.png"
+                  alt="KnowAll AI"
+                  width={207}
+                  height={151}
+                  className="h-10 w-auto"
+                />
               </a>
-            </p>
+            </div>
             {/* Print version */}
             <p className="text-dark-500 hidden text-center text-sm print:block">
               Want to get Thyme for Business Central? Go to{' '}
