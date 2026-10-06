@@ -158,7 +158,10 @@ export function ProjectKPICards() {
   // Calculate percentages and status
   const hoursSpent = analytics?.hoursSpent ?? 0;
   const hoursPosted = analytics?.hoursPosted ?? 0;
-  const hoursUnposted = analytics?.hoursUnposted ?? 0;
+  // Time Spent by stage, each counted once: Pending → Approved (not yet posted) → Posted
+  const pendingHours = analytics?.pendingHours ?? 0;
+  const postedHours = Math.min(hoursPosted, analytics?.approvedHours ?? 0);
+  const approvedUnpostedHours = Math.max(0, (analytics?.approvedHours ?? 0) - postedHours);
   const hoursPerDay = analytics?.hoursPerDay ?? 8; // From BC Resource Unit of Measure
   // Estimate (quoted, Billable lines) is the budget; Spent + future Planned = Forecast
   const estimateHours = analytics?.estimateHours ?? 0;
@@ -184,8 +187,8 @@ export function ProjectKPICards() {
     },
     'Time Spent': {
       title: 'Time Spent',
-      description: `Total hours logged in timesheets for this project (Open, Submitted and Approved), shown against the Estimate. Posted time is in the Job Ledger Entry; the rest is awaiting "Post Time Sheets" in BC. Days = hours ÷ ${hoursPerDayLabel}.`,
-      formula: 'Σ timesheet hours ÷ Estimate = % used',
+      description: `Total hours logged in timesheets for this project, shown against the Estimate and split by stage: Pending (Open or Submitted), Approved (awaiting "Post Time Sheets" in BC) and Posted (in the Job Ledger Entry). Days = hours ÷ ${hoursPerDayLabel}.`,
+      formula: 'Posted + Approved + Pending = Time Spent',
       source: 'BC API: /timeSheetDetails → quantity',
     },
     Planned: {
@@ -240,6 +243,7 @@ export function ProjectKPICards() {
     subLabelColor?: string;
     progress?: number;
     progressColor?: string;
+    segments?: { label: string; hours: number; color: string }[];
   }[] = [
     {
       label: 'Estimate',
@@ -254,16 +258,15 @@ export function ProjectKPICards() {
       subLabel: hasEstimate
         ? `${percentOfEstimate}% of ${formatHoursWithDays(estimateHours, hoursPerDay)} estimate`
         : 'From timesheets',
-      detail: `${formatHoursWithDays(hoursPosted, hoursPerDay)} posted · ${formatHoursWithDays(hoursUnposted, hoursPerDay)} not yet posted`,
+      subLabelColor: percentOfEstimate > 100 ? 'text-red-400' : undefined,
       icon: ClockIcon,
       color: 'text-thyme-400',
-      progress: hasEstimate ? Math.min(percentOfEstimate, 100) : undefined,
-      progressColor:
-        percentOfEstimate > 100
-          ? 'bg-red-500'
-          : percentOfEstimate > 80
-            ? 'bg-amber-500'
-            : 'bg-thyme-500',
+      // Same colours as the Hours per Week bars; posted is the darker, settled green
+      segments: [
+        { label: 'Posted', hours: postedHours, color: 'bg-thyme-700' },
+        { label: 'Approved', hours: approvedUnpostedHours, color: 'bg-thyme-500' },
+        { label: 'Pending', hours: pendingHours, color: 'bg-amber-500' },
+      ],
     },
     {
       label: 'Planned',
@@ -435,6 +438,30 @@ export function ProjectKPICards() {
                   <p className={`mt-1 text-xs ${kpi.subLabelColor ?? 'text-gray-500'}`}>
                     {isHidden ? 'Hidden' : kpi.subLabel}
                   </p>
+                  {kpi.segments && !isHidden && (
+                    <>
+                      {/* Stacked bar against the estimate (or total spent, if over or no estimate) */}
+                      <div className="bg-dark-600 mt-2 flex h-1.5 w-full overflow-hidden rounded-full">
+                        {kpi.segments.map((seg) => (
+                          <div
+                            key={seg.label}
+                            className={`h-full transition-all ${seg.color}`}
+                            style={{
+                              width: `${(seg.hours / Math.max(estimateHours, hoursSpent, 1)) * 100}%`,
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-500">
+                        {kpi.segments.map((seg) => (
+                          <span key={seg.label} className="flex items-center gap-1">
+                            <span className={`inline-block h-2 w-2 rounded-sm ${seg.color}`} />
+                            {seg.label} {formatHoursWithDays(seg.hours, hoursPerDay)}
+                          </span>
+                        ))}
+                      </div>
+                    </>
+                  )}
                   {kpi.progress !== undefined && !isHidden && (
                     <div className="bg-dark-600 mt-2 h-1.5 w-full overflow-hidden rounded-full">
                       <div

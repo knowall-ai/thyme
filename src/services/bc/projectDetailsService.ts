@@ -49,6 +49,8 @@ export interface ProjectAnalytics {
   hoursThisWeek: number;
   hoursPosted: number; // From timeEntries (Job Ledger Entry) - posted to ledger
   hoursUnposted: number; // hoursSpent - hoursPosted (in timesheets but not posted)
+  approvedHours: number; // Hours on Approved timesheet lines (posted time stays Approved)
+  pendingHours: number; // Hours on Open or Submitted timesheet lines
 
   // Costs (internal - hideable) with breakdown by type
   budgetCost: number; // Total from Job Planning Lines totalCost (Budget lineType)
@@ -221,6 +223,8 @@ export const projectDetailsService = {
       hoursThisWeek: 0,
       hoursPosted: 0,
       hoursUnposted: 0,
+      approvedHours: 0,
+      pendingHours: 0,
       budgetCost: 0,
       budgetCostBreakdown: emptyBreakdown(),
       actualCost: 0,
@@ -351,6 +355,14 @@ export const projectDetailsService = {
 
     // Calculate analytics from collected data
     const totalHours = timeEntries.reduce((sum, e) => sum + e.hours, 0);
+
+    // Status totals: posting needs approval first, so posted time is a subset of approved
+    const approvedHours = timeEntries
+      .filter((e) => e.status === 'Approved')
+      .reduce((sum, e) => sum + e.hours, 0);
+    const pendingHours = timeEntries
+      .filter((e) => e.status === 'Open' || e.status === 'Submitted')
+      .reduce((sum, e) => sum + e.hours, 0);
 
     // For now, assume all hours are billable (BC doesn't expose this easily)
     const billableHours = totalHours;
@@ -826,6 +838,8 @@ export const projectDetailsService = {
       hoursThisWeek,
       hoursPosted,
       hoursUnposted,
+      approvedHours,
+      pendingHours,
       budgetCost,
       budgetCostBreakdown,
       actualCost,
