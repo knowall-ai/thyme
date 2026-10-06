@@ -77,6 +77,8 @@ export function ProjectCharts() {
   const [chartView, setChartView] = useState<ChartView>('weekly');
   // Days by default: effort is the safe view to share, and matches how projects are planned
   const [spendUnit, setSpendUnit] = useState<SpendUnit>('days');
+  // Hours per Week can show hours or days (no money there)
+  const [weeklyUnit, setWeeklyUnit] = useState<'hours' | 'days'>('hours');
   // Weeks back from the current week (negative = scrolled into the future)
   const [offsetWeeks, setOffsetWeeks] = useState(0);
 
@@ -84,6 +86,7 @@ export function ProjectCharts() {
   // last week with any data (e.g. future planned hours), so upcoming work is visible
   const weeklyData = useMemo(() => analytics?.weeklyData ?? [], [analytics]);
   const projectEndDate = project?.endDate;
+  const projectStartDate = project?.startDate;
   const maxForwardWeeks = useMemo(() => {
     const currentWeekStart = getWeekStart(new Date());
     let furthest = 0;
@@ -191,31 +194,39 @@ export function ProjectCharts() {
           >
             Spend vs Budget
           </button>
-          {/* Unit toggle for Spend vs Budget: effort (no money) or internal cost */}
-          {chartView === 'progress' && (
-            <div
-              className="border-dark-600 ml-2 flex overflow-hidden rounded-lg border"
-              role="group"
-              aria-label="Spend vs Budget units"
-            >
-              {SPEND_UNITS.map((u) => (
+          {/* Unit toggle: Hours | Days for Hours per Week; Hours | Days | £ for Spend vs Budget
+              (effort shows no money; £ is internal cost) */}
+          <div
+            className="border-dark-600 ml-2 flex overflow-hidden rounded-lg border"
+            role="group"
+            aria-label={chartView === 'progress' ? 'Spend vs Budget units' : 'Hours per Week units'}
+          >
+            {SPEND_UNITS.filter((u) => chartView === 'progress' || u.value !== 'cost').map((u) => {
+              const selected = (chartView === 'progress' ? spendUnit : weeklyUnit) === u.value;
+              return (
                 <button
                   key={u.value}
-                  onClick={() => setSpendUnit(u.value)}
-                  title={u.title}
-                  aria-pressed={spendUnit === u.value}
+                  onClick={() =>
+                    chartView === 'progress'
+                      ? setSpendUnit(u.value)
+                      : setWeeklyUnit(u.value as 'hours' | 'days')
+                  }
+                  title={
+                    chartView === 'progress' ? u.title : `Show ${u.label.toLowerCase()} per week`
+                  }
+                  aria-pressed={selected}
                   className={cn(
                     'px-3 py-2 text-sm font-medium transition-colors',
-                    spendUnit === u.value
+                    selected
                       ? 'bg-dark-500 text-white'
                       : 'bg-dark-700 text-gray-400 hover:text-white'
                   )}
                 >
                   {u.value === 'cost' ? CURRENCY_SYMBOLS[currencyCode] || currencyCode : u.label}
                 </button>
-              ))}
-            </div>
-          )}
+              );
+            })}
+          </div>
         </div>
         {/* Navigation - hidden in print */}
         <div className="flex items-center gap-1 print:hidden">
@@ -270,8 +281,15 @@ export function ProjectCharts() {
 
       {/* Chart area - the selected chart on screen; both charts in print/PDF */}
       <div className={cn(chartView !== 'weekly' && 'hidden print:block')}>
-        <PrintChartTitle>Hours per Week</PrintChartTitle>
-        <WeeklyBarChart data={weeklyData} offsetWeeks={offsetWeeks} />
+        <PrintChartTitle>
+          {weeklyUnit === 'days' ? 'Days per Week' : 'Hours per Week'}
+        </PrintChartTitle>
+        <WeeklyBarChart
+          data={weeklyData}
+          offsetWeeks={offsetWeeks}
+          unit={weeklyUnit}
+          hoursPerDay={analytics?.hoursPerDay ?? 8}
+        />
       </div>
       <div className={cn('print:mt-6', chartView !== 'progress' && 'hidden print:block')}>
         <PrintChartTitle>
@@ -294,6 +312,8 @@ export function ProjectCharts() {
           showTimeSpent={showTimeSpent}
           unit={spendUnit}
           hoursPerDay={analytics?.hoursPerDay ?? 8}
+          projectStartDate={projectStartDate}
+          projectEndDate={projectEndDate}
           currencyCode={currencyCode}
         />
       </div>
@@ -393,7 +413,10 @@ function getNiceScale(max: number, minTop: number): { top: number; ticks: number
   const magnitude = 10 ** Math.floor(Math.log10(rough));
   const step = [1, 2, 2.5, 5, 10].map((m) => m * magnitude).find((s) => s >= rough)!;
   const steps = Math.ceil(target / step - 1e-9);
-  const ticks = Array.from({ length: steps + 1 }, (_, i) => i * step).reverse();
+  // Round away floating-point noise (0.2 × 3 = 0.6000000000000001)
+  const ticks = Array.from({ length: steps + 1 }, (_, i) =>
+    Number((i * step).toPrecision(12))
+  ).reverse();
   return { top: steps * step, ticks };
 }
 
@@ -476,9 +499,15 @@ function generateWeeklyDisplayData(
 interface WeeklyBarChartProps {
   data: WeeklyDataPoint[];
   offsetWeeks: number;
+  unit: 'hours' | 'days';
+  hoursPerDay: number;
 }
 
-function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
+function WeeklyBarChart({ data, offsetWeeks, unit, hoursPerDay }: WeeklyBarChartProps) {
+  // Values are stored in hours; days = hours ÷ the project's hours per day
+  const unitRate = unit === 'days' ? 1 / (hoursPerDay || 8) : 1;
+  const formatEffort = (hours: number) =>
+    `${(hours * unitRate).toFixed(1)}${unit === 'days' ? 'd' : 'h'}`;
   const [hoveredWeek, setHoveredWeek] = useState<string | null>(null);
 
   const displayData = useMemo(
@@ -504,8 +533,10 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
   const { top: maxHours, ticks: yAxisLabels } = useMemo(() => {
     // Consider both actual hours and planned hours for the max
     const max = Math.max(...data.map((d) => Math.max(d.hours, d.plannedHours || 0)), 0);
-    return getNiceScale(max, 5);
-  }, [data]);
+    // Nice ticks in the chosen unit; bar heights stay in hours, scaled by the same top
+    const scale = getNiceScale(max * unitRate, unit === 'days' ? 1 : 5);
+    return { top: scale.top / unitRate, ticks: scale.ticks };
+  }, [data, unitRate, unit]);
 
   const currentWeekIndex = displayData.findIndex((d) => d.isCurrentWeek);
 
@@ -513,9 +544,12 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
     <div>
       <div className="flex h-48">
         {/* Y-axis */}
-        <div className="flex w-8 flex-col justify-between pr-2 text-right text-xs text-gray-500">
+        <div className="flex w-10 flex-col justify-between pr-2 text-right text-xs text-gray-500">
           {yAxisLabels.map((label) => (
-            <span key={label}>{label}</span>
+            <span key={label}>
+              {label}
+              {unit === 'days' ? 'd' : ''}
+            </span>
           ))}
         </div>
 
@@ -617,19 +651,19 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
                       {point.plannedHours > 0 && (
                         <div className="flex items-center gap-2 text-gray-400">
                           <span className="inline-block h-2 w-2 rounded-sm bg-gray-500" />
-                          Planned: {point.plannedHours.toFixed(1)}h
+                          Planned: {formatEffort(point.plannedHours)}
                         </div>
                       )}
                       {point.approvedHours > 0 && (
                         <div className="flex items-center gap-2 text-gray-400">
                           <span className="bg-thyme-500 inline-block h-2 w-2 rounded-sm" />
-                          Approved: {point.approvedHours.toFixed(1)}h
+                          Approved: {formatEffort(point.approvedHours)}
                         </div>
                       )}
                       {point.pendingHours > 0 && (
                         <div className="flex items-center gap-2 text-gray-400">
                           <span className="inline-block h-2 w-2 rounded-sm bg-amber-500" />
-                          Pending: {point.pendingHours.toFixed(1)}h
+                          Pending: {formatEffort(point.pendingHours)}
                         </div>
                       )}
                       {point.hours === 0 && point.plannedHours === 0 && (
@@ -646,7 +680,7 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
       </div>
 
       {/* X-axis with month labels */}
-      <div className="mt-2 ml-8 flex">
+      <div className="mt-2 ml-10 flex">
         {displayData.map((point) => (
           <div key={point.week} className="flex-1 text-center">
             {point.monthLabel && <span className="text-xs text-gray-500">{point.monthLabel}</span>}
@@ -658,15 +692,15 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
       <div className="mt-3 flex items-center justify-center gap-6 text-xs text-gray-400">
         <div className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-sm bg-gray-600" />
-          <span>Planned ({legendTotals.planned.toFixed(1)}h)</span>
+          <span>Planned ({formatEffort(legendTotals.planned)})</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="bg-thyme-500 inline-block h-2.5 w-2.5 rounded-sm" />
-          <span>Approved ({legendTotals.approved.toFixed(1)}h)</span>
+          <span>Approved ({formatEffort(legendTotals.approved)})</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-500" />
-          <span>Pending ({legendTotals.pending.toFixed(1)}h)</span>
+          <span>Pending ({formatEffort(legendTotals.pending)})</span>
         </div>
       </div>
     </div>
@@ -764,6 +798,8 @@ function ProgressLineChart({
   showTimeSpent,
   unit,
   hoursPerDay,
+  projectStartDate,
+  projectEndDate,
   currencyCode,
 }: {
   data: WeeklyDataPoint[];
@@ -780,6 +816,8 @@ function ProgressLineChart({
   showTimeSpent: boolean;
   unit: SpendUnit;
   hoursPerDay: number;
+  projectStartDate?: string;
+  projectEndDate?: string;
   currencyCode: string;
 }) {
   const isCost = unit === 'cost';
@@ -889,6 +927,32 @@ function ProgressLineChart({
     // Minimum axis height: £500, 5 hours or 1 day
     return getNiceScale(max, isCost ? 500 : unit === 'hours' ? 5 : 1);
   }, [data, avgCostRate, forecastAtCompletion, budgetValue, showActual, isCost, unit]);
+
+  // On-track line: straight from 0 on the project start date to the full budget on the end
+  // date, so spend above it is ahead of plan and below it is behind. Uses the same equal
+  // week slots as the points and Today marker; only the part inside the visible weeks is drawn.
+  const onTrack = (() => {
+    const start = parseLocalDate(projectStartDate);
+    const end = parseLocalDate(projectEndDate);
+    if (!start || !end || end <= start || !showBudget || budgetValue <= 0) return null;
+    if (displayDataWithCost.length === 0) return null;
+    const weekMs = 7 * 24 * 60 * 60 * 1000;
+    const windowStart = displayDataWithCost[0].date.getTime();
+    const windowEnd = windowStart + displayDataWithCost.length * weekMs;
+    const valueAt = (t: number) =>
+      budgetValue *
+      Math.min(1, Math.max(0, (t - start.getTime()) / (end.getTime() - start.getTime())));
+    const xAt = (t: number) => ((t - windowStart) / weekMs / displayDataWithCost.length) * 100;
+    const from = Math.max(start.getTime(), windowStart);
+    const to = Math.min(end.getTime(), windowEnd);
+    return {
+      valueAt,
+      segment:
+        from < to
+          ? { x1: xAt(from), y1: yFor(valueAt(from)), x2: xAt(to), y2: yFor(valueAt(to)) }
+          : null,
+    };
+  })();
 
   const currentWeekIndex = displayDataWithCost.findIndex((d) => d.isCurrentWeek);
 
@@ -1020,6 +1084,21 @@ function ProgressLineChart({
               vectorEffect="non-scaling-stroke"
             />
 
+            {/* On-track line - grey dotted, start date (0) to end date (budget) */}
+            {onTrack?.segment && (
+              <line
+                x1={onTrack.segment.x1}
+                y1={onTrack.segment.y1}
+                x2={onTrack.segment.x2}
+                y2={onTrack.segment.y2}
+                stroke="currentColor"
+                className="text-gray-400"
+                strokeWidth="1.5"
+                strokeDasharray="2 3"
+                vectorEffect="non-scaling-stroke"
+              />
+            )}
+
             {/* Forecast line - from this week's spend through future planned hours */}
             <path
               d={(() => {
@@ -1121,6 +1200,12 @@ function ProgressLineChart({
                     </div>
                   ))}
               </div>
+              {onTrack && (
+                <div className="border-dark-500 mt-1 border-t pt-1 text-gray-400">
+                  On track:{' '}
+                  {formatValue(onTrack.valueAt(displayDataWithCost[hoveredIndex].date.getTime()))}
+                </div>
+              )}
               {showBudget && budgetValue > 0 && !isCost && (
                 <div className="border-dark-500 mt-1 border-t pt-1 text-amber-400">
                   Budget: {formatValue(budgetValue)}
@@ -1205,6 +1290,12 @@ function ProgressLineChart({
             <span className="bg-thyme-500/50 inline-block h-2 w-4 rounded" />
             <span>Spent</span>
           </div>
+          {onTrack && (
+            <div className="flex items-center gap-1">
+              <span className="inline-block w-4 border-t-2 border-dotted border-gray-400" />
+              <span>On track</span>
+            </div>
+          )}
           {hasForecast && (
             <div className="flex items-center gap-1">
               <span className="inline-block w-4 border-t-2 border-dashed border-sky-400" />
