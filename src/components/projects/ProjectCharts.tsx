@@ -779,8 +779,15 @@ function ProgressLineChart({
       let forecastHours: number | null = null;
       let forecastCost: number | null = null;
       if (showActualCost && avgCostRate !== null && isFuture) {
-        // Weeks with no planning lines carry the previous forecast forward
-        lastForecastHours = forecastHoursByWeek.get(d.week) ?? lastForecastHours ?? d.cumulative;
+        // Weeks with no planning lines carry the latest earlier forecast forward, including
+        // from weeks before the visible window (ISO week strings sort correctly as text)
+        let carried = forecastHoursByWeek.get(d.week) ?? lastForecastHours;
+        if (carried === null) {
+          for (const [week, hours] of forecastHoursByWeek) {
+            if (week <= d.week) carried = hours;
+          }
+        }
+        lastForecastHours = carried ?? d.cumulative;
         forecastHours = lastForecastHours;
         forecastCost = lastForecastHours * avgCostRate;
       }
