@@ -249,6 +249,8 @@ export function ProjectKPICards() {
     },
   };
 
+  // Within rounding (0.0h shown) counts as on the estimate, not over or under it
+  const onEstimate = Math.abs(forecastVsEstimate) < 0.05;
   const hoursKpis: {
     label: string;
     value: string;
@@ -299,16 +301,21 @@ export function ProjectKPICards() {
       value: formatHoursWithDays(forecastHours, hoursPerDay),
       subLabel: !hasEstimate
         ? 'Spent + planned'
-        : forecastVsEstimate > 0
-          ? `▲ ${formatHoursWithDays(forecastVsEstimate, hoursPerDay)} over estimate`
-          : `▼ ${formatHoursWithDays(-forecastVsEstimate, hoursPerDay)} under estimate`,
+        : onEstimate
+          ? 'On estimate'
+          : forecastVsEstimate > 0
+            ? `▲ ${formatHoursWithDays(forecastVsEstimate, hoursPerDay)} over estimate`
+            : `▼ ${formatHoursWithDays(-forecastVsEstimate, hoursPerDay)} under estimate`,
       icon: ClockIcon,
-      color: hasEstimate && forecastVsEstimate > 0 ? 'text-red-400' : 'text-green-400',
-      subLabelColor: hasEstimate
-        ? forecastVsEstimate > 0
-          ? 'text-red-400'
-          : 'text-green-400'
-        : undefined,
+      color:
+        hasEstimate && forecastVsEstimate > 0 && !onEstimate ? 'text-red-400' : 'text-green-400',
+      subLabelColor: !hasEstimate
+        ? undefined
+        : onEstimate
+          ? 'text-gray-400'
+          : forecastVsEstimate > 0
+            ? 'text-red-400'
+            : 'text-green-400',
     },
   ];
 
