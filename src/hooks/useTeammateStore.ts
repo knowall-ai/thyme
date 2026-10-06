@@ -71,10 +71,20 @@ export const useTeammateStore = create<TeammateStore>((set, get) => ({
       });
 
       teammates.sort((a, b) => a.displayName.localeCompare(b.displayName));
-      set({ teammates, isLoading: false });
+      set((state) => ({
+        teammates,
+        isLoading: false,
+        // Drop a selection that isn't in the refreshed list (e.g. after a company switch),
+        // so one company's resource is never used against another — which, with the
+        // Create timesheet button, could create a timesheet for the wrong person
+        selectedTeammate:
+          state.selectedTeammate && teammates.some((t) => t.id === state.selectedTeammate?.id)
+            ? state.selectedTeammate
+            : null,
+      }));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch teammates';
-      set({ error: message, isLoading: false, teammates: [] });
+      set({ error: message, isLoading: false, teammates: [], selectedTeammate: null });
     }
   },
 
