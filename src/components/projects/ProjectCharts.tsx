@@ -237,7 +237,9 @@ export function ProjectCharts() {
             analytics?.budgetCostBreakdown ?? { resource: 0, item: 0, glAccount: 0, total: 0 }
           }
           hoursSpent={analytics?.hoursSpent ?? 0}
+          hoursPlanned={analytics?.hoursPlanned ?? 0}
           actualCost={analytics?.actualCost ?? 0}
+          unpostedCost={analytics?.unpostedCost ?? 0}
           showBudgetCost={showBudgetCost}
           showActualCost={showActualCost}
           currencyCode={currencyCode}
@@ -701,7 +703,9 @@ function ProgressLineChart({
   budgetCost,
   budgetCostBreakdown,
   hoursSpent,
+  hoursPlanned,
   actualCost,
+  unpostedCost,
   showBudgetCost,
   showActualCost,
   currencyCode,
@@ -711,7 +715,9 @@ function ProgressLineChart({
   budgetCost: number;
   budgetCostBreakdown: CostBreakdown;
   hoursSpent: number;
+  hoursPlanned: number;
   actualCost: number;
+  unpostedCost: number;
   showBudgetCost: boolean;
   showActualCost: boolean;
   currencyCode: string;
@@ -725,36 +731,82 @@ function ProgressLineChart({
     [data, offsetWeeks]
   );
 
-  // Calculate average cost rate from actual posted timesheet data only
-  // If no actual cost data exists, cost estimation is skipped entirely
+  // Average cost per hour. Spent = posted cost + the service's estimate for unposted
+  // hours (at posted rates, or budget rates when nothing is posted yet), so the line
+  // rises as timesheets are entered rather than only once they're posted to BC.
+  // Before any time is spent, fall back to the budget resource rate for the forecast.
   const avgCostRate = useMemo(() => {
-    if (actualCost > 0 && hoursSpent > 0) {
-      return actualCost / hoursSpent;
+    const spentCost = actualCost + unpostedCost;
+    if (spentCost > 0 && hoursSpent > 0) return spentCost / hoursSpent;
+    if (budgetCostBreakdown.resource > 0 && hoursPlanned > 0) {
+      return budgetCostBreakdown.resource / hoursPlanned;
     }
     return null;
-  }, [actualCost, hoursSpent]);
+  }, [actualCost, unpostedCost, hoursSpent, budgetCostBreakdown.resource, hoursPlanned]);
 
-  // Convert cumulative hours to cumulative cost for display
+  // Forecast cumulative hours for future weeks: hours spent to date plus the planned
+  // hours (from Job Planning Lines, i.e. the Plan page) of each week after this one
+  const { forecastHoursByWeek, forecastHoursAtCompletion } = useMemo(() => {
+    const currentWeek = getISOWeek(getWeekStart(new Date()));
+    const byWeek = new Map<string, number>();
+    let running = 0;
+    for (const d of data) {
+      if (d.week <= currentWeek) running = d.cumulative;
+      else {
+        running += d.plannedHours || 0;
+        byWeek.set(d.week, running);
+      }
+    }
+    return { forecastHoursByWeek: byWeek, forecastHoursAtCompletion: running };
+  }, [data]);
+  // The forecast is spend too, so it's hidden along with Actual Cost
+  const hasForecast = showActualCost && avgCostRate !== null && forecastHoursByWeek.size > 0;
+  const forecastAtCompletion = hasForecast ? forecastHoursAtCompletion * avgCostRate : 0;
+
+  // Convert cumulative hours to cumulative cost for display. Future weeks get a
+  // forecast cost instead of carrying the spent line flat.
   // If no rate available, set cost to 0 (chart will show hours only).
   // Also 0 when Actual Cost is hidden: the curve's height against the labelled
   // budget line (and the scale it drives) would otherwise reveal the hidden spend.
   const displayDataWithCost = useMemo(() => {
-    return displayData.map((d) => ({
-      ...d,
-      cumulativeCost: showActualCost && avgCostRate !== null ? d.cumulative * avgCostRate : 0,
-    }));
-  }, [displayData, avgCostRate, showActualCost]);
+    const currentWeek = getISOWeek(getWeekStart(new Date()));
+    const points = [];
+    let lastForecastHours: number | null = null;
+    for (const d of displayData) {
+      const isFuture = d.week > currentWeek;
+      const cumulativeCost =
+        showActualCost && avgCostRate !== null ? d.cumulative * avgCostRate : 0;
+      let forecastHours: number | null = null;
+      let forecastCost: number | null = null;
+      if (showActualCost && avgCostRate !== null && isFuture) {
+        // Weeks with no planning lines carry the previous forecast forward
+        lastForecastHours = forecastHoursByWeek.get(d.week) ?? lastForecastHours ?? d.cumulative;
+        forecastHours = lastForecastHours;
+        forecastCost = lastForecastHours * avgCostRate;
+      }
+      points.push({ ...d, isFuture, cumulativeCost, forecastHours, forecastCost });
+    }
+    return points;
+  }, [displayData, avgCostRate, forecastHoursByWeek, showActualCost]);
+
+  // Height used for a point: forecast for future weeks, spent otherwise
+  const pointCost = (d: (typeof displayDataWithCost)[number]) =>
+    d.isFuture && d.forecastCost !== null ? d.forecastCost : d.cumulativeCost;
+  const yFor = (cost: number) => (maxCost > 0 ? (1 - cost / maxCost) * 100 : 100);
+  // Each week spans an equal slot with its point at the centre (as in the bar chart)
+  const xFor = (index: number) => ((index + 0.5) / displayDataWithCost.length) * 100;
 
   // Y-axis scale from the whole project (not just the visible weeks), so it stays
-  // fixed while scrolling: at least the budget, or the highest cumulative cost
+  // fixed while scrolling: at least the budget, the highest spend, or the forecast
   const { top: maxCost, ticks: yAxisLabels } = useMemo(() => {
     const maxCumulativeHours = Math.max(...data.map((d) => d.cumulative), 0);
     // Budget-only while Actual Cost is hidden, so the scale can't hint at the hidden spend
+    // (forecastAtCompletion is already 0 then)
     const maxCumulativeCost =
       showActualCost && avgCostRate !== null ? maxCumulativeHours * avgCostRate : 0;
-    const max = Math.max(maxCumulativeCost, budgetCost * 1.1); // Add 10% buffer above budget
+    const max = Math.max(maxCumulativeCost, forecastAtCompletion, budgetCost * 1.1); // Add 10% buffer above budget
     return getNiceScale(max, 500);
-  }, [data, avgCostRate, budgetCost, showActualCost]);
+  }, [data, avgCostRate, forecastAtCompletion, budgetCost, showActualCost]);
 
   const currentWeekIndex = displayDataWithCost.findIndex((d) => d.isCurrentWeek);
 
@@ -845,34 +897,34 @@ function ProgressLineChart({
             viewBox="0 0 100 100"
             preserveAspectRatio="none"
           >
-            {/* Area fill */}
+            {/* Area fill - spent to date only */}
             <path
               d={(() => {
                 if (!showActualCost || displayDataWithCost.length < 2) return '';
-                const points = displayDataWithCost.map((d, i) => {
-                  const x = ((i + 0.5) / displayDataWithCost.length) * 100;
-                  const y = maxCost > 0 ? (1 - d.cumulativeCost / maxCost) * 100 : 100;
-                  return `${x},${y}`;
+                const past = displayDataWithCost.filter((d) => !d.isFuture);
+                if (past.length < 2) return '';
+                const points = past.map((d, i) => {
+                  const x = xFor(i);
+                  return `${x},${yFor(d.cumulativeCost)}`;
                 });
-                const firstX = (0.5 / displayDataWithCost.length) * 100;
-                const lastX =
-                  ((displayDataWithCost.length - 0.5) / displayDataWithCost.length) * 100;
-                return `M ${points.join(' L ')} L ${lastX},100 L ${firstX},100 Z`;
+                return `M ${points.join(' L ')} L ${xFor(past.length - 1)},100 L ${xFor(0)},100 Z`;
               })()}
               fill="currentColor"
               className="text-thyme-500/20"
             />
 
-            {/* Line */}
+            {/* Spent line - to date only */}
             <path
               d={(() => {
                 if (!showActualCost || displayDataWithCost.length < 2) return '';
-                const points = displayDataWithCost.map((d, i) => {
-                  const x = ((i + 0.5) / displayDataWithCost.length) * 100;
-                  const y = maxCost > 0 ? (1 - d.cumulativeCost / maxCost) * 100 : 100;
-                  return `${x},${y}`;
-                });
-                return `M ${points.join(' L ')}`;
+                const points = displayDataWithCost
+                  .map((d, i) => ({ d, i }))
+                  .filter(({ d }) => !d.isFuture)
+                  .map(({ d, i }) => {
+                    const x = xFor(i);
+                    return `${x},${yFor(d.cumulativeCost)}`;
+                  });
+                return points.length > 1 ? `M ${points.join(' L ')}` : '';
               })()}
               fill="none"
               stroke="currentColor"
@@ -880,13 +932,34 @@ function ProgressLineChart({
               strokeWidth="2"
               vectorEffect="non-scaling-stroke"
             />
+
+            {/* Forecast line - from this week's spend through future planned hours */}
+            <path
+              d={(() => {
+                if (!hasForecast || displayDataWithCost.length < 2) return '';
+                const points = displayDataWithCost
+                  .map((d, i) => ({ d, i }))
+                  .filter(({ d, i }) => d.isFuture || displayDataWithCost[i + 1]?.isFuture)
+                  .map(({ d, i }) => {
+                    const x = xFor(i);
+                    return `${x},${yFor(pointCost(d))}`;
+                  });
+                return points.length > 1 ? `M ${points.join(' L ')}` : '';
+              })()}
+              fill="none"
+              stroke="currentColor"
+              className="text-sky-400"
+              strokeWidth="2"
+              strokeDasharray="4 3"
+              vectorEffect="non-scaling-stroke"
+            />
           </svg>
 
           {/* Points - separate layer to avoid stretching */}
           <div className="absolute inset-0">
             {displayDataWithCost.map((point, i) => {
-              const xPercent = ((i + 0.5) / displayDataWithCost.length) * 100;
-              const yPercent = maxCost > 0 ? (1 - point.cumulativeCost / maxCost) * 100 : 100;
+              const xPercent = xFor(i);
+              const yPercent = yFor(pointCost(point));
               const isHovered = hoveredIndex === i;
 
               return (
@@ -906,7 +979,11 @@ function ProgressLineChart({
                   <div
                     className={cn(
                       'relative rounded-full',
-                      point.isCurrentWeek ? 'bg-thyme-400' : 'bg-thyme-500',
+                      point.isFuture
+                        ? 'bg-dark-800 border border-sky-400'
+                        : point.isCurrentWeek
+                          ? 'bg-thyme-400'
+                          : 'bg-thyme-500',
                       isHovered || point.isCurrentWeek ? 'h-3 w-3' : 'h-2 w-2'
                     )}
                   />
@@ -920,8 +997,8 @@ function ProgressLineChart({
             <div
               className="bg-dark-700 pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded px-3 py-2 text-xs whitespace-nowrap shadow-lg"
               style={{
-                left: `${((hoveredIndex + 0.5) / displayDataWithCost.length) * 100}%`,
-                top: `${maxCost > 0 ? (1 - displayDataWithCost[hoveredIndex].cumulativeCost / maxCost) * 100 : 100}%`,
+                left: `${xFor(hoveredIndex)}%`,
+                top: `${yFor(pointCost(displayDataWithCost[hoveredIndex]))}%`,
                 marginTop: '-12px',
               }}
             >
@@ -934,18 +1011,33 @@ function ProgressLineChart({
               </div>
               <div className="border-dark-500 mt-1 border-t pt-1">
                 <div className="text-gray-400">
-                  {displayDataWithCost[hoveredIndex].cumulative.toFixed(1)} hours
+                  {(
+                    displayDataWithCost[hoveredIndex].forecastHours ??
+                    displayDataWithCost[hoveredIndex].cumulative
+                  ).toFixed(1)}{' '}
+                  hours{displayDataWithCost[hoveredIndex].isFuture ? ' (forecast)' : ''}
                 </div>
-                {showActualCost && avgCostRate !== null && (
-                  <div className="text-thyme-400">
-                    ~
-                    {formatCurrencyShort(
-                      displayDataWithCost[hoveredIndex].cumulativeCost,
-                      currencyCode
-                    )}{' '}
-                    spent
-                  </div>
-                )}
+                {showActualCost &&
+                  avgCostRate !== null &&
+                  (displayDataWithCost[hoveredIndex].isFuture ? (
+                    <div className="text-sky-400">
+                      ~
+                      {formatCurrencyShort(
+                        pointCost(displayDataWithCost[hoveredIndex]),
+                        currencyCode
+                      )}{' '}
+                      forecast (incl. planned hours)
+                    </div>
+                  ) : (
+                    <div className="text-thyme-400">
+                      ~
+                      {formatCurrencyShort(
+                        displayDataWithCost[hoveredIndex].cumulativeCost,
+                        currencyCode
+                      )}{' '}
+                      spent
+                    </div>
+                  ))}
               </div>
               {showBudgetCost && budgetCost > 0 && (
                 <div className="border-dark-500 mt-1 border-t pt-1">
@@ -985,8 +1077,8 @@ function ProgressLineChart({
             <div
               className="bg-dark-700 pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded px-2 py-1 text-xs whitespace-nowrap shadow-lg"
               style={{
-                left: `${((hoveredIndex + 0.5) / displayDataWithCost.length) * 100}%`,
-                top: `${maxCost > 0 ? (1 - displayDataWithCost[hoveredIndex].cumulativeCost / maxCost) * 100 : 100}%`,
+                left: `${xFor(hoveredIndex)}%`,
+                top: `${yFor(pointCost(displayDataWithCost[hoveredIndex]))}%`,
                 marginTop: '-8px',
               }}
             >
@@ -1024,6 +1116,14 @@ function ProgressLineChart({
             <span className="bg-thyme-500/50 inline-block h-2 w-4 rounded" />
             <span>Spent</span>
           </div>
+          {hasForecast && (
+            <div className="flex items-center gap-1">
+              <span className="inline-block w-4 border-t-2 border-dashed border-sky-400" />
+              <span>
+                Forecast ({formatCurrencyShort(forecastAtCompletion, currencyCode)} at completion)
+              </span>
+            </div>
+          )}
           {budgetCostBreakdown.resource > 0 && (
             <div className="flex items-center gap-1">
               <span className="inline-block h-2 w-4 rounded bg-blue-500/30" />
