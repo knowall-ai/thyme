@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect, type ReactNode } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { Card } from '@/components/ui';
@@ -43,6 +43,15 @@ function TodayMarker({ leftPercent }: { leftPercent: number }) {
       <span className="absolute -top-4 -translate-x-1/2 text-[10px] font-medium text-sky-400">
         Today
       </span>
+    </div>
+  );
+}
+
+// Chart title shown only in print, where the on-screen view toggle is hidden
+function PrintChartTitle({ children }: { children: ReactNode }) {
+  return (
+    <div className="bg-thyme-600 mb-4 hidden rounded-lg px-4 py-2 text-sm font-medium text-white print:inline-block">
+      {children}
     </div>
   );
 }
@@ -142,9 +151,9 @@ export function ProjectCharts() {
 
   return (
     <Card variant="bordered" className="p-6">
-      {/* Header with toggle and navigation */}
-      <div className="mb-6 flex items-center justify-between">
-        {/* Chart view toggle - interactive on screen, static label in print */}
+      {/* Header with toggle and navigation - hidden in print */}
+      <div className="mb-6 flex items-center justify-between print:hidden">
+        {/* Chart view toggle - screen only; print shows both charts with their own titles */}
         <div className="flex gap-2 print:hidden">
           <button
             onClick={() => setChartView('weekly')}
@@ -169,11 +178,6 @@ export function ProjectCharts() {
             Spend vs Budget
           </button>
         </div>
-        {/* Static label for print */}
-        <div className="bg-thyme-600 hidden rounded-lg px-4 py-2 text-sm font-medium text-white print:block">
-          {chartView === 'weekly' ? 'Hours per Week' : 'Spend vs Budget'}
-        </div>
-
         {/* Navigation - hidden in print */}
         <div className="flex items-center gap-1 print:hidden">
           <button
@@ -225,10 +229,13 @@ export function ProjectCharts() {
         </div>
       </div>
 
-      {/* Chart area */}
-      {chartView === 'weekly' ? (
+      {/* Chart area - the selected chart on screen; both charts in print/PDF */}
+      <div className={cn(chartView !== 'weekly' && 'hidden print:block')}>
+        <PrintChartTitle>Hours per Week</PrintChartTitle>
         <WeeklyBarChart data={weeklyData} offsetWeeks={offsetWeeks} />
-      ) : (
+      </div>
+      <div className={cn('print:mt-6', chartView !== 'progress' && 'hidden print:block')}>
+        <PrintChartTitle>Spend vs Budget</PrintChartTitle>
         <ProgressLineChart
           data={weeklyData}
           offsetWeeks={offsetWeeks}
@@ -244,7 +251,7 @@ export function ProjectCharts() {
           showActualCost={showActualCost}
           currencyCode={currencyCode}
         />
-      )}
+      </div>
     </Card>
   );
 }
