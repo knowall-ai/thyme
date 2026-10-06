@@ -6,6 +6,7 @@ import { WeeklyTimesheet, TeammateSelector } from '@/components/timesheet';
 import { TimerDisplay, StartTimerModal } from '@/components/timer';
 import { TeamsBotBanner } from '@/components/ui';
 import { useTeammateStore } from '@/hooks';
+import { getResourceDisplayName } from '@/utils';
 
 export function Dashboard() {
   const [isTimerModalOpen, setIsTimerModalOpen] = useState(false);
@@ -25,7 +26,7 @@ export function Dashboard() {
               <h1 className="text-2xl font-bold text-white">Timesheet</h1>
               <p className="text-dark-400 mt-1">
                 {isViewingTeammate
-                  ? `Viewing ${selectedTeammate.name || selectedTeammate.displayName || selectedTeammate.number}'s timesheet`
+                  ? `Viewing ${getResourceDisplayName(selectedTeammate)}'s timesheet`
                   : 'Track your time and sync to Business Central'}
               </p>
             </div>

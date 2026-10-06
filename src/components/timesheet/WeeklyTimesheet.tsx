@@ -19,7 +19,14 @@ import { Button, Card, WeekNavigation, ExtensionPreviewWrapper } from '@/compone
 import { TimeEntryCell } from './TimeEntryCell';
 import { TimeEntryModal } from './TimeEntryModal';
 import type { TimeEntry, TimesheetDisplayStatus } from '@/types';
-import { getWeekDays, formatDate, isDayToday, formatTime, getWeekStart } from '@/utils';
+import {
+  getWeekDays,
+  formatDate,
+  isDayToday,
+  formatTime,
+  getWeekStart,
+  getResourceDisplayName,
+} from '@/utils';
 import { getBCResourcesListUrl } from '@/utils/bcUrls';
 import { getRandomQuote } from '@/config/quotes';
 
@@ -462,7 +469,7 @@ Thank you!`)}`}
               <span className="text-dark-200 text-sm">
                 Viewing{' '}
                 <span className="font-medium text-white">
-                  {selectedTeammate.name || selectedTeammate.displayName || selectedTeammate.number}
+                  {getResourceDisplayName(selectedTeammate)}
                 </span>
                 &apos;s timesheet
               </span>
@@ -640,11 +647,7 @@ Thank you!`)}`}
               {isViewingTeammate ? (
                 <>
                   <p className="text-dark-300 mb-2">
-                    No time entries found for{' '}
-                    {selectedTeammate.name ||
-                      selectedTeammate.displayName ||
-                      selectedTeammate.number}{' '}
-                    this week.
+                    No time entries found for {getResourceDisplayName(selectedTeammate)} this week.
                   </p>
                   <p className="text-dark-500 text-sm">
                     Time entries will appear here once added to their timesheet.

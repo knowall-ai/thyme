@@ -10,19 +10,9 @@ import {
 } from '@heroicons/react/24/outline';
 import { useTeammateStore, useCompanyStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
-import { cn } from '@/utils';
+import { cn, getResourceDisplayName, getResourceInitial } from '@/utils';
 import { bcClient } from '@/services/bc';
 import type { BCResource } from '@/types';
-
-// Resources expose `name` (and sometimes `displayName`); pick the best label.
-function teammateLabel(t: BCResource): string {
-  return t.name || t.displayName || t.number;
-}
-
-function teammateInitial(t: BCResource): string {
-  const label = teammateLabel(t);
-  return label?.[0] || '?';
-}
 
 export function TeammateSelector() {
   const [isOpen, setIsOpen] = useState(false);
@@ -73,7 +63,7 @@ export function TeammateSelector() {
   const filteredTeammates = teammates.filter((teammate) => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      const matchesName = teammateLabel(teammate).toLowerCase().includes(query);
+      const matchesName = getResourceDisplayName(teammate).toLowerCase().includes(query);
       const matchesUserId = teammate.timeSheetOwnerUserId?.toLowerCase().includes(query);
       const matchesNumber = teammate.number.toLowerCase().includes(query);
       if (!matchesName && !matchesUserId && !matchesNumber) return false;
@@ -82,21 +72,22 @@ export function TeammateSelector() {
   });
 
   // Identify the current user's resource by deriving the BC User ID from their UPN
-  // (matches the convention used in bcClient.deriveBCUserId).
-  const currentUserBCId = account?.username ? bcClient.deriveBCUserId(account.username) : undefined;
-  const currentUserTeammate = filteredTeammates.find(
-    (t) => t.timeSheetOwnerUserId?.toUpperCase() === currentUserBCId
-  );
-  const otherTeammates = filteredTeammates.filter(
-    (t) => t.timeSheetOwnerUserId?.toUpperCase() !== currentUserBCId
-  );
+  // (matches the convention used in bcClient.deriveBCUserId). Both sides are
+  // upper-cased so the match doesn't depend on how BC stores the owner ID.
+  const currentUserBCId = account?.username
+    ? bcClient.deriveBCUserId(account.username).toUpperCase()
+    : undefined;
+  const isCurrentUser = (t: BCResource) =>
+    currentUserBCId !== undefined && t.timeSheetOwnerUserId?.toUpperCase() === currentUserBCId;
+  const currentUserTeammate = filteredTeammates.find(isCurrentUser);
+  const otherTeammates = filteredTeammates.filter((t) => !isCurrentUser(t));
 
   // Don't show if no teammates available (only self)
   if (teammates.length <= 1 && !isLoading) {
     return null;
   }
 
-  const displayName = selectedTeammate ? teammateLabel(selectedTeammate) : 'My Timesheet';
+  const displayName = selectedTeammate ? getResourceDisplayName(selectedTeammate) : 'My Timesheet';
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -172,7 +163,7 @@ export function TeammateSelector() {
                       <span className="text-dark-200">My Timesheet</span>
                       {currentUserTeammate && (
                         <span className="text-dark-400 ml-2 text-xs">
-                          ({teammateLabel(currentUserTeammate)})
+                          ({getResourceDisplayName(currentUserTeammate)})
                         </span>
                       )}
                     </div>
@@ -210,10 +201,10 @@ export function TeammateSelector() {
                           aria-selected={isSelected}
                         >
                           <div className="bg-dark-600 text-dark-200 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-medium">
-                            {teammateInitial(teammate)}
+                            {getResourceInitial(teammate)}
                           </div>
                           <div className="flex-1 truncate">
-                            <div className="text-dark-200">{teammateLabel(teammate)}</div>
+                            <div className="text-dark-200">{getResourceDisplayName(teammate)}</div>
                             <div className="text-dark-400 text-xs">{teammate.number}</div>
                           </div>
                           {isSelected && (
