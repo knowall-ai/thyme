@@ -177,16 +177,19 @@ export function ProjectKPICards() {
     Estimate: {
       title: 'Estimate',
       description: `The quoted time: Resource lines on Job Planning Lines where lineType is "Billable" or "Both Budget and Billable" (the same lines as Billable Price). This is the budget the project is tracked against. Days = hours ÷ ${hoursPerDay}.`,
+      formula: 'Σ quantity (Billable Resource lines)',
       source: 'BC API: /jobPlanningLines → quantity',
     },
     'Time Spent': {
       title: 'Time Spent',
       description: `Total hours logged in timesheets for this project (Open, Submitted and Approved), shown against the Estimate. Posted time is in the Job Ledger Entry; the rest is awaiting "Post Time Sheets" in BC. Days = hours ÷ ${hoursPerDay}.`,
+      formula: 'Σ timesheet hours ÷ Estimate = % used',
       source: 'BC API: /timeSheetDetails → quantity',
     },
     Planned: {
       title: 'Planned',
       description: `Work still planned from next week on: Resource lines with lineType "Budget" on Job Planning Lines (the Plan screen's weekly allocations), in weeks after the current one. Days = hours ÷ ${hoursPerDay}.`,
+      formula: 'Σ quantity (Budget Resource lines, after this week)',
       source: 'BC API: /jobPlanningLines → quantity (by planningDate)',
     },
     Forecast: {
