@@ -73,6 +73,10 @@ export function ApprovalList() {
   const linesCacheRef = useRef(linesCache);
   // Job numbers whose names have already been requested
   const requestedJobNosRef = useRef(new Set<string>());
+  // Bumped on company switch so late responses from the previous company are dropped
+  const companyGenerationRef = useRef(0);
+  // Timesheets whose lines are being fetched, so overlapping runs don't request them again
+  const inFlightLinesRef = useRef(new Set<string>());
 
   // Calculate actual pending hours from lines cache
   const actualPendingHours = useMemo(() => {
@@ -149,6 +153,8 @@ export function ApprovalList() {
     setTasksCache({});
     setJobsApiFailed(false);
     requestedJobNosRef.current = new Set();
+    inFlightLinesRef.current = new Set();
+    companyGenerationRef.current += 1;
     checkApprovalPermission();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyVersion]);
@@ -179,19 +185,29 @@ export function ApprovalList() {
   // Runs once per list (not per cache update, which restarted the whole loop each time
   // and flooded BC) and is cancelled when the list or company changes.
   useEffect(() => {
-    let cancelled = false;
-    const missing = pendingApprovals.filter((ts) => !linesCacheRef.current[ts.id]);
-    if (missing.length > 0) {
-      prefetchTimeSheetLines(
-        missing,
-        (timeSheetNo) => bcClient.getTimeSheetLines(timeSheetNo),
-        (timeSheetId, lines) => setLinesCache((prev) => ({ ...prev, [timeSheetId]: lines })),
-        () => cancelled
-      );
-    }
-    return () => {
-      cancelled = true;
-    };
+    const generation = companyGenerationRef.current;
+    const isStale = () => generation !== companyGenerationRef.current;
+    // Skip cached timesheets and ones an earlier (still running) pass is already fetching,
+    // so a list refresh doesn't stack a second set of requests on BC
+    const missing = pendingApprovals.filter(
+      (ts) => !linesCacheRef.current[ts.id] && !inFlightLinesRef.current.has(ts.id)
+    );
+    if (missing.length === 0) return;
+    missing.forEach((ts) => inFlightLinesRef.current.add(ts.id));
+    prefetchTimeSheetLines(
+      missing,
+      (timeSheetNo) => bcClient.getTimeSheetLines(timeSheetNo),
+      (timeSheetId, lines) => {
+        inFlightLinesRef.current.delete(timeSheetId);
+        setLinesCache((prev) => ({ ...prev, [timeSheetId]: lines }));
+      },
+      isStale
+    ).finally(() => {
+      // Release anything left unfetched (failed or stale) so a later pass can retry it
+      if (!isStale()) missing.forEach((ts) => inFlightLinesRef.current.delete(ts.id));
+    });
+    // Runs are only abandoned on company switch (via the generation), not on list refreshes,
+    // so their in-flight results still land in the cache
   }, [pendingApprovals, companyVersion]);
 
   // Pre-fetch profile photos for all unique resources
@@ -243,8 +259,12 @@ export function ApprovalList() {
 
       // Fetch all projects and filter for the ones we need
       // Note: Uses /projects endpoint (Thyme extension) instead of /jobs (standard API which may not be available)
+      const generation = companyGenerationRef.current;
+      const isStale = () => generation !== companyGenerationRef.current;
       try {
         const allProjects = await bcClient.getProjects();
+        // The company changed while this was in flight: these are the old company's projects
+        if (isStale()) return;
         const projectMap: Record<string, BCProject> = {};
         allProjects.forEach((project) => {
           if (uniqueJobNos.has(project.number)) {
@@ -258,6 +278,7 @@ export function ApprovalList() {
           if (!tasksCache[jobNo]) {
             try {
               const tasks = await bcClient.getJobTasks(jobNo);
+              if (isStale()) return;
               setTasksCache((prev) => ({ ...prev, [jobNo]: tasks }));
             } catch {
               // Silently fail for individual task fetches - will show fallback
@@ -266,6 +287,7 @@ export function ApprovalList() {
         }
       } catch (err) {
         // If projects API returns 404 or similar, mark it as failed to prevent repeated calls
+        if (isStale()) return;
         console.warn('Projects API unavailable, will show project codes instead:', err);
         setJobsApiFailed(true);
       }
