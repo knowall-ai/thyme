@@ -71,7 +71,8 @@ export function ProjectCharts() {
   // £ mode is customer-facing (selling rates vs Billable Price), so it follows that card's eye
   const showBillablePrice = !hiddenKpis.includes('Billable Price');
   // ...and the Time Budgeted / Time Spent eyes in effort (hours/days) mode
-  const showTimeBudgeted = !hiddenKpis.includes('Time Budgeted');
+  // The effort budget is the Estimate card's figure, so it follows that card's eye
+  const showTimeBudgeted = !hiddenKpis.includes('Estimate');
   const showTimeSpent = !hiddenKpis.includes('Time Spent');
   const [chartView, setChartView] = useState<ChartView>('weekly');
   // Days by default: effort is the safe view to share, and matches how projects are planned

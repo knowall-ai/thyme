@@ -45,6 +45,7 @@ export interface ProjectAnalytics {
   hoursSpent: number; // From timesheets (totalQuantity)
   hoursPlanned: number; // From Job Planning Lines (Budget lineType)
   estimateHours: number; // Quoted estimate: Resource Billable lines (incl. Both Budget and Billable)
+  futurePlannedHours: number; // Planned (Budget lines) in weeks after the current one - the work still to do
   hoursThisWeek: number;
   hoursPosted: number; // From timeEntries (Job Ledger Entry) - posted to ledger
   hoursUnposted: number; // hoursSpent - hoursPosted (in timesheets but not posted)
@@ -216,6 +217,7 @@ export const projectDetailsService = {
       hoursSpent: 0,
       hoursPlanned: 0,
       estimateHours: 0,
+      futurePlannedHours: 0,
       hoursThisWeek: 0,
       hoursPosted: 0,
       hoursUnposted: 0,
@@ -564,6 +566,12 @@ export const projectDetailsService = {
       // If planning lines can't be fetched, leave values as 0
     }
 
+    // Planned work still to do: weeks after this one (matches where the chart's forecast
+    // starts adding planned hours), so Time Spent + this = the forecast at completion
+    const futurePlannedHours = weeklyData
+      .filter((d) => d.week > currentWeekStr)
+      .reduce((sum, d) => sum + (d.plannedHours || 0), 0);
+
     // Fetch actual cost and invoiced price from Time Entries (Job Ledger Entry)
     // Note: Time entries are all resource-type (labor), so actual/invoiced breakdown is resource-only
     let actualCost = 0;
@@ -813,6 +821,7 @@ export const projectDetailsService = {
       hoursSpent: totalHours,
       hoursPlanned,
       estimateHours,
+      futurePlannedHours,
       hoursThisWeek,
       hoursPosted,
       hoursUnposted,

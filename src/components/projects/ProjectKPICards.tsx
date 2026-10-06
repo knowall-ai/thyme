@@ -157,40 +157,43 @@ export function ProjectKPICards() {
 
   // Calculate percentages and status
   const hoursSpent = analytics?.hoursSpent ?? 0;
-  const hoursPlanned = analytics?.hoursPlanned ?? 0;
   const hoursPosted = analytics?.hoursPosted ?? 0;
   const hoursUnposted = analytics?.hoursUnposted ?? 0;
   const hoursPerDay = analytics?.hoursPerDay ?? 8; // From BC Resource Unit of Measure
-  const hoursRemaining = hoursPlanned - hoursSpent;
-  const hasPlannedHours = hoursPlanned > 0;
-  const percentUsed = hasPlannedHours ? Math.round((hoursSpent / hoursPlanned) * 100) : 0;
+  // Estimate (quoted, Billable lines) is the budget; Spent + future Planned = Forecast
+  const estimateHours = analytics?.estimateHours ?? 0;
+  const hasEstimate = estimateHours > 0;
+  const futurePlannedHours = analytics?.futurePlannedHours ?? 0;
+  const forecastHours = hoursSpent + futurePlannedHours;
+  const forecastVsEstimate = forecastHours - estimateHours;
+  const percentOfEstimate = hasEstimate ? Math.round((hoursSpent / estimateHours) * 100) : 0;
 
-  // Time KPIs (4 cards - always visible) - Reordered: Budgeted, Spent, Unposted, Posted
+  // Time KPIs (4 cards): Estimate, Spent, Planned (future), Forecast
   // What each KPI means, shown in its (i) tooltip next to the Eye toggle
   const kpiInfo: Record<
     string,
     { title: string; description: string; formula?: string; source: string }
   > = {
-    'Time Budgeted': {
-      title: 'Time Budgeted',
-      description: `Budgeted hours from Job Planning Lines. Only includes Resource lines where lineType is "Budget" or "Both Budget and Billable". Days = hours ÷ ${hoursPerDay}.`,
+    Estimate: {
+      title: 'Estimate',
+      description: `The quoted time: Resource lines on Job Planning Lines where lineType is "Billable" or "Both Budget and Billable" (the same lines as Billable Price). This is the budget the project is tracked against. Days = hours ÷ ${hoursPerDay}.`,
       source: 'BC API: /jobPlanningLines → quantity',
     },
     'Time Spent': {
       title: 'Time Spent',
-      description: `Total hours logged in timesheets for this project. Includes all timesheet statuses: Open, Submitted, and Approved. Days = hours ÷ ${hoursPerDay}.`,
+      description: `Total hours logged in timesheets for this project (Open, Submitted and Approved), shown against the Estimate. Posted time is in the Job Ledger Entry; the rest is awaiting "Post Time Sheets" in BC. Days = hours ÷ ${hoursPerDay}.`,
       source: 'BC API: /timeSheetDetails → quantity',
     },
-    'Time Unposted': {
-      title: 'Time Unposted',
-      description: `Hours in timesheets that have not yet been posted to the Job Ledger Entry. These hours are approved but awaiting the "Post Time Sheets" action in BC. Days = hours ÷ ${hoursPerDay}.`,
-      formula: 'Time Spent − Time Posted',
-      source: 'Calculated',
+    Planned: {
+      title: 'Planned',
+      description: `Work still planned from next week on: Resource lines with lineType "Budget" on Job Planning Lines (the Plan screen's weekly allocations), in weeks after the current one. Days = hours ÷ ${hoursPerDay}.`,
+      source: 'BC API: /jobPlanningLines → quantity (by planningDate)',
     },
-    'Time Posted': {
-      title: 'Time Posted',
-      description: `Hours that have been posted to the Job Ledger Entry. Posting creates cost and price entries based on the Resource's Unit Cost and Unit Price. Days = hours ÷ ${hoursPerDay}.`,
-      source: 'BC API: /timeEntries → quantity',
+    Forecast: {
+      title: 'Forecast',
+      description: `Where the project is heading: time spent so far plus the work still planned, compared with the Estimate. Days = hours ÷ ${hoursPerDay}.`,
+      formula: 'Time Spent + Planned (from next week)',
+      source: 'Calculated',
     },
     'Budget Cost': {
       title: 'Budget Cost (Internal)',
@@ -222,41 +225,63 @@ export function ProjectKPICards() {
     },
   };
 
-  const hoursKpis = [
+  const hoursKpis: {
+    label: string;
+    value: string;
+    subLabel: string;
+    detail?: string;
+    icon: typeof ClockIcon;
+    color: string;
+    subLabelColor?: string;
+    progress?: number;
+    progressColor?: string;
+  }[] = [
     {
-      label: 'Time Budgeted',
-      value: hasPlannedHours ? formatHoursWithDays(hoursPlanned, hoursPerDay) : 'N/A',
-      subLabel: hasPlannedHours
-        ? `${formatHoursWithDays(hoursRemaining, hoursPerDay)} remaining`
-        : 'No budget set in BC',
+      label: 'Estimate',
+      value: hasEstimate ? formatHoursWithDays(estimateHours, hoursPerDay) : 'N/A',
+      subLabel: hasEstimate ? 'Quoted on Billable lines' : 'No estimate on Billable lines',
       icon: CalendarDaysIcon,
-      color: hoursRemaining < 0 ? 'text-red-400' : 'text-blue-400',
+      color: 'text-blue-400',
     },
     {
       label: 'Time Spent',
       value: formatHoursWithDays(hoursSpent, hoursPerDay),
-      subLabel: hasPlannedHours
-        ? `${percentUsed}% of ${formatHoursWithDays(hoursPlanned, hoursPerDay)} budgeted`
+      subLabel: hasEstimate
+        ? `${percentOfEstimate}% of ${formatHoursWithDays(estimateHours, hoursPerDay)} estimate`
         : 'From timesheets',
+      detail: `${formatHoursWithDays(hoursPosted, hoursPerDay)} posted · ${formatHoursWithDays(hoursUnposted, hoursPerDay)} not yet posted`,
       icon: ClockIcon,
       color: 'text-thyme-400',
-      progress: hasPlannedHours ? Math.min(percentUsed, 100) : undefined,
+      progress: hasEstimate ? Math.min(percentOfEstimate, 100) : undefined,
       progressColor:
-        percentUsed > 100 ? 'bg-red-500' : percentUsed > 80 ? 'bg-amber-500' : 'bg-thyme-500',
+        percentOfEstimate > 100
+          ? 'bg-red-500'
+          : percentOfEstimate > 80
+            ? 'bg-amber-500'
+            : 'bg-thyme-500',
     },
     {
-      label: 'Time Unposted',
-      value: formatHoursWithDays(hoursUnposted, hoursPerDay),
-      subLabel: hoursUnposted > 0 ? 'In timesheets, not posted' : 'All time posted',
-      icon: ClockIcon,
-      color: hoursUnposted > 0 ? 'text-amber-400' : 'text-gray-500',
+      label: 'Planned',
+      value: formatHoursWithDays(futurePlannedHours, hoursPerDay),
+      subLabel: 'Still to do, from next week',
+      icon: CalendarDaysIcon,
+      color: 'text-gray-400',
     },
     {
-      label: 'Time Posted',
-      value: formatHoursWithDays(hoursPosted, hoursPerDay),
-      subLabel: 'In Job Ledger Entry',
+      label: 'Forecast',
+      value: formatHoursWithDays(forecastHours, hoursPerDay),
+      subLabel: !hasEstimate
+        ? 'Spent + planned'
+        : forecastVsEstimate > 0
+          ? `▲ ${formatHoursWithDays(forecastVsEstimate, hoursPerDay)} over estimate`
+          : `▼ ${formatHoursWithDays(-forecastVsEstimate, hoursPerDay)} under estimate`,
       icon: ClockIcon,
-      color: 'text-green-400',
+      color: hasEstimate && forecastVsEstimate > 0 ? 'text-red-400' : 'text-green-400',
+      subLabelColor: hasEstimate
+        ? forecastVsEstimate > 0
+          ? 'text-red-400'
+          : 'text-green-400'
+        : undefined,
     },
   ];
 
@@ -401,7 +426,10 @@ export function ProjectKPICards() {
                   <p className={`text-2xl font-bold ${isHidden ? 'text-gray-600' : 'text-white'}`}>
                     {isHidden ? maskedValue : kpi.value}
                   </p>
-                  <p className="mt-1 text-xs text-gray-500">{kpi.subLabel}</p>
+                  {/* Sub-lines carry figures too, so they're masked with the value */}
+                  <p className={`mt-1 text-xs ${kpi.subLabelColor ?? 'text-gray-500'}`}>
+                    {isHidden ? 'Hidden' : kpi.subLabel}
+                  </p>
                   {kpi.progress !== undefined && !isHidden && (
                     <div className="bg-dark-600 mt-2 h-1.5 w-full overflow-hidden rounded-full">
                       <div
@@ -409,6 +437,9 @@ export function ProjectKPICards() {
                         style={{ width: `${kpi.progress}%` }}
                       />
                     </div>
+                  )}
+                  {kpi.detail && !isHidden && (
+                    <p className="mt-1.5 text-xs text-gray-500">{kpi.detail}</p>
                   )}
                 </div>
               </div>
