@@ -47,6 +47,8 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
 
   // When hours is 24, minutes must be 0
   const handleHoursChange = (value: string) => {
+    // Clamp to 0-24 as you type
+    if (value !== '') value = Math.max(0, Math.min(24, parseInt(value) || 0)).toString();
     setHours(value);
     if (parseInt(value) >= 24) {
       setMinutes('0');
@@ -166,10 +168,13 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
       const task = project?.tasks.find((t) => t.code === entry.taskId);
       setTaskId(task?.id || '');
       setSelectedDate(entry.date);
-      const h = Math.floor(entry.hours);
-      const m = Math.round((entry.hours - h) * 60);
-      setHours(h.toString());
-      setMinutes(m.toString());
+      // Total minutes first, so rounding up carries into the hour (never "60 minutes")
+      const totalMinutes = Math.round(entry.hours * 60);
+      const h = Math.floor(totalMinutes / 60);
+      const m = totalMinutes % 60;
+      setHours(h > 0 ? h.toString() : '');
+      // At 24h minutes are fixed at 0 (and disabled), so show 0 rather than a blank field
+      setMinutes(h >= 24 ? '0' : m > 0 ? m.toString() : '');
       setNotes(entry.notes || '');
     } else {
       // New entry - use matching customer option value
@@ -223,7 +228,10 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
     e.preventDefault();
     if (!selectedDate || !projectId || !taskId || isSubmitting) return;
 
-    const totalHours = (parseInt(hours) || 0) + (parseInt(minutes) || 0) / 60;
+    // Clamp to 0-24h and 0-59m: the inputs are controlled, so native min/max don't apply
+    const h = Math.max(0, Math.min(24, parseInt(hours) || 0));
+    const m = h >= 24 ? 0 : Math.max(0, Math.min(59, parseInt(minutes) || 0));
+    const totalHours = h + m / 60;
     if (totalHours <= 0) return;
 
     const project = projects.find((p) => p.id === projectId);
@@ -438,10 +446,13 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
             label="Minutes"
             type="number"
             min="0"
-            max="45"
-            step="15"
+            max="59"
             value={minutes}
-            onChange={(e) => setMinutes(e.target.value)}
+            onChange={(e) => {
+              // Any minute value 0-59, clamped as you type
+              const v = e.target.value;
+              setMinutes(v === '' ? '' : Math.max(0, Math.min(59, parseInt(v) || 0)).toString());
+            }}
             placeholder="0"
             disabled={parseInt(hours) >= 24}
           />
