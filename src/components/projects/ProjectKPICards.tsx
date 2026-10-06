@@ -3,7 +3,7 @@
 import { useState, ReactNode } from 'react';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { useCompanyStore } from '@/hooks';
-import { Card } from '@/components/ui';
+import { Card, Modal } from '@/components/ui';
 import { getBCJobPlanningLinesUrl, getBCJobLedgerEntriesUrl } from '@/utils';
 import type { ResourceHours } from '@/services/bc/projectDetailsService';
 import {
@@ -98,6 +98,16 @@ function InfoTooltip({
 }
 
 // Format hours with days equivalent
+// YYYY-MM-DD as a local date (avoids the UTC shift of new Date('YYYY-MM-DD'))
+function formatPlanDate(ymd: string): string {
+  const [y, m, d] = ymd.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
 function formatHoursWithDays(hours: number, hoursPerDay: number): string {
   const days = hours / hoursPerDay;
   if (hours === 0) return '0h (0d)';
@@ -125,6 +135,8 @@ function formatCurrency(amount: number, currencyCode: string): string {
 }
 
 export function ProjectKPICards() {
+  // Which card's full resource list is open ('Estimate' or 'Planned'), if any
+  const [resourceDialog, setResourceDialog] = useState<string | null>(null);
   const { analytics, isLoadingAnalytics, currencyCode, project, hiddenKpis, toggleKpiHidden } =
     useProjectDetailsStore();
   const selectedCompany = useCompanyStore((state) => state.selectedCompany);
@@ -456,9 +468,17 @@ export function ProjectKPICards() {
                           </span>
                         </div>
                       ))}
-                      {kpi.resources.length > MAX_RESOURCE_ROWS && (
-                        <div>+{kpi.resources.length - MAX_RESOURCE_ROWS} more</div>
-                      )}
+                      {
+                        <button
+                          type="button"
+                          onClick={() => setResourceDialog(kpi.label)}
+                          className="text-thyme-400 hover:text-thyme-300 focus-visible:ring-thyme-500 rounded hover:underline focus:outline-none focus-visible:ring-1"
+                        >
+                          {kpi.resources.length > MAX_RESOURCE_ROWS
+                            ? `+${kpi.resources.length - MAX_RESOURCE_ROWS} more`
+                            : 'Details'}
+                        </button>
+                      }
                     </div>
                   )}
                   {kpi.segments && !isHidden && (
@@ -562,6 +582,65 @@ export function ProjectKPICards() {
           );
         })}
       </div>
+
+      {/* Full resource list behind a card's "+N more" */}
+      {(() => {
+        const kpi = hoursKpis.find((k) => k.label === resourceDialog);
+        if (!kpi?.resources) return null;
+        const total = kpi.resources.reduce((sum, res) => sum + res.hours, 0);
+        const isPlanned = kpi.label === 'Planned';
+        return (
+          <Modal
+            isOpen
+            onClose={() => setResourceDialog(null)}
+            title={isPlanned ? 'Planned: people (from next week)' : 'Estimate: resources'}
+            size="lg"
+          >
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-dark-600 border-b text-left text-xs text-gray-500">
+                  <th className="py-2 font-medium">{isPlanned ? 'Person' : 'Resource'}</th>
+                  <th className="py-2 text-right font-medium">Hours</th>
+                  <th className="py-2 text-right font-medium">Days</th>
+                  <th className="py-2 text-right font-medium">Share</th>
+                  {isPlanned && <th className="py-2 text-right font-medium">Planned until</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {kpi.resources.map((res) => (
+                  <tr key={res.resourceNo} className="border-dark-700 border-b text-gray-300">
+                    <td className="py-2">
+                      {res.name}
+                      {res.name !== res.resourceNo && (
+                        <span className="ml-2 text-xs text-gray-500">{res.resourceNo}</span>
+                      )}
+                    </td>
+                    <td className="py-2 text-right">{res.hours.toFixed(1)}h</td>
+                    <td className="py-2 text-right">{(res.hours / hoursPerDay).toFixed(1)}d</td>
+                    <td className="py-2 text-right text-gray-500">
+                      {total > 0 ? Math.round((res.hours / total) * 100) : 0}%
+                    </td>
+                    {isPlanned && (
+                      <td className="py-2 text-right text-gray-500">
+                        {res.lastDate ? formatPlanDate(res.lastDate) : '–'}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="font-medium text-white">
+                  <td className="py-2">Total</td>
+                  <td className="py-2 text-right">{total.toFixed(1)}h</td>
+                  <td className="py-2 text-right">{(total / hoursPerDay).toFixed(1)}d</td>
+                  <td />
+                  {isPlanned && <td />}
+                </tr>
+              </tfoot>
+            </table>
+          </Modal>
+        );
+      })()}
     </div>
   );
 }

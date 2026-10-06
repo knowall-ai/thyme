@@ -38,6 +38,7 @@ export interface ResourceHours {
   resourceNo: string;
   name: string;
   hours: number;
+  lastDate?: string; // Planned only: the latest planning date (YYYY-MM-DD)
 }
 
 export interface ProjectAnalytics {
@@ -433,6 +434,7 @@ export const projectDetailsService = {
     // Hours by resource number, for the Estimate and Planned cards' lists
     const estimateHoursByResource = new Map<string, number>();
     const futurePlannedHoursByResource = new Map<string, number>();
+    const lastPlannedDateByResource = new Map<string, string>();
     const addHours = (map: Map<string, number>, resourceNo: string, hours: number) =>
       map.set(resourceNo, (map.get(resourceNo) ?? 0) + hours);
     let hoursPerDay = 8; // Default, will be updated from BC if DAY unit is configured
@@ -560,7 +562,13 @@ export const projectDetailsService = {
         const current = plannedHoursMap.get(weekStr) || 0;
         plannedHoursMap.set(weekStr, current + hours);
         // Same "after this week" rule as futurePlannedHours below
-        if (weekStr > currentWeekStr) addHours(futurePlannedHoursByResource, line.number, hours);
+        if (weekStr > currentWeekStr) {
+          addHours(futurePlannedHoursByResource, line.number, hours);
+          // YYYY-MM-DD strings compare correctly as text
+          if (line.planningDate > (lastPlannedDateByResource.get(line.number) ?? '')) {
+            lastPlannedDateByResource.set(line.number, line.planningDate);
+          }
+        }
       }
 
       // Merge planned hours into weeklyData
@@ -608,6 +616,7 @@ export const projectDetailsService = {
           resourceNo,
           name: resourcesByNumber.get(resourceNo)?.name || resourceNo,
           hours,
+          lastDate: lastPlannedDateByResource.get(resourceNo),
         }))
         .sort((a, b) => b.hours - a.hours);
     const estimateByResource = toResourceHours(estimateHoursByResource);
