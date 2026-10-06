@@ -75,7 +75,8 @@ export function ProjectCharts() {
   const showTimeBudgeted = !hiddenKpis.includes('Time Budgeted');
   const showTimeSpent = !hiddenKpis.includes('Time Spent');
   const [chartView, setChartView] = useState<ChartView>('weekly');
-  const [spendUnit, setSpendUnit] = useState<SpendUnit>('cost');
+  // Days by default: effort is the safe view to share, and matches how projects are planned
+  const [spendUnit, setSpendUnit] = useState<SpendUnit>('days');
   // Weeks back from the current week (negative = scrolled into the future)
   const [offsetWeeks, setOffsetWeeks] = useState(0);
 
@@ -921,6 +922,13 @@ function ProgressLineChart({
           {/* Budget breakdown bands (£ only) and total budget line */}
           {showBudget && budgetValue > 0 && (
             <>
+              {/* Effort: budgeted time is all resource time, so one band up to the budget */}
+              {!isCost && (
+                <div
+                  className="absolute right-0 bottom-0 left-0 bg-blue-500/10"
+                  style={{ height: `${100 - totalBudgetY}%` }}
+                />
+              )}
               {/* Resource budget band (bottom) */}
               {isCost && budgetCostBreakdown.resource > 0 && (
                 <div
@@ -1201,6 +1209,12 @@ function ProgressLineChart({
             <div className="flex items-center gap-1">
               <span className="inline-block w-4 border-t-2 border-dashed border-sky-400" />
               <span>Forecast ({formatValue(forecastAtCompletion)} at completion)</span>
+            </div>
+          )}
+          {!isCost && (
+            <div className="flex items-center gap-1">
+              <span className="inline-block h-2 w-4 rounded bg-blue-500/30" />
+              <span>Budgeted time</span>
             </div>
           )}
           {isCost && budgetCostBreakdown.resource > 0 && (
