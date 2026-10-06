@@ -637,13 +637,15 @@ function ProgressLineChart({
   }, [actualCost, hoursSpent]);
 
   // Convert cumulative hours to cumulative cost for display
-  // If no rate available, set cost to 0 (chart will show hours only)
+  // If no rate available, set cost to 0 (chart will show hours only).
+  // Also 0 when Actual Cost is hidden: the curve's height against the labelled
+  // budget line (and the scale it drives) would otherwise reveal the hidden spend.
   const displayDataWithCost = useMemo(() => {
     return displayData.map((d) => ({
       ...d,
-      cumulativeCost: avgCostRate !== null ? d.cumulative * avgCostRate : 0,
+      cumulativeCost: showActualCost && avgCostRate !== null ? d.cumulative * avgCostRate : 0,
     }));
-  }, [displayData, avgCostRate]);
+  }, [displayData, avgCostRate, showActualCost]);
 
   const maxCost = useMemo(() => {
     // Max should be at least the budget, or the max cumulative cost
@@ -748,7 +750,7 @@ function ProgressLineChart({
             {/* Area fill */}
             <path
               d={(() => {
-                if (displayDataWithCost.length < 2) return '';
+                if (!showActualCost || displayDataWithCost.length < 2) return '';
                 const points = displayDataWithCost.map((d, i) => {
                   const x = (i / (displayDataWithCost.length - 1)) * 100;
                   const y = maxCost > 0 ? (1 - d.cumulativeCost / maxCost) * 100 : 100;
@@ -763,7 +765,7 @@ function ProgressLineChart({
             {/* Line */}
             <path
               d={(() => {
-                if (displayDataWithCost.length < 2) return '';
+                if (!showActualCost || displayDataWithCost.length < 2) return '';
                 const points = displayDataWithCost.map((d, i) => {
                   const x = (i / (displayDataWithCost.length - 1)) * 100;
                   const y = maxCost > 0 ? (1 - d.cumulativeCost / maxCost) * 100 : 100;
