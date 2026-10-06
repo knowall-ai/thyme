@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { useState, ReactNode } from 'react';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { useCompanyStore } from '@/hooks';
 import { Card } from '@/components/ui';
@@ -12,6 +12,7 @@ import {
   CurrencyPoundIcon,
   EyeIcon,
   EyeSlashIcon,
+  InformationCircleIcon,
 } from '@heroicons/react/24/outline';
 
 // Per-widget visibility toggle: an Eye / Eye-slash button that masks just this
@@ -36,6 +37,59 @@ function VisibilityToggle({
     >
       {hidden ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
     </button>
+  );
+}
+
+// Info tooltip component with styled popup (keyboard accessible)
+function InfoTooltip({
+  title,
+  description,
+  source,
+  formula,
+}: {
+  title: string;
+  description: string;
+  source: string;
+  formula?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="relative print:hidden">
+      <button
+        type="button"
+        className="focus:ring-thyme-500 focus:ring-offset-dark-800 cursor-help rounded text-gray-600 hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none"
+        onMouseEnter={() => setIsOpen(true)}
+        onMouseLeave={() => setIsOpen(false)}
+        onFocus={() => setIsOpen(true)}
+        onBlur={() => setIsOpen(false)}
+        aria-label={`Info: ${title}`}
+        aria-expanded={isOpen}
+      >
+        <InformationCircleIcon className="h-4 w-4" />
+      </button>
+      {isOpen && (
+        <div
+          role="tooltip"
+          className="bg-dark-700 absolute top-6 right-0 z-20 w-64 rounded px-3 py-2 text-xs shadow-lg"
+        >
+          <div className="font-medium text-white">{title}</div>
+          <div className="border-dark-500 mt-1 border-t pt-1">
+            <div className="text-gray-300">{description}</div>
+          </div>
+          {formula && (
+            <div className="border-dark-500 mt-1 border-t pt-1">
+              <div className="text-gray-500">Formula:</div>
+              <div className="text-thyme-400 font-mono">{formula}</div>
+            </div>
+          )}
+          <div className="border-dark-500 mt-1 border-t pt-1">
+            <div className="text-gray-500">Source:</div>
+            <div className="text-blue-400">{source}</div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -112,6 +166,62 @@ export function ProjectKPICards() {
   const percentUsed = hasPlannedHours ? Math.round((hoursSpent / hoursPlanned) * 100) : 0;
 
   // Time KPIs (4 cards - always visible) - Reordered: Budgeted, Spent, Unposted, Posted
+  // What each KPI means, shown in its (i) tooltip next to the Eye toggle
+  const kpiInfo: Record<
+    string,
+    { title: string; description: string; formula?: string; source: string }
+  > = {
+    'Time Budgeted': {
+      title: 'Time Budgeted',
+      description: `Budgeted hours from Job Planning Lines. Only includes Resource lines where lineType is "Budget" or "Both Budget and Billable". Days = hours ÷ ${hoursPerDay}.`,
+      source: 'BC API: /jobPlanningLines → quantity',
+    },
+    'Time Spent': {
+      title: 'Time Spent',
+      description: `Total hours logged in timesheets for this project. Includes all timesheet statuses: Open, Submitted, and Approved. Days = hours ÷ ${hoursPerDay}.`,
+      source: 'BC API: /timeSheetDetails → quantity',
+    },
+    'Time Unposted': {
+      title: 'Time Unposted',
+      description: `Hours in timesheets that have not yet been posted to the Job Ledger Entry. These hours are approved but awaiting the "Post Time Sheets" action in BC. Days = hours ÷ ${hoursPerDay}.`,
+      formula: 'Time Spent − Time Posted',
+      source: 'Calculated',
+    },
+    'Time Posted': {
+      title: 'Time Posted',
+      description: `Hours that have been posted to the Job Ledger Entry. Posting creates cost and price entries based on the Resource's Unit Cost and Unit Price. Days = hours ÷ ${hoursPerDay}.`,
+      source: 'BC API: /timeEntries → quantity',
+    },
+    'Budget Cost': {
+      title: 'Budget Cost (Internal)',
+      description:
+        'Internal cost budget from Job Planning Lines. This is what the project is expected to cost the company. Broken down by Resource (labour), Item (materials), and G/L Account (overhead).',
+      formula: 'quantity × unitCost',
+      source: 'BC API: /jobPlanningLines → totalCost',
+    },
+    'Actual Cost': {
+      title: 'Actual Cost (Internal)',
+      description:
+        "Internal cost incurred from posted Job Ledger Entries. Calculated when timesheets are posted using each Resource's Unit Cost. Shows £0 if timesheets are approved but not yet posted.",
+      formula: 'posted hours × Resource Unit Cost',
+      source: 'BC API: /timeEntries → totalCost',
+    },
+    'Billable Price': {
+      title: 'Billable Price (Customer)',
+      description:
+        'Customer quote/expected revenue from Job Planning Lines. This is what the customer is expected to pay. Only includes lines where lineType is "Billable" or "Both Budget and Billable".',
+      formula: 'quantity × unitPrice',
+      source: 'BC API: /jobPlanningLines → totalPrice',
+    },
+    'Invoiced Price': {
+      title: 'Invoiced Price (Customer)',
+      description:
+        "Amount actually invoiced to the customer from Job Ledger Entry. Calculated when timesheets are posted using each Resource's Unit Price.",
+      formula: 'posted hours × Resource Unit Price',
+      source: 'BC API: /timeEntries → totalPrice',
+    },
+  };
+
   const hoursKpis = [
     {
       label: 'Time Budgeted',
@@ -272,12 +382,13 @@ export function ProjectKPICards() {
           const isHidden = hiddenCards.has(kpi.label);
           return (
             <Card key={kpi.label} variant="bordered" className="relative p-4">
-              <div className="absolute top-3 right-3">
+              <div className="absolute top-3 right-3 flex items-center gap-1.5">
                 <VisibilityToggle
                   hidden={isHidden}
                   onToggle={() => toggleKpiHidden(kpi.label)}
                   label={kpi.label}
                 />
+                {kpiInfo[kpi.label] && <InfoTooltip {...kpiInfo[kpi.label]} />}
               </div>
               <div className="flex items-start gap-3">
                 <div
@@ -313,12 +424,13 @@ export function ProjectKPICards() {
           const breakdown = kpi.breakdown;
           return (
             <Card key={kpi.label} variant="bordered" className="relative p-4">
-              <div className="absolute top-3 right-3">
+              <div className="absolute top-3 right-3 flex items-center gap-1.5">
                 <VisibilityToggle
                   hidden={isHidden}
                   onToggle={() => toggleKpiHidden(kpi.label)}
                   label={kpi.label}
                 />
+                {kpiInfo[kpi.label] && <InfoTooltip {...kpiInfo[kpi.label]} />}
               </div>
               <div className="flex items-start gap-3">
                 <div
