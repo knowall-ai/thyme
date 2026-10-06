@@ -749,10 +749,12 @@ function ProgressLineChart({
   // fixed while scrolling: at least the budget, or the highest cumulative cost
   const { top: maxCost, ticks: yAxisLabels } = useMemo(() => {
     const maxCumulativeHours = Math.max(...data.map((d) => d.cumulative), 0);
-    const maxCumulativeCost = avgCostRate !== null ? maxCumulativeHours * avgCostRate : 0;
+    // Budget-only while Actual Cost is hidden, so the scale can't hint at the hidden spend
+    const maxCumulativeCost =
+      showActualCost && avgCostRate !== null ? maxCumulativeHours * avgCostRate : 0;
     const max = Math.max(maxCumulativeCost, budgetCost * 1.1); // Add 10% buffer above budget
     return getNiceScale(max, 500);
-  }, [data, avgCostRate, budgetCost]);
+  }, [data, avgCostRate, budgetCost, showActualCost]);
 
   const currentWeekIndex = displayDataWithCost.findIndex((d) => d.isCurrentWeek);
 
