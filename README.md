@@ -1,5 +1,7 @@
 # Thyme - Time Tracking for Business Central
 
+[![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/knowall-ai/thyme?label=CodeRabbit+Reviews&labelColor=171717&color=FF570A)](https://coderabbit.ai)
+
 ![Thyme - Time Tracking for Business Central](public/social-preview.svg)
 
 A modern time tracking web application that integrates with Microsoft Dynamics 365 Business Central. Built by [KnowAll.ai](https://knowall.ai).
