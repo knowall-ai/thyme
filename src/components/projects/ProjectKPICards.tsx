@@ -4,14 +4,41 @@ import { useState, ReactNode } from 'react';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { useCompanyStore } from '@/hooks';
 import { Card } from '@/components/ui';
-import { cn, getBCJobPlanningLinesUrl, getBCJobLedgerEntriesUrl } from '@/utils';
+import { getBCJobPlanningLinesUrl, getBCJobLedgerEntriesUrl } from '@/utils';
 import {
   ClockIcon,
   CalendarDaysIcon,
   BanknotesIcon,
   CurrencyPoundIcon,
+  EyeIcon,
+  EyeSlashIcon,
   InformationCircleIcon,
 } from '@heroicons/react/24/outline';
+
+// Per-widget visibility toggle: an Eye / Eye-slash button that masks just this
+// widget's amount. Hidden from print; the PDF shows masked amounts as on screen.
+function VisibilityToggle({
+  hidden,
+  onToggle,
+  label,
+}: {
+  hidden: boolean;
+  onToggle: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="focus:ring-thyme-500 focus:ring-offset-dark-800 rounded text-gray-600 transition-colors hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none print:hidden"
+      aria-label={hidden ? `Show ${label} amount` : `Hide ${label} amount`}
+      aria-pressed={hidden}
+      title={hidden ? 'Show amount' : 'Hide amount'}
+    >
+      {hidden ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+    </button>
+  );
+}
 
 // Info tooltip component with styled popup (keyboard accessible)
 function InfoTooltip({
@@ -94,11 +121,16 @@ function formatCurrency(amount: number, currencyCode: string): string {
 }
 
 export function ProjectKPICards() {
-  const { analytics, isLoadingAnalytics, showCosts, showPrices, currencyCode, project } =
+  const { analytics, isLoadingAnalytics, currencyCode, project, hiddenKpis, toggleKpiHidden } =
     useProjectDetailsStore();
   const selectedCompany = useCompanyStore((state) => state.selectedCompany);
   const companyName = selectedCompany?.name;
   const projectCode = project?.code;
+
+  // Per-widget amount visibility, keyed by KPI label (shared via the store so the
+  // Spend vs Budget chart and PDF export follow the same Eye toggles)
+  const hiddenCards = new Set(hiddenKpis);
+  const maskedValue = '•••••';
 
   if (isLoadingAnalytics) {
     return (
@@ -134,6 +166,62 @@ export function ProjectKPICards() {
   const percentUsed = hasPlannedHours ? Math.round((hoursSpent / hoursPlanned) * 100) : 0;
 
   // Time KPIs (4 cards - always visible) - Reordered: Budgeted, Spent, Unposted, Posted
+  // What each KPI means, shown in its (i) tooltip next to the Eye toggle
+  const kpiInfo: Record<
+    string,
+    { title: string; description: string; formula?: string; source: string }
+  > = {
+    'Time Budgeted': {
+      title: 'Time Budgeted',
+      description: `Budgeted hours from Job Planning Lines. Only includes Resource lines where lineType is "Budget" or "Both Budget and Billable". Days = hours ÷ ${hoursPerDay}.`,
+      source: 'BC API: /jobPlanningLines → quantity',
+    },
+    'Time Spent': {
+      title: 'Time Spent',
+      description: `Total hours logged in timesheets for this project. Includes all timesheet statuses: Open, Submitted, and Approved. Days = hours ÷ ${hoursPerDay}.`,
+      source: 'BC API: /timeSheetDetails → quantity',
+    },
+    'Time Unposted': {
+      title: 'Time Unposted',
+      description: `Hours in timesheets that have not yet been posted to the Job Ledger Entry. These hours are approved but awaiting the "Post Time Sheets" action in BC. Days = hours ÷ ${hoursPerDay}.`,
+      formula: 'Time Spent − Time Posted',
+      source: 'Calculated',
+    },
+    'Time Posted': {
+      title: 'Time Posted',
+      description: `Hours that have been posted to the Job Ledger Entry. Posting creates cost and price entries based on the Resource's Unit Cost and Unit Price. Days = hours ÷ ${hoursPerDay}.`,
+      source: 'BC API: /timeEntries → quantity',
+    },
+    'Budget Cost': {
+      title: 'Budget Cost (Internal)',
+      description:
+        'Internal cost budget from Job Planning Lines. This is what the project is expected to cost the company. Broken down by Resource (labour), Item (materials), and G/L Account (overhead).',
+      formula: 'quantity × unitCost',
+      source: 'BC API: /jobPlanningLines → totalCost',
+    },
+    'Actual Cost': {
+      title: 'Actual Cost (Internal)',
+      description:
+        "Internal cost incurred from posted Job Ledger Entries. Calculated when timesheets are posted using each Resource's Unit Cost. Shows £0 if timesheets are approved but not yet posted.",
+      formula: 'posted hours × Resource Unit Cost',
+      source: 'BC API: /timeEntries → totalCost',
+    },
+    'Billable Price': {
+      title: 'Billable Price (Customer)',
+      description:
+        'Customer quote/expected revenue from Job Planning Lines. This is what the customer is expected to pay. Only includes lines where lineType is "Billable" or "Both Budget and Billable".',
+      formula: 'quantity × unitPrice',
+      source: 'BC API: /jobPlanningLines → totalPrice',
+    },
+    'Invoiced Price': {
+      title: 'Invoiced Price (Customer)',
+      description:
+        "Amount actually invoiced to the customer from Job Ledger Entry. Calculated when timesheets are posted using each Resource's Unit Price.",
+      formula: 'posted hours × Resource Unit Price',
+      source: 'BC API: /timeEntries → totalPrice',
+    },
+  };
+
   const hoursKpis = [
     {
       label: 'Time Budgeted',
@@ -143,28 +231,18 @@ export function ProjectKPICards() {
         : 'No budget set in BC',
       icon: CalendarDaysIcon,
       color: hoursRemaining < 0 ? 'text-red-400' : 'text-blue-400',
-      tooltip: {
-        title: 'Time Budgeted',
-        description: `Budgeted hours from Job Planning Lines. Only includes Resource lines where lineType is "Budget" or "Both Budget and Billable". Days = hours ÷ ${hoursPerDay}.`,
-        source: 'BC API: /jobPlanningLines → quantity',
-      },
     },
     {
       label: 'Time Spent',
       value: formatHoursWithDays(hoursSpent, hoursPerDay),
       subLabel: hasPlannedHours
-        ? `${percentUsed}% of ${hoursPlanned.toFixed(0)}h budgeted`
+        ? `${percentUsed}% of ${formatHoursWithDays(hoursPlanned, hoursPerDay)} budgeted`
         : 'From timesheets',
       icon: ClockIcon,
       color: 'text-thyme-400',
       progress: hasPlannedHours ? Math.min(percentUsed, 100) : undefined,
       progressColor:
         percentUsed > 100 ? 'bg-red-500' : percentUsed > 80 ? 'bg-amber-500' : 'bg-thyme-500',
-      tooltip: {
-        title: 'Time Spent',
-        description: `Total hours logged in timesheets for this project. Includes all timesheet statuses: Open, Submitted, and Approved. Days = hours ÷ ${hoursPerDay}.`,
-        source: 'BC API: /timeSheetLines → totalQuantity',
-      },
     },
     {
       label: 'Time Unposted',
@@ -172,12 +250,6 @@ export function ProjectKPICards() {
       subLabel: hoursUnposted > 0 ? 'In timesheets, not posted' : 'All time posted',
       icon: ClockIcon,
       color: hoursUnposted > 0 ? 'text-amber-400' : 'text-gray-500',
-      tooltip: {
-        title: 'Time Unposted',
-        description: `Hours in timesheets that have not yet been posted to the Job Ledger Entry. These hours are approved but awaiting the "Post Time Sheets" action in BC. Days = hours ÷ ${hoursPerDay}.`,
-        formula: 'Time Spent − Time Posted',
-        source: 'Calculated',
-      },
     },
     {
       label: 'Time Posted',
@@ -185,11 +257,6 @@ export function ProjectKPICards() {
       subLabel: 'In Job Ledger Entry',
       icon: ClockIcon,
       color: 'text-green-400',
-      tooltip: {
-        title: 'Time Posted',
-        description: `Hours that have been posted to the Job Ledger Entry. Posting creates cost and price entries based on the Resource's Unit Cost and Unit Price. Days = hours ÷ ${hoursPerDay}.`,
-        source: 'BC API: /timeEntries → quantity',
-      },
     },
   ];
 
@@ -259,8 +326,9 @@ export function ProjectKPICards() {
   );
 
   // Financial KPIs - 4 cards matching BC structure
-  // Budget Cost and Actual Cost are internal (hideable)
-  // Billable Price and Invoiced Price are customer-facing
+  // Budget Cost and Actual Cost are internal; Billable Price and Invoiced Price
+  // are customer-facing. Each card's amount can be hidden individually via its
+  // Eye toggle (see hiddenCards); the value/breakdown masking happens at render.
   const financialKpis: {
     label: string;
     value: string;
@@ -269,51 +337,24 @@ export function ProjectKPICards() {
     icon: typeof BanknotesIcon;
     color: string;
     isInternal?: boolean;
-    isHidden?: boolean;
-    tooltip: {
-      title: string;
-      description: string;
-      formula?: string;
-      source: string;
-    };
   }[] = [
     {
       label: 'Budget Cost',
-      value: showCosts ? formatCurrency(budgetCost, currencyCode) : '•••••',
-      subLabel: showCosts ? jobPlanningLinesLink : 'Hidden',
-      breakdown: showCosts ? budgetBreakdown : null,
+      value: formatCurrency(budgetCost, currencyCode),
+      subLabel: jobPlanningLinesLink,
+      breakdown: budgetBreakdown,
       icon: BanknotesIcon,
       color: 'text-amber-400',
       isInternal: true,
-      isHidden: !showCosts,
-      tooltip: {
-        title: 'Budget Cost (Internal)',
-        description:
-          'Internal cost budget from Job Planning Lines. This is what the project is expected to cost the company. Broken down by Resource (labour), Item (materials), and G/L Account (overhead).',
-        formula: 'quantity × unitCost',
-        source: 'BC API: /jobPlanningLines → totalCost',
-      },
     },
     {
       label: 'Actual Cost',
-      value: showCosts ? formatCurrency(actualCost, currencyCode) : '•••••',
-      subLabel: showCosts ? jobLedgerEntryLink : 'Hidden',
-      breakdown: showCosts ? actualBreakdown : null,
+      value: formatCurrency(actualCost, currencyCode),
+      subLabel: jobLedgerEntryLink,
+      breakdown: actualBreakdown,
       icon: BanknotesIcon,
-      color: showCosts
-        ? actualCost > budgetCost && budgetCost > 0
-          ? 'text-red-400'
-          : 'text-amber-400'
-        : 'text-gray-500',
+      color: actualCost > budgetCost && budgetCost > 0 ? 'text-red-400' : 'text-amber-400',
       isInternal: true,
-      isHidden: !showCosts,
-      tooltip: {
-        title: 'Actual Cost (Internal)',
-        description:
-          "Internal cost incurred from posted Job Ledger Entries. Calculated when timesheets are posted using each Resource's Unit Cost. Shows £0 if timesheets are approved but not yet posted.",
-        formula: 'posted hours × Resource Unit Cost',
-        source: 'BC API: /timeEntries → totalCost',
-      },
     },
     {
       label: 'Billable Price',
@@ -322,13 +363,6 @@ export function ProjectKPICards() {
       breakdown: billableBreakdown,
       icon: CurrencyPoundIcon,
       color: 'text-blue-400',
-      tooltip: {
-        title: 'Billable Price (Customer)',
-        description:
-          'Customer quote/expected revenue from Job Planning Lines. This is what the customer is expected to pay. Only includes lines where lineType is "Billable" or "Both Budget and Billable".',
-        formula: 'quantity × unitPrice',
-        source: 'BC API: /jobPlanningLines → totalPrice',
-      },
     },
     {
       label: 'Invoiced Price',
@@ -337,13 +371,6 @@ export function ProjectKPICards() {
       breakdown: invoicedBreakdown,
       icon: CurrencyPoundIcon,
       color: 'text-green-400',
-      tooltip: {
-        title: 'Invoiced Price (Customer)',
-        description:
-          "Amount actually invoiced to the customer from Job Ledger Entry. Calculated when timesheets are posted using each Resource's Unit Price.",
-        formula: 'posted hours × Resource Unit Price',
-        source: 'BC API: /timeEntries → totalPrice',
-      },
     },
   ];
 
@@ -351,57 +378,59 @@ export function ProjectKPICards() {
     <div className="space-y-4">
       {/* Row 1: Hours (4 cards) */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 print:grid-cols-4">
-        {hoursKpis.map((kpi) => (
-          <Card key={kpi.label} variant="bordered" className="relative p-4">
-            <div className="absolute top-3 right-3">
-              <InfoTooltip
-                title={kpi.tooltip.title}
-                description={kpi.tooltip.description}
-                source={kpi.tooltip.source}
-                formula={'formula' in kpi.tooltip ? kpi.tooltip.formula : undefined}
-              />
-            </div>
-            <div className="flex items-start gap-3">
-              <div className={`bg-dark-600 rounded-lg p-2 ${kpi.color}`}>
-                <kpi.icon className="h-5 w-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm text-gray-400">{kpi.label}</p>
-                <p className="text-2xl font-bold text-white">{kpi.value}</p>
-                <p className="mt-1 text-xs text-gray-500">{kpi.subLabel}</p>
-                {kpi.progress !== undefined && (
-                  <div className="bg-dark-600 mt-2 h-1.5 w-full overflow-hidden rounded-full">
-                    <div
-                      className={`h-full rounded-full transition-all ${kpi.progressColor}`}
-                      style={{ width: `${kpi.progress}%` }}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {/* Row 2: Financials (4 cards matching BC) - hidden in print only for "Without Financials" export */}
-      <div
-        className={cn(
-          'grid gap-4 sm:grid-cols-2 lg:grid-cols-4 print:grid-cols-4',
-          !showPrices && 'print:hidden'
-        )}
-      >
-        {financialKpis.map((kpi) => {
-          const isHidden = 'isHidden' in kpi && kpi.isHidden;
-          const breakdown = 'breakdown' in kpi ? kpi.breakdown : null;
+        {hoursKpis.map((kpi) => {
+          const isHidden = hiddenCards.has(kpi.label);
           return (
             <Card key={kpi.label} variant="bordered" className="relative p-4">
-              <div className={`absolute top-3 right-3 ${isHidden ? 'opacity-50' : ''}`}>
-                <InfoTooltip
-                  title={kpi.tooltip.title}
-                  description={kpi.tooltip.description}
-                  source={kpi.tooltip.source}
-                  formula={'formula' in kpi.tooltip ? kpi.tooltip.formula : undefined}
+              <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                <VisibilityToggle
+                  hidden={isHidden}
+                  onToggle={() => toggleKpiHidden(kpi.label)}
+                  label={kpi.label}
                 />
+                {kpiInfo[kpi.label] && <InfoTooltip {...kpiInfo[kpi.label]} />}
+              </div>
+              <div className="flex items-start gap-3">
+                <div
+                  className={`bg-dark-600 rounded-lg p-2 ${kpi.color} ${isHidden ? 'opacity-50' : ''}`}
+                >
+                  <kpi.icon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-gray-400">{kpi.label}</p>
+                  <p className={`text-2xl font-bold ${isHidden ? 'text-gray-600' : 'text-white'}`}>
+                    {isHidden ? maskedValue : kpi.value}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">{kpi.subLabel}</p>
+                  {kpi.progress !== undefined && !isHidden && (
+                    <div className="bg-dark-600 mt-2 h-1.5 w-full overflow-hidden rounded-full">
+                      <div
+                        className={`h-full rounded-full transition-all ${kpi.progressColor}`}
+                        style={{ width: `${kpi.progress}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Row 2: Financials (4 cards matching BC) - printed as shown, with hidden amounts masked */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 print:grid-cols-4">
+        {financialKpis.map((kpi) => {
+          const isHidden = hiddenCards.has(kpi.label);
+          const breakdown = kpi.breakdown;
+          return (
+            <Card key={kpi.label} variant="bordered" className="relative p-4">
+              <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                <VisibilityToggle
+                  hidden={isHidden}
+                  onToggle={() => toggleKpiHidden(kpi.label)}
+                  label={kpi.label}
+                />
+                {kpiInfo[kpi.label] && <InfoTooltip {...kpiInfo[kpi.label]} />}
               </div>
               <div className="flex items-start gap-3">
                 <div
@@ -421,7 +450,7 @@ export function ProjectKPICards() {
                     )}
                   </div>
                   <p className={`text-2xl font-bold ${isHidden ? 'text-gray-600' : 'text-white'}`}>
-                    {kpi.value}
+                    {isHidden ? maskedValue : kpi.value}
                   </p>
                   {/* Breakdown by type - always show all 3 lines */}
                   {breakdown && !isHidden && (

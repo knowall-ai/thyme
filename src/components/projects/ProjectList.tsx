@@ -153,8 +153,10 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
       result = result.filter((p) => p.isFavorite);
     }
 
-    // Apply status filter
-    if (statusFilter !== 'all') {
+    // Apply status filter — hide archived by default
+    if (statusFilter === 'all') {
+      result = result.filter((p) => p.status !== 'archived');
+    } else {
       result = result.filter((p) => p.status === statusFilter);
     }
 
@@ -299,7 +301,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="w-40"
                 options={[
-                  { value: 'all', label: 'All Status' },
+                  { value: 'all', label: 'Active & Completed' },
                   ...uniqueStatuses.map((status) => ({
                     value: status,
                     label: status.charAt(0).toUpperCase() + status.slice(1),

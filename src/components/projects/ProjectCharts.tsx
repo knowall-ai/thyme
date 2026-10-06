@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect, type ReactNode } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { Card } from '@/components/ui';
@@ -12,6 +12,15 @@ const HOLD_INITIAL_DELAY = 400; // Delay before repeat starts
 const HOLD_REPEAT_INTERVAL = 100; // Speed of repeat
 
 type ChartView = 'weekly' | 'progress';
+
+// Units for the Spend vs Budget chart. Effort (hours/days) shows no money, so the chart
+// can go in a PDF for a customer without exposing internal costs.
+type SpendUnit = 'hours' | 'days' | 'cost';
+const SPEND_UNITS: { value: SpendUnit; label: string; title: string }[] = [
+  { value: 'hours', label: 'Hours', title: 'Effort in hours against Time Budgeted' },
+  { value: 'days', label: 'Days', title: 'Effort in days against Time Budgeted' },
+  { value: 'cost', label: '£', title: 'Internal cost against Budget Cost' }, // label replaced by the company currency symbol
+];
 
 const WEEKS_TO_SHOW = 24;
 
@@ -33,10 +42,68 @@ function formatCurrencyShort(amount: number, currencyCode: string): string {
   return `${symbol}${amount.toFixed(0)}`;
 }
 
+// Vertical dashed line marking today's date on a chart
+function TodayMarker({ leftPercent }: { leftPercent: number }) {
+  return (
+    <div
+      className="pointer-events-none absolute top-0 bottom-0 z-[1] border-l border-dashed border-sky-400/70"
+      style={{ left: `${leftPercent}%` }}
+    >
+      <span className="absolute -top-4 -translate-x-1/2 text-[10px] font-medium text-sky-400">
+        Today
+      </span>
+    </div>
+  );
+}
+
+// Chart title shown only in print, where the on-screen view toggle is hidden
+function PrintChartTitle({ children }: { children: ReactNode }) {
+  return (
+    <div className="bg-thyme-600 mb-4 hidden rounded-lg px-4 py-2 text-sm font-medium text-white print:inline-block">
+      {children}
+    </div>
+  );
+}
+
 export function ProjectCharts() {
-  const { analytics, isLoadingAnalytics, showCosts, currencyCode } = useProjectDetailsStore();
+  const { analytics, isLoadingAnalytics, hiddenKpis, currencyCode, project } =
+    useProjectDetailsStore();
+  // Follow the Budget Cost / Actual Cost KPI card Eye toggles
+  const showBudgetCost = !hiddenKpis.includes('Budget Cost');
+  const showActualCost = !hiddenKpis.includes('Actual Cost');
+  // ...and the Time Budgeted / Time Spent eyes in effort (hours/days) mode
+  const showTimeBudgeted = !hiddenKpis.includes('Time Budgeted');
+  const showTimeSpent = !hiddenKpis.includes('Time Spent');
   const [chartView, setChartView] = useState<ChartView>('weekly');
+  // Days by default: effort is the safe view to share, and matches how projects are planned
+  const [spendUnit, setSpendUnit] = useState<SpendUnit>('days');
+  // Weeks back from the current week (negative = scrolled into the future)
   const [offsetWeeks, setOffsetWeeks] = useState(0);
+
+  // Furthest forward the charts can scroll: the later of the project end date and the
+  // last week with any data (e.g. future planned hours), so upcoming work is visible
+  const weeklyData = useMemo(() => analytics?.weeklyData ?? [], [analytics]);
+  const projectEndDate = project?.endDate;
+  const maxForwardWeeks = useMemo(() => {
+    const currentWeekStart = getWeekStart(new Date());
+    let furthest = 0;
+    const lastDataWeek = weeklyData.length
+      ? isoWeekToDate(weeklyData[weeklyData.length - 1].week)
+      : null;
+    if (lastDataWeek) furthest = Math.max(furthest, weeksBetween(currentWeekStart, lastDataWeek));
+    // BC's "0001-01-01" null-date sentinel means no end date
+    const endDate = parseLocalDate(projectEndDate);
+    if (endDate) {
+      const endWeek = getWeekStart(endDate);
+      furthest = Math.max(furthest, weeksBetween(currentWeekStart, endWeek));
+    }
+    return furthest;
+  }, [weeklyData, projectEndDate]);
+  // Read by the hold-to-repeat timers, which outlive a single render
+  const minOffsetRef = useRef(0);
+  useEffect(() => {
+    minOffsetRef.current = -maxForwardWeeks;
+  }, [maxForwardWeeks]);
 
   // Refs for hold-to-repeat functionality
   const holdTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -70,12 +137,12 @@ export function ProjectCharts() {
   // Start hold-to-repeat for going forward (later weeks)
   const startHoldForward = useCallback(() => {
     // Execute immediately on click
-    setOffsetWeeks((o) => Math.max(0, o - 1));
+    setOffsetWeeks((o) => Math.max(minOffsetRef.current, o - 1));
 
     // Start repeating after initial delay
     holdTimeoutRef.current = setTimeout(() => {
       holdIntervalRef.current = setInterval(() => {
-        setOffsetWeeks((o) => Math.max(0, o - 1));
+        setOffsetWeeks((o) => Math.max(minOffsetRef.current, o - 1));
       }, HOLD_REPEAT_INTERVAL);
     }, HOLD_INITIAL_DELAY);
   }, []);
@@ -93,15 +160,14 @@ export function ProjectCharts() {
     );
   }
 
-  const weeklyData = analytics?.weeklyData ?? [];
   const canGoBack = weeklyData.length > 0;
-  const canGoForward = offsetWeeks > 0;
+  const canGoForward = offsetWeeks > -maxForwardWeeks;
 
   return (
     <Card variant="bordered" className="p-6">
-      {/* Header with toggle and navigation */}
-      <div className="mb-6 flex items-center justify-between">
-        {/* Chart view toggle - interactive on screen, static label in print */}
+      {/* Header with toggle and navigation - hidden in print */}
+      <div className="mb-6 flex items-center justify-between print:hidden">
+        {/* Chart view toggle - screen only; print shows both charts with their own titles */}
         <div className="flex gap-2 print:hidden">
           <button
             onClick={() => setChartView('weekly')}
@@ -125,12 +191,32 @@ export function ProjectCharts() {
           >
             Spend vs Budget
           </button>
+          {/* Unit toggle for Spend vs Budget: effort (no money) or internal cost */}
+          {chartView === 'progress' && (
+            <div
+              className="border-dark-600 ml-2 flex overflow-hidden rounded-lg border"
+              role="group"
+              aria-label="Spend vs Budget units"
+            >
+              {SPEND_UNITS.map((u) => (
+                <button
+                  key={u.value}
+                  onClick={() => setSpendUnit(u.value)}
+                  title={u.title}
+                  aria-pressed={spendUnit === u.value}
+                  className={cn(
+                    'px-3 py-2 text-sm font-medium transition-colors',
+                    spendUnit === u.value
+                      ? 'bg-dark-500 text-white'
+                      : 'bg-dark-700 text-gray-400 hover:text-white'
+                  )}
+                >
+                  {u.value === 'cost' ? CURRENCY_SYMBOLS[currencyCode] || currencyCode : u.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-        {/* Static label for print */}
-        <div className="bg-thyme-600 hidden rounded-lg px-4 py-2 text-sm font-medium text-white print:block">
-          {chartView === 'weekly' ? 'Hours per Week' : 'Spend vs Budget'}
-        </div>
-
         {/* Navigation - hidden in print */}
         <div className="flex items-center gap-1 print:hidden">
           <button
@@ -182,10 +268,15 @@ export function ProjectCharts() {
         </div>
       </div>
 
-      {/* Chart area */}
-      {chartView === 'weekly' ? (
+      {/* Chart area - the selected chart on screen; both charts in print/PDF */}
+      <div className={cn(chartView !== 'weekly' && 'hidden print:block')}>
+        <PrintChartTitle>Hours per Week</PrintChartTitle>
         <WeeklyBarChart data={weeklyData} offsetWeeks={offsetWeeks} />
-      ) : (
+      </div>
+      <div className={cn('print:mt-6', chartView !== 'progress' && 'hidden print:block')}>
+        <PrintChartTitle>
+          {spendUnit === 'cost' ? 'Spend vs Budget' : `Effort vs Budget (${spendUnit})`}
+        </PrintChartTitle>
         <ProgressLineChart
           data={weeklyData}
           offsetWeeks={offsetWeeks}
@@ -194,11 +285,18 @@ export function ProjectCharts() {
             analytics?.budgetCostBreakdown ?? { resource: 0, item: 0, glAccount: 0, total: 0 }
           }
           hoursSpent={analytics?.hoursSpent ?? 0}
+          hoursPlanned={analytics?.hoursPlanned ?? 0}
           actualCost={analytics?.actualCost ?? 0}
-          showCosts={showCosts}
+          unpostedCost={analytics?.unpostedCost ?? 0}
+          showBudgetCost={showBudgetCost}
+          showActualCost={showActualCost}
+          showTimeBudgeted={showTimeBudgeted}
+          showTimeSpent={showTimeSpent}
+          unit={spendUnit}
+          hoursPerDay={analytics?.hoursPerDay ?? 8}
           currencyCode={currencyCode}
         />
-      )}
+      </div>
     </Card>
   );
 }
@@ -245,6 +343,66 @@ function getISOWeek(date: Date): string {
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
   return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
+/**
+ * Monday of an ISO week string (e.g. "2026-W43")
+ */
+function isoWeekToDate(isoWeek: string): Date | null {
+  const match = /^(\d{4})-W(\d{2})$/.exec(isoWeek);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const week = Number(match[2]);
+  // Jan 4th is always in ISO week 1
+  const jan4 = new Date(year, 0, 4);
+  const monday = getWeekStart(jan4);
+  monday.setDate(monday.getDate() + (week - 1) * 7);
+  return monday;
+}
+
+/**
+ * Parse a BC date ("YYYY-MM-DD", optionally with a time) as a local calendar date, so a
+ * date-only value isn't shifted into the previous day by UTC parsing. Returns null for
+ * missing/invalid dates and BC's "0001-01-01" null-date sentinel.
+ */
+function parseLocalDate(value: string | undefined): Date | null {
+  const match = value ? /^(\d{4})-(\d{2})-(\d{2})/.exec(value) : null;
+  if (!match || match[1] === '0001') return null;
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const date = new Date(year, month - 1, day);
+  // Reject dates Date would roll over (e.g. 2026-02-30 -> 2 March)
+  const isRealDate =
+    date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+  return isRealDate ? date : null;
+}
+
+/**
+ * Whole weeks from one Monday to another (negative if `to` is earlier)
+ */
+function weeksBetween(from: Date, to: Date): number {
+  return Math.round((to.getTime() - from.getTime()) / (7 * 24 * 60 * 60 * 1000));
+}
+
+/**
+ * Round an axis maximum up to a "nice" top value with ~5 steps of 1, 2, 2.5 or 5 × 10^n,
+ * so large values (tens of thousands) don't produce dozens of grid lines.
+ */
+function getNiceScale(max: number, minTop: number): { top: number; ticks: number[] } {
+  const target = Math.max(max, minTop);
+  const rough = target / 5;
+  const magnitude = 10 ** Math.floor(Math.log10(rough));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * magnitude).find((s) => s >= rough)!;
+  const steps = Math.ceil(target / step - 1e-9);
+  const ticks = Array.from({ length: steps + 1 }, (_, i) => i * step).reverse();
+  return { top: steps * step, ticks };
+}
+
+/**
+ * Horizontal position (0-1 within the current week) of today, Monday = 0
+ */
+function getTodayFractionOfWeek(): number {
+  const day = new Date().getDay();
+  return (day === 0 ? 6 : day - 1) / 7;
 }
 
 /**
@@ -328,26 +486,28 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
     [data, offsetWeeks]
   );
 
-  const maxHours = useMemo(() => {
-    // Consider both actual hours and planned hours for the max
-    const max = Math.max(...displayData.map((d) => Math.max(d.hours, d.plannedHours)), 0);
-    // Round up to nice number for Y-axis
-    if (max <= 5) return 5;
-    if (max <= 10) return 10;
-    if (max <= 20) return 20;
-    if (max <= 40) return 40;
-    return Math.ceil(max / 10) * 10;
-  }, [displayData]);
+  const legendTotals = useMemo(
+    () =>
+      displayData.reduce(
+        (acc, d) => ({
+          planned: acc.planned + d.plannedHours,
+          approved: acc.approved + d.approvedHours,
+          pending: acc.pending + d.pendingHours,
+        }),
+        { planned: 0, approved: 0, pending: 0 }
+      ),
+    [displayData]
+  );
 
-  // Generate Y-axis labels
-  const yAxisLabels = useMemo(() => {
-    const labels = [];
-    const step = maxHours <= 10 ? 2 : maxHours <= 20 ? 5 : 10;
-    for (let i = 0; i <= maxHours; i += step) {
-      labels.push(i);
-    }
-    return labels.reverse();
-  }, [maxHours]);
+  // Y-axis scale from every week of the project (not just the visible ones),
+  // so it stays fixed while scrolling back and forward
+  const { top: maxHours, ticks: yAxisLabels } = useMemo(() => {
+    // Consider both actual hours and planned hours for the max
+    const max = Math.max(...data.map((d) => Math.max(d.hours, d.plannedHours || 0)), 0);
+    return getNiceScale(max, 5);
+  }, [data]);
+
+  const currentWeekIndex = displayData.findIndex((d) => d.isCurrentWeek);
 
   return (
     <div>
@@ -367,6 +527,15 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
               <div key={label} className="border-dark-600 border-t" />
             ))}
           </div>
+
+          {/* Today marker */}
+          {currentWeekIndex >= 0 && (
+            <TodayMarker
+              leftPercent={
+                ((currentWeekIndex + getTodayFractionOfWeek()) / displayData.length) * 100
+              }
+            />
+          )}
 
           {/* Bars */}
           <div className="relative flex h-full items-end">
@@ -485,19 +654,19 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
         ))}
       </div>
 
-      {/* Legend */}
+      {/* Legend — totals are summed across the visible weeks */}
       <div className="mt-3 flex items-center justify-center gap-6 text-xs text-gray-400">
         <div className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-sm bg-gray-600" />
-          <span>Planned</span>
+          <span>Planned ({legendTotals.planned.toFixed(1)}h)</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="bg-thyme-500 inline-block h-2.5 w-2.5 rounded-sm" />
-          <span>Approved</span>
+          <span>Approved ({legendTotals.approved.toFixed(1)}h)</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-500" />
-          <span>Pending</span>
+          <span>Pending ({legendTotals.pending.toFixed(1)}h)</span>
         </div>
       </div>
     </div>
@@ -586,8 +755,15 @@ function ProgressLineChart({
   budgetCost,
   budgetCostBreakdown,
   hoursSpent,
+  hoursPlanned,
   actualCost,
-  showCosts,
+  unpostedCost,
+  showBudgetCost,
+  showActualCost,
+  showTimeBudgeted,
+  showTimeSpent,
+  unit,
+  hoursPerDay,
   currencyCode,
 }: {
   data: WeeklyDataPoint[];
@@ -595,10 +771,28 @@ function ProgressLineChart({
   budgetCost: number;
   budgetCostBreakdown: CostBreakdown;
   hoursSpent: number;
+  hoursPlanned: number;
   actualCost: number;
-  showCosts: boolean;
+  unpostedCost: number;
+  showBudgetCost: boolean;
+  showActualCost: boolean;
+  showTimeBudgeted: boolean;
+  showTimeSpent: boolean;
+  unit: SpendUnit;
+  hoursPerDay: number;
   currencyCode: string;
 }) {
+  const isCost = unit === 'cost';
+  // Which KPI card eyes govern the chart: cost cards for £, time cards for effort
+  const showBudget = isCost ? showBudgetCost : showTimeBudgeted;
+  const showActual = isCost ? showActualCost : showTimeSpent;
+  // Y-axis labels plus the spent line would reveal both figures, so only label it when both are visible
+  const showValueAxis = showBudget && showActual;
+  const formatValue = (value: number) => {
+    if (unit === 'cost') return formatCurrencyShort(value, currencyCode);
+    const rounded = value >= 100 ? Math.round(value) : Math.round(value * 10) / 10;
+    return `${rounded.toLocaleString('en-GB')}${unit === 'hours' ? 'h' : 'd'}`;
+  };
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const displayData = useMemo(
@@ -606,45 +800,97 @@ function ProgressLineChart({
     [data, offsetWeeks]
   );
 
-  // Calculate average cost rate from actual posted timesheet data only
-  // If no actual cost data exists, cost estimation is skipped entirely
-  const avgCostRate = useMemo(() => {
-    if (actualCost > 0 && hoursSpent > 0) {
-      return actualCost / hoursSpent;
+  // Average cost per hour. Spent = posted cost + the service's estimate for unposted
+  // hours (at posted rates, or budget rates when nothing is posted yet), so the line
+  // rises as timesheets are entered rather than only once they're posted to BC.
+  // Before any time is spent, fall back to the budget resource rate for the forecast.
+  const costRate = useMemo(() => {
+    const spentCost = actualCost + unpostedCost;
+    if (spentCost > 0 && hoursSpent > 0) return spentCost / hoursSpent;
+    if (budgetCostBreakdown.resource > 0 && hoursPlanned > 0) {
+      return budgetCostBreakdown.resource / hoursPlanned;
     }
     return null;
-  }, [actualCost, hoursSpent]);
+  }, [actualCost, unpostedCost, hoursSpent, budgetCostBreakdown.resource, hoursPlanned]);
+  // Value per hour in the chosen unit; the rest of the chart works in that unit
+  const effortRate = unit === 'hours' ? 1 : 1 / (hoursPerDay || 8);
+  const avgCostRate = isCost ? costRate : effortRate;
+  // Budget in the chosen unit: Budget Cost (£) or Time Budgeted (hours/days)
+  const budgetValue = isCost ? budgetCost : hoursPlanned * effortRate;
 
-  // Convert cumulative hours to cumulative cost for display
-  // If no rate available, set cost to 0 (chart will show hours only)
-  const displayDataWithCost = useMemo(() => {
-    return displayData.map((d) => ({
-      ...d,
-      cumulativeCost: avgCostRate !== null ? d.cumulative * avgCostRate : 0,
-    }));
-  }, [displayData, avgCostRate]);
-
-  const maxCost = useMemo(() => {
-    // Max should be at least the budget, or the max cumulative cost
-    const maxCumulativeCost = Math.max(...displayDataWithCost.map((d) => d.cumulativeCost), 0);
-    const max = Math.max(maxCumulativeCost, budgetCost * 1.1); // Add 10% buffer above budget
-    // Round up to nice number for Y-axis
-    if (max <= 500) return 500;
-    if (max <= 1000) return 1000;
-    if (max <= 2000) return 2000;
-    if (max <= 5000) return 5000;
-    return Math.ceil(max / 1000) * 1000;
-  }, [displayDataWithCost, budgetCost]);
-
-  // Generate Y-axis labels in £
-  const yAxisLabels = useMemo(() => {
-    const labels = [];
-    const step = maxCost <= 1000 ? 200 : maxCost <= 2000 ? 500 : 1000;
-    for (let i = 0; i <= maxCost; i += step) {
-      labels.push(i);
+  // Forecast cumulative hours for future weeks: hours spent to date plus the planned
+  // hours (from Job Planning Lines, i.e. the Plan page) of each week after this one
+  const { forecastHoursByWeek, forecastHoursAtCompletion } = useMemo(() => {
+    const currentWeek = getISOWeek(getWeekStart(new Date()));
+    const byWeek = new Map<string, number>();
+    let running = 0;
+    for (const d of data) {
+      if (d.week <= currentWeek) running = d.cumulative;
+      else {
+        running += d.plannedHours || 0;
+        byWeek.set(d.week, running);
+      }
     }
-    return labels.reverse();
-  }, [maxCost]);
+    return { forecastHoursByWeek: byWeek, forecastHoursAtCompletion: running };
+  }, [data]);
+  // The forecast is spend too, so it's hidden along with Actual Cost
+  const hasForecast = showActual && avgCostRate !== null && forecastHoursByWeek.size > 0;
+  const forecastAtCompletion = hasForecast ? forecastHoursAtCompletion * avgCostRate : 0;
+
+  // Convert cumulative hours to cumulative cost for display. Future weeks get a
+  // forecast cost instead of carrying the spent line flat.
+  // If no rate available, set cost to 0 (chart will show hours only).
+  // Also 0 when Actual Cost is hidden: the curve's height against the labelled
+  // budget line (and the scale it drives) would otherwise reveal the hidden spend.
+  const displayDataWithCost = useMemo(() => {
+    const currentWeek = getISOWeek(getWeekStart(new Date()));
+    const points = [];
+    let lastForecastHours: number | null = null;
+    for (const d of displayData) {
+      const isFuture = d.week > currentWeek;
+      const cumulativeCost = showActual && avgCostRate !== null ? d.cumulative * avgCostRate : 0;
+      let forecastHours: number | null = null;
+      let forecastCost: number | null = null;
+      if (showActual && avgCostRate !== null && isFuture) {
+        // Weeks with no planning lines carry the latest earlier forecast forward, including
+        // from weeks before the visible window (ISO week strings sort correctly as text)
+        let carried: number | null = forecastHoursByWeek.get(d.week) ?? lastForecastHours;
+        if (carried === null) {
+          for (const [week, hours] of forecastHoursByWeek) {
+            if (week <= d.week) carried = hours;
+          }
+        }
+        const weekForecastHours: number = carried ?? d.cumulative;
+        lastForecastHours = weekForecastHours;
+        forecastHours = weekForecastHours;
+        forecastCost = weekForecastHours * avgCostRate;
+      }
+      points.push({ ...d, isFuture, cumulativeCost, forecastHours, forecastCost });
+    }
+    return points;
+  }, [displayData, avgCostRate, forecastHoursByWeek, showActual]);
+
+  // Height used for a point: forecast for future weeks, spent otherwise
+  const pointCost = (d: (typeof displayDataWithCost)[number]) =>
+    d.isFuture && d.forecastCost !== null ? d.forecastCost : d.cumulativeCost;
+  const yFor = (cost: number) => (maxCost > 0 ? (1 - cost / maxCost) * 100 : 100);
+  // Each week spans an equal slot with its point at the centre (as in the bar chart)
+  const xFor = (index: number) => ((index + 0.5) / displayDataWithCost.length) * 100;
+
+  // Y-axis scale from the whole project (not just the visible weeks), so it stays
+  // fixed while scrolling: at least the budget, the highest spend, or the forecast
+  const { top: maxCost, ticks: yAxisLabels } = useMemo(() => {
+    const maxCumulativeHours = Math.max(...data.map((d) => d.cumulative), 0);
+    // Budget-only while Actual Cost is hidden, so the scale can't hint at the hidden spend
+    // (forecastAtCompletion is already 0 then)
+    const maxCumulativeCost =
+      showActual && avgCostRate !== null ? maxCumulativeHours * avgCostRate : 0;
+    const max = Math.max(maxCumulativeCost, forecastAtCompletion, budgetValue * 1.1); // Add 10% buffer above budget
+    // Minimum axis height: £500, 5 hours or 1 day
+    return getNiceScale(max, isCost ? 500 : unit === 'hours' ? 5 : 1);
+  }, [data, avgCostRate, forecastAtCompletion, budgetValue, showActual, isCost, unit]);
+
+  const currentWeekIndex = displayDataWithCost.findIndex((d) => d.isCurrentWeek);
 
   // Budget breakdown line Y positions
   const resourceBudgetY = maxCost > 0 ? (1 - budgetCostBreakdown.resource / maxCost) * 100 : 100;
@@ -652,15 +898,15 @@ function ProgressLineChart({
     maxCost > 0
       ? (1 - (budgetCostBreakdown.resource + budgetCostBreakdown.item) / maxCost) * 100
       : 100;
-  const totalBudgetY = maxCost > 0 ? (1 - budgetCost / maxCost) * 100 : 0;
+  const totalBudgetY = maxCost > 0 ? (1 - budgetValue / maxCost) * 100 : 0;
 
   return (
     <div>
       <div className="flex h-48">
-        {/* Y-axis - £ values */}
+        {/* Y-axis - values in the chosen unit */}
         <div className="flex w-12 flex-col justify-between pr-2 text-right text-xs text-gray-500">
           {yAxisLabels.map((label) => (
-            <span key={label}>{showCosts ? formatCurrencyShort(label, currencyCode) : '•••'}</span>
+            <span key={label}>{showValueAxis ? formatValue(label) : '•••'}</span>
           ))}
         </div>
 
@@ -673,18 +919,25 @@ function ProgressLineChart({
             ))}
           </div>
 
-          {/* Budget breakdown bands (stacked from bottom) */}
-          {showCosts && budgetCost > 0 && (
+          {/* Budget breakdown bands (£ only) and total budget line */}
+          {showBudget && budgetValue > 0 && (
             <>
+              {/* Effort: budgeted time is all resource time, so one band up to the budget */}
+              {!isCost && (
+                <div
+                  className="absolute right-0 bottom-0 left-0 bg-blue-500/10"
+                  style={{ height: `${100 - totalBudgetY}%` }}
+                />
+              )}
               {/* Resource budget band (bottom) */}
-              {budgetCostBreakdown.resource > 0 && (
+              {isCost && budgetCostBreakdown.resource > 0 && (
                 <div
                   className="absolute right-0 bottom-0 left-0 bg-blue-500/10"
                   style={{ height: `${100 - resourceBudgetY}%` }}
                 />
               )}
               {/* Item budget band (middle) */}
-              {budgetCostBreakdown.item > 0 && (
+              {isCost && budgetCostBreakdown.item > 0 && (
                 <div
                   className="absolute right-0 left-0 bg-purple-500/10"
                   style={{
@@ -694,7 +947,7 @@ function ProgressLineChart({
                 />
               )}
               {/* G/L Account budget band (top) */}
-              {budgetCostBreakdown.glAccount > 0 && (
+              {isCost && budgetCostBreakdown.glAccount > 0 && (
                 <div
                   className="absolute right-0 left-0 bg-amber-500/10"
                   style={{
@@ -710,10 +963,19 @@ function ProgressLineChart({
                 style={{ top: `${totalBudgetY}%` }}
               >
                 <span className="absolute -top-5 right-0 text-xs text-amber-400">
-                  Budget: {formatCurrencyShort(budgetCost, currencyCode)}
+                  Budget: {formatValue(budgetValue)}
                 </span>
               </div>
             </>
+          )}
+
+          {/* Today marker - each week spans an equal slot (points sit at slot centres) */}
+          {currentWeekIndex >= 0 && (
+            <TodayMarker
+              leftPercent={
+                ((currentWeekIndex + getTodayFractionOfWeek()) / displayDataWithCost.length) * 100
+              }
+            />
           )}
 
           {/* Line chart with SVG - stretched for line and fill */}
@@ -722,31 +984,34 @@ function ProgressLineChart({
             viewBox="0 0 100 100"
             preserveAspectRatio="none"
           >
-            {/* Area fill */}
+            {/* Area fill - spent to date only */}
             <path
               d={(() => {
-                if (displayDataWithCost.length < 2) return '';
-                const points = displayDataWithCost.map((d, i) => {
-                  const x = (i / (displayDataWithCost.length - 1)) * 100;
-                  const y = maxCost > 0 ? (1 - d.cumulativeCost / maxCost) * 100 : 100;
-                  return `${x},${y}`;
+                if (!showActual || displayDataWithCost.length < 2) return '';
+                const past = displayDataWithCost.filter((d) => !d.isFuture);
+                if (past.length < 2) return '';
+                const points = past.map((d, i) => {
+                  const x = xFor(i);
+                  return `${x},${yFor(d.cumulativeCost)}`;
                 });
-                return `M ${points.join(' L ')} L 100,100 L 0,100 Z`;
+                return `M ${points.join(' L ')} L ${xFor(past.length - 1)},100 L ${xFor(0)},100 Z`;
               })()}
               fill="currentColor"
               className="text-thyme-500/20"
             />
 
-            {/* Line */}
+            {/* Spent line - to date only */}
             <path
               d={(() => {
-                if (displayDataWithCost.length < 2) return '';
-                const points = displayDataWithCost.map((d, i) => {
-                  const x = (i / (displayDataWithCost.length - 1)) * 100;
-                  const y = maxCost > 0 ? (1 - d.cumulativeCost / maxCost) * 100 : 100;
-                  return `${x},${y}`;
-                });
-                return `M ${points.join(' L ')}`;
+                if (!showActual || displayDataWithCost.length < 2) return '';
+                const points = displayDataWithCost
+                  .map((d, i) => ({ d, i }))
+                  .filter(({ d }) => !d.isFuture)
+                  .map(({ d, i }) => {
+                    const x = xFor(i);
+                    return `${x},${yFor(d.cumulativeCost)}`;
+                  });
+                return points.length > 1 ? `M ${points.join(' L ')}` : '';
               })()}
               fill="none"
               stroke="currentColor"
@@ -754,13 +1019,34 @@ function ProgressLineChart({
               strokeWidth="2"
               vectorEffect="non-scaling-stroke"
             />
+
+            {/* Forecast line - from this week's spend through future planned hours */}
+            <path
+              d={(() => {
+                if (!hasForecast || displayDataWithCost.length < 2) return '';
+                const points = displayDataWithCost
+                  .map((d, i) => ({ d, i }))
+                  .filter(({ d, i }) => d.isFuture || displayDataWithCost[i + 1]?.isFuture)
+                  .map(({ d, i }) => {
+                    const x = xFor(i);
+                    return `${x},${yFor(pointCost(d))}`;
+                  });
+                return points.length > 1 ? `M ${points.join(' L ')}` : '';
+              })()}
+              fill="none"
+              stroke="currentColor"
+              className="text-sky-400"
+              strokeWidth="2"
+              strokeDasharray="4 3"
+              vectorEffect="non-scaling-stroke"
+            />
           </svg>
 
           {/* Points - separate layer to avoid stretching */}
           <div className="absolute inset-0">
             {displayDataWithCost.map((point, i) => {
-              const xPercent = (i / (displayDataWithCost.length - 1)) * 100;
-              const yPercent = maxCost > 0 ? (1 - point.cumulativeCost / maxCost) * 100 : 100;
+              const xPercent = xFor(i);
+              const yPercent = yFor(pointCost(point));
               const isHovered = hoveredIndex === i;
 
               return (
@@ -780,7 +1066,11 @@ function ProgressLineChart({
                   <div
                     className={cn(
                       'relative rounded-full',
-                      point.isCurrentWeek ? 'bg-thyme-400' : 'bg-thyme-500',
+                      point.isFuture
+                        ? 'bg-dark-800 border border-sky-400'
+                        : point.isCurrentWeek
+                          ? 'bg-thyme-400'
+                          : 'bg-thyme-500',
                       isHovered || point.isCurrentWeek ? 'h-3 w-3' : 'h-2 w-2'
                     )}
                   />
@@ -790,12 +1080,12 @@ function ProgressLineChart({
           </div>
 
           {/* Tooltip with breakdown */}
-          {hoveredIndex !== null && showCosts && (
+          {hoveredIndex !== null && (showBudget || showActual) && (
             <div
               className="bg-dark-700 pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded px-3 py-2 text-xs whitespace-nowrap shadow-lg"
               style={{
-                left: `${(hoveredIndex / (displayDataWithCost.length - 1)) * 100}%`,
-                top: `${maxCost > 0 ? (1 - displayDataWithCost[hoveredIndex].cumulativeCost / maxCost) * 100 : 100}%`,
+                left: `${xFor(hoveredIndex)}%`,
+                top: `${yFor(pointCost(displayDataWithCost[hoveredIndex]))}%`,
                 marginTop: '-12px',
               }}
             >
@@ -807,21 +1097,36 @@ function ProgressLineChart({
                 })}
               </div>
               <div className="border-dark-500 mt-1 border-t pt-1">
-                <div className="text-gray-400">
-                  {displayDataWithCost[hoveredIndex].cumulative.toFixed(1)} hours
-                </div>
-                {avgCostRate !== null && (
-                  <div className="text-thyme-400">
-                    ~
-                    {formatCurrencyShort(
-                      displayDataWithCost[hoveredIndex].cumulativeCost,
-                      currencyCode
-                    )}{' '}
-                    spent
+                {/* Hours follow the Time Spent eye in every unit */}
+                {showTimeSpent && (
+                  <div className="text-gray-400">
+                    {(
+                      displayDataWithCost[hoveredIndex].forecastHours ??
+                      displayDataWithCost[hoveredIndex].cumulative
+                    ).toFixed(1)}{' '}
+                    hours{displayDataWithCost[hoveredIndex].isFuture ? ' (forecast)' : ''}
                   </div>
                 )}
+                {showActual &&
+                  avgCostRate !== null &&
+                  unit !== 'hours' &&
+                  (displayDataWithCost[hoveredIndex].isFuture ? (
+                    <div className="text-sky-400">
+                      ~{formatValue(pointCost(displayDataWithCost[hoveredIndex]))} forecast (incl.
+                      planned hours)
+                    </div>
+                  ) : (
+                    <div className="text-thyme-400">
+                      ~{formatValue(displayDataWithCost[hoveredIndex].cumulativeCost)} spent
+                    </div>
+                  ))}
               </div>
-              {budgetCost > 0 && (
+              {showBudget && budgetValue > 0 && !isCost && (
+                <div className="border-dark-500 mt-1 border-t pt-1 text-amber-400">
+                  Budget: {formatValue(budgetValue)}
+                </div>
+              )}
+              {showBudget && isCost && budgetCost > 0 && (
                 <div className="border-dark-500 mt-1 border-t pt-1">
                   <div className="mb-1 text-gray-500">Budget breakdown:</div>
                   {budgetCostBreakdown.resource > 0 && (
@@ -855,12 +1160,12 @@ function ProgressLineChart({
           )}
 
           {/* Simple tooltip when costs are hidden */}
-          {hoveredIndex !== null && !showCosts && (
+          {hoveredIndex !== null && !showBudget && !showActual && (
             <div
               className="bg-dark-700 pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded px-2 py-1 text-xs whitespace-nowrap shadow-lg"
               style={{
-                left: `${(hoveredIndex / (displayDataWithCost.length - 1)) * 100}%`,
-                top: `${maxCost > 0 ? (1 - displayDataWithCost[hoveredIndex].cumulativeCost / maxCost) * 100 : 100}%`,
+                left: `${xFor(hoveredIndex)}%`,
+                top: `${yFor(pointCost(displayDataWithCost[hoveredIndex]))}%`,
                 marginTop: '-8px',
               }}
             >
@@ -871,9 +1176,11 @@ function ProgressLineChart({
                   year: 'numeric',
                 })}
               </div>
-              <div className="text-gray-400">
-                {displayDataWithCost[hoveredIndex].cumulative.toFixed(1)} hours
-              </div>
+              {showTimeSpent && (
+                <div className="text-gray-400">
+                  {displayDataWithCost[hoveredIndex].cumulative.toFixed(1)} hours
+                </div>
+              )}
               {displayDataWithCost[hoveredIndex].isCurrentWeek && (
                 <div className="text-thyme-400">This week</div>
               )}
@@ -892,25 +1199,37 @@ function ProgressLineChart({
       </div>
 
       {/* Legend */}
-      {showCosts && budgetCost > 0 && (
+      {showBudget && budgetValue > 0 && (
         <div className="mt-2 ml-12 flex items-center gap-4 text-xs text-gray-500">
           <div className="flex items-center gap-1">
             <span className="bg-thyme-500/50 inline-block h-2 w-4 rounded" />
             <span>Spent</span>
           </div>
-          {budgetCostBreakdown.resource > 0 && (
+          {hasForecast && (
+            <div className="flex items-center gap-1">
+              <span className="inline-block w-4 border-t-2 border-dashed border-sky-400" />
+              <span>Forecast ({formatValue(forecastAtCompletion)} at completion)</span>
+            </div>
+          )}
+          {!isCost && (
+            <div className="flex items-center gap-1">
+              <span className="inline-block h-2 w-4 rounded bg-blue-500/30" />
+              <span>Budgeted time</span>
+            </div>
+          )}
+          {isCost && budgetCostBreakdown.resource > 0 && (
             <div className="flex items-center gap-1">
               <span className="inline-block h-2 w-4 rounded bg-blue-500/30" />
               <span>Resource</span>
             </div>
           )}
-          {budgetCostBreakdown.item > 0 && (
+          {isCost && budgetCostBreakdown.item > 0 && (
             <div className="flex items-center gap-1">
               <span className="inline-block h-2 w-4 rounded bg-purple-500/30" />
               <span>Item</span>
             </div>
           )}
-          {budgetCostBreakdown.glAccount > 0 && (
+          {isCost && budgetCostBreakdown.glAccount > 0 && (
             <div className="flex items-center gap-1">
               <span className="inline-block h-2 w-4 rounded bg-amber-500/30" />
               <span>G/L Acct</span>

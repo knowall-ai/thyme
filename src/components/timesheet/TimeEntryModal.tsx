@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { TrashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { Modal, Button, Input, Select } from '@/components/ui';
@@ -8,7 +8,7 @@ import { useTimeEntriesStore, useProjectsStore, useSettingsStore } from '@/hooks
 import { useAuth } from '@/services/auth';
 import { bcClient } from '@/services/bc/bcClient';
 import type { TimeEntry, SelectOption } from '@/types';
-import { formatDateForDisplay } from '@/utils';
+import { formatDate, formatDateForDisplay, getWeekDays } from '@/utils';
 
 // BC Time Sheet Line Description field has a 100-character limit
 const MAX_NOTES_LENGTH = 100;
@@ -18,21 +18,32 @@ interface TimeEntryModalProps {
   onClose: () => void;
   date: string | null;
   entry: TimeEntry | null;
+  weekStart: Date;
 }
 
-export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalProps) {
+export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: TimeEntryModalProps) {
   const { account } = useAuth();
   const userId = account?.localAccountId || '';
 
-  const { addEntry, updateEntry, deleteEntry } = useTimeEntriesStore();
+  const { addEntry, updateEntry, moveEntryDate, deleteEntry } = useTimeEntriesStore();
   const { projects, selectedProject, selectedTask, selectProject, selectTask } = useProjectsStore();
   const { requireTimesheetComments } = useSettingsStore();
 
   const [customerId, setCustomerId] = useState('');
   const [projectId, setProjectId] = useState('');
   const [taskId, setTaskId] = useState('');
+  const [selectedDate, setSelectedDate] = useState('');
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
+
+  const dateOptions: SelectOption[] = useMemo(
+    () =>
+      getWeekDays(weekStart).map((d) => {
+        const value = formatDate(d);
+        return { value, label: formatDateForDisplay(value) };
+      }),
+    [weekStart]
+  );
 
   // When hours is 24, minutes must be 0
   const handleHoursChange = (value: string) => {
@@ -52,10 +63,25 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
     }
   }, [isOpen]);
 
-  // Get unique customers from projects
+  // Available projects for selection in this modal: active projects only,
+  // plus the entry's current project if editing — so reopening an entry
+  // logged against a project that has since been archived still shows the
+  // original selection. Customer/project dropdowns both derive from this.
+  const availableProjects = useMemo(() => {
+    const result = projects.filter((p) => p.status === 'active');
+    if (entry) {
+      const entryProject = projects.find((p) => p.code === entry.projectId);
+      if (entryProject && entryProject.status !== 'active') {
+        result.push(entryProject);
+      }
+    }
+    return result;
+  }, [projects, entry]);
+
+  // Get unique customers from available projects
   const customerOptions: SelectOption[] = useMemo(() => {
     const customers = new Map<string, string>();
-    projects.forEach((p) => {
+    availableProjects.forEach((p) => {
       const customerName = (p.customerName || 'Unknown').trim();
       const normalizedKey = customerName.toLowerCase();
       // Use the first occurrence's display name, but dedupe by normalized key
@@ -66,28 +92,28 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
     return Array.from(customers.values())
       .sort()
       .map((name) => ({ value: name, label: name }));
-  }, [projects]);
+  }, [availableProjects]);
 
   // Check if we should show customer dropdown (hide if only one customer or all "Unknown")
   const showCustomerDropdown =
     customerOptions.length > 1 ||
     (customerOptions.length === 1 && customerOptions[0].value !== 'Unknown');
 
-  // Filter projects by selected customer (or show all if customer dropdown is hidden)
+  // Filter available projects by selected customer (or show all if customer dropdown is hidden)
   const filteredProjects = useMemo(() => {
     if (!showCustomerDropdown) {
-      return projects;
+      return availableProjects;
     }
     if (!customerId) {
       return [];
     }
     // Use case-insensitive, trimmed comparison for robustness
     const normalizedCustomerId = customerId.trim().toLowerCase();
-    return projects.filter((p) => {
+    return availableProjects.filter((p) => {
       const projectCustomer = (p.customerName || 'Unknown').trim().toLowerCase();
       return projectCustomer === normalizedCustomerId;
     });
-  }, [projects, customerId, showCustomerDropdown]);
+  }, [availableProjects, customerId, showCustomerDropdown]);
 
   // Helper to find the matching customerOption value for a customer name
   // This ensures the Select dropdown value matches exactly
@@ -112,37 +138,51 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
     [customerOptions]
   );
 
-  // Reset form when modal opens
+  // Reset form only when the modal opens or the entry/date being edited
+  // changes. A resetKey ref gates the body to the open-transition and entry
+  // identity, so unrelated dep changes — selectProject/selectTask firing
+  // mid-edit, or a background projects refresh — don't clobber the user's
+  // in-progress selection with the original entry values (#208). Deps are
+  // still listed honestly for exhaustive-deps; the guard makes them no-ops.
+  const lastResetKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    if (isOpen) {
-      if (entry) {
-        // Editing existing entry - entry.projectId is a job code (e.g., "PR00030"), not a GUID
-        const project = projects.find((p) => p.code === entry.projectId);
-        // Use matching customer option value to ensure Select works correctly
-        const matchedCustomer = findMatchingCustomerOption(project?.customerName);
-        setCustomerId(matchedCustomer);
-        // Use project.id (GUID) for form state since dropdown options use GUIDs
-        setProjectId(project?.id || '');
-        // Find task by code and use its id
-        const task = project?.tasks.find((t) => t.code === entry.taskId);
-        setTaskId(task?.id || '');
-        const h = Math.floor(entry.hours);
-        const m = Math.round((entry.hours - h) * 60);
-        setHours(h.toString());
-        setMinutes(m.toString());
-        setNotes(entry.notes || '');
-      } else {
-        // New entry - use matching customer option value
-        const matchedCustomer = findMatchingCustomerOption(selectedProject?.customerName);
-        setCustomerId(matchedCustomer);
-        setProjectId(selectedProject?.id || '');
-        setTaskId(selectedTask?.id || '');
-        setHours('');
-        setMinutes('');
-        setNotes('');
-      }
+    const resetKey = isOpen ? `${entry?.id ?? 'new'}|${date ?? ''}` : null;
+    if (!isOpen) {
+      lastResetKeyRef.current = null;
+      return;
     }
-  }, [isOpen, entry, selectedProject, selectedTask, projects, findMatchingCustomerOption]);
+    if (lastResetKeyRef.current === resetKey) return;
+    lastResetKeyRef.current = resetKey;
+
+    if (entry) {
+      // Editing existing entry - entry.projectId is a job code (e.g., "PR00030"), not a GUID
+      const project = projects.find((p) => p.code === entry.projectId);
+      // Use matching customer option value to ensure Select works correctly
+      const matchedCustomer = findMatchingCustomerOption(project?.customerName);
+      setCustomerId(matchedCustomer);
+      // Use project.id (GUID) for form state since dropdown options use GUIDs
+      setProjectId(project?.id || '');
+      // Find task by code and use its id
+      const task = project?.tasks.find((t) => t.code === entry.taskId);
+      setTaskId(task?.id || '');
+      setSelectedDate(entry.date);
+      const h = Math.floor(entry.hours);
+      const m = Math.round((entry.hours - h) * 60);
+      setHours(h.toString());
+      setMinutes(m.toString());
+      setNotes(entry.notes || '');
+    } else {
+      // New entry - use matching customer option value
+      const matchedCustomer = findMatchingCustomerOption(selectedProject?.customerName);
+      setCustomerId(matchedCustomer);
+      setProjectId(selectedProject?.id || '');
+      setTaskId(selectedTask?.id || '');
+      setSelectedDate(date || '');
+      setHours('');
+      setMinutes('');
+      setNotes('');
+    }
+  }, [isOpen, entry, date, projects, findMatchingCustomerOption, selectedProject, selectedTask]);
 
   const projectOptions: SelectOption[] = filteredProjects.map((p) => ({
     value: p.id,
@@ -181,7 +221,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!date || !projectId || !taskId || isSubmitting) return;
+    if (!selectedDate || !projectId || !taskId || isSubmitting) return;
 
     const totalHours = (parseInt(hours) || 0) + (parseInt(minutes) || 0) / 60;
     if (totalHours <= 0) return;
@@ -211,21 +251,61 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
     setIsSubmitting(true);
     try {
       if (entry) {
-        // Update existing entry
-        await updateEntry(entry.id, {
-          projectId: jobNo,
-          taskId: jobTaskNo,
-          hours: totalHours,
-          notes,
-          isBillable: task?.isBillable ?? true,
-        });
+        // A BC timesheet line is bound to a single project+task, so a project
+        // or task change can't be patched in place — replace the entry by
+        // creating the new one first and then deleting the original. Doing
+        // the create before the delete means a BC failure mid-flight leaves
+        // the original hours intact instead of silently losing them.
+        if (jobNo !== entry.projectId || jobTaskNo !== entry.taskId) {
+          await addEntry({
+            projectId: jobNo,
+            taskId: jobTaskNo,
+            userId,
+            date: selectedDate,
+            hours: totalHours,
+            notes,
+            isBillable: task?.isBillable ?? true,
+            isRunning: false,
+          });
+          // The add succeeded; if the delete fails the user briefly has both
+          // the old and new entries. Surface a specific message so they know
+          // exactly what to clean up rather than a generic save failure.
+          try {
+            await deleteEntry(entry.id);
+          } catch {
+            toast.error(
+              'New entry saved, but the original could not be removed. Please delete it manually.'
+            );
+            onClose();
+            return;
+          }
+        } else {
+          // If date changed, move the entry first so subsequent updates target the new detail
+          let targetEntryId = entry.id;
+          if (selectedDate !== entry.date) {
+            await moveEntryDate(entry.id, selectedDate);
+            // Composite ID format is `{lineId}_{date}` — recompute for follow-up update
+            const lineId = entry.bcTimeSheetLineId || entry.id.replace(/_\d{4}-\d{2}-\d{2}$/, '');
+            targetEntryId = `${lineId}_${selectedDate}`;
+          }
+          // Only forward fields the user actually changed. If only the date
+          // changed, skipping updateEntry preserves any same-line merge that
+          // moveEntryDate produced — otherwise the form's hours would clobber
+          // the merged total on the target date.
+          const updates: Partial<TimeEntry> = {};
+          if (totalHours !== entry.hours) updates.hours = totalHours;
+          if (notes !== (entry.notes || '')) updates.notes = notes;
+          if (Object.keys(updates).length > 0) {
+            await updateEntry(targetEntryId, updates);
+          }
+        }
       } else {
         // Create new entry
         await addEntry({
           projectId: jobNo,
           taskId: jobTaskNo,
           userId,
-          date,
+          date: selectedDate,
           hours: totalHours,
           notes,
           isBillable: task?.isBillable ?? true,
@@ -262,9 +342,10 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
     }
   };
 
+  const titleDate = selectedDate || date;
   const title = entry
-    ? `Edit time entry for ${date ? formatDateForDisplay(date) : ''}`
-    : `New time entry for ${date ? formatDateForDisplay(date) : ''}`;
+    ? `Edit time entry for ${titleDate ? formatDateForDisplay(titleDate) : ''}`
+    : `New time entry for ${titleDate ? formatDateForDisplay(titleDate) : ''}`;
 
   // Show extension required message if not installed
   if (extensionInstalled === false) {
@@ -299,6 +380,15 @@ export function TimeEntryModal({ isOpen, onClose, date, entry }: TimeEntryModalP
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Date - constrained to the current week */}
+        <Select
+          label="Date"
+          options={dateOptions}
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(e.target.value)}
+          required
+        />
+
         {/* Customer - only show if multiple customers exist */}
         {showCustomerDropdown && (
           <Select

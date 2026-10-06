@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type DragEvent } from 'react';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import type { TimeEntry, Project } from '@/types';
 import { cn, formatTime } from '@/utils';
+
+const DRAG_MIME_TYPE = 'application/x-thyme-entry-id';
 
 interface TimeEntryCellProps {
   entries: TimeEntry[];
@@ -12,6 +14,7 @@ interface TimeEntryCellProps {
   projects: Project[];
   onAddEntry: (date: string) => void;
   onEditEntry: (entry: TimeEntry) => void;
+  onMoveEntry?: (entryId: string, newDate: string) => void;
   readOnly?: boolean;
 }
 
@@ -22,9 +25,11 @@ export function TimeEntryCell({
   projects,
   onAddEntry,
   onEditEntry,
+  onMoveEntry,
   readOnly = false,
 }: TimeEntryCellProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const totalHours = entries.reduce((sum, e) => sum + e.hours, 0);
 
@@ -40,15 +45,46 @@ export function TimeEntryCell({
     return project?.name || 'Unknown';
   };
 
+  const handleDragStart = (e: DragEvent<HTMLDivElement>, entry: TimeEntry) => {
+    e.dataTransfer.setData(DRAG_MIME_TYPE, entry.id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    if (readOnly || !onMoveEntry) return;
+    if (!e.dataTransfer.types.includes(DRAG_MIME_TYPE)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (!isDragOver) setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
+    // Only clear when leaving the cell entirely, not when crossing child elements
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    if (readOnly || !onMoveEntry) return;
+    const entryId = e.dataTransfer.getData(DRAG_MIME_TYPE);
+    setIsDragOver(false);
+    if (!entryId) return;
+    onMoveEntry(entryId, date);
+  };
+
   return (
     <div
       className={cn(
         'border-dark-700 min-h-[100px] border-r p-2 transition-colors last:border-r-0 sm:min-h-[120px]',
         isToday ? 'bg-knowall-green/5' : 'bg-dark-800',
-        isHovered && 'bg-dark-700/50'
+        isHovered && !isDragOver && 'bg-dark-700/50',
+        isDragOver && 'ring-knowall-green/60 bg-knowall-green/10 ring-2 ring-inset'
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
       {/* Entries */}
       <div className="space-y-1">
@@ -68,9 +104,12 @@ export function TimeEntryCell({
                     }
                   }
             }
+            draggable={!readOnly && !!onMoveEntry}
+            onDragStart={readOnly ? undefined : (e) => handleDragStart(e, entry)}
             className={cn(
               'w-full rounded-md p-2 text-left transition-colors',
-              !readOnly && 'hover:bg-dark-600/50 cursor-pointer'
+              !readOnly && 'hover:bg-dark-600/50 cursor-pointer',
+              !readOnly && onMoveEntry && 'cursor-grab active:cursor-grabbing'
             )}
             style={{
               backgroundColor: `${getProjectColor(entry.projectId)}20`,

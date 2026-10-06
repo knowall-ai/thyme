@@ -1,13 +1,6 @@
 import { bcClient } from './bcClient';
-import type {
-  Project,
-  Task,
-  BCProject,
-  BCJobTask,
-  BCTimeSheet,
-  BCTimeSheetLine,
-  BCJobPlanningLine,
-} from '@/types';
+import type { Project, Task, BCProject, BCJobTask, BCTimeSheet, BCTimeSheetLine } from '@/types';
+import { buildUOMConversionMap, sumPlannedHours } from '@/utils';
 
 // Color palette for projects
 const PROJECT_COLORS = [
@@ -27,11 +20,37 @@ function getProjectColor(index: number): string {
   return PROJECT_COLORS[index % PROJECT_COLORS.length];
 }
 
+// Latch so the older-extension warning logs once per session.
+let warnedNoBlockedField = false;
+
+/**
+ * Warn (once per session) if no project in the response carries a `blocked`
+ * field. That signals the Thyme BC Extension is older than the version that
+ * exposes `blocked` on /projects, in which case archived projects will fall
+ * through to "active" and the hide-archived feature won't apply.
+ */
+function warnIfBlockedFieldMissing(bcProjects: BCProject[]): void {
+  if (warnedNoBlockedField || bcProjects.length === 0) return;
+  const anyHasBlocked = bcProjects.some((p) => p.blocked !== undefined);
+  if (!anyHasBlocked) {
+    warnedNoBlockedField = true;
+    console.warn(
+      '[Thyme] No project returned a `blocked` field. Archived projects will not be hidden — ' +
+        'install the latest Thyme BC Extension to enable the hide-archived feature.'
+    );
+  }
+}
+
 // The Thyme BC Extension API (v1.7+) returns displayName, billToCustomerName and status fields.
 
 function mapBCProjectToProject(bcProject: BCProject, index: number, favorites: string[]): Project {
-  // Map BC status to Thyme status
-  const status: 'active' | 'completed' = bcProject.status === 'Completed' ? 'completed' : 'active';
+  // Map BC status to Thyme status — blocked projects are archived
+  const isBlocked = bcProject.blocked && bcProject.blocked !== ' ';
+  const status: Project['status'] = isBlocked
+    ? 'archived'
+    : bcProject.status === 'Completed'
+      ? 'completed'
+      : 'active';
 
   return {
     id: bcProject.id,
@@ -72,6 +91,7 @@ function saveFavorites(favorites: string[]): void {
 export const projectService = {
   async getProjects(_includeCompleted = false): Promise<Project[]> {
     const bcProjects = await bcClient.getProjects();
+    warnIfBlockedFieldMissing(bcProjects);
     const favorites = getFavorites();
 
     return bcProjects.map((bcProject, index) => mapBCProjectToProject(bcProject, index, favorites));
@@ -205,20 +225,26 @@ export const projectService = {
   /**
    * Fetch budget hours for all projects from Job Planning Lines.
    * Returns a map of project code -> budget hours.
+   *
+   * Uses the same rule as the project details page: only Resource Budget
+   * lines count, and each line's quantity is converted to hours via the
+   * UoM map (so DAY-based resources are scaled by their hours-per-day
+   * factor). Without the conversion the list would show raw days against
+   * a column labelled "h", and the Remaining figure would go strongly
+   * negative (issue #192).
    */
   async getProjectBudgets(projectCodes: string[]): Promise<Map<string, number>> {
     const projectBudgets = new Map<string, number>();
+    if (projectCodes.length === 0) return projectBudgets;
 
-    // Fetch budget for each project in parallel
+    // Resource UoM map is per-tenant; fetch once and reuse for every project.
+    const resourceUOMs = await bcClient.getResourceUnitsOfMeasure();
+    const uomConversionMap = buildUOMConversionMap(resourceUOMs);
+
     const budgetPromises = projectCodes.map(async (projectCode) => {
       try {
         const planningLines = await bcClient.getJobPlanningLines(projectCode);
-
-        // Sum quantity for Resource type lines (hours-based budgets)
-        const budgetHours = planningLines
-          .filter((line: BCJobPlanningLine) => line.type === 'Resource')
-          .reduce((sum: number, line: BCJobPlanningLine) => sum + line.quantity, 0);
-
+        const budgetHours = sumPlannedHours(planningLines, uomConversionMap);
         if (budgetHours > 0) {
           projectBudgets.set(projectCode, budgetHours);
         }
