@@ -34,6 +34,12 @@ export interface CostBreakdown {
 // Billing mode derived from Job Planning Line configuration
 export type BillingMode = 'T&M' | 'Fixed Price' | 'Mixed' | 'Not Set';
 
+export interface ResourceHours {
+  resourceNo: string;
+  name: string;
+  hours: number;
+}
+
 export interface ProjectAnalytics {
   // Billing mode - derived from billablePriceBreakdown
   billingMode: BillingMode;
@@ -46,6 +52,8 @@ export interface ProjectAnalytics {
   hoursPlanned: number; // From Job Planning Lines (Budget lineType)
   estimateHours: number; // Quoted estimate: Resource Billable lines (incl. Both Budget and Billable)
   futurePlannedHours: number; // Planned (Budget lines) in weeks after the current one - the work still to do
+  estimateByResource: ResourceHours[]; // Estimate split by resource, most hours first
+  futurePlannedByResource: ResourceHours[]; // Future planned work split by person, most hours first
   hoursThisWeek: number;
   hoursPosted: number; // From timeEntries (Job Ledger Entry) - posted to ledger
   hoursUnposted: number; // hoursSpent - hoursPosted (in timesheets but not posted)
@@ -220,6 +228,8 @@ export const projectDetailsService = {
       hoursPlanned: 0,
       estimateHours: 0,
       futurePlannedHours: 0,
+      estimateByResource: [],
+      futurePlannedByResource: [],
       hoursThisWeek: 0,
       hoursPosted: 0,
       hoursUnposted: 0,
@@ -420,6 +430,11 @@ export const projectDetailsService = {
     // We include ALL types for totals, but only Resource for hours
     let hoursPlanned = 0;
     let estimateHours = 0;
+    // Hours by resource number, for the Estimate and Planned cards' lists
+    const estimateHoursByResource = new Map<string, number>();
+    const futurePlannedHoursByResource = new Map<string, number>();
+    const addHours = (map: Map<string, number>, resourceNo: string, hours: number) =>
+      map.set(resourceNo, (map.get(resourceNo) ?? 0) + hours);
     let hoursPerDay = 8; // Default, will be updated from BC if DAY unit is configured
     let budgetCost = 0;
     let budgetCostBreakdown: CostBreakdown = { resource: 0, item: 0, glAccount: 0, total: 0 };
@@ -508,13 +523,12 @@ export const projectDetailsService = {
       );
       // Estimate: the quoted time on Billable Resource lines (Budget lines are the Plan
       // screen's weekly allocations), converted to hours via the UoM map
-      estimateHours = billableLines
-        .filter((line: BCJobPlanningLine) => line.type === 'Resource')
-        .reduce(
-          (sum: number, line: BCJobPlanningLine) =>
-            sum + convertToHours(line.number, line.quantity, uomConversionMap),
-          0
-        );
+      for (const line of billableLines) {
+        if (line.type !== 'Resource') continue;
+        const hours = convertToHours(line.number, line.quantity, uomConversionMap);
+        estimateHours += hours;
+        addHours(estimateHoursByResource, line.number, hours);
+      }
       billablePriceBreakdown = {
         resource: billableLines
           .filter((line: BCJobPlanningLine) => line.type === 'Resource')
@@ -545,6 +559,8 @@ export const projectDetailsService = {
         const hours = convertToHours(line.number, line.quantity, uomConversionMap);
         const current = plannedHoursMap.get(weekStr) || 0;
         plannedHoursMap.set(weekStr, current + hours);
+        // Same "after this week" rule as futurePlannedHours below
+        if (weekStr > currentWeekStr) addHours(futurePlannedHoursByResource, line.number, hours);
       }
 
       // Merge planned hours into weeklyData
@@ -583,6 +599,19 @@ export const projectDetailsService = {
     const futurePlannedHours = weeklyData
       .filter((d) => d.week > currentWeekStr)
       .reduce((sum, d) => sum + (d.plannedHours || 0), 0);
+
+    // Resource names from the Resource list (falling back to the number), most hours first
+    const toResourceHours = (map: Map<string, number>): ResourceHours[] =>
+      [...map]
+        .filter(([, hours]) => hours > 0)
+        .map(([resourceNo, hours]) => ({
+          resourceNo,
+          name: resourcesByNumber.get(resourceNo)?.name || resourceNo,
+          hours,
+        }))
+        .sort((a, b) => b.hours - a.hours);
+    const estimateByResource = toResourceHours(estimateHoursByResource);
+    const futurePlannedByResource = toResourceHours(futurePlannedHoursByResource);
 
     // Fetch actual cost and invoiced price from Time Entries (Job Ledger Entry)
     // Note: Time entries are all resource-type (labor), so actual/invoiced breakdown is resource-only
@@ -836,6 +865,8 @@ export const projectDetailsService = {
       estimateHours,
       futurePlannedHours,
       hoursThisWeek,
+      estimateByResource,
+      futurePlannedByResource,
       hoursPosted,
       hoursUnposted,
       approvedHours,

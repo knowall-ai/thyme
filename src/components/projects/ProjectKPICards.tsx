@@ -5,6 +5,7 @@ import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { useCompanyStore } from '@/hooks';
 import { Card } from '@/components/ui';
 import { getBCJobPlanningLinesUrl, getBCJobLedgerEntriesUrl } from '@/utils';
+import type { ResourceHours } from '@/services/bc/projectDetailsService';
 import {
   ClockIcon,
   CalendarDaysIcon,
@@ -14,6 +15,9 @@ import {
   EyeSlashIcon,
   InformationCircleIcon,
 } from '@heroicons/react/24/outline';
+
+// Resources listed on the Estimate and Planned cards before "+N more"
+const MAX_RESOURCE_ROWS = 3;
 
 // Per-widget visibility toggle: an Eye / Eye-slash button that masks just this
 // widget's amount. Hidden from print; the PDF shows masked amounts as on screen.
@@ -244,11 +248,13 @@ export function ProjectKPICards() {
     progress?: number;
     progressColor?: string;
     segments?: { label: string; hours: number; color: string }[];
+    resources?: ResourceHours[];
   }[] = [
     {
       label: 'Estimate',
       value: hasEstimate ? formatHoursWithDays(estimateHours, hoursPerDay) : 'N/A',
       subLabel: hasEstimate ? 'Quoted on Billable lines' : 'No estimate on Billable lines',
+      resources: analytics?.estimateByResource,
       icon: CalendarDaysIcon,
       color: 'text-blue-400',
     },
@@ -272,6 +278,7 @@ export function ProjectKPICards() {
       label: 'Planned',
       value: formatHoursWithDays(futurePlannedHours, hoursPerDay),
       subLabel: 'Still to do, from next week',
+      resources: analytics?.futurePlannedByResource,
       icon: CalendarDaysIcon,
       color: 'text-gray-400',
     },
@@ -438,6 +445,22 @@ export function ProjectKPICards() {
                   <p className={`mt-1 text-xs ${kpi.subLabelColor ?? 'text-gray-500'}`}>
                     {isHidden ? 'Hidden' : kpi.subLabel}
                   </p>
+                  {/* Who the hours belong to: top few by hours, then a count of the rest */}
+                  {kpi.resources && kpi.resources.length > 0 && !isHidden && (
+                    <div className="mt-1.5 space-y-0.5 text-xs text-gray-500">
+                      {kpi.resources.slice(0, MAX_RESOURCE_ROWS).map((res) => (
+                        <div key={res.resourceNo} className="flex justify-between gap-2">
+                          <span className="truncate">{res.name}</span>
+                          <span className="shrink-0">
+                            {formatHoursWithDays(res.hours, hoursPerDay)}
+                          </span>
+                        </div>
+                      ))}
+                      {kpi.resources.length > MAX_RESOURCE_ROWS && (
+                        <div>+{kpi.resources.length - MAX_RESOURCE_ROWS} more</div>
+                      )}
+                    </div>
+                  )}
                   {kpi.segments && !isHidden && (
                     <>
                       {/* Stacked bar against the estimate (or total spent, if over or no estimate) */}
