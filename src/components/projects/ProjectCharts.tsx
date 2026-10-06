@@ -19,7 +19,7 @@ type SpendUnit = 'hours' | 'days' | 'cost';
 const SPEND_UNITS: { value: SpendUnit; label: string; title: string }[] = [
   { value: 'hours', label: 'Hours', title: 'Effort in hours against Time Budgeted' },
   { value: 'days', label: 'Days', title: 'Effort in days against Time Budgeted' },
-  { value: 'cost', label: '£', title: 'Internal cost against Budget Cost' },
+  { value: 'cost', label: '£', title: 'Internal cost against Budget Cost' }, // label replaced by the company currency symbol
 ];
 
 const WEEKS_TO_SHOW = 24;
@@ -210,7 +210,7 @@ export function ProjectCharts() {
                       : 'bg-dark-700 text-gray-400 hover:text-white'
                   )}
                 >
-                  {u.label}
+                  {u.value === 'cost' ? CURRENCY_SYMBOLS[currencyCode] || currencyCode : u.label}
                 </button>
               ))}
             </div>
@@ -1089,13 +1089,16 @@ function ProgressLineChart({
                 })}
               </div>
               <div className="border-dark-500 mt-1 border-t pt-1">
-                <div className="text-gray-400">
-                  {(
-                    displayDataWithCost[hoveredIndex].forecastHours ??
-                    displayDataWithCost[hoveredIndex].cumulative
-                  ).toFixed(1)}{' '}
-                  hours{displayDataWithCost[hoveredIndex].isFuture ? ' (forecast)' : ''}
-                </div>
+                {/* Hours follow the Time Spent eye in every unit */}
+                {showTimeSpent && (
+                  <div className="text-gray-400">
+                    {(
+                      displayDataWithCost[hoveredIndex].forecastHours ??
+                      displayDataWithCost[hoveredIndex].cumulative
+                    ).toFixed(1)}{' '}
+                    hours{displayDataWithCost[hoveredIndex].isFuture ? ' (forecast)' : ''}
+                  </div>
+                )}
                 {showActual &&
                   avgCostRate !== null &&
                   unit !== 'hours' &&
@@ -1165,9 +1168,11 @@ function ProgressLineChart({
                   year: 'numeric',
                 })}
               </div>
-              <div className="text-gray-400">
-                {displayDataWithCost[hoveredIndex].cumulative.toFixed(1)} hours
-              </div>
+              {showTimeSpent && (
+                <div className="text-gray-400">
+                  {displayDataWithCost[hoveredIndex].cumulative.toFixed(1)} hours
+                </div>
+              )}
               {displayDataWithCost[hoveredIndex].isCurrentWeek && (
                 <div className="text-thyme-400">This week</div>
               )}
