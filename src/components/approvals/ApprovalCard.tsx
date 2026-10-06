@@ -272,19 +272,36 @@ export function ApprovalCard({
             {lines.length > 0 ? (
               lines.map((line) => (
                 <div key={line.id} className="flex items-center justify-between px-4 py-3">
-                  <div>
-                    <p className="text-sm text-white">{line.description || 'No description'}</p>
-                    {line.jobNo && (
-                      <p className="text-dark-400 text-xs">
-                        <Link
-                          href={`/projects/${line.jobNo}`}
-                          className="hover:text-thyme-400 hover:underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {getJobName(line.jobNo)}
-                        </Link>
-                        {line.jobTaskNo && ` / ${getTaskName(line.jobNo, line.jobTaskNo)}`}
-                      </p>
+                  <div className="min-w-0">
+                    {line.type === 'Job' && line.jobNo ? (
+                      <>
+                        {/* Project first, so approvers can see where the time went */}
+                        <p className="flex items-center gap-2 text-sm text-white">
+                          <span className="bg-dark-700 text-dark-300 rounded px-1.5 py-0.5 font-mono text-xs">
+                            {line.jobNo}
+                          </span>
+                          <Link
+                            href={`/projects/${line.jobNo}`}
+                            className="hover:text-thyme-400 truncate font-medium hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {getJobName(line.jobNo)}
+                          </Link>
+                        </p>
+                        <p className="text-dark-400 mt-0.5 text-xs">
+                          {/* Task, then description (skipped when it just repeats the task) */}
+                          {[
+                            ...new Set(
+                              [
+                                line.jobTaskNo && getTaskName(line.jobNo, line.jobTaskNo),
+                                line.description,
+                              ].filter(Boolean)
+                            ),
+                          ].join(' · ') || 'No description'}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-white">{line.description || 'No description'}</p>
                     )}
                   </div>
                   <div className="text-right">
