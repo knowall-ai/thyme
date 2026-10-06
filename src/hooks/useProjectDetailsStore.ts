@@ -16,15 +16,13 @@ interface ProjectDetailsStore {
   // UI State
   chartView: 'weekly' | 'progress';
   tableGroupBy: 'task' | 'team';
-  showCosts: boolean; // Toggle for internal costs visibility (Budget Cost, Actual Cost)
-  showPrices: boolean; // Toggle for customer-facing prices visibility (revenue KPIs, PDF export)
+  hiddenKpis: string[]; // KPI card labels whose amounts are masked via their Eye toggle (also drives the chart and PDF)
 
   // Actions
   fetchProjectDetails: (projectNumber: string) => Promise<void>;
   setChartView: (view: 'weekly' | 'progress') => void;
   setTableGroupBy: (groupBy: 'task' | 'team') => void;
-  setShowCosts: (show: boolean) => void;
-  setShowPrices: (show: boolean) => void;
+  toggleKpiHidden: (label: string) => void;
   clearProject: () => void;
 }
 
@@ -43,8 +41,7 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
   error: null,
   chartView: 'weekly',
   tableGroupBy: 'task',
-  showCosts: true, // Internal costs visible by default (per-widget Eye toggles hide individually); also gates the Spend vs Budget chart and PDF export
-  showPrices: true, // Customer-facing prices always visible by default
+  hiddenKpis: [], // All amounts visible by default; resets on reload (not persisted)
 
   fetchProjectDetails: async (projectNumber: string) => {
     // Join a load already under way, so callers resolve when it completes
@@ -99,9 +96,12 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
 
   setTableGroupBy: (groupBy) => set({ tableGroupBy: groupBy }),
 
-  setShowCosts: (show) => set({ showCosts: show }),
-
-  setShowPrices: (show) => set({ showPrices: show }),
+  toggleKpiHidden: (label) =>
+    set((state) => ({
+      hiddenKpis: state.hiddenKpis.includes(label)
+        ? state.hiddenKpis.filter((l) => l !== label)
+        : [...state.hiddenKpis, label],
+    })),
 
   clearProject: () =>
     set({
@@ -110,5 +110,6 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
       analytics: null,
       currencyCode: 'GBP',
       error: null,
+      hiddenKpis: [],
     }),
 }));
