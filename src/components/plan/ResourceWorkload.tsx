@@ -2,13 +2,18 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import { cn, convertToHours, formatHours, type UOMConversionMap } from '@/utils';
+import {
+  cn,
+  convertToHours,
+  formatHours,
+  getOverAllocationHours,
+  DAILY_CAPACITY_HOURS,
+  type UOMConversionMap,
+} from '@/utils';
 import { useProjectsStore } from '@/hooks';
 import { bcClient } from '@/services/bc/bcClient';
 import type { BCJobPlanningLine } from '@/types';
 import { format, eachDayOfInterval } from 'date-fns';
-
-const DAILY_CAPACITY = 8;
 
 interface ResourceWorkloadProps {
   resourceNo: string;
@@ -152,7 +157,7 @@ export function ResourceWorkload({
 
   // Color for capacity bar
   const getBarColor = (hours: number) => {
-    const pct = hours / DAILY_CAPACITY;
+    const pct = hours / DAILY_CAPACITY_HOURS;
     if (pct > 1) return 'bg-red-500';
     if (pct > 0.75) return 'bg-amber-500';
     return 'bg-emerald-500';
@@ -180,7 +185,7 @@ export function ResourceWorkload({
         </div>
         {hasLoaded && (
           <span className="text-dark-400 text-xs">
-            {formatHours(weeklyTotal)}h / {DAILY_CAPACITY * 5}h this business week
+            {formatHours(weeklyTotal)}h / {DAILY_CAPACITY_HOURS * 5}h this business week
           </span>
         )}
       </button>
@@ -202,11 +207,11 @@ export function ResourceWorkload({
                   const otherHours = dailyAllocations[i].hours;
                   const combined = combinedDailyHours[i];
                   const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                  const otherPct = Math.min((otherHours / DAILY_CAPACITY) * 100, 100);
+                  const otherPct = Math.min((otherHours / DAILY_CAPACITY_HOURS) * 100, 100);
                   const formHours = combined.hours - otherHours;
                   const formPct =
                     formHours > 0
-                      ? Math.min((formHours / DAILY_CAPACITY) * 100, 100 - otherPct)
+                      ? Math.min((formHours / DAILY_CAPACITY_HOURS) * 100, 100 - otherPct)
                       : 0;
 
                   return (
@@ -243,7 +248,7 @@ export function ResourceWorkload({
                       <span
                         className={cn(
                           'mt-1 text-xs',
-                          combined.hours > DAILY_CAPACITY
+                          getOverAllocationHours(combined.hours) > 0
                             ? 'font-medium text-red-400'
                             : 'text-dark-400'
                         )}
@@ -296,7 +301,7 @@ export function ResourceWorkload({
               <div className="border-dark-700 grid grid-cols-7 gap-1 border-t pt-2">
                 {weekDays.map((day, i) => {
                   const combined = combinedDailyHours[i];
-                  const available = DAILY_CAPACITY - combined.hours;
+                  const available = DAILY_CAPACITY_HOURS - combined.hours;
                   const isWeekend = day.getDay() === 0 || day.getDay() === 6;
 
                   return (

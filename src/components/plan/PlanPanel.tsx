@@ -22,7 +22,15 @@ import { usePlanStore } from '@/hooks';
 import { useCompanyStore } from '@/hooks';
 import { useAuth, getUserProfilePhoto } from '@/services/auth';
 import { ExtensionNotInstalledError } from '@/services/bc';
-import { cn, getBCResourceUrl, getBCJobUrl, formatHours } from '@/utils';
+import {
+  cn,
+  getBCResourceUrl,
+  getBCJobUrl,
+  formatHours,
+  buildResourceDailyTotals,
+  getOverAllocationTitle,
+  type ResourceDailyTotals,
+} from '@/utils';
 import type { AllocationBlock, PlanTeamMember, PlanProject, ViewMode } from '@/hooks/usePlanStore';
 import {
   addWeeks,
@@ -36,6 +44,10 @@ import {
   isWeekend,
 } from 'date-fns';
 
+// Red ring on hour cells where a resource's total across all projects exceeds daily capacity
+// (same red treatment as the Edit Allocation modal's "Other Workload" bars)
+const OVER_ALLOCATED_CLASS = 'ring-2 ring-inset ring-red-500';
+
 // Context for adding plans - allows pre-selecting project, task, and resource
 interface AddPlanContext {
   projectCode?: string;
@@ -45,6 +57,8 @@ interface AddPlanContext {
 
 // Resource Row Component with expandable allocations
 interface ResourceRowProps {
+  /** Per-resource daily totals across all projects, for over-allocation flags */
+  dailyTotals: ResourceDailyTotals;
   member: PlanTeamMember;
   days: Date[];
   selectedAllocationId: string | null;
@@ -61,6 +75,7 @@ interface ResourceRowProps {
 }
 
 function ResourceRow({
+  dailyTotals,
   member,
   days,
   selectedAllocationId,
@@ -244,9 +259,13 @@ function ResourceRow({
                 const dayIsWeekend = isWeekend(day);
                 const dayStr = format(day, 'yyyy-MM-dd');
                 // Calculate hours for this day
-                const dayHours = member.allocations
-                  .filter((a) => a.startDate === dayStr)
-                  .reduce((sum, a) => sum + a.hoursPerDay, 0);
+                const dayAllocations = member.allocations.filter((a) => a.startDate === dayStr);
+                const dayHours = dayAllocations.reduce((sum, a) => sum + a.hoursPerDay, 0);
+                const overAllocationTitle = getOverAllocationTitle(
+                  dayAllocations,
+                  dailyTotals,
+                  dayStr
+                );
                 return (
                   <div
                     key={day.toISOString()}
@@ -262,9 +281,16 @@ function ResourceRow({
                     {/* Daily hours indicator - full width cell, clickable to expand */}
                     {dayHours > 0 && (
                       <div
-                        className="bg-knowall-green/90 text-dark-950 absolute inset-0.5 flex cursor-pointer items-center justify-center rounded text-xs font-semibold"
+                        className={cn(
+                          'bg-knowall-green/90 text-dark-950 absolute inset-0.5 flex cursor-pointer items-center justify-center rounded text-xs font-semibold',
+                          overAllocationTitle && OVER_ALLOCATED_CLASS
+                        )}
                         onClick={onToggleExpand}
-                        title="Click to expand and edit allocations"
+                        title={
+                          overAllocationTitle
+                            ? `${overAllocationTitle}\nClick to expand and edit allocations`
+                            : 'Click to expand and edit allocations'
+                        }
                       >
                         {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
                       </div>
@@ -315,6 +341,7 @@ function ResourceRow({
                 <div key={projectNumber}>
                   {/* Project row - clickable to expand/collapse tasks, with Add button */}
                   <TeamProjectRow
+                    dailyTotals={dailyTotals}
                     projectData={projectData}
                     weekGroups={weekGroups}
                     projectTotalHours={projectTotalHours}
@@ -356,6 +383,7 @@ function ResourceRow({
                           return (
                             <TeamTaskRow
                               key={taskKey}
+                              dailyTotals={dailyTotals}
                               taskData={taskData}
                               projectData={projectData}
                               weekGroups={weekGroups}
@@ -426,6 +454,8 @@ function ResourceRow({
 
 // Team Task Row Component (for Team view - shows task under a project with add capability)
 interface TeamTaskRowProps {
+  /** Per-resource daily totals across all projects, for over-allocation flags */
+  dailyTotals: ResourceDailyTotals;
   taskData: { taskNumber: string; taskName: string; allocations: AllocationBlock[] };
   projectData: {
     projectNumber: string;
@@ -441,6 +471,7 @@ interface TeamTaskRowProps {
 }
 
 function TeamTaskRow({
+  dailyTotals,
   taskData,
   projectData,
   weekGroups,
@@ -508,9 +539,13 @@ function TeamTaskRow({
                 const dayIsToday = isToday(day);
                 const dayIsWeekend = isWeekend(day);
                 const dayStr = format(day, 'yyyy-MM-dd');
-                const dayHours = taskData.allocations
-                  .filter((a) => a.startDate === dayStr)
-                  .reduce((sum, a) => sum + a.hoursPerDay, 0);
+                const dayAllocations = taskData.allocations.filter((a) => a.startDate === dayStr);
+                const dayHours = dayAllocations.reduce((sum, a) => sum + a.hoursPerDay, 0);
+                const overAllocationTitle = getOverAllocationTitle(
+                  dayAllocations,
+                  dailyTotals,
+                  dayStr
+                );
                 return (
                   <div
                     key={day.toISOString()}
@@ -535,8 +570,12 @@ function TeamTaskRow({
                   >
                     {dayHours > 0 && (
                       <div
-                        className="absolute inset-0.5 flex items-center justify-center rounded text-[10px] font-medium text-white/80"
+                        className={cn(
+                          'absolute inset-0.5 flex items-center justify-center rounded text-[10px] font-medium text-white/80',
+                          overAllocationTitle && OVER_ALLOCATED_CLASS
+                        )}
                         style={{ backgroundColor: `${projectData.color}99` }}
+                        title={overAllocationTitle}
                       >
                         {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
                       </div>
@@ -575,6 +614,8 @@ function TeamTaskRow({
 
 // Team Project Row Component (for Team view - shows project under a resource with add capability)
 interface TeamProjectRowProps {
+  /** Per-resource daily totals across all projects, for over-allocation flags */
+  dailyTotals: ResourceDailyTotals;
   projectData: {
     projectNumber: string;
     projectName: string;
@@ -589,6 +630,7 @@ interface TeamProjectRowProps {
 }
 
 function TeamProjectRow({
+  dailyTotals,
   projectData,
   weekGroups,
   projectTotalHours,
@@ -647,9 +689,15 @@ function TeamProjectRow({
                 const dayIsToday = isToday(day);
                 const dayIsWeekend = isWeekend(day);
                 const dayStr = format(day, 'yyyy-MM-dd');
-                const dayHours = projectData.allocations
-                  .filter((a) => a.startDate === dayStr)
-                  .reduce((sum, a) => sum + a.hoursPerDay, 0);
+                const dayAllocations = projectData.allocations.filter(
+                  (a) => a.startDate === dayStr
+                );
+                const dayHours = dayAllocations.reduce((sum, a) => sum + a.hoursPerDay, 0);
+                const overAllocationTitle = getOverAllocationTitle(
+                  dayAllocations,
+                  dailyTotals,
+                  dayStr
+                );
                 return (
                   <div
                     key={day.toISOString()}
@@ -671,8 +719,12 @@ function TeamProjectRow({
                   >
                     {dayHours > 0 && (
                       <div
-                        className="absolute inset-0.5 flex items-center justify-center rounded text-[10px] font-semibold text-white"
+                        className={cn(
+                          'absolute inset-0.5 flex items-center justify-center rounded text-[10px] font-semibold text-white',
+                          overAllocationTitle && OVER_ALLOCATED_CLASS
+                        )}
                         style={{ backgroundColor: projectData.color }}
+                        title={overAllocationTitle}
                       >
                         {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
                       </div>
@@ -710,6 +762,8 @@ function TeamProjectRow({
 
 // Task Row Component (for Projects view - shows task under a project with add capability)
 interface TaskRowProps {
+  /** Per-resource daily totals across all projects, for over-allocation flags */
+  dailyTotals: ResourceDailyTotals;
   taskData: { taskNumber: string; taskName: string; allocations: AllocationBlock[] };
   taskKey: string;
   days: Date[];
@@ -722,6 +776,7 @@ interface TaskRowProps {
 }
 
 function TaskRow({
+  dailyTotals,
   taskData,
   taskKey,
   days,
@@ -782,9 +837,14 @@ function TaskRow({
                 const dayIsToday = isToday(day);
                 const dayIsWeekend = isWeekend(day);
                 const dayStr = format(day, 'yyyy-MM-dd');
-                const dayHours = taskData.allocations
-                  .filter((a) => a.startDate === dayStr)
-                  .reduce((sum, a) => sum + a.hoursPerDay, 0);
+                const dayAllocations = taskData.allocations.filter((a) => a.startDate === dayStr);
+                const dayHours = dayAllocations.reduce((sum, a) => sum + a.hoursPerDay, 0);
+                const overAllocationTitle = getOverAllocationTitle(
+                  dayAllocations,
+                  dailyTotals,
+                  dayStr,
+                  true
+                );
                 return (
                   <div
                     key={day.toISOString()}
@@ -804,8 +864,12 @@ function TaskRow({
                   >
                     {dayHours > 0 && (
                       <div
-                        className="absolute inset-0.5 flex items-center justify-center rounded text-[10px] font-semibold text-white"
+                        className={cn(
+                          'absolute inset-0.5 flex items-center justify-center rounded text-[10px] font-semibold text-white',
+                          overAllocationTitle && OVER_ALLOCATED_CLASS
+                        )}
                         style={{ backgroundColor: projectColor }}
+                        title={overAllocationTitle}
                       >
                         {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
                       </div>
@@ -841,6 +905,8 @@ function TaskRow({
 
 // Resource-Task Row Component (for Projects view - shows resource under a task with add capability)
 interface ResourceTaskRowProps {
+  /** Per-resource daily totals across all projects, for over-allocation flags */
+  dailyTotals: ResourceDailyTotals;
   allocations: AllocationBlock[];
   days: Date[];
   weekGroups: { weekStart: Date; days: Date[] }[];
@@ -853,6 +919,7 @@ interface ResourceTaskRowProps {
 }
 
 function ResourceTaskRow({
+  dailyTotals,
   allocations,
   days,
   weekGroups,
@@ -923,9 +990,13 @@ function ResourceTaskRow({
                 const dayIsToday = isToday(day);
                 const dayIsWeekend = isWeekend(day);
                 const dayStr = format(day, 'yyyy-MM-dd');
-                const dayHours = allocations
-                  .filter((a) => a.startDate === dayStr)
-                  .reduce((sum, a) => sum + a.hoursPerDay, 0);
+                const dayAllocations = allocations.filter((a) => a.startDate === dayStr);
+                const dayHours = dayAllocations.reduce((sum, a) => sum + a.hoursPerDay, 0);
+                const overAllocationTitle = getOverAllocationTitle(
+                  dayAllocations,
+                  dailyTotals,
+                  dayStr
+                );
                 return (
                   <div
                     key={day.toISOString()}
@@ -950,8 +1021,12 @@ function ResourceTaskRow({
                   >
                     {dayHours > 0 && (
                       <div
-                        className="absolute inset-0.5 flex items-center justify-center rounded text-[10px] font-medium text-white/80"
+                        className={cn(
+                          'absolute inset-0.5 flex items-center justify-center rounded text-[10px] font-medium text-white/80',
+                          overAllocationTitle && OVER_ALLOCATED_CLASS
+                        )}
                         style={{ backgroundColor: `${projectColor}99` }}
+                        title={overAllocationTitle}
                       >
                         {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
                       </div>
@@ -990,6 +1065,8 @@ function ResourceTaskRow({
 
 // Project Row Component (for Projects view)
 interface ProjectRowProps {
+  /** Per-resource daily totals across all projects, for over-allocation flags */
+  dailyTotals: ResourceDailyTotals;
   project: PlanProject;
   days: Date[];
   selectedAllocationId: string | null;
@@ -1005,6 +1082,7 @@ interface ProjectRowProps {
 }
 
 function ProjectRow({
+  dailyTotals,
   project,
   days,
   selectedAllocationId,
@@ -1164,9 +1242,14 @@ function ProjectRow({
                 const dayIsWeekend = isWeekend(day);
                 const dayStr = format(day, 'yyyy-MM-dd');
                 // Calculate total hours for this project on this day
-                const dayHours = project.allocations
-                  .filter((a) => a.startDate === dayStr)
-                  .reduce((sum, a) => sum + a.hoursPerDay, 0);
+                const dayAllocations = project.allocations.filter((a) => a.startDate === dayStr);
+                const dayHours = dayAllocations.reduce((sum, a) => sum + a.hoursPerDay, 0);
+                const overAllocationTitle = getOverAllocationTitle(
+                  dayAllocations,
+                  dailyTotals,
+                  dayStr,
+                  true
+                );
                 return (
                   <div
                     key={day.toISOString()}
@@ -1179,8 +1262,12 @@ function ProjectRow({
                     {/* Daily hours indicator - full width cell */}
                     {dayHours > 0 && (
                       <div
-                        className="absolute inset-0.5 flex items-center justify-center rounded text-xs font-semibold text-white"
+                        className={cn(
+                          'absolute inset-0.5 flex items-center justify-center rounded text-xs font-semibold text-white',
+                          overAllocationTitle && OVER_ALLOCATED_CLASS
+                        )}
                         style={{ backgroundColor: project.color }}
+                        title={overAllocationTitle}
                       >
                         {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
                       </div>
@@ -1229,6 +1316,7 @@ function ProjectRow({
                 <div key={taskKey}>
                   {/* Task row - clickable to expand/collapse resources */}
                   <TaskRow
+                    dailyTotals={dailyTotals}
                     taskData={taskData}
                     taskKey={taskKey}
                     days={days}
@@ -1247,6 +1335,7 @@ function ProjectRow({
                       .map(([resourceNumber, allocations]) => (
                         <ResourceTaskRow
                           key={resourceNumber}
+                          dailyTotals={dailyTotals}
                           allocations={allocations}
                           days={days}
                           weekGroups={weekGroups}
@@ -1324,6 +1413,7 @@ export function PlanPanel() {
   const {
     teamMembers,
     projects,
+    allAllocations,
     viewMode,
     isLoading,
     error,
@@ -1373,6 +1463,12 @@ export function PlanPanel() {
 
   // Show 3 weeks in regular view, 6 weeks in fullscreen
   const effectiveWeeksToShow = isFullscreen ? 6 : 3;
+
+  // Each resource's total hours per day across all projects (drives over-allocation flags)
+  const resourceDailyTotals = useMemo(
+    () => buildResourceDailyTotals(allAllocations),
+    [allAllocations]
+  );
 
   // Calculate all days to display
   const allDays = useMemo(() => {
@@ -1818,6 +1914,7 @@ export function PlanPanel() {
                 filteredMembers.map((member) => (
                   <ResourceRow
                     key={member.id}
+                    dailyTotals={resourceDailyTotals}
                     member={member}
                     days={allDays}
                     selectedAllocationId={selectedAllocationId}
@@ -1846,6 +1943,7 @@ export function PlanPanel() {
               filteredProjects.map((project) => (
                 <ProjectRow
                   key={project.number}
+                  dailyTotals={resourceDailyTotals}
                   project={project}
                   days={allDays}
                   selectedAllocationId={selectedAllocationId}
