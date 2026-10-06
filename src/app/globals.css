@@ -244,11 +244,28 @@ body {
     break-inside: avoid;
   }
 
-  /* Ensure charts/tables don't get split */
+  /* Let long tables flow across pages instead of jumping whole to the next page
+     (which left an empty card behind). Rows stay whole and the header repeats.
+     The table's wrapper must also be splittable: overflow:hidden and the
+     rounded-lg break-inside:avoid above would otherwise keep it in one piece. */
   table {
+    break-inside: auto;
+  }
+
+  div:has(> table) {
+    overflow: visible !important;
+    break-inside: auto !important;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tr {
     break-inside: avoid;
   }
 
+  /* Ensure charts don't get split */
   svg {
     break-inside: avoid;
   }
