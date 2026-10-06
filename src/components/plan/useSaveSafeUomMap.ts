@@ -9,7 +9,8 @@ import { buildUOMConversionMap, type UOMConversionMap } from '@/utils';
  * Units of measure for a Plan modal that writes quantities back to BC.
  *
  * Uses the plan store's cached map when it has one, otherwise fetches strictly:
- * if the fetch fails, `uomLoadFailed` is set so the modal can block saving —
+ * `uomReady` is false until a map is available, and if the fetch fails `uomLoadFailed`
+ * is set; modals block saving (and loading existing lines) until it's ready —
  * an empty map would silently treat DAY-based resources' hours as days (#249).
  */
 const EMPTY_UOM_MAP: UOMConversionMap = new Map();
@@ -53,6 +54,9 @@ export function useSaveSafeUomMap(isOpen: boolean, cachedUomMap: UOMConversionMa
   return {
     uomMap: usingCache ? cachedUomMap : (fetchedMap ?? EMPTY_UOM_MAP),
     uomLoadFailed: !usingCache && fetchFailed,
+    // Ready once a usable map exists (cached or fetched): until then existing quantities
+    // can't be converted for display and nothing can be saved
+    uomReady: usingCache || fetchedMap !== null,
     retryUomLoad,
   };
 }
