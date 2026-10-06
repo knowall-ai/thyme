@@ -34,7 +34,10 @@ function formatCurrencyShort(amount: number, currencyCode: string): string {
 }
 
 export function ProjectCharts() {
-  const { analytics, isLoadingAnalytics, showCosts, currencyCode } = useProjectDetailsStore();
+  const { analytics, isLoadingAnalytics, hiddenKpis, currencyCode } = useProjectDetailsStore();
+  // Follow the Budget Cost / Actual Cost KPI card Eye toggles
+  const showBudgetCost = !hiddenKpis.includes('Budget Cost');
+  const showActualCost = !hiddenKpis.includes('Actual Cost');
   const [chartView, setChartView] = useState<ChartView>('weekly');
   const [offsetWeeks, setOffsetWeeks] = useState(0);
 
@@ -195,7 +198,8 @@ export function ProjectCharts() {
           }
           hoursSpent={analytics?.hoursSpent ?? 0}
           actualCost={analytics?.actualCost ?? 0}
-          showCosts={showCosts}
+          showBudgetCost={showBudgetCost}
+          showActualCost={showActualCost}
           currencyCode={currencyCode}
         />
       )}
@@ -600,7 +604,8 @@ function ProgressLineChart({
   budgetCostBreakdown,
   hoursSpent,
   actualCost,
-  showCosts,
+  showBudgetCost,
+  showActualCost,
   currencyCode,
 }: {
   data: WeeklyDataPoint[];
@@ -609,9 +614,12 @@ function ProgressLineChart({
   budgetCostBreakdown: CostBreakdown;
   hoursSpent: number;
   actualCost: number;
-  showCosts: boolean;
+  showBudgetCost: boolean;
+  showActualCost: boolean;
   currencyCode: string;
 }) {
+  // Y-axis £ labels plus the spend line would reveal both figures, so only label it when both are visible
+  const showCostAxis = showBudgetCost && showActualCost;
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const displayData = useMemo(
@@ -629,13 +637,15 @@ function ProgressLineChart({
   }, [actualCost, hoursSpent]);
 
   // Convert cumulative hours to cumulative cost for display
-  // If no rate available, set cost to 0 (chart will show hours only)
+  // If no rate available, set cost to 0 (chart will show hours only).
+  // Also 0 when Actual Cost is hidden: the curve's height against the labelled
+  // budget line (and the scale it drives) would otherwise reveal the hidden spend.
   const displayDataWithCost = useMemo(() => {
     return displayData.map((d) => ({
       ...d,
-      cumulativeCost: avgCostRate !== null ? d.cumulative * avgCostRate : 0,
+      cumulativeCost: showActualCost && avgCostRate !== null ? d.cumulative * avgCostRate : 0,
     }));
-  }, [displayData, avgCostRate]);
+  }, [displayData, avgCostRate, showActualCost]);
 
   const maxCost = useMemo(() => {
     // Max should be at least the budget, or the max cumulative cost
@@ -673,7 +683,9 @@ function ProgressLineChart({
         {/* Y-axis - £ values */}
         <div className="flex w-12 flex-col justify-between pr-2 text-right text-xs text-gray-500">
           {yAxisLabels.map((label) => (
-            <span key={label}>{showCosts ? formatCurrencyShort(label, currencyCode) : '•••'}</span>
+            <span key={label}>
+              {showCostAxis ? formatCurrencyShort(label, currencyCode) : '•••'}
+            </span>
           ))}
         </div>
 
@@ -687,7 +699,7 @@ function ProgressLineChart({
           </div>
 
           {/* Budget breakdown bands (stacked from bottom) */}
-          {showCosts && budgetCost > 0 && (
+          {showBudgetCost && budgetCost > 0 && (
             <>
               {/* Resource budget band (bottom) */}
               {budgetCostBreakdown.resource > 0 && (
@@ -738,7 +750,7 @@ function ProgressLineChart({
             {/* Area fill */}
             <path
               d={(() => {
-                if (displayDataWithCost.length < 2) return '';
+                if (!showActualCost || displayDataWithCost.length < 2) return '';
                 const points = displayDataWithCost.map((d, i) => {
                   const x = (i / (displayDataWithCost.length - 1)) * 100;
                   const y = maxCost > 0 ? (1 - d.cumulativeCost / maxCost) * 100 : 100;
@@ -753,7 +765,7 @@ function ProgressLineChart({
             {/* Line */}
             <path
               d={(() => {
-                if (displayDataWithCost.length < 2) return '';
+                if (!showActualCost || displayDataWithCost.length < 2) return '';
                 const points = displayDataWithCost.map((d, i) => {
                   const x = (i / (displayDataWithCost.length - 1)) * 100;
                   const y = maxCost > 0 ? (1 - d.cumulativeCost / maxCost) * 100 : 100;
@@ -803,7 +815,7 @@ function ProgressLineChart({
           </div>
 
           {/* Tooltip with breakdown */}
-          {hoveredIndex !== null && showCosts && (
+          {hoveredIndex !== null && (showBudgetCost || showActualCost) && (
             <div
               className="bg-dark-700 pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded px-3 py-2 text-xs whitespace-nowrap shadow-lg"
               style={{
@@ -823,7 +835,7 @@ function ProgressLineChart({
                 <div className="text-gray-400">
                   {displayDataWithCost[hoveredIndex].cumulative.toFixed(1)} hours
                 </div>
-                {avgCostRate !== null && (
+                {showActualCost && avgCostRate !== null && (
                   <div className="text-thyme-400">
                     ~
                     {formatCurrencyShort(
@@ -834,7 +846,7 @@ function ProgressLineChart({
                   </div>
                 )}
               </div>
-              {budgetCost > 0 && (
+              {showBudgetCost && budgetCost > 0 && (
                 <div className="border-dark-500 mt-1 border-t pt-1">
                   <div className="mb-1 text-gray-500">Budget breakdown:</div>
                   {budgetCostBreakdown.resource > 0 && (
@@ -868,7 +880,7 @@ function ProgressLineChart({
           )}
 
           {/* Simple tooltip when costs are hidden */}
-          {hoveredIndex !== null && !showCosts && (
+          {hoveredIndex !== null && !showBudgetCost && !showActualCost && (
             <div
               className="bg-dark-700 pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded px-2 py-1 text-xs whitespace-nowrap shadow-lg"
               style={{
@@ -905,7 +917,7 @@ function ProgressLineChart({
       </div>
 
       {/* Legend */}
-      {showCosts && budgetCost > 0 && (
+      {showBudgetCost && budgetCost > 0 && (
         <div className="mt-2 ml-12 flex items-center gap-4 text-xs text-gray-500">
           <div className="flex items-center gap-1">
             <span className="bg-thyme-500/50 inline-block h-2 w-4 rounded" />

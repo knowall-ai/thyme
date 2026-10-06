@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, ReactNode } from 'react';
+import { ReactNode } from 'react';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { useCompanyStore } from '@/hooks';
 import { Card } from '@/components/ui';
-import { cn, getBCJobPlanningLinesUrl, getBCJobLedgerEntriesUrl } from '@/utils';
+import { getBCJobPlanningLinesUrl, getBCJobLedgerEntriesUrl } from '@/utils';
 import {
   ClockIcon,
   CalendarDaysIcon,
@@ -15,7 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 // Per-widget visibility toggle: an Eye / Eye-slash button that masks just this
-// widget's amount. Hidden from print (the PDF export controls its own masking).
+// widget's amount. Hidden from print; the PDF shows masked amounts as on screen.
 function VisibilityToggle({
   hidden,
   onToggle,
@@ -67,24 +67,15 @@ function formatCurrency(amount: number, currencyCode: string): string {
 }
 
 export function ProjectKPICards() {
-  const { analytics, isLoadingAnalytics, showPrices, currencyCode, project } =
+  const { analytics, isLoadingAnalytics, currencyCode, project, hiddenKpis, toggleKpiHidden } =
     useProjectDetailsStore();
   const selectedCompany = useCompanyStore((state) => state.selectedCompany);
   const companyName = selectedCompany?.name;
   const projectCode = project?.code;
 
-  // Per-widget amount visibility. Keyed by KPI label; resets on reload (not persisted).
-  const [hiddenCards, setHiddenCards] = useState<Set<string>>(new Set());
-  const toggleCardHidden = (label: string) =>
-    setHiddenCards((prev) => {
-      const next = new Set(prev);
-      if (next.has(label)) {
-        next.delete(label);
-      } else {
-        next.add(label);
-      }
-      return next;
-    });
+  // Per-widget amount visibility, keyed by KPI label (shared via the store so the
+  // Spend vs Budget chart and PDF export follow the same Eye toggles)
+  const hiddenCards = new Set(hiddenKpis);
   const maskedValue = '•••••';
 
   if (isLoadingAnalytics) {
@@ -284,7 +275,7 @@ export function ProjectKPICards() {
               <div className="absolute top-3 right-3">
                 <VisibilityToggle
                   hidden={isHidden}
-                  onToggle={() => toggleCardHidden(kpi.label)}
+                  onToggle={() => toggleKpiHidden(kpi.label)}
                   label={kpi.label}
                 />
               </div>
@@ -315,13 +306,8 @@ export function ProjectKPICards() {
         })}
       </div>
 
-      {/* Row 2: Financials (4 cards matching BC) - hidden in print only for "Without Financials" export */}
-      <div
-        className={cn(
-          'grid gap-4 sm:grid-cols-2 lg:grid-cols-4 print:grid-cols-4',
-          !showPrices && 'print:hidden'
-        )}
-      >
+      {/* Row 2: Financials (4 cards matching BC) - printed as shown, with hidden amounts masked */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 print:grid-cols-4">
         {financialKpis.map((kpi) => {
           const isHidden = hiddenCards.has(kpi.label);
           const breakdown = kpi.breakdown;
@@ -330,7 +316,7 @@ export function ProjectKPICards() {
               <div className="absolute top-3 right-3">
                 <VisibilityToggle
                   hidden={isHidden}
-                  onToggle={() => toggleCardHidden(kpi.label)}
+                  onToggle={() => toggleKpiHidden(kpi.label)}
                   label={kpi.label}
                 />
               </div>
