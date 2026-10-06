@@ -273,7 +273,7 @@ export function ApprovalCard({
               lines.map((line) => (
                 <div key={line.id} className="flex items-center justify-between px-4 py-3">
                   <div className="min-w-0">
-                    {line.jobNo ? (
+                    {line.type === 'Job' && line.jobNo ? (
                       <>
                         {/* Project first, so approvers can see where the time went */}
                         <p className="flex items-center gap-2 text-sm text-white">
