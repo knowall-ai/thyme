@@ -69,8 +69,9 @@ export function ProjectCharts() {
       : null;
     if (lastDataWeek) furthest = Math.max(furthest, weeksBetween(currentWeekStart, lastDataWeek));
     // BC's "0001-01-01" null-date sentinel means no end date
-    if (projectEndDate && !projectEndDate.startsWith('0001')) {
-      const endWeek = getWeekStart(new Date(projectEndDate));
+    const endDate = parseLocalDate(projectEndDate);
+    if (endDate) {
+      const endWeek = getWeekStart(endDate);
       furthest = Math.max(furthest, weeksBetween(currentWeekStart, endWeek));
     }
     return furthest;
@@ -303,6 +304,18 @@ function isoWeekToDate(isoWeek: string): Date | null {
   const monday = getWeekStart(jan4);
   monday.setDate(monday.getDate() + (week - 1) * 7);
   return monday;
+}
+
+/**
+ * Parse a BC date ("YYYY-MM-DD", optionally with a time) as a local calendar date, so a
+ * date-only value isn't shifted into the previous day by UTC parsing. Returns null for
+ * missing/invalid dates and BC's "0001-01-01" null-date sentinel.
+ */
+function parseLocalDate(value: string | undefined): Date | null {
+  const match = value ? /^(\d{4})-(\d{2})-(\d{2})/.exec(value) : null;
+  if (!match || match[1] === '0001') return null;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 /**
@@ -811,14 +824,12 @@ function ProgressLineChart({
             </>
           )}
 
-          {/* Today marker - points sit on week starts, so offset within the week */}
-          {currentWeekIndex >= 0 && displayDataWithCost.length > 1 && (
+          {/* Today marker - each week spans an equal slot (points sit at slot centres) */}
+          {currentWeekIndex >= 0 && (
             <TodayMarker
-              leftPercent={Math.min(
-                ((currentWeekIndex + getTodayFractionOfWeek()) / (displayDataWithCost.length - 1)) *
-                  100,
-                100
-              )}
+              leftPercent={
+                ((currentWeekIndex + getTodayFractionOfWeek()) / displayDataWithCost.length) * 100
+              }
             />
           )}
 
@@ -833,11 +844,14 @@ function ProgressLineChart({
               d={(() => {
                 if (!showActualCost || displayDataWithCost.length < 2) return '';
                 const points = displayDataWithCost.map((d, i) => {
-                  const x = (i / (displayDataWithCost.length - 1)) * 100;
+                  const x = ((i + 0.5) / displayDataWithCost.length) * 100;
                   const y = maxCost > 0 ? (1 - d.cumulativeCost / maxCost) * 100 : 100;
                   return `${x},${y}`;
                 });
-                return `M ${points.join(' L ')} L 100,100 L 0,100 Z`;
+                const firstX = (0.5 / displayDataWithCost.length) * 100;
+                const lastX =
+                  ((displayDataWithCost.length - 0.5) / displayDataWithCost.length) * 100;
+                return `M ${points.join(' L ')} L ${lastX},100 L ${firstX},100 Z`;
               })()}
               fill="currentColor"
               className="text-thyme-500/20"
@@ -848,7 +862,7 @@ function ProgressLineChart({
               d={(() => {
                 if (!showActualCost || displayDataWithCost.length < 2) return '';
                 const points = displayDataWithCost.map((d, i) => {
-                  const x = (i / (displayDataWithCost.length - 1)) * 100;
+                  const x = ((i + 0.5) / displayDataWithCost.length) * 100;
                   const y = maxCost > 0 ? (1 - d.cumulativeCost / maxCost) * 100 : 100;
                   return `${x},${y}`;
                 });
@@ -865,7 +879,7 @@ function ProgressLineChart({
           {/* Points - separate layer to avoid stretching */}
           <div className="absolute inset-0">
             {displayDataWithCost.map((point, i) => {
-              const xPercent = (i / (displayDataWithCost.length - 1)) * 100;
+              const xPercent = ((i + 0.5) / displayDataWithCost.length) * 100;
               const yPercent = maxCost > 0 ? (1 - point.cumulativeCost / maxCost) * 100 : 100;
               const isHovered = hoveredIndex === i;
 
@@ -900,7 +914,7 @@ function ProgressLineChart({
             <div
               className="bg-dark-700 pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded px-3 py-2 text-xs whitespace-nowrap shadow-lg"
               style={{
-                left: `${(hoveredIndex / (displayDataWithCost.length - 1)) * 100}%`,
+                left: `${((hoveredIndex + 0.5) / displayDataWithCost.length) * 100}%`,
                 top: `${maxCost > 0 ? (1 - displayDataWithCost[hoveredIndex].cumulativeCost / maxCost) * 100 : 100}%`,
                 marginTop: '-12px',
               }}
@@ -965,7 +979,7 @@ function ProgressLineChart({
             <div
               className="bg-dark-700 pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded px-2 py-1 text-xs whitespace-nowrap shadow-lg"
               style={{
-                left: `${(hoveredIndex / (displayDataWithCost.length - 1)) * 100}%`,
+                left: `${((hoveredIndex + 0.5) / displayDataWithCost.length) * 100}%`,
                 top: `${maxCost > 0 ? (1 - displayDataWithCost[hoveredIndex].cumulativeCost / maxCost) * 100 : 100}%`,
                 marginTop: '-8px',
               }}
