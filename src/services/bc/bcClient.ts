@@ -1053,7 +1053,14 @@ class BusinessCentralClient {
       const response: PaginatedResponse<T> = await this.customApiFetch<PaginatedResponse<T>>(next);
       items.push(...response.value);
       const nextLink = response['@odata.nextLink'];
-      next = nextLink ? nextLink.replace(this.customApiBaseUrl, '') : undefined;
+      if (!nextLink) break;
+      // Resolve relative links against the current page, and only follow links back into
+      // the same custom API (the request carries the BC bearer token)
+      const resolved: string = new URL(nextLink, `${this.customApiBaseUrl}${next}`).href;
+      if (!resolved.startsWith(this.customApiBaseUrl)) {
+        throw new Error('Unexpected @odata.nextLink outside the Business Central API');
+      }
+      next = resolved.slice(this.customApiBaseUrl.length);
     }
     return items;
   }

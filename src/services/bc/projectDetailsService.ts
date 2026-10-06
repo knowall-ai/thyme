@@ -1,13 +1,5 @@
 import { bcClient } from './bcClient';
-import type {
-  Project,
-  Task,
-  BCTimeSheet,
-  BCTimeSheetLine,
-  BCTimeSheetDetail,
-  BCJobPlanningLine,
-  BCTimeEntry,
-} from '@/types';
+import type { Project, Task, BCTimeSheetLine, BCJobPlanningLine, BCTimeEntry } from '@/types';
 import {
   getWeekStart,
   buildUOMConversionMap,
@@ -314,10 +306,12 @@ export const projectDetailsService = {
     // rather than walking every resource's timesheets, then their lines, then each line's
     // details (hundreds of sequential requests). Details don't carry the resource, so it
     // comes from the parent timesheet.
+    // A failure here rejects the whole analytics load: one query covers the entire
+    // project, so swallowing it would show zero hours that look real
     const [timesheets, jobLines, jobDetails] = await Promise.all([
-      timesheetsPromise.catch((): BCTimeSheet[] => []),
-      jobLinesPromise.catch((): BCTimeSheetLine[] => []),
-      jobDetailsPromise.catch((): BCTimeSheetDetail[] => []),
+      timesheetsPromise,
+      jobLinesPromise,
+      jobDetailsPromise,
     ]);
     const resourceNoByTimesheet = new Map(timesheets.map((ts) => [ts.number, ts.resourceNo]));
 

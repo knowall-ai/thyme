@@ -28,9 +28,9 @@ interface ProjectDetailsStore {
   clearProject: () => void;
 }
 
-// In-flight load, so concurrent calls for the same project (e.g. React re-running the
-// page effect) share one set of BC requests instead of each fetching everything
-let inFlight: { projectNumber: string; promise: Promise<void> } | null = null;
+// In-flight loads by project, so concurrent calls for the same project (e.g. React
+// re-running the page effect) share one set of BC requests instead of each fetching everything
+const inFlight = new Map<string, Promise<void>>();
 
 export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => ({
   // Initial state
@@ -47,13 +47,14 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
   showPrices: true, // Customer-facing prices always visible by default
 
   fetchProjectDetails: async (projectNumber: string) => {
+    // Join a load already under way, so callers resolve when it completes
+    const pending = inFlight.get(projectNumber);
+    if (pending) return pending;
+
     // Don't refetch if we already have this project
     const currentProject = get().project;
     if (currentProject?.code === projectNumber && get().analytics) {
       return;
-    }
-    if (inFlight?.projectNumber === projectNumber) {
-      return inFlight.promise;
     }
 
     const promise = (async () => {
@@ -75,37 +76,11 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
           const analytics = await projectDetailsService.getProjectAnalytics(projectNumber);
           set({ analytics, isLoadingAnalytics: false });
         } catch (analyticsError) {
-          // Don't fail the whole page if analytics fails
+          // Surface the failure rather than showing zero hours/costs that look real
           console.error('Failed to load analytics:', analyticsError);
-          const emptyBreakdown = { resource: 0, item: 0, glAccount: 0, total: 0 };
+          const reason = analyticsError instanceof Error ? `: ${analyticsError.message}` : '';
           set({
-            analytics: {
-              billingMode: 'Not Set',
-              hoursPerDay: 8,
-              hoursSpent: 0,
-              hoursPlanned: 0,
-              hoursThisWeek: 0,
-              hoursPosted: 0,
-              hoursUnposted: 0,
-              budgetCost: 0,
-              budgetCostBreakdown: emptyBreakdown,
-              actualCost: 0,
-              actualCostBreakdown: emptyBreakdown,
-              unpostedCost: 0,
-              billablePrice: 0,
-              billablePriceBreakdown: emptyBreakdown,
-              invoicedPrice: 0,
-              invoicedPriceBreakdown: emptyBreakdown,
-              unpostedBillable: 0,
-              totalHours: 0,
-              billableHours: 0,
-              nonBillableHours: 0,
-              budgetHours: 0,
-              teamMemberCount: 0,
-              weeklyData: [],
-              taskBreakdown: [],
-              teamBreakdown: [],
-            },
+            error: `Failed to load project time and cost data${reason}`,
             isLoadingAnalytics: false,
           });
         }
@@ -114,9 +89,9 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
         set({ error: message, isLoading: false, isLoadingAnalytics: false });
       }
     })().finally(() => {
-      if (inFlight?.promise === promise) inFlight = null;
+      if (inFlight.get(projectNumber) === promise) inFlight.delete(projectNumber);
     });
-    inFlight = { projectNumber, promise };
+    inFlight.set(projectNumber, promise);
     return promise;
   },
 
