@@ -158,4 +158,4 @@ This is an internal tool for KnowAll.ai. For issues or feature requests, please 
 
 ## License
 
-Proprietary - KnowAll.ai
+MIT — see [LICENSE](LICENSE). Copyright (c) 2026 KnowAll AI Ltd.
