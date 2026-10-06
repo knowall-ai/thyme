@@ -30,7 +30,7 @@ function VisibilityToggle({
     <button
       type="button"
       onClick={onToggle}
-      className="focus:ring-thyme-500 focus:ring-offset-dark-800 rounded text-gray-600 transition-colors hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none print:hidden"
+      className="focus:ring-thyme-500 focus:ring-offset-dark-800 flex rounded text-gray-600 transition-colors hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none print:hidden"
       aria-label={hidden ? `Show ${label} amount` : `Hide ${label} amount`}
       aria-pressed={hidden}
       title={hidden ? 'Show amount' : 'Hide amount'}
@@ -55,10 +55,10 @@ function InfoTooltip({
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="relative print:hidden">
+    <div className="relative flex print:hidden">
       <button
         type="button"
-        className="focus:ring-thyme-500 focus:ring-offset-dark-800 cursor-help rounded text-gray-600 hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none"
+        className="focus:ring-thyme-500 focus:ring-offset-dark-800 flex cursor-help rounded text-gray-600 hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none"
         onMouseEnter={() => setIsOpen(true)}
         onMouseLeave={() => setIsOpen(false)}
         onFocus={() => setIsOpen(true)}
@@ -170,31 +170,33 @@ export function ProjectKPICards() {
 
   // Time KPIs (4 cards): Estimate, Spent, Planned (future), Forecast
   // What each KPI means, shown in its (i) tooltip next to the Eye toggle
+  // Hours per day can be a derived average, so round it for display
+  const hoursPerDayLabel = Number(hoursPerDay.toFixed(2));
   const kpiInfo: Record<
     string,
     { title: string; description: string; formula?: string; source: string }
   > = {
     Estimate: {
       title: 'Estimate',
-      description: `The quoted time: Resource lines on Job Planning Lines where lineType is "Billable" or "Both Budget and Billable" (the same lines as Billable Price). This is the budget the project is tracked against. Days = hours ÷ ${hoursPerDay}.`,
+      description: `The quoted time: Resource lines on Job Planning Lines where lineType is "Billable" or "Both Budget and Billable" (the same lines as Billable Price). This is the budget the project is tracked against. Days = hours ÷ ${hoursPerDayLabel}.`,
       formula: 'Σ quantity (Billable Resource lines)',
       source: 'BC API: /jobPlanningLines → quantity',
     },
     'Time Spent': {
       title: 'Time Spent',
-      description: `Total hours logged in timesheets for this project (Open, Submitted and Approved), shown against the Estimate. Posted time is in the Job Ledger Entry; the rest is awaiting "Post Time Sheets" in BC. Days = hours ÷ ${hoursPerDay}.`,
+      description: `Total hours logged in timesheets for this project (Open, Submitted and Approved), shown against the Estimate. Posted time is in the Job Ledger Entry; the rest is awaiting "Post Time Sheets" in BC. Days = hours ÷ ${hoursPerDayLabel}.`,
       formula: 'Σ timesheet hours ÷ Estimate = % used',
       source: 'BC API: /timeSheetDetails → quantity',
     },
     Planned: {
       title: 'Planned',
-      description: `Work still planned from next week on: Resource lines with lineType "Budget" on Job Planning Lines (the Plan screen's weekly allocations), in weeks after the current one. Days = hours ÷ ${hoursPerDay}.`,
+      description: `Work still planned from next week on: Resource lines with lineType "Budget" on Job Planning Lines (the Plan screen's weekly allocations), in weeks after the current one. Days = hours ÷ ${hoursPerDayLabel}.`,
       formula: 'Σ quantity (Budget Resource lines, after this week)',
       source: 'BC API: /jobPlanningLines → quantity (by planningDate)',
     },
     Forecast: {
       title: 'Forecast',
-      description: `Where the project is heading: time spent so far plus the work still planned, compared with the Estimate. Days = hours ÷ ${hoursPerDay}.`,
+      description: `Where the project is heading: time spent so far plus the work still planned, compared with the Estimate. Days = hours ÷ ${hoursPerDayLabel}.`,
       formula: 'Time Spent + Planned (from next week)',
       source: 'Calculated',
     },
