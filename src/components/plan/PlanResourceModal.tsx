@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { ExclamationTriangleIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import { Modal, Button, Select } from '@/components/ui';
@@ -16,6 +16,8 @@ import {
 } from '@/utils';
 import { usePlanStore } from '@/hooks/usePlanStore';
 import { ResourceWorkload } from './ResourceWorkload';
+import { useSaveSafeUomMap } from './useSaveSafeUomMap';
+import { UomLoadError } from './UomLoadError';
 import type { SelectOption, BCResource } from '@/types';
 import { format, getWeek, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 
@@ -45,8 +47,10 @@ export function PlanResourceModal({
   const cachedUomMap = usePlanStore((s) => s.uomConversionMap);
 
   const [resources, setResources] = useState<BCResource[]>([]);
-  // UOM conversion map for converting between hours and resource base units
-  const [uomMap, setUomMap] = useState<UOMConversionMap>(new Map());
+  // Units of measure; saving is blocked if they fail to load (see useSaveSafeUomMap)
+  const { uomMap, uomLoadFailed, uomReady, retryUomLoad } = useSaveSafeUomMap(isOpen, cachedUomMap);
+  // Latest existing-lines request, so a slower earlier one can't overwrite its result
+  const existingLinesRequestRef = useRef(0);
   const [resourceId, setResourceId] = useState('');
   const [taskId, setTaskId] = useState('');
   const [dayHours, setDayHours] = useState<Record<string, string>>({});
@@ -75,25 +79,12 @@ export function PlanResourceModal({
     [projects, projectNumber]
   );
 
-  // Check if BC extension is installed and load UOM data
+  // Check if BC extension is installed
   useEffect(() => {
     if (isOpen) {
       bcClient.isExtensionInstalled().then(setExtensionInstalled);
-      // Use cached UOM map from plan store if available, otherwise fetch
-      if (cachedUomMap.size > 0) {
-        setUomMap(cachedUomMap);
-      } else {
-        bcClient
-          .getResourceUnitsOfMeasure()
-          .then((resourceUOMs) => {
-            setUomMap(buildUOMConversionMap(resourceUOMs));
-          })
-          .catch(() => {
-            setUomMap(new Map());
-          });
-      }
     }
-  }, [isOpen, cachedUomMap]);
+  }, [isOpen]);
 
   // Fetch resources and projects when modal opens
   useEffect(() => {
@@ -142,6 +133,9 @@ export function PlanResourceModal({
   // Fetch existing planning lines when both resource and task are selected
   const fetchExistingLines = useCallback(async () => {
     if (!resourceId || !taskId) return;
+    // Existing quantities can only be converted to hours once units of measure are ready
+    if (!uomReady) return;
+    const requestId = ++existingLinesRequestRef.current;
 
     const task = currentProject?.tasks?.find((t) => t.id === taskId);
     if (!task) return;
@@ -155,6 +149,7 @@ export function PlanResourceModal({
         weekStart: format(weekStart, 'yyyy-MM-dd'),
         weekEnd: format(weekEnd, 'yyyy-MM-dd'),
       });
+      if (requestId !== existingLinesRequestRef.current) return;
 
       if (existingLines.length > 0) {
         // Pre-populate hours from existing lines
@@ -195,16 +190,26 @@ export function PlanResourceModal({
     } catch (error) {
       console.error('Error fetching existing planning lines:', error);
     } finally {
-      setIsLoadingExisting(false);
+      if (requestId === existingLinesRequestRef.current) setIsLoadingExisting(false);
     }
-  }, [resourceId, taskId, currentProject, projectNumber, weekStart, weekEnd, weekDays, uomMap]);
+  }, [
+    uomReady,
+    resourceId,
+    taskId,
+    currentProject,
+    projectNumber,
+    weekStart,
+    weekEnd,
+    weekDays,
+    uomMap,
+  ]);
 
   // Trigger fetch when both resource and task are selected
   useEffect(() => {
-    if (resourceId && taskId) {
+    if (resourceId && taskId && uomReady) {
       fetchExistingLines();
     }
-  }, [resourceId, taskId, fetchExistingLines]);
+  }, [resourceId, taskId, uomReady, fetchExistingLines]);
 
   // Resource options
   const resourceOptions: SelectOption[] = useMemo(
@@ -250,6 +255,11 @@ export function PlanResourceModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resourceId || !taskId || isSubmitting) return;
+
+    if (uomLoadFailed || !uomReady) {
+      toast.error('Units of measure could not be loaded, so hours cannot be saved safely.');
+      return;
+    }
 
     const task = currentProject?.tasks?.find((t) => t.id === taskId);
 
@@ -527,6 +537,8 @@ export function PlanResourceModal({
           <span className="text-dark-100 font-medium">{formatHours(totalHours)}h</span>
         </div>
 
+        {uomLoadFailed && <UomLoadError onRetry={retryUomLoad} />}
+
         {/* Actions */}
         <div className="border-dark-700 flex items-center justify-end gap-2 border-t pt-4">
           <Button type="button" variant="outline" onClick={onClose}>
@@ -535,7 +547,7 @@ export function PlanResourceModal({
           <Button
             type="submit"
             isLoading={isSubmitting}
-            disabled={!resourceId || !taskId || isLoadingExisting}
+            disabled={!resourceId || !taskId || isLoadingExisting || !uomReady}
           >
             {hasExistingData ? 'Save Changes' : 'Add Plan'}
           </Button>
