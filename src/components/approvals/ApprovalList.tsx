@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { format, parseISO } from 'date-fns';
 import {
@@ -14,6 +14,7 @@ import {
 import { Card, ExtensionPreviewWrapper } from '@/components/ui';
 import { ApprovalCard } from './ApprovalCard';
 import { ApprovalFilters } from './ApprovalFilters';
+import { prefetchTimeSheetLines } from './prefetchTimeSheetLines';
 import { useApprovalStore, useCompanyStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
 import { getUserProfilePhoto } from '@/services/auth/graphService';
@@ -68,6 +69,10 @@ export function ApprovalList() {
   const [tasksCache, setTasksCache] = useState<Record<string, BCJobTask[]>>({});
   const [jobsApiFailed, setJobsApiFailed] = useState(false); // Track if jobs API is unavailable
   const [groupBy, setGroupBy] = useState<GroupBy>('week');
+  // Latest lines cache for the prefetch effect, which must not re-run on every cache update
+  const linesCacheRef = useRef(linesCache);
+  // Job numbers whose names have already been requested
+  const requestedJobNosRef = useRef(new Set<string>());
 
   // Calculate actual pending hours from lines cache
   const actualPendingHours = useMemo(() => {
@@ -138,6 +143,12 @@ export function ApprovalList() {
   // We intentionally omit them from deps to avoid infinite re-renders.
   // companyVersion ensures refetch when company switches.
   useEffect(() => {
+    // Lines, project and task caches belong to the previous company
+    setLinesCache({});
+    setJobsCache({});
+    setTasksCache({});
+    setJobsApiFailed(false);
+    requestedJobNosRef.current = new Set();
     checkApprovalPermission();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyVersion]);
@@ -159,27 +170,29 @@ export function ApprovalList() {
     }
   }, [selectedTimeSheet, selectedLines]);
 
-  // Pre-fetch lines for all pending timesheets to show hours/billable %
   useEffect(() => {
-    async function prefetchLines() {
-      for (const timeSheet of pendingApprovals) {
-        if (!linesCache[timeSheet.id]) {
-          try {
-            const lines = await bcClient.getTimeSheetLines(timeSheet.number);
-            setLinesCache((prev) => ({
-              ...prev,
-              [timeSheet.id]: lines,
-            }));
-          } catch {
-            // Silently fail - will show fallback
-          }
-        }
-      }
+    linesCacheRef.current = linesCache;
+  }, [linesCache]);
+
+  // Pre-fetch lines for all listed timesheets to show hours/billable %.
+  // Timesheet headers carry no hours, so these lines are the only source of the totals.
+  // Runs once per list (not per cache update, which restarted the whole loop each time
+  // and flooded BC) and is cancelled when the list or company changes.
+  useEffect(() => {
+    let cancelled = false;
+    const missing = pendingApprovals.filter((ts) => !linesCacheRef.current[ts.id]);
+    if (missing.length > 0) {
+      prefetchTimeSheetLines(
+        missing,
+        (timeSheetNo) => bcClient.getTimeSheetLines(timeSheetNo),
+        (timeSheetId, lines) => setLinesCache((prev) => ({ ...prev, [timeSheetId]: lines })),
+        () => cancelled
+      );
     }
-    if (pendingApprovals.length > 0) {
-      prefetchLines();
-    }
-  }, [pendingApprovals, linesCache]);
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingApprovals, companyVersion]);
 
   // Pre-fetch profile photos for all unique resources
   useEffect(() => {
@@ -218,13 +231,15 @@ export function ApprovalList() {
       const uniqueJobNos = new Set<string>();
       Object.values(linesCache).forEach((lines) => {
         lines.forEach((line) => {
-          if (line.jobNo && !jobsCache[line.jobNo]) {
+          if (line.jobNo && !jobsCache[line.jobNo] && !requestedJobNosRef.current.has(line.jobNo)) {
             uniqueJobNos.add(line.jobNo);
           }
         });
       });
 
       if (uniqueJobNos.size === 0) return;
+      // Request each job once rather than refetching all projects on every lines update
+      uniqueJobNos.forEach((jobNo) => requestedJobNosRef.current.add(jobNo));
 
       // Fetch all projects and filter for the ones we need
       // Note: Uses /projects endpoint (Thyme extension) instead of /jobs (standard API which may not be available)
