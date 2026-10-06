@@ -98,3 +98,26 @@ describe('useTeammateStore employee enrichment', () => {
     expect(byNo).toEqual({ RES01: undefined, RES02: undefined, RES03: undefined });
   });
 });
+
+describe('useTeammateStore out-of-order fetches', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getEmployees.mockResolvedValue([]);
+    getResourceByEmail.mockResolvedValue(null);
+    useTeammateStore.setState({ teammates: [], selectedTeammate: null, error: null });
+  });
+
+  it('ignores an older fetch that resolves after a newer one', async () => {
+    let resolveOld: (value: unknown) => void = () => {};
+    getResources
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveOld = resolve)))
+      .mockResolvedValueOnce([resource('r9', 'RES09', 'New Company Person')]);
+
+    const oldFetch = useTeammateStore.getState().fetchTeammates(); // e.g. previous company
+    await useTeammateStore.getState().fetchTeammates(); // newer company, resolves first
+    resolveOld([resource('r1', 'RES01', 'Old Company Person')]);
+    await oldFetch;
+
+    expect(useTeammateStore.getState().teammates.map((t) => t.resourceNo)).toEqual(['RES09']);
+  });
+});

@@ -35,6 +35,9 @@ function findMatchingEmployee(
   return matches.length === 1 ? matches[0] : undefined;
 }
 
+// Latest teammates fetch, so an older one resolving last can't replace its list
+let teammatesFetchSeq = 0;
+
 export const useTeammateStore = create<TeammateStore>((set, get) => ({
   teammates: [],
   selectedTeammate: null,
@@ -42,6 +45,7 @@ export const useTeammateStore = create<TeammateStore>((set, get) => ({
   error: null,
 
   fetchTeammates: async (currentUserEmail?: string) => {
+    const seq = ++teammatesFetchSeq;
     set({ isLoading: true, error: null });
     try {
       // Sourced from resources, not employees: timesheets are keyed on the resource,
@@ -89,6 +93,8 @@ export const useTeammateStore = create<TeammateStore>((set, get) => ({
       });
 
       teammates.sort((a, b) => a.displayName.localeCompare(b.displayName));
+      // A newer fetch (e.g. after another company switch) has started: this list is stale
+      if (seq !== teammatesFetchSeq) return;
       set((state) => ({
         teammates,
         isLoading: false,
@@ -101,6 +107,7 @@ export const useTeammateStore = create<TeammateStore>((set, get) => ({
             : null,
       }));
     } catch (error) {
+      if (seq !== teammatesFetchSeq) return;
       const message = error instanceof Error ? error.message : 'Failed to fetch teammates';
       set({ error: message, isLoading: false, teammates: [], selectedTeammate: null });
     }
