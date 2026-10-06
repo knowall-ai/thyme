@@ -31,9 +31,11 @@ export function useSaveSafeUomMap(isOpen: boolean, cachedUomMap: UOMConversionMa
   const [fetchFailed, setFetchFailed] = useState(false);
   const usingCache = cachedUomMap.size > 0;
 
+  // Only a non-empty map is usable: an empty one would make every conversion an identity
   const applyResult = useCallback((map: UOMConversionMap | null) => {
-    setFetchedMap(map);
-    setFetchFailed(map === null);
+    const usableMap = map && map.size > 0 ? map : null;
+    setFetchedMap(usableMap);
+    setFetchFailed(usableMap === null);
   }, []);
 
   useEffect(() => {
@@ -44,6 +46,10 @@ export function useSaveSafeUomMap(isOpen: boolean, cachedUomMap: UOMConversionMa
     });
     return () => {
       cancelled = true;
+      // Forget this opening's result, so a reopen isn't treated as ready (and able to
+      // save) with a stale map while its fresh fetch is still pending
+      setFetchedMap(null);
+      setFetchFailed(false);
     };
   }, [isOpen, usingCache, applyResult]);
 
