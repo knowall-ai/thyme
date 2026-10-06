@@ -21,6 +21,13 @@ interface TimeEntryModalProps {
   weekStart: Date;
 }
 
+// A non-negative whole number from a form field: '' counts as 0, anything else
+// (decimals, signs, exponents) is null so it can be rejected rather than truncated
+function parseWholeNumber(value: string): number | null {
+  if (value === '') return 0;
+  return /^\d+$/.test(value) ? Number.parseInt(value, 10) : null;
+}
+
 export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: TimeEntryModalProps) {
   const { account } = useAuth();
   const userId = account?.localAccountId || '';
@@ -45,10 +52,24 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
     [weekStart]
   );
 
+  // Hours and minutes as loaded for an existing entry, so an unchanged duration isn't
+  // re-saved (rounding a stored sub-minute value would otherwise rewrite it)
+  const [loadedDuration, setLoadedDuration] = useState<{ hours: string; minutes: string } | null>(
+    null
+  );
+
   // When hours is 24, minutes must be 0
   const handleHoursChange = (value: string) => {
-    setHours(value);
-    if (parseInt(value) >= 24) {
+    const parsed = parseWholeNumber(value);
+    // Keep non-whole input (e.g. "1.5") visible so Save can reject it, rather than truncating
+    if (parsed === null) {
+      setHours(value);
+      return;
+    }
+    // Clamp to 0-24 as you type
+    const clamped = value === '' ? '' : Math.max(0, Math.min(24, parsed)).toString();
+    setHours(clamped);
+    if (parsed >= 24) {
       setMinutes('0');
     }
   };
@@ -166,10 +187,16 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
       const task = project?.tasks.find((t) => t.code === entry.taskId);
       setTaskId(task?.id || '');
       setSelectedDate(entry.date);
-      const h = Math.floor(entry.hours);
-      const m = Math.round((entry.hours - h) * 60);
-      setHours(h.toString());
-      setMinutes(m.toString());
+      // Total minutes first, so rounding up carries into the hour (never "60 minutes")
+      const totalMinutes = Math.round(entry.hours * 60);
+      const h = Math.floor(totalMinutes / 60);
+      const m = totalMinutes % 60;
+      const loadedHours = h > 0 ? h.toString() : '';
+      // At 24h minutes are fixed at 0 (and disabled), so show 0 rather than a blank field
+      const loadedMinutes = h >= 24 ? '0' : m > 0 ? m.toString() : '';
+      setHours(loadedHours);
+      setMinutes(loadedMinutes);
+      setLoadedDuration({ hours: loadedHours, minutes: loadedMinutes });
       setNotes(entry.notes || '');
     } else {
       // New entry - use matching customer option value
@@ -180,6 +207,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
       setSelectedDate(date || '');
       setHours('');
       setMinutes('');
+      setLoadedDuration(null);
       setNotes('');
     }
   }, [isOpen, entry, date, projects, findMatchingCustomerOption, selectedProject, selectedTask]);
@@ -223,7 +251,18 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
     e.preventDefault();
     if (!selectedDate || !projectId || !taskId || isSubmitting) return;
 
-    const totalHours = (parseInt(hours) || 0) + (parseInt(minutes) || 0) / 60;
+    // Clamp to 0-24h and 0-59m: the inputs are controlled, so native min/max don't apply
+    const parsedHours = parseWholeNumber(hours);
+    const parsedMinutes = parseWholeNumber(minutes);
+    if (parsedHours === null || parsedMinutes === null) {
+      toast.error('Hours and minutes must be whole numbers.');
+      return;
+    }
+    const h = Math.max(0, Math.min(24, parsedHours));
+    const m = h >= 24 ? 0 : Math.max(0, Math.min(59, parsedMinutes));
+    const totalHours = h + m / 60;
+    const durationChanged =
+      !loadedDuration || loadedDuration.hours !== hours || loadedDuration.minutes !== minutes;
     if (totalHours <= 0) return;
 
     const project = projects.find((p) => p.id === projectId);
@@ -293,7 +332,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
           // moveEntryDate produced — otherwise the form's hours would clobber
           // the merged total on the target date.
           const updates: Partial<TimeEntry> = {};
-          if (totalHours !== entry.hours) updates.hours = totalHours;
+          if (durationChanged && totalHours !== entry.hours) updates.hours = totalHours;
           if (notes !== (entry.notes || '')) updates.notes = notes;
           if (Object.keys(updates).length > 0) {
             await updateEntry(targetEntryId, updates);
@@ -438,10 +477,16 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
             label="Minutes"
             type="number"
             min="0"
-            max="45"
-            step="15"
+            max="59"
             value={minutes}
-            onChange={(e) => setMinutes(e.target.value)}
+            onChange={(e) => {
+              // Any minute value 0-59, clamped as you type; non-whole input stays visible
+              const v = e.target.value;
+              const parsed = parseWholeNumber(v);
+              setMinutes(
+                parsed === null || v === '' ? v : Math.max(0, Math.min(59, parsed)).toString()
+              );
+            }}
             placeholder="0"
             disabled={parseInt(hours) >= 24}
           />
