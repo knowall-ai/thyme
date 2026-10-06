@@ -33,13 +33,53 @@ function formatCurrencyShort(amount: number, currencyCode: string): string {
   return `${symbol}${amount.toFixed(0)}`;
 }
 
+// Vertical dashed line marking today's date on a chart
+function TodayMarker({ leftPercent }: { leftPercent: number }) {
+  return (
+    <div
+      className="pointer-events-none absolute top-0 bottom-0 z-[1] border-l border-dashed border-sky-400/70"
+      style={{ left: `${leftPercent}%` }}
+    >
+      <span className="absolute -top-4 -translate-x-1/2 text-[10px] font-medium text-sky-400">
+        Today
+      </span>
+    </div>
+  );
+}
+
 export function ProjectCharts() {
-  const { analytics, isLoadingAnalytics, hiddenKpis, currencyCode } = useProjectDetailsStore();
+  const { analytics, isLoadingAnalytics, hiddenKpis, currencyCode, project } =
+    useProjectDetailsStore();
   // Follow the Budget Cost / Actual Cost KPI card Eye toggles
   const showBudgetCost = !hiddenKpis.includes('Budget Cost');
   const showActualCost = !hiddenKpis.includes('Actual Cost');
   const [chartView, setChartView] = useState<ChartView>('weekly');
+  // Weeks back from the current week (negative = scrolled into the future)
   const [offsetWeeks, setOffsetWeeks] = useState(0);
+
+  // Furthest forward the charts can scroll: the later of the project end date and the
+  // last week with any data (e.g. future planned hours), so upcoming work is visible
+  const weeklyData = useMemo(() => analytics?.weeklyData ?? [], [analytics]);
+  const projectEndDate = project?.endDate;
+  const maxForwardWeeks = useMemo(() => {
+    const currentWeekStart = getWeekStart(new Date());
+    let furthest = 0;
+    const lastDataWeek = weeklyData.length
+      ? isoWeekToDate(weeklyData[weeklyData.length - 1].week)
+      : null;
+    if (lastDataWeek) furthest = Math.max(furthest, weeksBetween(currentWeekStart, lastDataWeek));
+    // BC's "0001-01-01" null-date sentinel means no end date
+    if (projectEndDate && !projectEndDate.startsWith('0001')) {
+      const endWeek = getWeekStart(new Date(projectEndDate));
+      furthest = Math.max(furthest, weeksBetween(currentWeekStart, endWeek));
+    }
+    return furthest;
+  }, [weeklyData, projectEndDate]);
+  // Read by the hold-to-repeat timers, which outlive a single render
+  const minOffsetRef = useRef(0);
+  useEffect(() => {
+    minOffsetRef.current = -maxForwardWeeks;
+  }, [maxForwardWeeks]);
 
   // Refs for hold-to-repeat functionality
   const holdTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -73,12 +113,12 @@ export function ProjectCharts() {
   // Start hold-to-repeat for going forward (later weeks)
   const startHoldForward = useCallback(() => {
     // Execute immediately on click
-    setOffsetWeeks((o) => Math.max(0, o - 1));
+    setOffsetWeeks((o) => Math.max(minOffsetRef.current, o - 1));
 
     // Start repeating after initial delay
     holdTimeoutRef.current = setTimeout(() => {
       holdIntervalRef.current = setInterval(() => {
-        setOffsetWeeks((o) => Math.max(0, o - 1));
+        setOffsetWeeks((o) => Math.max(minOffsetRef.current, o - 1));
       }, HOLD_REPEAT_INTERVAL);
     }, HOLD_INITIAL_DELAY);
   }, []);
@@ -96,9 +136,8 @@ export function ProjectCharts() {
     );
   }
 
-  const weeklyData = analytics?.weeklyData ?? [];
   const canGoBack = weeklyData.length > 0;
-  const canGoForward = offsetWeeks > 0;
+  const canGoForward = offsetWeeks > -maxForwardWeeks;
 
   return (
     <Card variant="bordered" className="p-6">
@@ -252,6 +291,50 @@ function getISOWeek(date: Date): string {
 }
 
 /**
+ * Monday of an ISO week string (e.g. "2026-W43")
+ */
+function isoWeekToDate(isoWeek: string): Date | null {
+  const match = /^(\d{4})-W(\d{2})$/.exec(isoWeek);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const week = Number(match[2]);
+  // Jan 4th is always in ISO week 1
+  const jan4 = new Date(year, 0, 4);
+  const monday = getWeekStart(jan4);
+  monday.setDate(monday.getDate() + (week - 1) * 7);
+  return monday;
+}
+
+/**
+ * Whole weeks from one Monday to another (negative if `to` is earlier)
+ */
+function weeksBetween(from: Date, to: Date): number {
+  return Math.round((to.getTime() - from.getTime()) / (7 * 24 * 60 * 60 * 1000));
+}
+
+/**
+ * Round an axis maximum up to a "nice" top value with ~5 steps of 1, 2, 2.5 or 5 × 10^n,
+ * so large values (tens of thousands) don't produce dozens of grid lines.
+ */
+function getNiceScale(max: number, minTop: number): { top: number; ticks: number[] } {
+  const target = Math.max(max, minTop);
+  const rough = target / 5;
+  const magnitude = 10 ** Math.floor(Math.log10(rough));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * magnitude).find((s) => s >= rough)!;
+  const steps = Math.ceil(target / step - 1e-9);
+  const ticks = Array.from({ length: steps + 1 }, (_, i) => i * step).reverse();
+  return { top: steps * step, ticks };
+}
+
+/**
+ * Horizontal position (0-1 within the current week) of today, Monday = 0
+ */
+function getTodayFractionOfWeek(): number {
+  const day = new Date().getDay();
+  return (day === 0 ? 6 : day - 1) / 7;
+}
+
+/**
  * Generate display data for the chart with all weeks filled in
  */
 function generateWeeklyDisplayData(
@@ -345,26 +428,15 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
     [displayData]
   );
 
-  const maxHours = useMemo(() => {
+  // Y-axis scale from every week of the project (not just the visible ones),
+  // so it stays fixed while scrolling back and forward
+  const { top: maxHours, ticks: yAxisLabels } = useMemo(() => {
     // Consider both actual hours and planned hours for the max
-    const max = Math.max(...displayData.map((d) => Math.max(d.hours, d.plannedHours)), 0);
-    // Round up to nice number for Y-axis
-    if (max <= 5) return 5;
-    if (max <= 10) return 10;
-    if (max <= 20) return 20;
-    if (max <= 40) return 40;
-    return Math.ceil(max / 10) * 10;
-  }, [displayData]);
+    const max = Math.max(...data.map((d) => Math.max(d.hours, d.plannedHours || 0)), 0);
+    return getNiceScale(max, 5);
+  }, [data]);
 
-  // Generate Y-axis labels
-  const yAxisLabels = useMemo(() => {
-    const labels = [];
-    const step = maxHours <= 10 ? 2 : maxHours <= 20 ? 5 : 10;
-    for (let i = 0; i <= maxHours; i += step) {
-      labels.push(i);
-    }
-    return labels.reverse();
-  }, [maxHours]);
+  const currentWeekIndex = displayData.findIndex((d) => d.isCurrentWeek);
 
   return (
     <div>
@@ -384,6 +456,15 @@ function WeeklyBarChart({ data, offsetWeeks }: WeeklyBarChartProps) {
               <div key={label} className="border-dark-600 border-t" />
             ))}
           </div>
+
+          {/* Today marker */}
+          {currentWeekIndex >= 0 && (
+            <TodayMarker
+              leftPercent={
+                ((currentWeekIndex + getTodayFractionOfWeek()) / displayData.length) * 100
+              }
+            />
+          )}
 
           {/* Bars */}
           <div className="relative flex h-full items-end">
@@ -647,27 +728,16 @@ function ProgressLineChart({
     }));
   }, [displayData, avgCostRate, showActualCost]);
 
-  const maxCost = useMemo(() => {
-    // Max should be at least the budget, or the max cumulative cost
-    const maxCumulativeCost = Math.max(...displayDataWithCost.map((d) => d.cumulativeCost), 0);
+  // Y-axis scale from the whole project (not just the visible weeks), so it stays
+  // fixed while scrolling: at least the budget, or the highest cumulative cost
+  const { top: maxCost, ticks: yAxisLabels } = useMemo(() => {
+    const maxCumulativeHours = Math.max(...data.map((d) => d.cumulative), 0);
+    const maxCumulativeCost = avgCostRate !== null ? maxCumulativeHours * avgCostRate : 0;
     const max = Math.max(maxCumulativeCost, budgetCost * 1.1); // Add 10% buffer above budget
-    // Round up to nice number for Y-axis
-    if (max <= 500) return 500;
-    if (max <= 1000) return 1000;
-    if (max <= 2000) return 2000;
-    if (max <= 5000) return 5000;
-    return Math.ceil(max / 1000) * 1000;
-  }, [displayDataWithCost, budgetCost]);
+    return getNiceScale(max, 500);
+  }, [data, avgCostRate, budgetCost]);
 
-  // Generate Y-axis labels in £
-  const yAxisLabels = useMemo(() => {
-    const labels = [];
-    const step = maxCost <= 1000 ? 200 : maxCost <= 2000 ? 500 : 1000;
-    for (let i = 0; i <= maxCost; i += step) {
-      labels.push(i);
-    }
-    return labels.reverse();
-  }, [maxCost]);
+  const currentWeekIndex = displayDataWithCost.findIndex((d) => d.isCurrentWeek);
 
   // Budget breakdown line Y positions
   const resourceBudgetY = maxCost > 0 ? (1 - budgetCostBreakdown.resource / maxCost) * 100 : 100;
@@ -739,6 +809,17 @@ function ProgressLineChart({
                 </span>
               </div>
             </>
+          )}
+
+          {/* Today marker - points sit on week starts, so offset within the week */}
+          {currentWeekIndex >= 0 && displayDataWithCost.length > 1 && (
+            <TodayMarker
+              leftPercent={Math.min(
+                ((currentWeekIndex + getTodayFractionOfWeek()) / (displayDataWithCost.length - 1)) *
+                  100,
+                100
+              )}
+            />
           )}
 
           {/* Line chart with SVG - stretched for line and fill */}
