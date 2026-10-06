@@ -157,8 +157,9 @@ export function ResourceWorkload({
 
   // Color for capacity bar
   const getBarColor = (hours: number) => {
+    // Same rounding tolerance as the Plan grid's over-allocation flag
+    if (getOverAllocationHours(hours) > 0) return 'bg-red-500';
     const pct = hours / DAILY_CAPACITY_HOURS;
-    if (pct > 1) return 'bg-red-500';
     if (pct > 0.75) return 'bg-amber-500';
     return 'bg-emerald-500';
   };

@@ -36,6 +36,19 @@ describe('getOverAllocationHours', () => {
   });
 });
 
+describe('buildResourceDailyTotals', () => {
+  it('skips non-finite and negative hours', () => {
+    const totals = buildResourceDailyTotals([
+      alloc({ hoursPerDay: 6 }),
+      alloc({ hoursPerDay: NaN }),
+      alloc({ hoursPerDay: Infinity }),
+      alloc({ hoursPerDay: -3 }),
+      alloc({ hoursPerDay: 1.5 }),
+    ]);
+    expect(totals.get(`R001|${DAY}`)).toBe(7.5);
+  });
+});
+
 describe('getOverAllocatedResources', () => {
   it('sums a resource across projects before comparing to capacity', () => {
     const projectA = alloc({ hoursPerDay: 24 });

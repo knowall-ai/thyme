@@ -47,6 +47,8 @@ export function buildResourceDailyTotals(
 ): ResourceDailyTotals {
   const totals: ResourceDailyTotals = new Map();
   for (const allocation of allocations) {
+    // Skip malformed hours (e.g. a failed unit conversion) rather than poisoning the day's total
+    if (!Number.isFinite(allocation.hoursPerDay) || allocation.hoursPerDay < 0) continue;
     const key = dailyTotalKey(allocation.resourceNumber, allocation.startDate);
     totals.set(key, (totals.get(key) || 0) + allocation.hoursPerDay);
   }
