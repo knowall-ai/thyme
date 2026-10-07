@@ -23,15 +23,15 @@ export async function resolveReviewerUpn(
   lookups: ReviewerLookups = { findGraphUsersByDisplayNamePrefix }
 ): Promise<string | null> {
   const name = reviewer.trim();
-  if (!name) return null;
-  const wanted = normalizeName(name);
-  if (!wanted) return null;
+  if (!name || !normalizeName(name)) return null;
 
-  const candidates = await lookups.findGraphUsersByDisplayNamePrefix(name);
-  const exact = candidates.filter((u) => normalizeName(u.displayName) === wanted);
+  const { users: candidates, complete } = await lookups.findGraphUsersByDisplayNamePrefix(name);
+  // Some matches weren't read, so any single match we found might not be the only one
+  if (!complete) return null;
+  const lowerName = name.toLowerCase();
+  const exact = candidates.filter((u) => u.displayName.trim().toLowerCase() === lowerName);
   if (exact.length > 0) return exact.length === 1 ? exact[0].userPrincipalName : null;
 
-  const lowerName = name.toLowerCase();
   const wordPrefix = candidates.filter((u) => {
     const display = u.displayName.trim().toLowerCase();
     return display.startsWith(lowerName) && /^[\s,.(-]/.test(display.slice(lowerName.length));
