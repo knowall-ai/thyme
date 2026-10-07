@@ -1,7 +1,7 @@
 /**
  * Per-person weekly capacity.
  *
- * Thyme BC Extension 1.17+ lets each resource have its own weekly capacity (e.g. 15h for
+ * Thyme BC Extension 1.19+ lets each resource have its own weekly capacity (e.g. 15h for
  * someone who works two days a week) and flexible working days (any days, not fixed
  * weekdays). Without them (older extensions, or "not set") a person's week is their
  * hours per day x 5. An explicit 0 means the person is listed but not counted: they're

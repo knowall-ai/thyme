@@ -84,7 +84,7 @@ export async function loadTeamHours(from: Date, to: Date): Promise<TeamHours> {
     const data = (timesheetsByResource.get(resource.number) ?? []).flatMap(
       (ts) => sheetData.get(ts.number) ?? []
     );
-    // Their own weekly capacity (Thyme BC Extension 1.17+), else hours per day x 5
+    // Their own weekly capacity (Thyme BC Extension 1.19+), else hours per day x 5
     const weekly = resolveWeeklyCapacity(resource, uomMap, teamConfig.defaultCapacity);
     return { ...getPersonHours(resource, weekly.hours, data, projectsByNumber, range), weekly };
   });

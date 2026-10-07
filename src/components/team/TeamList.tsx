@@ -142,7 +142,7 @@ export function TeamList() {
   // Whether the Thyme BC Extension returns billable targets on resources
   const [targetFieldsPresent, setTargetFieldsPresent] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
-  // Whether the Thyme BC Extension returns weekly capacity on resources (1.17+)
+  // Whether the Thyme BC Extension returns weekly capacity on resources (1.19+)
   const [capacityFieldsPresent, setCapacityFieldsPresent] = useState(false);
   const [editingCapacityMemberId, setEditingCapacityMemberId] = useState<string | null>(null);
 
