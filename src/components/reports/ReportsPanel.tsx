@@ -37,6 +37,7 @@ import {
   DATE_FORMAT_FULL,
   DATE_FORMAT_SHORT,
   DATE_FORMAT_DAY_SHORT,
+  isTeamMember,
 } from '@/utils';
 import type { TimeEntry, BCResource } from '@/types';
 
@@ -116,12 +117,10 @@ export function ReportsPanel() {
       setIsLoadingResources(true);
       setExtensionNotInstalled(false);
       try {
-        // Get all person resources (same as Team page)
-        // Filter out empty resource cards (no name, no search name, and no timesheet owner)
+        // The people who can log time (same rule as the Team page): leaves out
+        // placeholder role resources, blocked resources and empty resource cards
         const data = await bcClient.getResources();
-        setResources(
-          data.filter((r) => r.name?.trim() || r.searchName?.trim() || r.timeSheetOwnerUserId)
-        );
+        setResources(data.filter(isTeamMember));
       } catch (err) {
         if (err instanceof ExtensionNotInstalledError) {
           setExtensionNotInstalled(true);

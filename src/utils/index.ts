@@ -4,3 +4,4 @@ export * from './bcUrls';
 export * from './timesheetStatus';
 export * from './unitConversion';
 export * from './capacity';
+export * from './teamMember';

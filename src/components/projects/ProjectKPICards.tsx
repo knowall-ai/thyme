@@ -3,7 +3,8 @@
 import { useState, ReactNode } from 'react';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { useCompanyStore } from '@/hooks';
-import { Card, Modal } from '@/components/ui';
+import { Card, Modal, StageBar, StageLegend, getStageSegments } from '@/components/ui';
+import type { StageSegment } from '@/components/ui';
 import {
   getBCJobPlanningLinesUrl,
   getBCJobLedgerEntriesUrl,
@@ -270,7 +271,7 @@ export function ProjectKPICards() {
     subLabelColor?: string;
     progress?: number;
     progressColor?: string;
-    segments?: { label: string; hours: number; color: string }[];
+    segments?: StageSegment[];
     resources?: ResourceHours[];
   }[] = [
     {
@@ -290,13 +291,12 @@ export function ProjectKPICards() {
       subLabelColor: percentOfEstimate > 100 ? 'text-red-400' : undefined,
       icon: ClockIcon,
       color: 'text-thyme-400',
-      // Same colours as the Hours per Week bars; posted is the darker, settled green
-      segments: [
-        { label: 'Posted', hours: postedHours, color: 'bg-thyme-700' },
-        { label: 'Approved', hours: approvedUnpostedHours, color: 'bg-thyme-500' },
-        { label: 'Submitted', hours: submittedHours, color: 'bg-amber-500' },
-        { label: 'Unsubmitted', hours: unsubmittedHours, color: 'bg-amber-500/40' },
-      ],
+      segments: getStageSegments({
+        posted: postedHours,
+        approved: approvedUnpostedHours,
+        submitted: submittedHours,
+        unsubmitted: unsubmittedHours,
+      }),
     },
     {
       label: 'Planned',
@@ -505,25 +505,16 @@ export function ProjectKPICards() {
                   {kpi.segments && !isHidden && (
                     <>
                       {/* Stacked bar against the estimate (or total spent, if over or no estimate) */}
-                      <div className="bg-dark-600 mt-2 flex h-1.5 w-full overflow-hidden rounded-full">
-                        {kpi.segments.map((seg) => (
-                          <div
-                            key={seg.label}
-                            className={`h-full transition-all ${seg.color}`}
-                            style={{
-                              width: `${(seg.hours / Math.max(estimateHours, hoursSpent, 1)) * 100}%`,
-                            }}
-                          />
-                        ))}
-                      </div>
-                      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-500">
-                        {kpi.segments.map((seg) => (
-                          <span key={seg.label} className="flex items-center gap-1">
-                            <span className={`inline-block h-2 w-2 rounded-sm ${seg.color}`} />
-                            {seg.label} {formatHoursWithDays(seg.hours, hoursPerDay)}
-                          </span>
-                        ))}
-                      </div>
+                      <StageBar
+                        segments={kpi.segments}
+                        max={Math.max(estimateHours, hoursSpent, 1)}
+                        className="mt-2"
+                      />
+                      <StageLegend
+                        segments={kpi.segments}
+                        formatHours={(hours) => formatHoursWithDays(hours, hoursPerDay)}
+                        className="mt-1.5"
+                      />
                     </>
                   )}
                   {kpi.progress !== undefined && !isHidden && (

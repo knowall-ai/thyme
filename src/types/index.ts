@@ -241,6 +241,8 @@ export interface BCTimeSheetDetail {
   timeSheetLineNo: number;
   date: string; // ISO date format YYYY-MM-DD
   quantity: number;
+  postedQuantity?: number; // Hours already posted to the Job Ledger
+  status?: 'Open' | 'Submitted' | 'Rejected' | 'Approved';
   jobNo?: string;
   '@odata.etag'?: string;
 }
