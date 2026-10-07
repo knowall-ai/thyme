@@ -160,10 +160,16 @@ export function PoppieSuggestionsPanel({
   };
 
   // One click only when Thyme knows the project and task; otherwise the modal fills the gaps
-  const isQuickAddable = (s: BCTimeSuggestion) => {
+  // Why Add has to open the entry form instead of saving straight away (null = it can save)
+  const quickAddBlocker = (s: BCTimeSuggestion): string | null => {
     const { project, task } = resolve(s);
-    return canQuickAdd(s, requireTimesheetComments) && !!project && !!task;
+    if (!s.jobNo || !s.jobTaskNo || !project || !task) return 'Choose a project and task, then add';
+    if (project.status !== 'active')
+      return 'This project is no longer active: choose another, then add';
+    if (!canQuickAdd(s, requireTimesheetComments)) return 'Add a comment, then add';
+    return null;
   };
+  const isQuickAddable = (s: BCTimeSuggestion) => quickAddBlocker(s) === null;
 
   const highConfidence = visible.filter((s) => s.confidence === 'High' && isQuickAddable(s));
 
@@ -203,7 +209,8 @@ export function PoppieSuggestionsPanel({
     await markAccepted(s, entry);
   };
 
-  // One click when Thyme knows the project and task; otherwise the pre-filled modal fills the gaps
+  // One click when the suggestion can be saved as it is (active project, task, any required
+  // comment); otherwise the pre-filled entry form fills the gaps
   const handleAdd = async (s: BCTimeSuggestion) => {
     if (!canEdit) return;
     if (!isQuickAddable(s)) {
@@ -566,11 +573,7 @@ export function PoppieSuggestionsPanel({
                                 size="sm"
                                 onClick={() => handleAdd(s)}
                                 disabled={busy || isAddingAll}
-                                title={
-                                  isQuickAddable(s)
-                                    ? 'Add to timesheet'
-                                    : 'Choose a project and task, then add'
-                                }
+                                title={quickAddBlocker(s) ?? 'Add to timesheet'}
                               >
                                 <PlusIcon className="h-4 w-4 sm:mr-1" />
                                 <span className="hidden sm:inline">Add</span>

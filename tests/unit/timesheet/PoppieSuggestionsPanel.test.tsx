@@ -166,4 +166,33 @@ describe('PoppieSuggestionsPanel Add and Edit', () => {
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Time entry added'));
     expect(addEntry).toHaveBeenCalledTimes(1);
   });
+
+  it('opens the entry form instead of saving when the project is no longer active', () => {
+    suggestions = [suggestion({ id: 's3', jobNo: 'PR00020', description: 'Old project work' })];
+    const inactive = [
+      ...projects,
+      {
+        id: 'p2',
+        code: 'PR00020',
+        name: 'Old',
+        customerName: 'Contoso Ltd',
+        status: 'completed',
+        tasks: [{ id: 't2', code: '100', name: 'Support', isBillable: true }],
+      },
+    ] as unknown as Project[];
+    render(
+      <PoppieSuggestionsPanel
+        resourceNo="R0010"
+        weekStart={new Date('2026-10-05')}
+        entries={[]}
+        entriesLoading={false}
+        projects={inactive}
+        canEdit
+      />
+    );
+    const add = within(row('Old project work')).getByTitle(/no longer active/);
+    fireEvent.click(add);
+    expect(addEntry).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toHaveTextContent('Editing s3');
+  });
 });
