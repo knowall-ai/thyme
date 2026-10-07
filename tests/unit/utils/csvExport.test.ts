@@ -66,6 +66,11 @@ describe('buildCsvRows escaping', () => {
     const [row] = buildCsvRows([entry()], tricky);
     expect(row[1]).toBe('"Contoso, ""Web"" Site"');
     expect(row[2]).toBe(`"'=SUM(A1)"`);
+
+    const spaced: Project[] = [
+      { ...projects[0], tasks: [{ ...projects[0].tasks[0], name: '\t=SUM(A1)' }] },
+    ];
+    expect(buildCsvRows([entry()], spaced)[0][2]).toBe(`"'\t=SUM(A1)"`);
   });
 });
 

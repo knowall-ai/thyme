@@ -4,7 +4,7 @@ export const CSV_HEADERS = ['Date', 'Project', 'Task', 'Hours', 'Notes', 'Billab
 
 /** Quote a free-text field, doubling embedded quotes, and neutralise spreadsheet formulas. */
 function escapeCsvField(value: string): string {
-  const safe = /^[=+\-@]/.test(value) ? `'${value}` : value;
+  const safe = /^\s*[=+\-@]|^[\t\r]/.test(value) ? `'${value}` : value;
   return /[",\r\n]/.test(safe) || safe !== value ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 
