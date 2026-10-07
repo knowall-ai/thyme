@@ -27,12 +27,14 @@ import {
   cn,
   getTimesheetDisplayStatus,
   decodeBCEnum,
+  // Aliased: this component has its own display formatDate
+  formatDate as toDateKey,
   formatHours,
   DAILY_CAPACITY_HOURS,
   DATE_FORMAT_FULL,
   DATE_FORMAT_DAY_SHORT,
 } from '@/utils';
-import { buildWeekDailyHours, isOverDailyHours, toLocalDateKey } from './dailyHours';
+import { buildWeekDailyHours, isOverDailyHours } from './dailyHours';
 
 interface ApprovalCardProps {
   timeSheet: BCTimeSheet;
@@ -125,7 +127,7 @@ export function ApprovalCard({
     () => (details ? buildWeekDailyHours(timeSheet.startingDate, details) : null),
     [details, timeSheet.startingDate]
   );
-  const todayKey = toLocalDateKey(new Date());
+  const todayKey = toDateKey(new Date());
   const weekDays = (daily?.days ?? []).map((key) => {
     const date = parseISO(key);
     return {

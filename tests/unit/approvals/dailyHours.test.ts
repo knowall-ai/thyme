@@ -3,8 +3,8 @@ import {
   buildWeekDailyHours,
   getTimeSheetWeekDays,
   isOverDailyHours,
-  toLocalDateKey,
 } from '@/components/approvals/dailyHours';
+import { formatDate } from '@/utils';
 import type { BCTimeSheetDetail } from '@/types';
 
 function detail(lineNo: number, date: string, quantity: number): BCTimeSheetDetail {
@@ -84,7 +84,7 @@ describe('buildWeekDailyHours', () => {
 });
 
 // vitest.config.ts runs tests in Europe/London, so July is summer time (BST, UTC+1)
-describe('toLocalDateKey in UK summer time', () => {
+describe('today key in UK summer time', () => {
   afterEach(() => {
     vi.useRealTimers();
   });
@@ -97,7 +97,7 @@ describe('toLocalDateKey in UK summer time', () => {
 
     expect(now.getTimezoneOffset()).toBe(-60);
     expect(now.toISOString().split('T')[0]).toBe('2026-07-06');
-    expect(toLocalDateKey(now)).toBe('2026-07-07');
+    expect(formatDate(now)).toBe('2026-07-07');
   });
 });
 

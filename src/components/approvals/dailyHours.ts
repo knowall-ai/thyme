@@ -1,6 +1,6 @@
-import { addDays, format, parseISO } from 'date-fns';
+import { addDays, parseISO } from 'date-fns';
 import type { BCTimeSheetDetail } from '@/types';
-import { DAILY_CAPACITY_HOURS } from '@/utils';
+import { DAILY_CAPACITY_HOURS, formatDate } from '@/utils';
 
 const DAYS_IN_WEEK = 7;
 const FLOAT_TOLERANCE = 1e-6;
@@ -14,19 +14,15 @@ export interface WeekDailyHours {
   byLine: Map<number, number[]>;
 }
 
-/** Local calendar date key (YYYY-MM-DD), so days don't shift in UK summer time like toISOString() */
-export function toLocalDateKey(date: Date): string {
-  return format(date, 'yyyy-MM-dd');
-}
-
 /**
  * The seven local date keys of a timesheet week, starting on its starting date.
+ * formatDate keeps local calendar dates, so days don't shift in UK summer time like toISOString().
  * Empty for BC's placeholder dates (year 0001) or anything unparseable.
  */
 export function getTimeSheetWeekDays(startingDate: string): string[] {
   const start = parseISO(startingDate);
   if (Number.isNaN(start.getTime()) || start.getFullYear() <= 1) return [];
-  return Array.from({ length: DAYS_IN_WEEK }, (_, i) => toLocalDateKey(addDays(start, i)));
+  return Array.from({ length: DAYS_IN_WEEK }, (_, i) => formatDate(addDays(start, i)));
 }
 
 /**
