@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { BCCompany, BCEnvironmentType } from '@/types';
 import { bcClient } from '@/services/bc/bcClient';
+import { bumpCompanyGeneration } from './companyScope';
 
 interface CompanyStore {
   companies: BCCompany[];
@@ -116,6 +117,8 @@ export const useCompanyStore = create<CompanyStore>((set, get) => ({
       } else {
         bcClient.setCompanyId(company.id);
       }
+      // Loads started before the switch are now stale, even if we later switch back
+      bumpCompanyGeneration();
       // Increment version to trigger refetch in all components that depend on it
       set((state) => ({
         selectedCompany: company,

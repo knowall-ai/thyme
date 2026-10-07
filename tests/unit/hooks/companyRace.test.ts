@@ -128,6 +128,35 @@ describe('project details across a company switch', () => {
   });
 });
 
+describe('project details after switching away and back (A -> B -> A)', () => {
+  it("starts a fresh load instead of joining the first visit's, and ignores its late result", async () => {
+    getProjectDetails.mockResolvedValue(projectFrom('A'));
+    const firstAnalytics = deferred<{ hours: number }>();
+    getProjectAnalytics
+      .mockReturnValueOnce(firstAnalytics.promise)
+      .mockResolvedValueOnce({ hours: 2 });
+
+    // First visit: the project loads, its analytics are still pending
+    const firstVisit = useProjectDetailsStore.getState().fetchProjectDetails('PR00100');
+    await vi.waitFor(() => expect(useProjectDetailsStore.getState().project).not.toBeNull());
+
+    switchCompany(companyB);
+    switchCompany(companyA);
+
+    // Second visit to A loads again rather than joining the first visit's promise
+    await useProjectDetailsStore.getState().fetchProjectDetails('PR00100');
+    expect(getProjectDetails).toHaveBeenCalledTimes(2);
+
+    // The first visit's analytics arrive late and are dropped
+    firstAnalytics.resolve({ hours: 1 });
+    await firstVisit;
+
+    const state = useProjectDetailsStore.getState();
+    expect(state.project?.name).toBe('A project');
+    expect(state.analytics).toEqual({ hours: 2 });
+  });
+});
+
 describe('projects list across a company switch', () => {
   it("drops company A's list when it lands after switching to B", async () => {
     const loadA = deferred<{ id: string; code: string }[]>();
