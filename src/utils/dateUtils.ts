@@ -116,7 +116,10 @@ export function secondsToHours(seconds: number): number {
 function ymdToUTCDays(ymd: string | undefined): number | null {
   const match = ymd ? /^(\d{4})-(\d{2})-(\d{2})/.exec(ymd) : null;
   if (!match || match[1] === '0001') return null;
-  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const [year, month, day] = [match[1], match[2], match[3]].map((part) =>
+    Number.parseInt(part, 10)
+  );
+  if (![year, month, day].every(Number.isInteger)) return null;
   const date = new Date(Date.UTC(year, month - 1, day));
   // Reject dates Date would roll over (e.g. 2027-02-30 -> 2 March)
   const isRealDate = date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
