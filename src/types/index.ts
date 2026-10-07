@@ -82,6 +82,8 @@ export interface BCProject {
   currencyCode?: string;
   lastModifiedDateTime?: string;
   '@odata.etag'?: string;
+  // Set by bcClient, not BC: the bill-to customer is the company itself (named after it)
+  billToIsCompany?: boolean;
 }
 
 export interface BCCustomer {
@@ -372,7 +374,7 @@ export interface Project {
   code: string;
   name: string;
   customerName?: string;
-  isInternal?: boolean; // No bill-to customer, or an "Internal" one: its time is never billable
+  isInternal?: boolean; // No bill-to customer, an "Internal" one, or the company itself: its time is never billable
   color: string;
   status: 'active' | 'completed' | 'archived';
   isFavorite: boolean;

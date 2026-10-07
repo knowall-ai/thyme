@@ -25,7 +25,7 @@ import type {
   TimesheetDisplayStatus,
   PaginatedResponse,
 } from '@/types';
-import { getTimesheetDisplayStatus, decodeBCEnum } from '@/utils';
+import { getTimesheetDisplayStatus, decodeBCEnum, isCompanyName } from '@/utils';
 
 const BC_BASE_URL =
   process.env.NEXT_PUBLIC_BC_BASE_URL || 'https://api.businesscentral.dynamics.com/v2.0';
@@ -82,6 +82,13 @@ function normalizeBCProject(project: BCProject): BCProject {
   return project;
 }
 
+/** Flag a project whose bill-to customer is the company itself (see isInternalProject) */
+function withBillToIsCompany(project: BCProject, companyNames: string[]): BCProject {
+  return isCompanyName(project.billToCustomerName, companyNames)
+    ? { ...project, billToIsCompany: true }
+    : project;
+}
+
 /**
  * The ETag to send as If-Match, so a PATCH never overwrites someone else's newer
  * change. Throws rather than falling back to '*' when BC didn't return one.
@@ -118,6 +125,8 @@ class BusinessCentralClient {
   private _environment: BCEnvironmentType;
   private _extensionInstalled: boolean | null = null;
   private _extensionCheckPromise: Promise<boolean> | null = null;
+  // The current company's names, fetched once per company (see getCompanyNames)
+  private _companyNames: { key: string; promise: Promise<string[]> } | null = null;
 
   constructor() {
     // Try to load from localStorage, fall back to env vars
@@ -195,6 +204,7 @@ class BusinessCentralClient {
       // Reset extension cache when company/environment changes
       this._extensionInstalled = null;
       this._extensionCheckPromise = null;
+      this._companyNames = null;
     }
   }
 
@@ -443,13 +453,50 @@ class BusinessCentralClient {
     if (filter) {
       endpoint += `?$filter=${encodeURIComponent(filter)}`;
     }
-    const response = await this.fetchCustomApi<PaginatedResponse<BCProject>>(endpoint);
-    return response.value.map(normalizeBCProject);
+    const [response, companyNames] = await Promise.all([
+      this.fetchCustomApi<PaginatedResponse<BCProject>>(endpoint),
+      this.getCompanyNames(),
+    ]);
+    return response.value.map((project) =>
+      withBillToIsCompany(normalizeBCProject(project), companyNames)
+    );
   }
 
   async getProject(projectId: string): Promise<BCProject> {
-    const project = await this.fetchCustomApi<BCProject>(`/projects(${projectId})`);
-    return normalizeBCProject(project);
+    const [project, companyNames] = await Promise.all([
+      this.fetchCustomApi<BCProject>(`/projects(${projectId})`),
+      this.getCompanyNames(),
+    ]);
+    return withBillToIsCompany(normalizeBCProject(project), companyNames);
+  }
+
+  /**
+   * The current company's names - its display name and name from /companies, and the
+   * name on its Company Information - so a project billed to the company itself
+   * counts as internal. Fetched once per company; a failed lookup leaves that name
+   * out (and isn't cached when nothing loaded), so projects still load.
+   */
+  getCompanyNames(): Promise<string[]> {
+    const key = `${this._environment}|${this._companyId}`;
+    if (this._companyNames?.key === key) return this._companyNames.promise;
+
+    const promise = Promise.allSettled([
+      this.fetch<{ name?: string; displayName?: string }>(''),
+      this.getCompanyInfo(),
+    ]).then(([company, info]) => {
+      const names = [
+        company.status === 'fulfilled' ? company.value.displayName : undefined,
+        company.status === 'fulfilled' ? company.value.name : undefined,
+        info.status === 'fulfilled' ? info.value?.displayName : undefined,
+      ].filter((name): name is string => !!name?.trim());
+      // Nothing loaded: forget it so the next project load tries again
+      if (company.status === 'rejected' && info.status === 'rejected') {
+        if (this._companyNames?.promise === promise) this._companyNames = null;
+      }
+      return [...new Set(names)];
+    });
+    this._companyNames = { key, promise };
+    return promise;
   }
 
   /**

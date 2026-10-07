@@ -5,8 +5,9 @@
  * - its timesheet line isn't marked not chargeable in Business Central (`chargeable: false`), and
  * - its project isn't internal.
  *
- * A project is internal when it has no bill-to customer, or its bill-to customer's
- * name contains the word "Internal" (e.g. "Contoso - Internal"). BC defaults
+ * A project is internal when it has no bill-to customer, its bill-to customer's name
+ * contains the word "Internal" (e.g. "Contoso - Internal"), or the bill-to customer is
+ * the company itself (its name matches the company's name). BC defaults
  * `chargeable` to true on every timesheet line, including internal projects', so the
  * line flag alone can't be relied on - but an explicit `false` is always respected.
  */
@@ -15,12 +16,17 @@ import type { BCTimeSheetDetail, BCTimeSheetLine } from '@/types';
 
 /** User-facing explanation of the rule, shown wherever billable figures appear */
 export const BILLABLE_RULE_DESCRIPTION =
-  "Excludes internal projects (no bill-to customer, or a customer whose name has the word 'Internal') and lines marked not chargeable in Business Central.";
+  "Excludes internal projects (no bill-to customer, a customer whose name has the word 'Internal', or a customer named after the company itself) and lines marked not chargeable in Business Central.";
 
 /** The bill-to fields of a BC project needed to tell whether it's internal */
 export interface ProjectBillTo {
   billToCustomerNo?: string;
   billToCustomerName?: string;
+  /**
+   * The bill-to customer is the company itself (its name matches the company's name).
+   * Set by bcClient when it loads projects, as the company's names aren't on the project.
+   */
+  billToIsCompany?: boolean;
 }
 
 /** The part of a BC timesheet line needed to tell whether its time is billable */
@@ -33,11 +39,44 @@ export interface ChargeableLine {
 const INTERNAL_CUSTOMER_NAME = /(^|[^a-z])internal([^a-z]|$)/i;
 
 /**
- * Whether a project is internal (its time is never billable): it has no bill-to
- * customer, or the bill-to customer's name contains the word "Internal".
+ * A name reduced to what makes it that name: case, punctuation (e.g. a trailing ".")
+ * and extra whitespace ignored, so "CRONUS UK Ltd." and "cronus  uk ltd" match.
  */
-export function isInternalProject(project: ProjectBillTo): boolean {
+function comparableName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Whether a customer name is one of the company's own names (e.g. its display name
+ * or its Company Information name): a customer named after the company is the
+ * company billing itself, so its projects are internal.
+ */
+export function isCompanyName(
+  customerName: string | undefined,
+  companyNames: readonly (string | undefined)[]
+): boolean {
+  const customer = comparableName(customerName ?? '');
+  if (!customer) return false;
+  return companyNames.some((name) => !!name && comparableName(name) === customer);
+}
+
+/**
+ * Whether a project is internal (its time is never billable): it has no bill-to
+ * customer, the bill-to customer's name contains the word "Internal", or the bill-to
+ * customer is the company itself - flagged by `billToIsCompany`, or its name matches
+ * one of `companyNames` when given.
+ */
+export function isInternalProject(
+  project: ProjectBillTo,
+  companyNames: readonly (string | undefined)[] = []
+): boolean {
   if (!project.billToCustomerNo?.trim()) return true;
+  if (project.billToIsCompany) return true;
+  if (isCompanyName(project.billToCustomerName, companyNames)) return true;
   return INTERNAL_CUSTOMER_NAME.test(project.billToCustomerName ?? '');
 }
 
