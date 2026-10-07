@@ -241,8 +241,8 @@ export function ProjectKPICards() {
       title: 'Budget Cost (Internal)',
       description:
         "Internal cost budget from Job Planning Lines, in the company's currency. This is what the project is expected to cost the company. Broken down by Resource (labour), Item (materials), and G/L Account (overhead).",
-      formula: 'quantity × unitCost',
-      source: 'BC API: /jobPlanningLines → totalCostLCY',
+      formula: 'Σ totalCostLCY (quantity × unit cost, in company currency)',
+      source: 'BC API: /jobPlanningLines → totalCostLCY (totalCost on extensions before 1.14)',
     },
     'Actual Cost': {
       title: 'Actual Cost (Internal)',
@@ -261,9 +261,10 @@ export function ProjectKPICards() {
     'Invoiced Price': {
       title: 'Invoiced Price (Customer)',
       description:
-        "Amount actually invoiced to the customer from Job Ledger Entry, in the project's currency. Calculated when timesheets are posted using each Resource's Unit Price.",
-      formula: 'posted hours × Resource Unit Price',
-      source: 'BC API: /timeEntries → totalPriceProjectCurrency',
+        "Amount actually invoiced to the customer from Job Ledger Entry, in the project's currency. Calculated when time is posted, using the unit price on the posted line converted to the project's currency.",
+      formula: 'Σ totalPriceProjectCurrency (posted quantity × unit price, in project currency)',
+      source:
+        'BC API: /timeEntries → totalPriceProjectCurrency (totalPrice on extensions before 1.14)',
     },
   };
 
