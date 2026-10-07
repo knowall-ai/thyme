@@ -12,3 +12,4 @@ export * from './projectDates';
 export * from './timesheetReview';
 export * from './csvExport';
 export * from './companyPath';
+export * from './planScope';

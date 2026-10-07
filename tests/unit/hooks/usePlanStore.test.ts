@@ -79,3 +79,54 @@ describe('usePlanStore.fetchTeamData', () => {
     expect(getJobPlanningLines).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("usePlanStore.fetchTeamData for a project's dialog", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    usePlanStore.setState({ cache: null, allAllocations: [] });
+  });
+
+  it('preloads the weeks around the project so moving week needs no fetch', async () => {
+    const { bcClient } = await import('@/services/bc');
+    const week = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const later = addWeeks(week, 8);
+    getJobPlanningLines.mockResolvedValue([line(format(later, 'yyyy-MM-dd'))]);
+
+    await usePlanStore.getState().fetchTeamData(week, 3, undefined, { projectCode: 'PR001' });
+    expect(usePlanStore.getState().allAllocations).toEqual([]);
+
+    await usePlanStore.getState().fetchTeamData(later, 3, undefined, { projectCode: 'PR001' });
+
+    expect(usePlanStore.getState().allAllocations.map((a) => a.startDate)).toEqual([
+      format(later, 'yyyy-MM-dd'),
+    ]);
+    expect(getJobPlanningLines).toHaveBeenCalledTimes(1);
+    expect(bcClient.getJobTasks).toHaveBeenCalledTimes(1);
+    // Team timesheets are only shown on the Plan tab's Team view
+    expect(bcClient.getTimeSheets).not.toHaveBeenCalled();
+  });
+
+  it("exposes each project's job tasks", async () => {
+    const { bcClient } = await import('@/services/bc');
+    const tasks = [
+      { id: 't1', jobNo: 'PR001', jobTaskNo: '100', description: 'Build', jobTaskType: 'Posting' },
+    ];
+    vi.mocked(bcClient.getJobTasks).mockResolvedValueOnce(tasks as never);
+    getJobPlanningLines.mockResolvedValue([]);
+
+    const week = startOfWeek(new Date(), { weekStartsOn: 1 });
+    await usePlanStore.getState().fetchTeamData(week, 3, undefined, { projectCode: 'PR001' });
+
+    expect(usePlanStore.getState().jobTasksByProject.get('PR001')).toEqual(tasks);
+  });
+
+  it('still loads only the weeks on screen for the Plan tab', async () => {
+    const week = startOfWeek(new Date(), { weekStartsOn: 1 });
+    getJobPlanningLines.mockResolvedValue([]);
+
+    await usePlanStore.getState().fetchTeamData(week, 3);
+    await usePlanStore.getState().fetchTeamData(addWeeks(week, 8), 3);
+
+    expect(getJobPlanningLines).toHaveBeenCalledTimes(2);
+  });
+});

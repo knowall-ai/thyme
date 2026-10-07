@@ -1,11 +1,18 @@
 import { create } from 'zustand';
-import type { BCResource, BCTimeSheet, BCJobPlanningLine, TimesheetDisplayStatus } from '@/types';
+import type {
+  BCJobTask,
+  BCResource,
+  BCTimeSheet,
+  BCJobPlanningLine,
+  TimesheetDisplayStatus,
+} from '@/types';
 import { bcClient, ExtensionNotInstalledError } from '@/services/bc';
 import { activeCompanyKey } from './companyScope';
 import {
   getTimesheetDisplayStatus,
   buildUOMConversionMap,
   convertToHours,
+  getPlanPreloadWindow,
   type UOMConversionMap,
 } from '@/utils';
 import { addWeeks, startOfWeek, endOfWeek, format, parseISO, isWithinInterval } from 'date-fns';
@@ -61,10 +68,29 @@ export interface PlanProject {
 
 export type ViewMode = 'team' | 'projects';
 
+export interface FetchTeamDataOptions {
+  /**
+   * Loading for this one project's Plan dialog: also load the weeks around it up front
+   * (see getPlanPreloadWindow), so moving between weeks needs no fetch, and skip the
+   * team's timesheets, which only the Team view shows.
+   */
+  projectCode?: string;
+}
+
+interface CachedProject {
+  id: string;
+  number: string;
+  displayName: string;
+  billToCustomerName: string;
+  startingDate?: string;
+  endingDate?: string;
+}
+
 // Cached data structure
 interface CachedData {
   resources: BCResource[];
-  projects: { id: string; number: string; displayName: string; billToCustomerName: string }[];
+  projects: CachedProject[];
+  jobTasks: Map<string, BCJobTask[]>; // projectNumber -> tasks, in BC order
   loadedWeeks: Map<string, AllocationBlock[]>; // weekStart (YYYY-MM-DD) -> allocations
   resourceTimesheets: Map<string, Map<string, BCTimeSheet>>; // resourceNumber -> (weekStart -> timesheet)
   uomConversionMap: UOMConversionMap; // Cached UOM conversion map for modals
@@ -76,6 +102,8 @@ interface PlanStore {
   teamMembers: PlanTeamMember[];
   projects: PlanProject[];
   allAllocations: AllocationBlock[];
+  /** Each project's job tasks, in BC order */
+  jobTasksByProject: Map<string, BCJobTask[]>;
   viewMode: ViewMode;
   isLoading: boolean;
   isLoadingWeeks: Set<string>; // Weeks currently being loaded
@@ -97,7 +125,12 @@ interface PlanStore {
   draggedAllocation: AllocationBlock | null;
 
   // Actions
-  fetchTeamData: (weekStart: Date, weeksToShow: number, emailDomain?: string) => Promise<void>;
+  fetchTeamData: (
+    weekStart: Date,
+    weeksToShow: number,
+    emailDomain?: string,
+    options?: FetchTeamDataOptions
+  ) => Promise<void>;
   clearCache: () => void;
   /** Drop the displayed plan and its cache, and ignore loads started before the switch */
   resetForCompanySwitch: () => void;
@@ -260,6 +293,7 @@ function rebuildFromCache(
     teamMembers: membersWithData,
     projects: Array.from(projectsMap.values()),
     allAllocations,
+    jobTasksByProject: cache.jobTasks,
     isLoading: false,
     selectedMemberIds: [],
     weeksToShow,
@@ -278,6 +312,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   teamMembers: [],
   projects: [],
   allAllocations: [],
+  jobTasksByProject: new Map(),
   viewMode: 'team',
   isLoading: false,
   isLoadingWeeks: new Set<string>(),
@@ -294,7 +329,12 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
   // Fetch team members, timesheets, and planning allocations for multiple weeks
   // Uses caching to avoid re-fetching already loaded weeks
-  fetchTeamData: async (weekStart: Date, weeksToShow: number, emailDomain?: string) => {
+  fetchTeamData: async (
+    weekStart: Date,
+    weeksToShow: number,
+    emailDomain?: string,
+    options: FetchTeamDataOptions = {}
+  ) => {
     // Reject bad input before it can supersede a valid load still in flight
     if (
       !(weekStart instanceof Date) ||
@@ -311,13 +351,16 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
     // Determine which weeks need to be loaded
     const weeksToLoad: string[] = [];
-    for (let i = 0; i < weeksToShow; i++) {
-      const ws = startOfWeek(addWeeks(weekStart, i), { weekStartsOn: 1 });
-      const wsStr = format(ws, 'yyyy-MM-dd');
-      if (!cache?.loadedWeeks.has(wsStr)) {
-        weeksToLoad.push(wsStr);
+    const addWeeksToLoad = (from: Date, count: number) => {
+      for (let i = 0; i < count; i++) {
+        const ws = startOfWeek(addWeeks(from, i), { weekStartsOn: 1 });
+        const wsStr = format(ws, 'yyyy-MM-dd');
+        if (!cache?.loadedWeeks.has(wsStr) && !weeksToLoad.includes(wsStr)) {
+          weeksToLoad.push(wsStr);
+        }
       }
-    }
+    };
+    addWeeksToLoad(weekStart, weeksToShow);
 
     // If we have cache and all weeks are loaded, just rebuild from cache
     if (cache && weeksToLoad.length === 0) {
@@ -335,12 +378,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     try {
       // Get resources and projects (use cache if available)
       let resources: BCResource[];
-      let projectsData: {
-        id: string;
-        number: string;
-        displayName: string;
-        billToCustomerName: string;
-      }[];
+      let projectsData: CachedProject[];
 
       if (cache) {
         resources = cache.resources;
@@ -356,8 +394,23 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
           number: p.number,
           displayName: p.displayName || p.number,
           billToCustomerName: p.billToCustomerName || '',
+          startingDate: p.startingDate,
+          endingDate: p.endingDate,
         }));
       }
+
+      // A project's dialog loads the weeks around the project in this one go
+      if (options.projectCode) {
+        const project = projectsData.find((p) => p.number === options.projectCode);
+        const preload = getPlanPreloadWindow(
+          weekStart,
+          weeksToShow,
+          project?.startingDate,
+          project?.endingDate
+        );
+        addWeeksToLoad(preload.start, preload.weeks);
+      }
+      weeksToLoad.sort();
 
       // Create maps for lookups
       const projectColorMap = new Map<string, string>();
@@ -374,21 +427,29 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         resourceIdMap.set(r.number, r.id);
       });
 
-      // Fetch job tasks for all projects to get actual task names
+      // Job tasks for all projects, for task names (and a project dialog's task list).
+      // Kept with the cache, so loading more weeks doesn't fetch them again.
+      let jobTasks = cache?.jobTasks;
+      if (!jobTasks) {
+        const fetchedTasks = new Map<string, BCJobTask[]>();
+        await Promise.all(
+          projectsData.map(async (project) => {
+            try {
+              fetchedTasks.set(project.number, await bcClient.getJobTasks(project.number));
+            } catch {
+              // Ignore errors fetching tasks
+            }
+          })
+        );
+        jobTasks = fetchedTasks;
+      }
       // Map key is "jobNo|jobTaskNo" -> task description
       const taskNameMap = new Map<string, string>();
-      await Promise.all(
-        projectsData.map(async (project) => {
-          try {
-            const tasks = await bcClient.getJobTasks(project.number);
-            for (const task of tasks) {
-              taskNameMap.set(`${task.jobNo}|${task.jobTaskNo}`, task.description);
-            }
-          } catch {
-            // Ignore errors fetching tasks
-          }
-        })
-      );
+      for (const [projectNumber, tasks] of jobTasks) {
+        for (const task of tasks) {
+          taskNameMap.set(`${task.jobNo || projectNumber}|${task.jobTaskNo}`, task.description);
+        }
+      }
 
       // Fetch allocations only for weeks not in cache
       const newAllocations: AllocationBlock[] = [];
@@ -467,9 +528,9 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         loadedWeeks.set(weekStr, weekAllocations);
       }
 
-      // Fetch timesheets for first week if not cached
+      // Fetch timesheets for first week if not cached (a project's dialog doesn't show them)
       const firstWeekStr = format(weekStart, 'yyyy-MM-dd');
-      if (!resourceTimesheets.has(firstWeekStr + '-loaded')) {
+      if (!options.projectCode && !resourceTimesheets.has(firstWeekStr + '-loaded')) {
         await Promise.all(
           resources.map(async (resource: BCResource) => {
             try {
@@ -494,6 +555,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       const updatedCache: CachedData = {
         resources,
         projects: projectsData,
+        jobTasks,
         loadedWeeks,
         resourceTimesheets,
         uomConversionMap,
@@ -517,6 +579,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         teamMembers: [],
         projects: [],
         allAllocations: [],
+        jobTasksByProject: new Map(),
       });
       // Re-throw ExtensionNotInstalledError so the UI can show the proper component
       if (error instanceof ExtensionNotInstalledError) {
@@ -537,6 +600,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       teamMembers: [],
       projects: [],
       allAllocations: [],
+      jobTasksByProject: new Map(),
       uomConversionMap: new Map(),
       isLoading: false,
       isLoadingWeeks: new Set(),
