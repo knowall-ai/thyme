@@ -64,7 +64,7 @@ export const teamConfig: TeamConfig = {
       high: 'bg-green-500/20 text-green-400',
     },
   },
-  defaultCapacity: 40, // 40 hours per week
+  defaultCapacity: 40, // Fallback hours per week, only when BC has no unit-of-measure data for a person
 };
 
 /**

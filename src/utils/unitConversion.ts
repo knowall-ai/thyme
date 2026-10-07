@@ -19,35 +19,60 @@ export function buildUOMConversionMap(resourceUOMs: BCResourceUnitOfMeasure[]): 
   return map;
 }
 
+/** Standard working day, used when BC has no usable unit-of-measure data for a resource. */
+export const DEFAULT_HOURS_PER_DAY = 8;
+
+/** Working days in a week, used to turn a person's hours per day into weekly capacity. */
+export const WORKING_DAYS_PER_WEEK = 5;
+
 /**
- * Get the hours-per-day factor from resource UOM data.
+ * A resource's working day in hours, from its unit-of-measure rows, or undefined when
+ * BC has nothing usable. This is the one rule the app uses for "hours in a day".
  *
- * Looks for a specific resource's HOUR conversion factor. If no resource is
- * specified or the resource has no HOUR factor, returns the default (8).
- *
- * BC has two configurations:
- * - HOUR > 1: qtyPerUnitOfMeasure is hours-per-day (e.g., 7.5)
- * - HOUR < 1: qtyPerUnitOfMeasure is day-per-hour (e.g., 0.125 = 1/8 = 8 hours/day)
- *
- * Default: 8 hours/day (standard working day).
+ * - DAY-based resource (base unit DAY): the HOUR row holds the hours in a day.
+ *   HOUR > 1 is hours-per-day (e.g. 7.5); HOUR < 1 is day-per-hour (0.125 = 8h days).
+ * - HOUR-based resource (base unit HOUR): the DAY row holds the hours in a day (e.g. 7.5).
+ */
+export function getResourceHoursPerDay(
+  resourceNo: string,
+  uomConversionMap: UOMConversionMap
+): number | undefined {
+  const hourFactor = uomConversionMap.get(`${resourceNo}:HOUR`);
+  if (hourFactor !== undefined && hourFactor > 0 && hourFactor !== 1) {
+    return hourFactor > 1 ? hourFactor : 1 / hourFactor;
+  }
+  const dayFactor = uomConversionMap.get(`${resourceNo}:DAY`);
+  if (dayFactor !== undefined && dayFactor > 1) {
+    return dayFactor;
+  }
+  return undefined;
+}
+
+/**
+ * Get the hours-per-day factor from resource UOM data, defaulting to
+ * DEFAULT_HOURS_PER_DAY (8) when the resource is unknown or has no usable rows.
  */
 export function getHoursPerDay(
   resourceUOMs: BCResourceUnitOfMeasure[],
   resourceNo?: string
 ): number {
-  if (resourceNo) {
-    const hourUOM = resourceUOMs.find(
-      (uom) => uom.resourceNo === resourceNo && uom.code === 'HOUR' && uom.qtyPerUnitOfMeasure !== 1
-    );
-    if (hourUOM) {
-      const qty = hourUOM.qtyPerUnitOfMeasure;
-      if (qty > 0 && qty !== 1) {
-        return qty > 1 ? qty : 1 / qty;
-      }
-    }
-  }
+  if (!resourceNo) return DEFAULT_HOURS_PER_DAY;
+  return (
+    getResourceHoursPerDay(resourceNo, buildUOMConversionMap(resourceUOMs)) ?? DEFAULT_HOURS_PER_DAY
+  );
+}
 
-  return 8; // Default fallback (standard 8-hour day)
+/**
+ * A person's weekly capacity in hours: hours per day x 5 working days.
+ * Returns `fallback` (the configured default) when BC has no usable unit-of-measure rows.
+ */
+export function getWeeklyCapacityHours(
+  resourceNo: string,
+  uomConversionMap: UOMConversionMap,
+  fallback: number
+): number {
+  const hoursPerDay = getResourceHoursPerDay(resourceNo, uomConversionMap);
+  return hoursPerDay === undefined ? fallback : hoursPerDay * WORKING_DAYS_PER_WEEK;
 }
 
 /**

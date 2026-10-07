@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   buildUOMConversionMap,
   getHoursPerDay,
+  getResourceHoursPerDay,
+  getWeeklyCapacityHours,
   convertToHours,
   convertFromHours,
   isResourceDayBased,
@@ -290,5 +292,48 @@ describe('unitConversion', () => {
       const lines = [makeLine({ type: 'Resource', lineType: 'Budget', quantity: 6.5 })];
       expect(sumPlannedHours(lines, map)).toBe(6.5);
     });
+  });
+});
+
+describe('getResourceHoursPerDay', () => {
+  const map = buildUOMConversionMap([
+    { resourceNo: 'DAYBASED', code: 'DAY', qtyPerUnitOfMeasure: 1 },
+    { resourceNo: 'DAYBASED', code: 'HOUR', qtyPerUnitOfMeasure: 7.5 },
+    { resourceNo: 'INVERSE', code: 'HOUR', qtyPerUnitOfMeasure: 0.125 },
+    { resourceNo: 'HOURBASED', code: 'HOUR', qtyPerUnitOfMeasure: 1 },
+    { resourceNo: 'HOURBASED', code: 'DAY', qtyPerUnitOfMeasure: 6 },
+    { resourceNo: 'HOURONLY', code: 'HOUR', qtyPerUnitOfMeasure: 1 },
+  ] as BCResourceUnitOfMeasure[]);
+
+  it('reads the HOUR row for a DAY-based resource', () => {
+    expect(getResourceHoursPerDay('DAYBASED', map)).toBe(7.5);
+  });
+
+  it('inverts a fractional HOUR row', () => {
+    expect(getResourceHoursPerDay('INVERSE', map)).toBe(8);
+  });
+
+  it('reads the DAY row for an HOUR-based resource', () => {
+    expect(getResourceHoursPerDay('HOURBASED', map)).toBe(6);
+  });
+
+  it('returns undefined when there is nothing usable', () => {
+    expect(getResourceHoursPerDay('HOURONLY', map)).toBeUndefined();
+    expect(getResourceHoursPerDay('UNKNOWN', map)).toBeUndefined();
+  });
+});
+
+describe('getWeeklyCapacityHours', () => {
+  const map = buildUOMConversionMap([
+    { resourceNo: 'R1', code: 'HOUR', qtyPerUnitOfMeasure: 7.5 },
+  ] as BCResourceUnitOfMeasure[]);
+
+  it('is hours per day times five working days', () => {
+    expect(getWeeklyCapacityHours('R1', map, 40)).toBe(37.5);
+  });
+
+  it('falls back to the configured default without usable units of measure', () => {
+    expect(getWeeklyCapacityHours('R2', map, 40)).toBe(40);
+    expect(getWeeklyCapacityHours('R1', new Map(), 40)).toBe(40);
   });
 });
