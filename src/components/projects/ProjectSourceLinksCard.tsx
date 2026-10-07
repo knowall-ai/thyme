@@ -209,7 +209,7 @@ export function ProjectSourceLinksCard() {
       className="border-dark-600 bg-dark-700/40 space-y-3 rounded-lg border p-4"
       aria-label={editing === 'new' ? 'Add linked source' : 'Edit linked source'}
     >
-      <div className="grid gap-3 md:grid-cols-[12rem_1fr]">
+      <div className="grid gap-3 md:grid-cols-[15rem_1fr]">
         <Select
           label="Type"
           id="source-link-type"
