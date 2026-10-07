@@ -28,6 +28,9 @@ interface TimeEntriesStore {
   missingTimesheetResourceNo: string | null;
   // Week the missing timesheet is for, captured with the resource so Create can't drift
   missingTimesheetWeek: Date | null;
+  // When the current timesheet last changed: BC's latest timestamp when loaded, moved to
+  // "now" by edits made here (compared with Poppie's review to tell it's out of date)
+  timesheetVersionStamp: string | null;
 
   // Entry operations
   fetchWeekEntries: (userId: string, weekStart?: Date) => Promise<void>;
@@ -80,6 +83,7 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
   userEmail: null,
   missingTimesheetResourceNo: null,
   missingTimesheetWeek: null,
+  timesheetVersionStamp: null,
 
   fetchWeekEntries: async (userId: string, weekStart?: Date) => {
     const week = weekStart || get().currentWeekStart;
@@ -107,6 +111,7 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
         entries,
         currentTimesheet: timesheet,
         timesheetStatus: status,
+        timesheetVersionStamp: timesheet ? timeEntryService.getCurrentVersionStamp() : null,
         isLoading: false,
         noTimesheetExists: false,
         noResourceExists: false,
@@ -201,10 +206,13 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
           // Update existing entry
           const newEntries = [...state.entries];
           newEntries[existingIndex] = entry;
-          return { entries: newEntries };
+          return { entries: newEntries, timesheetVersionStamp: new Date().toISOString() };
         }
         // Add new entry
-        return { entries: [...state.entries, entry] };
+        return {
+          entries: [...state.entries, entry],
+          timesheetVersionStamp: new Date().toISOString(),
+        };
       });
       return entry;
     } catch (error) {
@@ -224,6 +232,7 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
       if (updated) {
         set((state) => ({
           entries: state.entries.map((e) => (e.id === entryId ? { ...e, ...updated } : e)),
+          timesheetVersionStamp: new Date().toISOString(),
         }));
       }
     } catch (error) {
@@ -243,7 +252,7 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
       await timeEntryService.moveEntryDate(entryId, newDate);
       // Re-derive entries from the service's cache so merges/splits are reflected
       const refreshed = timeEntryService.getCachedEntries(userEmail || '');
-      set({ entries: refreshed });
+      set({ entries: refreshed, timesheetVersionStamp: new Date().toISOString() });
     } catch (error) {
       if (error instanceof TimesheetNotEditableError) {
         set({ error: error.message });
@@ -261,6 +270,7 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
       if (success) {
         set((state) => ({
           entries: state.entries.filter((e) => e.id !== entryId),
+          timesheetVersionStamp: new Date().toISOString(),
         }));
       }
     } catch (error) {
@@ -303,6 +313,8 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
       );
       set((state) => ({
         entries: [...state.entries, ...newEntries],
+        timesheetVersionStamp:
+          newEntries.length > 0 ? new Date().toISOString() : state.timesheetVersionStamp,
         isLoading: false,
       }));
     } catch (error) {

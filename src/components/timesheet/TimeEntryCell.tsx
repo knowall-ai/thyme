@@ -2,8 +2,9 @@
 
 import { useState, type DragEvent } from 'react';
 import { PlusIcon } from '@heroicons/react/24/outline';
-import type { TimeEntry, Project } from '@/types';
-import { cn, formatTime } from '@/utils';
+import type { TimeEntry, Project, BCTimesheetReviewLine } from '@/types';
+import { cn, formatTime, worstSeverity } from '@/utils';
+import { SeverityIcon } from '@/components/review';
 
 const DRAG_MIME_TYPE = 'application/x-thyme-entry-id';
 
@@ -16,6 +17,8 @@ interface TimeEntryCellProps {
   onEditEntry: (entry: TimeEntry) => void;
   onMoveEntry?: (entryId: string, newDate: string) => void;
   readOnly?: boolean;
+  /** Poppie's review notes by timesheet line number, to flag the entries they refer to */
+  reviewNotesByLine?: Map<number, BCTimesheetReviewLine[]>;
 }
 
 export function TimeEntryCell({
@@ -27,6 +30,7 @@ export function TimeEntryCell({
   onEditEntry,
   onMoveEntry,
   readOnly = false,
+  reviewNotesByLine,
 }: TimeEntryCellProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -88,43 +92,60 @@ export function TimeEntryCell({
     >
       {/* Entries */}
       <div className="space-y-1">
-        {entries.map((entry) => (
-          <div
-            key={entry.id}
-            onClick={readOnly ? undefined : () => onEditEntry(entry)}
-            role={readOnly ? undefined : 'button'}
-            tabIndex={readOnly ? undefined : 0}
-            onKeyDown={
-              readOnly
-                ? undefined
-                : (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      onEditEntry(entry);
+        {entries.map((entry) => {
+          const reviewNotes =
+            entry.bcTimeSheetLineNo !== undefined
+              ? reviewNotesByLine?.get(entry.bcTimeSheetLineNo)
+              : undefined;
+          const reviewSeverity = reviewNotes ? worstSeverity(reviewNotes) : null;
+          return (
+            <div
+              key={entry.id}
+              onClick={readOnly ? undefined : () => onEditEntry(entry)}
+              role={readOnly ? undefined : 'button'}
+              tabIndex={readOnly ? undefined : 0}
+              onKeyDown={
+                readOnly
+                  ? undefined
+                  : (e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onEditEntry(entry);
+                      }
                     }
-                  }
-            }
-            draggable={!readOnly && !!onMoveEntry}
-            onDragStart={readOnly ? undefined : (e) => handleDragStart(e, entry)}
-            className={cn(
-              'w-full rounded-md p-2 text-left transition-colors',
-              !readOnly && 'hover:bg-dark-600/50 cursor-pointer',
-              !readOnly && onMoveEntry && 'cursor-grab active:cursor-grabbing'
-            )}
-            style={{
-              backgroundColor: `${getProjectColor(entry.projectId)}20`,
-              borderLeft: `3px solid ${getProjectColor(entry.projectId)}`,
-            }}
-          >
-            <div className="flex items-start justify-between gap-1">
-              <span className="text-dark-200 truncate text-xs font-medium">
-                {getProjectName(entry.projectId)}
-              </span>
-              <span className="text-dark-400 shrink-0 text-xs">{formatTime(entry.hours)}</span>
+              }
+              draggable={!readOnly && !!onMoveEntry}
+              onDragStart={readOnly ? undefined : (e) => handleDragStart(e, entry)}
+              className={cn(
+                'w-full rounded-md p-2 text-left transition-colors',
+                !readOnly && 'hover:bg-dark-600/50 cursor-pointer',
+                !readOnly && onMoveEntry && 'cursor-grab active:cursor-grabbing',
+                // Flag entries Poppie commented on
+                reviewSeverity === 'Issue' && 'ring-1 ring-red-400/70',
+                reviewSeverity === 'Warning' && 'ring-1 ring-amber-400/70',
+                reviewSeverity === 'Info' && 'ring-1 ring-blue-400/50'
+              )}
+              title={reviewNotes?.map((note) => `Poppie: ${note.note}`).join('\n')}
+              style={{
+                backgroundColor: `${getProjectColor(entry.projectId)}20`,
+                borderLeft: `3px solid ${getProjectColor(entry.projectId)}`,
+              }}
+            >
+              <div className="flex items-start justify-between gap-1">
+                <span className="text-dark-200 flex min-w-0 items-center gap-1 text-xs font-medium">
+                  {reviewSeverity && (
+                    <SeverityIcon severity={reviewSeverity} className="h-3.5 w-3.5" />
+                  )}
+                  <span className="truncate">{getProjectName(entry.projectId)}</span>
+                </span>
+                <span className="text-dark-400 shrink-0 text-xs">{formatTime(entry.hours)}</span>
+              </div>
+              {entry.notes && (
+                <p className="text-dark-400 mt-0.5 truncate text-xs">{entry.notes}</p>
+              )}
             </div>
-            {entry.notes && <p className="text-dark-400 mt-0.5 truncate text-xs">{entry.notes}</p>}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Add button - always visible when not in read-only mode */}

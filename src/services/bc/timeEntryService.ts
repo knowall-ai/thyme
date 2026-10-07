@@ -11,6 +11,7 @@ import type {
 } from '@/types';
 import { format, startOfWeek } from 'date-fns';
 import { isBillableEntry } from '@/utils';
+import { computeVersionStamp } from '@/utils/timesheetReview';
 
 // Error thrown when no resource record exists in BC for the user
 export class NoResourceError extends Error {
@@ -142,6 +143,7 @@ function bcDataToTimeEntries(
         updatedAt: new Date().toISOString(),
         bcTimeSheetLineId: line.id,
         bcTimeSheetNo: line.timeSheetNo,
+        bcTimeSheetLineNo: line.lineNo,
         lineStatus: line.status,
       });
     }
@@ -239,6 +241,14 @@ export const timeEntryService = {
   },
 
   /**
+   * Version stamp of the current timesheet as loaded: the latest lastModifiedDateTime
+   * across its lines and details (compared with Poppie's review to spot changes).
+   */
+  getCurrentVersionStamp(): string | null {
+    return computeVersionStamp(this._currentTimesheetLines, this._currentTimesheetDetails);
+  },
+
+  /**
    * Check if current timesheet is editable.
    */
   isTimesheetEditable(): boolean {
@@ -307,6 +317,7 @@ export const timeEntryService = {
       updatedAt: new Date().toISOString(),
       bcTimeSheetLineId: line.id,
       bcTimeSheetNo: line.timeSheetNo,
+      bcTimeSheetLineNo: line.lineNo,
       lineStatus: line.status,
     };
   },
@@ -377,6 +388,7 @@ export const timeEntryService = {
       updatedAt: new Date().toISOString(),
       bcTimeSheetLineId: line.id,
       bcTimeSheetNo: line.timeSheetNo,
+      bcTimeSheetLineNo: line.lineNo,
       lineStatus: line.status,
     } as TimeEntry;
   },

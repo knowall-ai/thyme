@@ -92,4 +92,10 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Internal time shows as billable in Reports (or a customer project's time shows as non-billable)
 | Thyme counts time as billable only if its project isn't internal and the timesheet line isn't marked not chargeable. A project is internal when it has no Bill-to Customer, or its Bill-to Customer's name contains the whole word "Internal" (e.g. "Contoso - Internal"; "Contoso International" doesn't count). In BC, open the Project card and check *Bill-to Customer No.*: give internal projects an internal customer (or leave it empty), and make sure customer projects are billed to the real customer. A customer named e.g. "Internal Audit Ltd" would also be treated as internal, so rename it or bill the project to another customer. Lines with *Chargeable* unticked on the timesheet are never billable.
 
+| "Poppie's recommendation" never appears on the Approvals or Time page
+| The panel only shows when the Thyme BC Extension has the `timesheetReviews` and `timesheetReviewLines` API pages; on an older extension Thyme hides it (the browser console shows "timesheetReviews endpoint not found"). Update the extension in BC. If the panel says "Awaiting Poppie's review…" for more than about 10 minutes, check that Poppie's review job is running and can reach the company: Thyme only reads reviews, it doesn't create them.
+
+| Poppie's review says "Out of date"
+| The timesheet's lines or daily hours were changed after Poppie reviewed it (Thyme compares their latest modified time with the review's version stamp). Once the timesheet is submitted again, Poppie re-reviews it on her next pass and the panel updates by itself; no action is needed.
+
 |===

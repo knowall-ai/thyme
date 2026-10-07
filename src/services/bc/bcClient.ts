@@ -18,6 +18,8 @@ import type {
   BCTimeEntry,
   BCTimeSuggestion,
   BCTimeSuggestionUpdate,
+  BCTimesheetReview,
+  BCTimesheetReviewLine,
   TimeSheetStatus,
   TimesheetDisplayStatus,
   PaginatedResponse,
@@ -53,6 +55,12 @@ const PLANNING_LINE_LINE_TYPES = ['Budget', 'Billable', 'Both Budget and Billabl
 // the original (still-typed) value when the decode isn't a recognized member.
 function narrowEnum<T extends string>(decoded: string, allowed: readonly T[], fallback: T): T {
   return (allowed as readonly string[]).includes(decoded) ? (decoded as T) : fallback;
+}
+
+// A 404 on a collection GET means the entity set itself doesn't exist (an empty
+// filter result is a 200 with no rows), i.e. the extension is missing or too old
+function isEndpointMissing(error: unknown): boolean {
+  return error instanceof Error && error.message.startsWith('BC API Error (404)');
 }
 
 // Available environments to query
@@ -1288,6 +1296,58 @@ class BusinessCentralClient {
     const endpoint = `/timeSheetLines?$filter=${encodeURIComponent(`timeSheetNo eq '${escaped}'`)}`;
     const response = await this.customApiFetch<PaginatedResponse<BCTimeSheetLine>>(endpoint);
     return response.value;
+  }
+
+  // Poppie's timesheet reviews - requires the Thyme BC Extension review tables.
+  // Both return null when the endpoint doesn't exist (extension not installed or too old),
+  // so callers can hide the feature rather than show an error. They skip the cached
+  // isExtensionInstalled() check on purpose: a transient failure there is cached as
+  // "not installed", whereas a failed request here stays retryable.
+
+  /**
+   * Get the reviews for one or more timesheets in a single query, newest first.
+   * A timesheet can have several reviews (one per version Poppie saw).
+   */
+  async getTimesheetReviews(timeSheetNos: string[]): Promise<BCTimesheetReview[] | null> {
+    if (timeSheetNos.length === 0) return [];
+
+    const filter = timeSheetNos
+      .map((no) => `timeSheetNo eq '${this.sanitizeODataString(no)}'`)
+      .join(' or ');
+    try {
+      return await this.customApiFetchAll<BCTimesheetReview>(
+        `/timesheetReviews?$filter=${encodeURIComponent(filter)}&$orderby=${encodeURIComponent('reviewedAt desc')}`
+      );
+    } catch (error) {
+      if (isEndpointMissing(error)) {
+        console.warn(
+          '[BC API] timesheetReviews endpoint not found. Update the Thyme BC Extension to see reviews.'
+        );
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Get the line notes for one or more reviews in a single query.
+   */
+  async getTimesheetReviewLines(reviewEntryNos: number[]): Promise<BCTimesheetReviewLine[] | null> {
+    if (reviewEntryNos.length === 0) return [];
+
+    const filter = reviewEntryNos
+      .filter((entryNo) => Number.isInteger(entryNo))
+      .map((entryNo) => `reviewEntryNo eq ${entryNo}`)
+      .join(' or ');
+    if (!filter) return [];
+    try {
+      return await this.customApiFetchAll<BCTimesheetReviewLine>(
+        `/timesheetReviewLines?$filter=${encodeURIComponent(filter)}`
+      );
+    } catch (error) {
+      if (isEndpointMissing(error)) return null;
+      throw error;
+    }
   }
 
   /**

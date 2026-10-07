@@ -14,6 +14,8 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline';
 import { Card, Button } from '@/components/ui';
+import { PoppieReviewPanel, PoppieVerdictChip, PoppieLineNotes } from '@/components/review';
+import { useTimesheetReview } from '@/hooks';
 import { resolveResourceIdentity } from '@/services/auth/resourceIdentity';
 import type {
   BCTimeSheet,
@@ -84,6 +86,12 @@ export function ApprovalCard({
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  // Poppie's AI review (renders nothing if the extension has no review endpoints)
+  const poppieReview = useTimesheetReview(timeSheet.number, lines, details, {
+    submitted: timeSheet.submittedExists,
+    // Daily details can carry the latest change, so don't call a review current without them
+    versionReady: details !== undefined,
+  });
 
   // Reset local UI state when timesheet is no longer actionable
   useEffect(() => {
@@ -168,6 +176,23 @@ export function ApprovalCard({
     return task?.description || taskNo;
   };
 
+  // Names a line for Poppie's notes and the rejection comment built from them
+  const getLineLabel = (lineNo: number): string | undefined => {
+    const line = lines.find((l) => l.lineNo === lineNo);
+    if (!line) return undefined;
+    if (line.type === 'Job' && line.jobNo) {
+      return [getJobName(line.jobNo), line.jobTaskNo && getTaskName(line.jobNo, line.jobTaskNo)]
+        .filter(Boolean)
+        .join(' · ');
+    }
+    return line.description || undefined;
+  };
+
+  const handleUseReviewAsComment = (comment: string) => {
+    setRejectReason(comment);
+    setShowRejectForm(true);
+  };
+
   const handleApprove = () => {
     onApprove();
   };
@@ -230,6 +255,8 @@ export function ApprovalCard({
             </span>
           </div>
         </div>
+
+        <PoppieVerdictChip result={poppieReview} />
 
         {/* Status badge */}
         {(() => {
@@ -363,6 +390,17 @@ export function ApprovalCard({
       {/* Expanded details */}
       {isExpanded && (
         <div className="border-dark-700 border-t">
+          <PoppieReviewPanel
+            result={poppieReview}
+            variant="approver"
+            inlineLineNos={new Set(lines.map((line) => line.lineNo))}
+            lineLabel={getLineLabel}
+            onUseAsRejectionComment={
+              timeSheet.submittedExists ? handleUseReviewAsComment : undefined
+            }
+            className="m-4"
+          />
+
           {/* Day column headings, aligned with each line's hours per day (hidden on small screens) */}
           {showDays && lines.length > 0 && (
             <div className="text-dark-400 hidden items-center gap-4 px-4 pt-3 text-[10px] md:flex">
@@ -428,6 +466,7 @@ export function ApprovalCard({
                         )}
                       </p>
                     )}
+                    <PoppieLineNotes notes={poppieReview.notesByLine.get(line.lineNo)} />
                   </div>
                   {showDays && (
                     <div className="hidden w-72 shrink-0 grid-cols-7 text-center text-xs tabular-nums md:grid">
