@@ -263,6 +263,10 @@ function rebuildFromCache(
   });
 }
 
+// Latest fetchTeamData call. The store is shared by the Plan tab and a project's Planned
+// dialog, so a slower, older load must not overwrite the weeks a newer one is showing.
+let latestFetchId = 0;
+
 export const usePlanStore = create<PlanStore>((set, get) => ({
   // Initial state
   teamMembers: [],
@@ -285,6 +289,8 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   // Fetch team members, timesheets, and planning allocations for multiple weeks
   // Uses caching to avoid re-fetching already loaded weeks
   fetchTeamData: async (weekStart: Date, weeksToShow: number, emailDomain?: string) => {
+    const fetchId = ++latestFetchId;
+    const isLatest = () => fetchId === latestFetchId;
     const { cache } = get();
 
     // Determine which weeks need to be loaded
@@ -478,11 +484,15 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         lastUpdated: Date.now(),
       };
 
+      // Superseded: keep the newer load's view (and its cache, which may have been cleared)
+      if (!isLatest()) return;
+
       set({ cache: updatedCache, uomConversionMap, isLoadingWeeks: new Set() });
 
       // Rebuild display data from cache
       rebuildFromCache(get, set, weekStart, weeksToShow, emailDomain);
     } catch (error) {
+      if (!isLatest()) return;
       const message = error instanceof Error ? error.message : 'Failed to fetch team data';
       set({
         error: message,

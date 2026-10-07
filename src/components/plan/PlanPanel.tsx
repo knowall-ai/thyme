@@ -1079,6 +1079,8 @@ interface ProjectRowProps {
   isExpanded: boolean;
   onToggleExpand: () => void;
   companyName?: string;
+  /** Start with every task expanded (people visible); clicking a task collapses it */
+  defaultTasksExpanded?: boolean;
 }
 
 function ProjectRow({
@@ -1095,8 +1097,10 @@ function ProjectRow({
   isExpanded,
   onToggleExpand,
   companyName,
+  defaultTasksExpanded = false,
 }: ProjectRowProps) {
   const [hoveredWeekStart, setHoveredWeekStart] = useState<Date | null>(null);
+  // Tasks toggled away from the default (expanded ones, or collapsed ones when defaultTasksExpanded)
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set());
 
   // Group allocations by task, then by resource within each task
@@ -1308,7 +1312,7 @@ function ProjectRow({
           {Array.from(allocationsByTask.entries())
             .sort(([, a], [, b]) => a.taskName.localeCompare(b.taskName))
             .map(([taskKey, taskData]) => {
-              const isTaskExpanded = expandedTaskIds.has(taskKey);
+              const isTaskExpanded = expandedTaskIds.has(taskKey) !== defaultTasksExpanded;
               const taskTotalHours = taskData.allocations.reduce((sum, a) => sum + a.totalHours, 0);
               const resourcesByTask = groupByResource(taskData.allocations);
 
@@ -1404,7 +1408,25 @@ function ProjectRow({
   );
 }
 
-export function PlanPanel() {
+export interface PlanPanelProps {
+  /**
+   * Show only this project (Projects view, no Team/Projects toggle), e.g. in a project's
+   * Planned dialog. Leaves the Plan tab's view mode and week in the store untouched.
+   */
+  projectCode?: string;
+  /** Controlled fullscreen, for a host (like a dialog) that lays out fullscreen itself */
+  isFullscreen?: boolean;
+  onFullscreenChange?: (isFullscreen: boolean) => void;
+  /** Called after a plan is added, edited or deleted */
+  onPlanChanged?: () => void;
+}
+
+export function PlanPanel({
+  projectCode,
+  isFullscreen: controlledFullscreen,
+  onFullscreenChange,
+  onPlanChanged,
+}: PlanPanelProps = {}) {
   const { selectedCompany, companyVersion } = useCompanyStore();
   const { account } = useAuth();
   const userEmail = account?.username || '';
@@ -1414,7 +1436,7 @@ export function PlanPanel() {
     teamMembers,
     projects,
     allAllocations,
-    viewMode,
+    viewMode: storeViewMode,
     isLoading,
     error,
     selectedAllocationId,
@@ -1435,7 +1457,7 @@ export function PlanPanel() {
   );
   const [searchQuery, setSearchQuery] = useState('');
   const [extensionNotInstalled, setExtensionNotInstalled] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [localFullscreen, setLocalFullscreen] = useState(false);
   const [expandedMemberIds, setExpandedMemberIds] = useState<Set<string>>(new Set());
   const [expandedProjectIds, setExpandedProjectIds] = useState<Set<string>>(new Set());
 
@@ -1460,6 +1482,14 @@ export function PlanPanel() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedAllocationForEdit, setSelectedAllocationForEdit] =
     useState<AllocationBlock | null>(null);
+
+  // A host that controls fullscreen also owns its layout and Escape key
+  const isFullscreenHosted = onFullscreenChange !== undefined;
+  const isFullscreen = controlledFullscreen ?? localFullscreen;
+  const setIsFullscreen = onFullscreenChange ?? setLocalFullscreen;
+
+  // A single project is always shown in the Projects view
+  const viewMode: ViewMode = projectCode ? 'projects' : storeViewMode;
 
   // Show 3 weeks in regular view, 6 weeks in fullscreen
   const effectiveWeeksToShow = isFullscreen ? 6 : 3;
@@ -1507,24 +1537,17 @@ export function PlanPanel() {
     return groups;
   }, [allDays]);
 
-  // Navigation handlers
-  const handlePrevious = () => {
-    const newDate = addWeeks(currentWeekStart, -1);
-    setLocalWeekStart(newDate);
-    setCurrentWeekStart(newDate);
+  // Navigation handlers (a single-project view keeps its week to itself)
+  const goToWeek = (weekStart: Date) => {
+    setLocalWeekStart(weekStart);
+    if (!projectCode) setCurrentWeekStart(weekStart);
   };
 
-  const handleNext = () => {
-    const newDate = addWeeks(currentWeekStart, 1);
-    setLocalWeekStart(newDate);
-    setCurrentWeekStart(newDate);
-  };
+  const handlePrevious = () => goToWeek(addWeeks(currentWeekStart, -1));
 
-  const handleToday = () => {
-    const today = startOfWeek(new Date(), { weekStartsOn: 1 });
-    setLocalWeekStart(today);
-    setCurrentWeekStart(today);
-  };
+  const handleNext = () => goToWeek(addWeeks(currentWeekStart, 1));
+
+  const handleToday = () => goToWeek(startOfWeek(new Date(), { weekStartsOn: 1 }));
 
   // Clear cache when company changes to force fresh data fetch
   useEffect(() => {
@@ -1550,9 +1573,9 @@ export function PlanPanel() {
   // Create a stable key for tracking when team members change
   const teamMemberIds = useMemo(() => teamMembers.map((m) => m.id).join(','), [teamMembers]);
 
-  // Fetch profile photos when team members change
+  // Fetch profile photos when team members change (only the Team view shows them)
   useEffect(() => {
-    if (teamMembers.length === 0) return;
+    if (projectCode || teamMembers.length === 0) return;
 
     const fetchPhotos = async () => {
       for (const member of teamMembers) {
@@ -1572,7 +1595,7 @@ export function PlanPanel() {
     void fetchPhotos();
     // teamMemberIds is a derived key from teamMembers - using it avoids re-running when only photos update
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teamMemberIds, updateMemberPhoto]);
+  }, [teamMemberIds, updateMemberPhoto, projectCode]);
 
   // Handle ESC key
   useEffect(() => {
@@ -1580,14 +1603,14 @@ export function PlanPanel() {
       if (e.key === 'Escape') {
         if (selectedAllocationId) {
           selectAllocation(null);
-        } else if (isFullscreen) {
-          setIsFullscreen(false);
+        } else if (isFullscreen && !isFullscreenHosted) {
+          setLocalFullscreen(false);
         }
       }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isFullscreen, selectedAllocationId, selectAllocation]);
+  }, [isFullscreen, isFullscreenHosted, selectedAllocationId, selectAllocation]);
 
   // Filter members by search and sort alphabetically
   const filteredMembers = useMemo(() => {
@@ -1603,6 +1626,25 @@ export function PlanPanel() {
 
   // Filter projects by search and sort alphabetically
   const filteredProjects = useMemo(() => {
+    // A single project: search narrows its rows to matching people or tasks
+    if (projectCode) {
+      const query = searchQuery.toLowerCase();
+      return projects
+        .filter((p) => p.number === projectCode)
+        .map((p) => {
+          if (!query) return p;
+          const allocations = p.allocations.filter(
+            (a) =>
+              a.resourceName.toLowerCase().includes(query) ||
+              (a.taskName ?? '').toLowerCase().includes(query)
+          );
+          return {
+            ...p,
+            allocations,
+            totalHours: allocations.reduce((sum, a) => sum + a.totalHours, 0),
+          };
+        });
+    }
     const filtered = !searchQuery
       ? projects
       : projects.filter(
@@ -1614,7 +1656,7 @@ export function PlanPanel() {
             )
         );
     return filtered.slice().sort((a, b) => a.name.localeCompare(b.name));
-  }, [projects, searchQuery]);
+  }, [projects, searchQuery, projectCode]);
 
   // Toggle expanded row (Team view)
   const toggleMemberExpanded = (memberId: string) => {
@@ -1703,6 +1745,7 @@ export function PlanPanel() {
   const handlePlanSaved = async () => {
     clearCache();
     await fetchTeamData(currentWeekStart, effectiveWeeksToShow, emailDomain);
+    onPlanChanged?.();
   };
 
   // Handle drop
@@ -1740,33 +1783,35 @@ export function PlanPanel() {
       {/* Header Row */}
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          {/* View Mode Toggle */}
-          <div className="border-dark-600 flex rounded-lg border">
-            <button
-              onClick={() => setViewMode('team')}
-              className={cn(
-                'flex items-center gap-2 rounded-l-lg px-3 py-1.5 text-sm font-medium transition-colors',
-                viewMode === 'team'
-                  ? 'bg-knowall-green text-dark-950'
-                  : 'text-dark-400 hover:text-white'
-              )}
-            >
-              <UserGroupIcon className="h-4 w-4" />
-              Team
-            </button>
-            <button
-              onClick={() => setViewMode('projects')}
-              className={cn(
-                'flex items-center gap-2 rounded-r-lg px-3 py-1.5 text-sm font-medium transition-colors',
-                viewMode === 'projects'
-                  ? 'bg-knowall-green text-dark-950'
-                  : 'text-dark-400 hover:text-white'
-              )}
-            >
-              <FolderIcon className="h-4 w-4" />
-              Projects
-            </button>
-          </div>
+          {/* View Mode Toggle (not for a single project) */}
+          {!projectCode && (
+            <div className="border-dark-600 flex rounded-lg border">
+              <button
+                onClick={() => setViewMode('team')}
+                className={cn(
+                  'flex items-center gap-2 rounded-l-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                  viewMode === 'team'
+                    ? 'bg-knowall-green text-dark-950'
+                    : 'text-dark-400 hover:text-white'
+                )}
+              >
+                <UserGroupIcon className="h-4 w-4" />
+                Team
+              </button>
+              <button
+                onClick={() => setViewMode('projects')}
+                className={cn(
+                  'flex items-center gap-2 rounded-r-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                  viewMode === 'projects'
+                    ? 'bg-knowall-green text-dark-950'
+                    : 'text-dark-400 hover:text-white'
+                )}
+              >
+                <FolderIcon className="h-4 w-4" />
+                Projects
+              </button>
+            </div>
+          )}
 
           {/* Week Navigation */}
           <WeekNavigation
@@ -1774,11 +1819,7 @@ export function PlanPanel() {
             onPrevious={handlePrevious}
             onNext={handleNext}
             onToday={handleToday}
-            onDateSelect={(date) => {
-              const weekStart = startOfWeek(date, { weekStartsOn: 1 });
-              setLocalWeekStart(weekStart);
-              setCurrentWeekStart(weekStart);
-            }}
+            onDateSelect={(date) => goToWeek(startOfWeek(date, { weekStartsOn: 1 }))}
             weeksToShow={effectiveWeeksToShow}
             alwaysShowToday
           />
@@ -1790,7 +1831,8 @@ export function PlanPanel() {
             <MagnifyingGlassIcon className="text-dark-400 absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search..."
+              placeholder={projectCode ? 'Search people or tasks...' : 'Search...'}
+              aria-label={projectCode ? 'Search people or tasks' : 'Search'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="border-dark-600 bg-dark-800 text-dark-100 placeholder:text-dark-500 focus:border-knowall-green w-48 rounded-lg border py-1.5 pr-3 pl-9 text-sm focus:ring-1 focus:outline-none"
@@ -1802,7 +1844,15 @@ export function PlanPanel() {
             variant="outline"
             size="icon"
             onClick={() => setIsFullscreen(!isFullscreen)}
-            title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
+            title={
+              isFullscreen
+                ? isFullscreenHosted
+                  ? 'Exit fullscreen'
+                  : 'Exit fullscreen (Esc)'
+                : 'Fullscreen'
+            }
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            aria-pressed={isFullscreen}
           >
             {isFullscreen ? (
               <ArrowsPointingInIcon className="h-5 w-5" />
@@ -1955,9 +2005,11 @@ export function PlanPanel() {
                   onAddPlan={(weekStart, context) =>
                     handleOpenProjectPlanModal(project, weekStart, context)
                   }
-                  isExpanded={expandedProjectIds.has(project.id)}
+                  // A single project starts expanded, down to its people
+                  isExpanded={expandedProjectIds.has(project.id) !== !!projectCode}
                   onToggleExpand={() => toggleProjectExpanded(project.id)}
                   companyName={selectedCompany?.name}
+                  defaultTasksExpanded={!!projectCode}
                 />
               ))
             ) : (
@@ -2027,8 +2079,8 @@ export function PlanPanel() {
     </div>
   );
 
-  // Fullscreen mode
-  if (isFullscreen) {
+  // Fullscreen mode (a hosting dialog does its own fullscreen layout)
+  if (isFullscreen && !isFullscreenHosted) {
     return (
       <ExtensionPreviewWrapper extensionNotInstalled={extensionNotInstalled} pageName="Plan">
         <div
@@ -2049,7 +2101,11 @@ export function PlanPanel() {
   }
 
   return (
-    <ExtensionPreviewWrapper extensionNotInstalled={extensionNotInstalled} pageName="Plan">
+    <ExtensionPreviewWrapper
+      extensionNotInstalled={extensionNotInstalled}
+      pageName="Plan"
+      className={isFullscreen ? 'h-full' : undefined}
+    >
       {planContent}
     </ExtensionPreviewWrapper>
   );
