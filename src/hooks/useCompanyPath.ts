@@ -36,12 +36,14 @@ export function useCompanyPath() {
   const urlCompany = useUrlCompany();
   const companies = useCompanyStore((state) => state.companies);
   const companiesLoaded = useCompanyStore((state) => state.companiesLoaded);
+  const failedEnvironments = useCompanyStore((state) => state.failedEnvironments);
   const selectedCompany = useCompanyStore((state) => state.selectedCompany);
 
   const company = resolveLinkCompany({
     urlCompany,
     companies,
     companiesLoaded,
+    failedEnvironments,
     selectedCompany,
     storedCompany: { id: bcClient.companyId, environment: bcClient.environment },
   });

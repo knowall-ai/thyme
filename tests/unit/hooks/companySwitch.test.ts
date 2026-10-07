@@ -89,7 +89,10 @@ describe('useCompanyStore.fetchCompanies', () => {
   });
 
   it('shares one request between concurrent callers and marks the list loaded', async () => {
-    getAllCompanies.mockResolvedValue([contoso, contosoSandbox]);
+    getAllCompanies.mockResolvedValue({
+      companies: [contoso, contosoSandbox],
+      failedEnvironments: [],
+    });
 
     await Promise.all([
       useCompanyStore.getState().fetchCompanies(),
@@ -108,5 +111,26 @@ describe('useCompanyStore.fetchCompanies', () => {
 
     expect(useCompanyStore.getState().companiesLoaded).toBe(false);
     expect(useCompanyStore.getState().error).toBe('Network down');
+  });
+
+  it('records which environments failed when only part of the list loads', async () => {
+    getAllCompanies.mockResolvedValue({ companies: [contoso], failedEnvironments: ['sandbox'] });
+
+    await useCompanyStore.getState().fetchCompanies();
+
+    expect(useCompanyStore.getState().companiesLoaded).toBe(true);
+    expect(useCompanyStore.getState().failedEnvironments).toEqual(['sandbox']);
+  });
+
+  it('treats every environment failing as an error, not as having no companies', async () => {
+    getAllCompanies.mockResolvedValue({
+      companies: [],
+      failedEnvironments: ['sandbox', 'production'],
+    });
+
+    await useCompanyStore.getState().fetchCompanies();
+
+    expect(useCompanyStore.getState().companiesLoaded).toBe(false);
+    expect(useCompanyStore.getState().error).toMatch(/Couldn't load companies/);
   });
 });

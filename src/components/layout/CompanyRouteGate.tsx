@@ -51,7 +51,15 @@ export function CompanyRouteGate({ environment, companyId, children }: CompanyRo
 function CompanySync({ environment, companyId, children }: CompanyRouteGateProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { companies, companiesLoaded, selectedCompany, error, fetchCompanies } = useCompanyStore();
+  const {
+    companies,
+    companiesLoaded,
+    failedEnvironments,
+    selectedCompany,
+    isLoading,
+    error,
+    fetchCompanies,
+  } = useCompanyStore();
 
   const urlCompany = useMemo(() => ({ id: companyId, environment }), [companyId, environment]);
   // Until the company list loads, the active company is the remembered one in bcClient
@@ -64,6 +72,7 @@ function CompanySync({ environment, companyId, children }: CompanyRouteGateProps
     activeCompany,
     companies,
     companiesLoaded,
+    failedEnvironments,
     hasError: !!error,
   });
   const switchTarget = routeState.status === 'switch' ? routeState.company : null;
@@ -111,8 +120,13 @@ function CompanySync({ environment, companyId, children }: CompanyRouteGateProps
             <h1 className="mb-2 text-lg font-semibold text-white">
               Couldn&apos;t load your Business Central companies
             </h1>
-            <p className="text-dark-300 mb-6 text-sm">{error}</p>
-            <Button onClick={() => fetchCompanies()}>Try again</Button>
+            <p className="text-dark-300 mb-6 text-sm">
+              {error ||
+                `Companies in the ${ENVIRONMENT_LABELS[environment]} environment didn't load, so Thyme can't open this one yet.`}
+            </p>
+            <Button onClick={() => fetchCompanies()} isLoading={isLoading}>
+              Try again
+            </Button>
           </div>
         </Card>
       </Layout>

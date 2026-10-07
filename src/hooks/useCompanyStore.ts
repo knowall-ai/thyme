@@ -9,6 +9,8 @@ interface CompanyStore {
   companyVersion: number;
   /** True once the company list has loaded successfully at least once */
   companiesLoaded: boolean;
+  /** Environments whose companies couldn't be loaded last time (the list may be partial) */
+  failedEnvironments: BCEnvironmentType[];
   isLoading: boolean;
   error: string | null;
 
@@ -28,6 +30,7 @@ export const useCompanyStore = create<CompanyStore>((set, get) => ({
   selectedCompany: null,
   companyVersion: 0,
   companiesLoaded: false,
+  failedEnvironments: [],
   isLoading: false,
   error: null,
 
@@ -43,14 +46,22 @@ export const useCompanyStore = create<CompanyStore>((set, get) => ({
       set({ isLoading: true, error: null });
       try {
         // Fetch companies from all environments
-        const companies = await bcClient.getAllCompanies();
+        const { companies, failedEnvironments } = await bcClient.getAllCompanies();
+
+        // Nothing loaded because every request that mattered failed: an error, not "no companies"
+        if (companies.length === 0 && failedEnvironments.length > 0) {
+          throw new Error(
+            `Couldn't load companies from Business Central (${failedEnvironments.join(', ')})`
+          );
+        }
 
         // Handle empty companies array
-        if (!companies || companies.length === 0) {
+        if (companies.length === 0) {
           set({
             companies: [],
             selectedCompany: null,
             companiesLoaded: true,
+            failedEnvironments: [],
             isLoading: false,
           });
           return;
@@ -81,6 +92,7 @@ export const useCompanyStore = create<CompanyStore>((set, get) => ({
           companies,
           selectedCompany,
           companiesLoaded: true,
+          failedEnvironments,
           isLoading: false,
         });
       } catch (error) {

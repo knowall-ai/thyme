@@ -153,16 +153,23 @@ export function resolveLinkCompany({
   urlCompany,
   companies,
   companiesLoaded,
+  failedEnvironments = [],
   selectedCompany,
   storedCompany,
 }: {
   urlCompany: CompanyRef | null;
   companies: MaybeCompany[];
   companiesLoaded: boolean;
+  failedEnvironments?: BCEnvironmentType[];
   selectedCompany: MaybeCompany | null;
   storedCompany: MaybeCompany | null;
 }): CompanyRef | null {
-  if (urlCompany && (!companiesLoaded || companies.some((c) => isSameCompany(c, urlCompany)))) {
+  if (
+    urlCompany &&
+    (!companiesLoaded ||
+      failedEnvironments.includes(urlCompany.environment) ||
+      companies.some((c) => isSameCompany(c, urlCompany)))
+  ) {
     return urlCompany;
   }
   for (const candidate of [selectedCompany, storedCompany]) {
@@ -182,7 +189,7 @@ export type CompanyRouteState<T extends MaybeCompany> =
   | { status: 'no-access' }
   /** Waiting for the company list before we can tell */
   | { status: 'loading' }
-  /** The company list failed to load and the URL's company isn't the active one */
+  /** The URL's company (or its environment) failed to load and it isn't the active one */
   | { status: 'error' };
 
 /**
@@ -196,19 +203,27 @@ export function getCompanyRouteState<T extends MaybeCompany>({
   activeCompany,
   companies,
   companiesLoaded,
+  failedEnvironments = [],
   hasError,
 }: {
   urlCompany: CompanyRef;
   activeCompany: MaybeCompany | null;
   companies: T[];
   companiesLoaded: boolean;
+  /** Environments whose companies failed to load, so the list may be missing the URL's */
+  failedEnvironments?: BCEnvironmentType[];
   hasError: boolean;
 }): CompanyRouteState<T> {
   const isActive = isSameCompany(activeCompany, urlCompany);
   if (companiesLoaded) {
     const match = companies.find((c) => isSameCompany(c, urlCompany));
-    if (!match) return { status: 'no-access' };
-    return isActive ? { status: 'ready' } : { status: 'switch', company: match };
+    if (match) return isActive ? { status: 'ready' } : { status: 'switch', company: match };
+    // Not in the list because its environment didn't load: we can't say "no access".
+    // Keep showing the remembered company; otherwise offer a retry
+    if (failedEnvironments.includes(urlCompany.environment)) {
+      return isActive ? { status: 'ready' } : { status: 'error' };
+    }
+    return { status: 'no-access' };
   }
   if (isActive) return { status: 'ready' };
   return hasError ? { status: 'error' } : { status: 'loading' };

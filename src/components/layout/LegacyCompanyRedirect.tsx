@@ -3,11 +3,10 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthenticatedTemplate, UnauthenticatedTemplate } from '@/services/auth';
-import { bcClient } from '@/services/bc/bcClient';
 import { useCompanyStore } from '@/hooks';
 import { LandingPage } from '@/components/landing/LandingPage';
 import { Button, Card } from '@/components/ui';
-import { isValidCompanyId, legacyToCompanyUrl } from '@/utils/companyPath';
+import { legacyToCompanyUrl } from '@/utils/companyPath';
 import { Layout } from './Layout';
 
 /**
@@ -31,15 +30,15 @@ export function LegacyCompanyRedirect() {
 
 function RedirectToCompany() {
   const router = useRouter();
-  const { companies, companiesLoaded, selectedCompany, error, fetchCompanies } = useCompanyStore();
+  const { companies, companiesLoaded, selectedCompany, isLoading, error, fetchCompanies } =
+    useCompanyStore();
 
-  // Prefer the selected company, then the remembered one; with neither (first visit),
-  // load the company list so the store picks a default
+  // Redirect to the selected company once the company list has resolved it. That's
+  // the remembered company if the user still has it, otherwise an accessible default,
+  // so an old link never lands on a company they've lost access to
   const target = selectedCompany?.environment
     ? { id: selectedCompany.id, environment: selectedCompany.environment }
-    : isValidCompanyId(bcClient.companyId)
-      ? { id: bcClient.companyId, environment: bcClient.environment }
-      : null;
+    : null;
   const targetId = target?.id;
   const targetEnvironment = target?.environment;
 
@@ -64,7 +63,11 @@ function RedirectToCompany() {
               : 'No Business Central companies are available to your account'}
           </h1>
           {error && <p className="text-dark-300 mb-6 text-sm">{error}</p>}
-          {error && <Button onClick={() => fetchCompanies()}>Try again</Button>}
+          {error && (
+            <Button onClick={() => fetchCompanies()} isLoading={isLoading}>
+              Try again
+            </Button>
+          )}
         </Card>
       </Layout>
     );

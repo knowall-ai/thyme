@@ -188,8 +188,9 @@ class BusinessCentralClient {
     });
 
     if (!response.ok) {
-      // Don't throw for 404 - environment might not exist
-      if (response.status === 404) {
+      // Don't throw for 404 - environment might not exist - or for 401/403, where
+      // the user has no access to the environment: either way it has no companies for them
+      if (response.status === 404 || response.status === 401 || response.status === 403) {
         return [];
       }
       const errorText = await response.text();
@@ -206,19 +207,27 @@ class BusinessCentralClient {
     }));
   }
 
-  // Fetch companies from all environments
-  async getAllCompanies(): Promise<BCCompany[]> {
+  // Fetch companies from all environments. An environment whose request failed (network
+  // or server error) is listed in failedEnvironments, so callers can tell "not in the
+  // list" apart from "couldn't load that part of the list"
+  async getAllCompanies(): Promise<{
+    companies: BCCompany[];
+    failedEnvironments: BCEnvironmentType[];
+  }> {
     const results = await Promise.allSettled(
       BC_ENVIRONMENTS.map((env) => this.getCompaniesFromEnvironment(env))
     );
 
     const companies: BCCompany[] = [];
-    for (const result of results) {
+    const failedEnvironments: BCEnvironmentType[] = [];
+    results.forEach((result, index) => {
       if (result.status === 'fulfilled') {
         companies.push(...result.value);
+      } else {
+        failedEnvironments.push(BC_ENVIRONMENTS[index]);
       }
-    }
-    return companies;
+    });
+    return { companies, failedEnvironments };
   }
 
   // Fetch companies from current environment only (backwards compatibility)

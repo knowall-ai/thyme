@@ -265,4 +265,37 @@ describe('getCompanyRouteState', () => {
       })
     ).toEqual({ status: 'error' });
   });
+
+  it("doesn't claim no access when the URL company's environment failed to load", () => {
+    const partial = {
+      urlCompany: SANDBOX_A,
+      companies,
+      companiesLoaded: true,
+      failedEnvironments: ['sandbox' as const],
+      hasError: false,
+    };
+    // Offer a retry rather than "no access"...
+    expect(getCompanyRouteState({ ...partial, activeCompany: PROD_A })).toEqual({
+      status: 'error',
+    });
+    // ...but keep showing the remembered company if that's the one in the URL
+    expect(getCompanyRouteState({ ...partial, activeCompany: SANDBOX_A })).toEqual({
+      status: 'ready',
+    });
+  });
+});
+
+describe('resolveLinkCompany with a partial company list', () => {
+  it("keeps the URL company when its environment didn't load", () => {
+    expect(
+      resolveLinkCompany({
+        urlCompany: SANDBOX_A,
+        companies: [PROD_A],
+        companiesLoaded: true,
+        failedEnvironments: ['sandbox'],
+        selectedCompany: PROD_A,
+        storedCompany: null,
+      })
+    ).toEqual(SANDBOX_A);
+  });
 });
