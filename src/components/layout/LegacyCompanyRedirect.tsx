@@ -3,10 +3,11 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthenticatedTemplate, UnauthenticatedTemplate } from '@/services/auth';
+import { bcClient } from '@/services/bc/bcClient';
 import { useCompanyStore } from '@/hooks';
 import { LandingPage } from '@/components/landing/LandingPage';
 import { Button, Card } from '@/components/ui';
-import { legacyToCompanyUrl } from '@/utils/companyPath';
+import { isValidCompanyId, legacyToCompanyUrl } from '@/utils/companyPath';
 import { Layout } from './Layout';
 
 /**
@@ -30,15 +31,31 @@ export function LegacyCompanyRedirect() {
 
 function RedirectToCompany() {
   const router = useRouter();
-  const { companies, companiesLoaded, selectedCompany, isLoading, error, fetchCompanies } =
-    useCompanyStore();
+  const {
+    companies,
+    companiesLoaded,
+    failedEnvironments,
+    selectedCompany,
+    isLoading,
+    error,
+    fetchCompanies,
+  } = useCompanyStore();
 
   // Redirect to the selected company once the company list has resolved it. That's
   // the remembered company if the user still has it, otherwise an accessible default,
-  // so an old link never lands on a company they've lost access to
+  // so an old link never lands on a company they've lost access to. If the remembered
+  // company's environment failed to load, the store keeps it in bcClient without
+  // selecting it; go there and let the company page offer a retry if needed.
+  const rememberedUnknown =
+    companiesLoaded &&
+    !selectedCompany &&
+    isValidCompanyId(bcClient.companyId) &&
+    failedEnvironments.includes(bcClient.environment);
   const target = selectedCompany?.environment
     ? { id: selectedCompany.id, environment: selectedCompany.environment }
-    : null;
+    : rememberedUnknown
+      ? { id: bcClient.companyId, environment: bcClient.environment }
+      : null;
   const targetId = target?.id;
   const targetEnvironment = target?.environment;
 

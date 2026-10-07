@@ -122,6 +122,21 @@ describe('useCompanyStore.fetchCompanies', () => {
     expect(useCompanyStore.getState().failedEnvironments).toEqual(['sandbox']);
   });
 
+  it("keeps the remembered company when its environment didn't load", async () => {
+    // Remembered: production/...0001 (see the bcClient mock). Production fails to load,
+    // and the sandbox list has the same GUID - which is a different company
+    getAllCompanies.mockResolvedValue({
+      companies: [contosoSandbox],
+      failedEnvironments: ['production'],
+    });
+
+    await useCompanyStore.getState().fetchCompanies();
+
+    expect(setCompany).not.toHaveBeenCalled();
+    expect(useCompanyStore.getState().selectedCompany).toBeNull();
+    expect(useCompanyStore.getState().companiesLoaded).toBe(true);
+  });
+
   it('treats every environment failing as an error, not as having no companies', async () => {
     getAllCompanies.mockResolvedValue({
       companies: [],

@@ -74,8 +74,14 @@ export const useCompanyStore = create<CompanyStore>((set, get) => ({
           (c) => c.id === currentCompanyId && c.environment === currentEnv
         );
 
+        // The remembered company's environment didn't load, so we can't tell whether it's
+        // still available: keep it (in bcClient) rather than replacing it with a fallback.
+        // selectedCompany stays null until a retry finds it.
+        const rememberedUnknown =
+          !selectedCompany && !!currentCompanyId && failedEnvironments.includes(currentEnv);
+
         // Fallback: find by ID only, or use first company
-        if (!selectedCompany) {
+        if (!selectedCompany && !rememberedUnknown) {
           selectedCompany = companies.find((c) => c.id === currentCompanyId) || companies[0];
         }
 
@@ -90,7 +96,7 @@ export const useCompanyStore = create<CompanyStore>((set, get) => ({
 
         set({
           companies,
-          selectedCompany,
+          selectedCompany: selectedCompany ?? null,
           companiesLoaded: true,
           failedEnvironments,
           isLoading: false,

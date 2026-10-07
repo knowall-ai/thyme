@@ -5,7 +5,12 @@ import { usePathname, useRouter } from 'next/navigation';
 import { BuildingOffice2Icon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { AuthenticatedTemplate, UnauthenticatedTemplate } from '@/services/auth';
 import { bcClient } from '@/services/bc/bcClient';
-import { confirmDiscardRunningTimer, switchCompany, useCompanyStore } from '@/hooks';
+import {
+  confirmDiscardRunningTimer,
+  switchCompany,
+  useCompanyPath,
+  useCompanyStore,
+} from '@/hooks';
 import { LandingPage } from '@/components/landing/LandingPage';
 import { Button, Card } from '@/components/ui';
 import type { BCEnvironmentType } from '@/types';
@@ -91,15 +96,16 @@ function CompanySync({ environment, companyId, children }: CompanyRouteGateProps
       return;
     }
     // They chose to keep their timer: stay in the active company, on the same page
-    const active = useCompanyStore.getState().selectedCompany;
-    if (active?.environment) {
-      router.replace(
-        companyPath(
-          { id: active.id, environment: active.environment },
-          pathForCompanySwitch(stripCompanyPrefix(pathname), window.location.search)
-        )
-      );
-    }
+    const selected = useCompanyStore.getState().selectedCompany;
+    const active = selected?.environment
+      ? { id: selected.id, environment: selected.environment }
+      : { id: bcClient.companyId, environment: bcClient.environment };
+    router.replace(
+      companyPath(
+        active,
+        pathForCompanySwitch(stripCompanyPrefix(pathname), window.location.search)
+      )
+    );
   }, [switchTarget, router, pathname]);
 
   if (routeState.status === 'ready') {
@@ -148,16 +154,13 @@ function CompanySync({ environment, companyId, children }: CompanyRouteGateProps
 function NoCompanyAccess({ environment, companyId }: Omit<CompanyRouteGateProps, 'children'>) {
   const router = useRouter();
   const pathname = usePathname();
+  const companies = useCompanyStore((state) => state.companies);
   const selectedCompany = useCompanyStore((state) => state.selectedCompany);
+  // Resolves to the selected (or remembered) company, as the URL's isn't available
+  const toHref = useCompanyPath();
 
   const goToCurrentCompany = () => {
-    if (!selectedCompany?.environment) return;
-    router.push(
-      companyPath(
-        { id: selectedCompany.id, environment: selectedCompany.environment },
-        pathForCompanySwitch(stripCompanyPrefix(pathname), window.location.search)
-      )
-    );
+    router.push(toHref(pathForCompanySwitch(stripCompanyPrefix(pathname), window.location.search)));
   };
 
   return (
@@ -176,8 +179,10 @@ function NoCompanyAccess({ environment, companyId }: Omit<CompanyRouteGateProps,
           <p className="text-dark-500 mb-6 font-mono text-xs break-all">
             {environment}/{companyId}
           </p>
-          {selectedCompany?.environment ? (
-            <Button onClick={goToCurrentCompany}>Go to {selectedCompany.displayName}</Button>
+          {companies.length > 0 ? (
+            <Button onClick={goToCurrentCompany}>
+              Go to {selectedCompany?.displayName || 'your current company'}
+            </Button>
           ) : (
             <p className="text-dark-400 text-sm">
               No Business Central companies are available to your account.
