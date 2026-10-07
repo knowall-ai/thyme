@@ -414,10 +414,10 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
             <p className="text-dark-400">
               {statusFilter.length === 0
                 ? 'No statuses selected. Choose at least one status to see projects.'
-                : searchQuery
-                  ? 'No projects match your search'
-                  : filteredProjects.length > 0
-                    ? 'No projects match the current filter'
+                : filteredProjects.length > 0
+                  ? 'No projects match the current filter'
+                  : searchQuery
+                    ? 'No projects match your search'
                     : 'No projects available'}
             </p>
           </div>
