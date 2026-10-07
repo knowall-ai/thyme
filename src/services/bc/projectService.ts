@@ -301,8 +301,12 @@ export const projectService = {
         // Planned absence isn't budgeted work (internal projects keep it as plain plan)
         let planningLines = allLines;
         if (!isInternal && allLines.length > 0) {
-          const absenceTaskNos = getAbsenceTaskNos(await bcClient.getJobTasks(projectCode));
-          planningLines = withoutAbsenceLines(allLines, absenceTaskNos, isInternal);
+          try {
+            const absenceTaskNos = getAbsenceTaskNos(await bcClient.getJobTasks(projectCode));
+            planningLines = withoutAbsenceLines(allLines, absenceTaskNos, isInternal);
+          } catch {
+            // Without task names nothing can be told apart, so keep every line
+          }
         }
         const budgetHours = sumPlannedHours(planningLines, uomConversionMap);
         if (budgetHours > 0) {

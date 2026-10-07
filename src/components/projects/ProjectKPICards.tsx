@@ -223,7 +223,7 @@ export function ProjectKPICards() {
     },
     'Time Spent': {
       title: 'Time Spent',
-      description: `Total hours logged in timesheets for this project, shown against the Estimate and split by stage: Unsubmitted (Open timesheets), Submitted (awaiting approval), Approved (awaiting "Post Time Sheets" in BC) and Posted (in the Job Ledger Entry). Days = hours ÷ ${hoursPerDayLabel}.`,
+      description: `Total hours logged in timesheets for this project${hasEstimate ? ', shown against the Estimate' : ''}. Hours are split by stage: Unsubmitted (Open timesheets), Submitted (awaiting approval), Approved (awaiting "Post Time Sheets" in BC) and Posted (in the Job Ledger Entry). Days = hours ÷ ${hoursPerDayLabel}.`,
       formula: 'Posted + Approved + Submitted + Unsubmitted = Time Spent',
       source: 'BC API: /timeSheetDetails → quantity',
     },
@@ -235,7 +235,7 @@ export function ProjectKPICards() {
     },
     Forecast: {
       title: 'Forecast',
-      description: `Where the project is heading: time spent so far plus the work still planned, compared with the Estimate. Finishes on the last planned date (the latest Resource line with hours and lineType "Budget" or "Both Budget and Billable" after this week), compared with the project's end date. Days = hours ÷ ${hoursPerDayLabel}.`,
+      description: `Where the project is heading: time spent so far plus the work still planned${hasEstimate ? ', compared with the Estimate' : ''}. Finishes on the last planned date (the latest Resource line with hours and lineType "Budget" or "Both Budget and Billable" after this week), compared with the project's end date. Days = hours ÷ ${hoursPerDayLabel}.`,
       formula: 'Time Spent + Planned (from next week)',
       source: 'Calculated',
     },
