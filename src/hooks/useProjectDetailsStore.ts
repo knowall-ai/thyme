@@ -37,7 +37,8 @@ interface ProjectDetailsStore {
   hiddenKpis: string[]; // KPI card labels whose amounts are masked via their Eye toggle (also drives the chart and PDF)
 
   // Actions
-  fetchProjectDetails: (projectNumber: string) => Promise<void>;
+  /** force: refetch the loaded project (e.g. after its plan changed), keeping the page up */
+  fetchProjectDetails: (projectNumber: string, options?: { force?: boolean }) => Promise<void>;
   renameProject: (name: string) => Promise<void>;
   setChartView: (view: 'weekly' | 'progress') => void;
   setTableGroupBy: (groupBy: 'task' | 'team') => void;
@@ -62,19 +63,21 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
   tableGroupBy: 'task',
   hiddenKpis: [], // All amounts visible by default; resets on reload (not persisted)
 
-  fetchProjectDetails: async (projectNumber: string) => {
+  fetchProjectDetails: async (projectNumber: string, options?: { force?: boolean }) => {
     // Join a load already under way, so callers resolve when it completes
     const pending = inFlight.get(projectNumber);
     if (pending) return pending;
 
-    // Don't refetch if we already have this project
+    // Don't refetch if we already have this project, unless forced
     const currentProject = get().project;
-    if (currentProject?.code === projectNumber && get().analytics) {
+    const isLoaded = currentProject?.code === projectNumber && !!get().analytics;
+    if (isLoaded && !options?.force) {
       return;
     }
 
     const promise = (async () => {
-      set({ isLoading: true, error: null });
+      // A forced refresh keeps the page showing; only the time and cost figures reload
+      set(isLoaded ? { isLoadingAnalytics: true, error: null } : { isLoading: true, error: null });
 
       try {
         // Fetch basic project details, tasks, and company currency in parallel

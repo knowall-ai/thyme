@@ -2,10 +2,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const updateProjectName = vi.fn();
 const clearPlanCache = vi.fn();
+const getProjectDetails = vi.fn();
+const getProjectAnalytics = vi.fn();
 
 vi.mock('@/services/bc/bcClient', () => ({
   bcClient: {
     updateProjectName: (...args: unknown[]) => updateProjectName(...args),
+    getCompanyInfo: vi.fn(async () => ({ currencyCode: 'GBP' })),
+  },
+}));
+
+vi.mock('@/services/bc/projectDetailsService', () => ({
+  projectDetailsService: {
+    getProjectDetails: (...args: unknown[]) => getProjectDetails(...args),
+    getProjectAnalytics: (...args: unknown[]) => getProjectAnalytics(...args),
   },
 }));
 
@@ -120,5 +130,35 @@ describe('useProjectDetailsStore.renameProject', () => {
       'Failed to rename the project in Business Central'
     );
     expect(useProjectDetailsStore.getState().project?.name).toBe('Contoso Website');
+  });
+});
+
+describe('useProjectDetailsStore.fetchProjectDetails', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getProjectDetails.mockResolvedValue({ project: { code: 'PR001' }, tasks: [] });
+    getProjectAnalytics.mockResolvedValue({ futurePlannedHours: 8 });
+    useProjectDetailsStore.getState().clearProject();
+  });
+
+  it('skips refetching the project already loaded', async () => {
+    await useProjectDetailsStore.getState().fetchProjectDetails('PR001');
+    await useProjectDetailsStore.getState().fetchProjectDetails('PR001');
+
+    expect(getProjectAnalytics).toHaveBeenCalledTimes(1);
+  });
+
+  it('refetches when forced, without taking the page down', async () => {
+    await useProjectDetailsStore.getState().fetchProjectDetails('PR001');
+    getProjectAnalytics.mockResolvedValue({ futurePlannedHours: 16 });
+
+    const loadingStates: boolean[] = [];
+    const unsubscribe = useProjectDetailsStore.subscribe((s) => loadingStates.push(s.isLoading));
+    await useProjectDetailsStore.getState().fetchProjectDetails('PR001', { force: true });
+    unsubscribe();
+
+    expect(getProjectAnalytics).toHaveBeenCalledTimes(2);
+    expect(useProjectDetailsStore.getState().analytics?.futurePlannedHours).toBe(16);
+    expect(loadingStates).not.toContain(true);
   });
 });
