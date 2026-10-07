@@ -29,6 +29,7 @@ export function ProjectStatusFilter({ value, onChange }: ProjectStatusFilterProp
   const buttonRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const listId = useId();
+  const infoId = useId();
 
   const close = () => {
     setOpen(false);
@@ -161,12 +162,13 @@ export function ProjectStatusFilter({ value, onChange }: ProjectStatusFilterProp
           onFocus={() => setInfoOpen(true)}
           onBlur={() => setInfoOpen(false)}
           aria-label="Info: project statuses"
-          aria-expanded={infoOpen}
+          aria-describedby={infoOpen ? infoId : undefined}
         >
           <InformationCircleIcon className="h-4 w-4" />
         </button>
         {infoOpen && (
           <div
+            id={infoId}
             role="tooltip"
             className="bg-dark-700 absolute top-6 left-0 z-30 w-72 rounded px-3 py-2 text-xs text-gray-300 shadow-lg"
           >

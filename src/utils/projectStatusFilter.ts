@@ -9,7 +9,7 @@ export interface ProjectStatusOption {
 }
 
 export const PROJECT_STATUS_OPTIONS: ProjectStatusOption[] = [
-  { value: 'active', label: 'Active', hint: 'In progress (Status: Open)' },
+  { value: 'active', label: 'Active', hint: 'In progress (Status: Open or Planning)' },
   {
     value: 'completed',
     label: 'Completed',

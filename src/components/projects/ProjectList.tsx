@@ -412,11 +412,11 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
           <div className="py-12 text-center">
             <FolderIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
             <p className="text-dark-400">
-              {searchQuery
-                ? 'No projects match your search'
-                : statusFilter.length === 0
-                  ? 'No statuses selected. Choose at least one status to see projects.'
-                  : !isDefaultProjectStatuses(statusFilter)
+              {statusFilter.length === 0
+                ? 'No statuses selected. Choose at least one status to see projects.'
+                : searchQuery
+                  ? 'No projects match your search'
+                  : filteredProjects.length > 0
                     ? 'No projects match the current filter'
                     : 'No projects available'}
             </p>
