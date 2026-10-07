@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import {
@@ -18,15 +18,27 @@ import { getUserProfilePhoto } from '@/services/auth/graphService';
 import type {
   BCTimeSheet,
   BCTimeSheetLine,
+  BCTimeSheetDetail,
   TimesheetDisplayStatus,
   BCProject,
   BCJobTask,
 } from '@/types';
-import { cn, getTimesheetDisplayStatus, DATE_FORMAT_FULL } from '@/utils';
+import {
+  cn,
+  getTimesheetDisplayStatus,
+  decodeBCEnum,
+  formatHours,
+  DAILY_CAPACITY_HOURS,
+  DATE_FORMAT_FULL,
+  DATE_FORMAT_DAY_SHORT,
+} from '@/utils';
+import { buildWeekDailyHours, isOverDailyHours, toLocalDateKey } from './dailyHours';
 
 interface ApprovalCardProps {
   timeSheet: BCTimeSheet;
   lines: BCTimeSheetLine[];
+  /** The timesheet's daily hours (undefined until loaded, when the day strip is hidden) */
+  details?: BCTimeSheetDetail[];
   isExpanded: boolean;
   isProcessing: boolean;
   /** Disables action buttons when any card is being processed */
@@ -50,6 +62,7 @@ interface ApprovalCardProps {
 export function ApprovalCard({
   timeSheet,
   lines,
+  details,
   isExpanded,
   isProcessing,
   onToggleExpand,
@@ -106,6 +119,24 @@ export function ApprovalCard({
 
   // Use timeSheet.totalQuantity as fallback if lines not loaded yet
   const displayHours = totalHours || timeSheet.totalQuantity || 0;
+
+  // Hours per day for the week, overall and per line
+  const daily = useMemo(
+    () => (details ? buildWeekDailyHours(timeSheet.startingDate, details) : null),
+    [details, timeSheet.startingDate]
+  );
+  const todayKey = toLocalDateKey(new Date());
+  const weekDays = (daily?.days ?? []).map((key) => {
+    const date = parseISO(key);
+    return {
+      key,
+      date,
+      label: format(date, 'EEE d'),
+      isWeekend: date.getDay() === 0 || date.getDay() === 6,
+      isToday: key === todayKey,
+    };
+  });
+  const showDays = daily !== null && weekDays.length > 0;
 
   // Helper to get project name from cache
   const getJobName = (jobNo: string): string => {
@@ -264,15 +295,82 @@ export function ApprovalCard({
         </button>
       </div>
 
+      {/* Hours per day, so the approver can see how the week was spread without expanding */}
+      {showDays && (
+        <div className="-mt-1 px-4 pb-4">
+          <div className="grid max-w-md grid-cols-7 gap-1">
+            {weekDays.map((day, i) => {
+              const hours = daily.totals[i];
+              const isOver = isOverDailyHours(hours);
+              return (
+                <div
+                  key={day.key}
+                  title={`${format(day.date, DATE_FORMAT_DAY_SHORT)}: ${formatHours(hours)} hours${
+                    isOver ? ` (over ${DAILY_CAPACITY_HOURS})` : ''
+                  }`}
+                  className={cn(
+                    'rounded-md px-1 py-1 text-center',
+                    day.isToday ? 'bg-knowall-green/10' : !day.isWeekend && 'bg-dark-700/40',
+                    isOver && 'bg-amber-500/10'
+                  )}
+                >
+                  <p
+                    className={cn(
+                      'text-[10px] leading-tight whitespace-nowrap',
+                      day.isToday
+                        ? 'text-knowall-green font-medium'
+                        : day.isWeekend
+                          ? 'text-dark-500'
+                          : 'text-dark-400'
+                    )}
+                  >
+                    {day.label}
+                  </p>
+                  <p
+                    className={cn(
+                      'mt-0.5 text-xs font-medium tabular-nums',
+                      isOver ? 'text-amber-400' : hours > 0 ? 'text-white' : 'text-dark-500'
+                    )}
+                  >
+                    {hours > 0 ? formatHours(hours) : '–'}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Expanded details */}
       {isExpanded && (
         <div className="border-dark-700 border-t">
+          {/* Day column headings, aligned with each line's hours per day (hidden on small screens) */}
+          {showDays && lines.length > 0 && (
+            <div className="text-dark-400 hidden items-center gap-4 px-4 pt-3 text-[10px] md:flex">
+              <div className="min-w-0 flex-1" />
+              <div className="grid w-72 shrink-0 grid-cols-7 text-center">
+                {weekDays.map((day) => (
+                  <span
+                    key={day.key}
+                    className={cn(
+                      day.isToday && 'text-knowall-green font-medium',
+                      day.isWeekend && !day.isToday && 'text-dark-500'
+                    )}
+                  >
+                    {day.label}
+                  </span>
+                ))}
+              </div>
+              <div className="w-16 shrink-0 text-right">Total</div>
+            </div>
+          )}
+
           {/* Time sheet lines */}
           <div className="divide-dark-700/50 divide-y">
             {lines.length > 0 ? (
               lines.map((line) => (
-                <div key={line.id} className="flex items-center justify-between px-4 py-3">
-                  <div className="min-w-0">
+                <div key={line.id} className="flex items-center gap-4 px-4 py-3">
+                  <div className="min-w-0 flex-1">
                     {line.type === 'Job' && line.jobNo ? (
                       <>
                         {/* Project first, so approvers can see where the time went */}
@@ -301,13 +399,35 @@ export function ApprovalCard({
                         </p>
                       </>
                     ) : (
-                      <p className="text-sm text-white">{line.description || 'No description'}</p>
+                      <p className="flex items-center gap-2 text-sm text-white">
+                        <span className="truncate">{line.description || 'No description'}</span>
+                        {/* Line type, only when it isn't a normal project (Job) line */}
+                        {decodeBCEnum(line.type) !== 'Job' && (
+                          <span className="shrink-0 rounded bg-blue-500/20 px-1.5 py-0.5 text-xs font-medium text-blue-400">
+                            {decodeBCEnum(line.type)}
+                          </span>
+                        )}
+                      </p>
                     )}
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-white">{line.totalQuantity} hrs</p>
-                    <p className="text-dark-400 text-xs">{line.type}</p>
-                  </div>
+                  {showDays && (
+                    <div className="hidden w-72 shrink-0 grid-cols-7 text-center text-xs tabular-nums md:grid">
+                      {weekDays.map((day, i) => {
+                        const hours = daily.byLine.get(line.lineNo)?.[i] ?? 0;
+                        return (
+                          <span
+                            key={day.key}
+                            className={hours > 0 ? 'text-white' : 'text-dark-500'}
+                          >
+                            {hours > 0 ? formatHours(hours) : '–'}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <p className="w-16 shrink-0 text-right text-sm font-medium text-white">
+                    {line.totalQuantity} hrs
+                  </p>
                 </div>
               ))
             ) : (

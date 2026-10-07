@@ -20,7 +20,13 @@ import { useAuth } from '@/services/auth';
 import { getUserProfilePhoto } from '@/services/auth/graphService';
 import { bcClient } from '@/services/bc/bcClient';
 import { cn, DATE_FORMAT_FULL, DATE_FORMAT_SHORT } from '@/utils';
-import type { BCTimeSheet, BCTimeSheetLine, BCProject, BCJobTask } from '@/types';
+import type {
+  BCTimeSheet,
+  BCTimeSheetLine,
+  BCTimeSheetDetail,
+  BCProject,
+  BCJobTask,
+} from '@/types';
 
 type GroupBy = 'none' | 'week' | 'person';
 
@@ -64,6 +70,8 @@ export function ApprovalList() {
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [linesCache, setLinesCache] = useState<Record<string, BCTimeSheetLine[]>>({});
+  // Daily hours (timesheet details) per timesheet, fetched once per timesheet for the day strip
+  const [detailsCache, setDetailsCache] = useState<Record<string, BCTimeSheetDetail[]>>({});
   const [photosCache, setPhotosCache] = useState<Record<string, string | null>>({});
   const [jobsCache, setJobsCache] = useState<Record<string, BCProject>>({});
   const [tasksCache, setTasksCache] = useState<Record<string, BCJobTask[]>>({});
@@ -149,6 +157,7 @@ export function ApprovalList() {
   useEffect(() => {
     // Lines, project and task caches belong to the previous company
     setLinesCache({});
+    setDetailsCache({});
     setJobsCache({});
     setTasksCache({});
     setJobsApiFailed(false);
@@ -196,10 +205,17 @@ export function ApprovalList() {
     missing.forEach((ts) => inFlightLinesRef.current.add(ts.id));
     prefetchTimeSheetLines(
       missing,
-      (timeSheetNo) => bcClient.getTimeSheetLines(timeSheetNo),
-      (timeSheetId, lines) => {
+      // One details query per timesheet (all lines and days) after its lines, so each worker
+      // still has a single request in flight. Details are optional: the card just skips the days.
+      async (timeSheetNo) => {
+        const lines = await bcClient.getTimeSheetLines(timeSheetNo);
+        const details = await bcClient.getAllTimeSheetDetails(timeSheetNo).catch(() => null);
+        return { lines, details };
+      },
+      (timeSheetId, { lines, details }) => {
         inFlightLinesRef.current.delete(timeSheetId);
         setLinesCache((prev) => ({ ...prev, [timeSheetId]: lines }));
+        if (details) setDetailsCache((prev) => ({ ...prev, [timeSheetId]: details }));
       },
       isStale
     ).finally(() => {
@@ -309,13 +325,26 @@ export function ApprovalList() {
       } else {
         setExpandedId(timeSheet.id);
         selectTimeSheet(timeSheet);
+        // Fetch daily hours if the prefetch didn't get them (e.g. it failed) and isn't still running
+        if (!detailsCache[timeSheet.id] && !inFlightLinesRef.current.has(timeSheet.id)) {
+          const generation = companyGenerationRef.current;
+          bcClient
+            .getAllTimeSheetDetails(timeSheet.number)
+            .then((details) => {
+              if (generation !== companyGenerationRef.current) return;
+              setDetailsCache((prev) => ({ ...prev, [timeSheet.id]: details }));
+            })
+            .catch(() => {
+              // Silently fail - the card shows weekly totals only
+            });
+        }
         // Fetch lines if not cached
         if (!linesCache[timeSheet.id]) {
           await fetchTimeSheetLines(timeSheet.number);
         }
       }
     },
-    [expandedId, linesCache, fetchTimeSheetLines, selectTimeSheet]
+    [expandedId, linesCache, detailsCache, fetchTimeSheetLines, selectTimeSheet]
   );
 
   const handleApprove = useCallback(
@@ -531,6 +560,7 @@ export function ApprovalList() {
                     key={timeSheet.id}
                     timeSheet={timeSheet}
                     lines={linesCache[timeSheet.id] || []}
+                    details={detailsCache[timeSheet.id]}
                     isExpanded={expandedId === timeSheet.id}
                     isProcessing={processingId === timeSheet.id}
                     isAnyProcessing={processingId !== null}
