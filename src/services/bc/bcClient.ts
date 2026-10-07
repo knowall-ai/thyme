@@ -1468,7 +1468,7 @@ class BusinessCentralClient {
   /**
    * The latest suggestion request for a resource and week, or null if there's none.
    * Returns undefined when the extension has no suggestionRequests endpoint (older than
-   * 1.16), so callers can hide the feature.
+   * 1.18), so callers can hide the feature.
    */
   async getLatestSuggestionRequest(
     resourceNo: string,
@@ -1536,7 +1536,7 @@ class BusinessCentralClient {
 
   /**
    * Whether the signed-in user may request suggestions for a resource. Undefined when the
-   * extension doesn't say (older than 1.16) or the resource can't be read.
+   * extension doesn't say (older than 1.18) or the resource can't be read.
    */
   async canRequestSuggestions(resourceNo: string): Promise<boolean | undefined> {
     const extensionInstalled = await this.isExtensionInstalled();

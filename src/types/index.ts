@@ -323,7 +323,7 @@ export interface BCTimeSuggestionUpdate {
 }
 
 // A request for Poppie to generate time suggestions for a resource's week now (Thyme BC
-// Extension 1.16+ suggestionRequests API). Poppie claims it within a minute, updates
+// Extension 1.18+ suggestionRequests API). Poppie claims it within a minute, updates
 // `progress` as she checks each source, then marks it Done or Failed.
 export type SuggestionRequestStatus = 'Requested' | 'Running' | 'Done' | 'Failed';
 
