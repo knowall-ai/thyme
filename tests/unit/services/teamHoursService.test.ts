@@ -87,4 +87,32 @@ describe('loadTeamHours', () => {
     expect(getTimeSheetsStartingBetween).toHaveBeenCalledWith('2026-09-29', '2026-10-11');
     expect(getTimeSheetLines).toHaveBeenCalledTimes(2);
   });
+
+  it('loads a big team a few time sheets at a time, and fails rather than hide hours', async () => {
+    const people = Array.from({ length: 10 }, (_, i) =>
+      person(`R${i}`, `Person ${i} Contoso`, `PERSON${i}.CONTOSO`)
+    );
+    getResources.mockResolvedValue(people);
+    getTimeSheetsStartingBetween.mockResolvedValue(
+      people.map((p) => ({ number: `TS-${p.number}`, resourceNo: p.number }))
+    );
+    let inFlight = 0;
+    let maxInFlight = 0;
+    getTimeSheetLines.mockImplementation(async () => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      inFlight--;
+      return [];
+    });
+    getAllTimeSheetDetails.mockResolvedValue([]);
+
+    const { people: loaded } = await loadTeamHours(new Date(2026, 9, 5), new Date(2026, 9, 11));
+    expect(loaded).toHaveLength(10);
+    expect(getTimeSheetLines).toHaveBeenCalledTimes(10);
+    expect(maxInFlight).toBeLessThanOrEqual(3);
+
+    getAllTimeSheetDetails.mockRejectedValueOnce(new Error('BC API Error (429)'));
+    await expect(loadTeamHours(new Date(2026, 9, 5), new Date(2026, 9, 11))).rejects.toThrow('429');
+  });
 });

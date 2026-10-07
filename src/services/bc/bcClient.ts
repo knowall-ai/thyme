@@ -1463,7 +1463,9 @@ class BusinessCentralClient {
         'Thyme BC Extension is not installed. Timesheet functionality requires the extension.'
       );
     }
-    const filter = `startingDate ge ${fromDate} and startingDate le ${toDate}`;
+    const from = this.sanitizeDateInput(fromDate);
+    const to = this.sanitizeDateInput(toDate);
+    const filter = `startingDate ge ${from} and startingDate le ${to}`;
     return this.customApiFetchAll<BCTimeSheet>(`/timeSheets?$filter=${encodeURIComponent(filter)}`);
   }
 
