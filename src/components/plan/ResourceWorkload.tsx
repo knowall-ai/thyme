@@ -251,7 +251,7 @@ export function ResourceWorkload({
                       <span
                         className={cn(
                           'mt-1 text-xs',
-                          getOverAllocationHours(combined.hours) > 0
+                          getOverAllocationHours(combined.hours, dayCapacity) > 0
                             ? 'font-medium text-red-400'
                             : 'text-dark-400'
                         )}
