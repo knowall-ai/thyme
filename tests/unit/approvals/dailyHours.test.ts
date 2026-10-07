@@ -105,6 +105,8 @@ describe('isOverDailyHours', () => {
   it('flags only days over a working day, ignoring floating-point noise', () => {
     expect(isOverDailyHours(8)).toBe(false);
     expect(isOverDailyHours(7.9999999 + 0.0000001)).toBe(false);
+    expect(isOverDailyHours(0.1 + 0.2 + 7.7)).toBe(false);
+    expect(isOverDailyHours(8.004)).toBe(true);
     expect(isOverDailyHours(8.25)).toBe(true);
     expect(isOverDailyHours(6, 5)).toBe(true);
   });

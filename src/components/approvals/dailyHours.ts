@@ -3,6 +3,7 @@ import type { BCTimeSheetDetail } from '@/types';
 import { DAILY_CAPACITY_HOURS } from '@/utils';
 
 const DAYS_IN_WEEK = 7;
+const FLOAT_TOLERANCE = 1e-6;
 
 export interface WeekDailyHours {
   /** Local calendar dates (YYYY-MM-DD) for each day of the week, Monday first */
@@ -59,8 +60,8 @@ export function buildWeekDailyHours(
 
 /**
  * Whether a day's hours are over a working day, as a cue for the approver.
- * Rounded to 2dp so floating-point sums like 7.9999999 + 0.0000001 don't flag.
+ * A tiny tolerance stops floating-point sums like 7.9999999 + 0.0000001 flagging.
  */
 export function isOverDailyHours(hours: number, capacityHours = DAILY_CAPACITY_HOURS): boolean {
-  return Math.round(hours * 100) / 100 > capacityHours;
+  return hours - capacityHours > FLOAT_TOLERANCE;
 }
