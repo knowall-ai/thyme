@@ -32,12 +32,10 @@ function readRawResourceParam(): string | null {
 export function useTeammateFromUrl(currentUserEmail?: string): boolean {
   const [rawResourceParam] = useState(readRawResourceParam);
   // The teammate the URL asked for on arrival; null once handled, or if there was none.
-  // Nothing to do if they're already selected (e.g. back on the Time page with them).
-  const [pendingResourceNo, setPendingResourceNo] = useState(() => {
-    const resourceNo = parseResourceParam(rawResourceParam);
-    const selected = useTeammateStore.getState().selectedTeammate;
-    return selected?.resourceNo.toUpperCase() === resourceNo ? null : resourceNo;
-  });
+  // Always checked against a fresh list, even if they're already selected.
+  const [pendingResourceNo, setPendingResourceNo] = useState(() =>
+    parseResourceParam(rawResourceParam)
+  );
   // Only a list that finishes loading after arrival counts: one already in the store
   // may be from before a company switch
   const [arrivalLoadCount] = useState(() => useTeammateStore.getState().loadCount);

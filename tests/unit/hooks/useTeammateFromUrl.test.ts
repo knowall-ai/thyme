@@ -118,11 +118,17 @@ describe('useTeammateFromUrl', () => {
     expect(toast).not.toHaveBeenCalled();
   });
 
-  it('settles at once when the linked teammate is already selected', () => {
+  it('re-checks a teammate who is already selected against the fresh list', () => {
     useTeammateStore.setState({ selectedTeammate: colleague });
     window.history.replaceState(null, '', '/time?resource=R0070');
     const { result } = renderHook(() => useTeammateFromUrl());
+    expect(result.current).toBe(false);
+    expect(useTeammateStore.getState().selectedTeammate).toBeNull();
+
+    // No longer offered (e.g. blocked since): falls back rather than keeping them
+    finishLoad({ teammates: [me] });
     expect(result.current).toBe(true);
-    expect(useTeammateStore.getState().selectedTeammate).toEqual(colleague);
+    expect(useTeammateStore.getState().selectedTeammate).toBeNull();
+    expect(toast).toHaveBeenCalledTimes(1);
   });
 });
