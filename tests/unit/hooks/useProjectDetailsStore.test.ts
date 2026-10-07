@@ -34,6 +34,7 @@ import {
   useProjectDetailsStore,
   PROJECT_NAME_MAX_LENGTH,
   ProjectRenamePermissionError,
+  DEFAULT_HIDDEN_KPIS,
 } from '@/hooks/useProjectDetailsStore';
 import { useProjectsStore } from '@/hooks/useProjectsStore';
 import type { Project } from '@/types';
@@ -160,5 +161,45 @@ describe('useProjectDetailsStore.fetchProjectDetails', () => {
     expect(getProjectAnalytics).toHaveBeenCalledTimes(2);
     expect(useProjectDetailsStore.getState().analytics?.futurePlannedHours).toBe(16);
     expect(loadingStates).not.toContain(true);
+  });
+});
+
+describe('useProjectDetailsStore internal cost visibility', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getProjectDetails.mockResolvedValue({ project: { code: 'PR001' }, tasks: [] });
+    getProjectAnalytics.mockResolvedValue({ futurePlannedHours: 8 });
+    useProjectDetailsStore.getState().clearProject();
+  });
+
+  it('hides only the internal cost cards by default', () => {
+    expect(DEFAULT_HIDDEN_KPIS).toEqual(['Budget Cost', 'Actual Cost']);
+    expect(useProjectDetailsStore.getState().hiddenKpis).toEqual(['Budget Cost', 'Actual Cost']);
+  });
+
+  it('hides them again when a project page opens', async () => {
+    useProjectDetailsStore.setState({ hiddenKpis: [] });
+    await useProjectDetailsStore.getState().fetchProjectDetails('PR001');
+    expect(useProjectDetailsStore.getState().hiddenKpis).toEqual(DEFAULT_HIDDEN_KPIS);
+  });
+
+  it('lets the user reveal a cost card, and keeps it revealed across a forced refresh', async () => {
+    await useProjectDetailsStore.getState().fetchProjectDetails('PR001');
+    useProjectDetailsStore.getState().toggleKpiHidden('Actual Cost');
+    expect(useProjectDetailsStore.getState().hiddenKpis).toEqual(['Budget Cost']);
+
+    await useProjectDetailsStore.getState().fetchProjectDetails('PR001', { force: true });
+    expect(useProjectDetailsStore.getState().hiddenKpis).toEqual(['Budget Cost']);
+  });
+
+  it('does not carry a reveal over to the next project', async () => {
+    await useProjectDetailsStore.getState().fetchProjectDetails('PR001');
+    useProjectDetailsStore.getState().toggleKpiHidden('Budget Cost');
+    useProjectDetailsStore.getState().toggleKpiHidden('Actual Cost');
+    expect(useProjectDetailsStore.getState().hiddenKpis).toEqual([]);
+
+    getProjectDetails.mockResolvedValue({ project: { code: 'PR002' }, tasks: [] });
+    await useProjectDetailsStore.getState().fetchProjectDetails('PR002');
+    expect(useProjectDetailsStore.getState().hiddenKpis).toEqual(DEFAULT_HIDDEN_KPIS);
   });
 });
