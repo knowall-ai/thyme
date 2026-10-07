@@ -331,6 +331,7 @@ interface WeeklyDataPoint {
   hours: number;
   approvedHours: number;
   pendingHours: number;
+  unsubmittedHours?: number; // The Open (not yet submitted) part of pendingHours
   plannedHours: number; // Budgeted hours from Job Planning Lines
   cumulative: number;
 }
@@ -340,6 +341,7 @@ interface WeekDisplayData {
   hours: number;
   approvedHours: number; // Hours from Approved timesheets
   pendingHours: number; // Hours from Open/Submitted timesheets
+  unsubmittedHours: number; // The Open (not yet submitted) part of pendingHours
   plannedHours: number; // Budgeted hours from Job Planning Lines
   date: Date;
   isCurrentWeek: boolean;
@@ -448,13 +450,20 @@ function generateWeeklyDisplayData(
   // Create a map of existing data
   const dataMap = new Map<
     string,
-    { hours: number; approvedHours: number; pendingHours: number; plannedHours: number }
+    {
+      hours: number;
+      approvedHours: number;
+      pendingHours: number;
+      unsubmittedHours: number;
+      plannedHours: number;
+    }
   >();
   for (const d of data) {
     dataMap.set(d.week, {
       hours: d.hours,
       approvedHours: d.approvedHours || 0,
       pendingHours: d.pendingHours || 0,
+      unsubmittedHours: d.unsubmittedHours || 0,
       plannedHours: d.plannedHours || 0,
     });
   }
@@ -475,6 +484,7 @@ function generateWeeklyDisplayData(
       hours: 0,
       approvedHours: 0,
       pendingHours: 0,
+      unsubmittedHours: 0,
       plannedHours: 0,
     };
 
@@ -491,6 +501,7 @@ function generateWeeklyDisplayData(
       hours: weekData.hours,
       approvedHours: weekData.approvedHours,
       pendingHours: weekData.pendingHours,
+      unsubmittedHours: weekData.unsubmittedHours,
       plannedHours: weekData.plannedHours,
       date: weekDate,
       isCurrentWeek: weekStr === currentWeekStr,
@@ -526,9 +537,10 @@ function WeeklyBarChart({ data, offsetWeeks, unit, hoursPerDay }: WeeklyBarChart
         (acc, d) => ({
           planned: acc.planned + d.plannedHours,
           approved: acc.approved + d.approvedHours,
-          pending: acc.pending + d.pendingHours,
+          submitted: acc.submitted + d.pendingHours - d.unsubmittedHours,
+          unsubmitted: acc.unsubmitted + d.unsubmittedHours,
         }),
-        { planned: 0, approved: 0, pending: 0 }
+        { planned: 0, approved: 0, submitted: 0, unsubmitted: 0 }
       ),
     [displayData]
   );
@@ -579,10 +591,13 @@ function WeeklyBarChart({ data, offsetWeeks, unit, hoursPerDay }: WeeklyBarChart
           {/* Bars */}
           <div className="relative flex h-full items-end">
             {displayData.map((point) => {
-              // Stacked bar heights: approved at bottom, pending on top
+              // Stacked bar heights: approved at the bottom, then submitted, unsubmitted on top
+              const submittedHours = point.pendingHours - point.unsubmittedHours;
               const approvedHeightPercent =
                 maxHours > 0 ? (point.approvedHours / maxHours) * 100 : 0;
-              const pendingHeightPercent = maxHours > 0 ? (point.pendingHours / maxHours) * 100 : 0;
+              const submittedHeightPercent = maxHours > 0 ? (submittedHours / maxHours) * 100 : 0;
+              const unsubmittedHeightPercent =
+                maxHours > 0 ? (point.unsubmittedHours / maxHours) * 100 : 0;
               const plannedHeightPercent = maxHours > 0 ? (point.plannedHours / maxHours) * 100 : 0;
               const isHovered = hoveredWeek === point.week;
 
@@ -624,8 +639,8 @@ function WeeklyBarChart({ data, offsetWeeks, unit, hoursPerDay }: WeeklyBarChart
                           }}
                         />
                       )}
-                      {/* Pending hours (top of stack - amber/orange) */}
-                      {pendingHeightPercent > 0 && (
+                      {/* Submitted hours (middle of stack - amber), awaiting approval */}
+                      {submittedHeightPercent > 0 && (
                         <div
                           className={cn(
                             'w-full transition-all',
@@ -635,7 +650,25 @@ function WeeklyBarChart({ data, offsetWeeks, unit, hoursPerDay }: WeeklyBarChart
                             approvedHeightPercent === 0 && 'rounded-t'
                           )}
                           style={{
-                            height: `${pendingHeightPercent}%`,
+                            height: `${submittedHeightPercent}%`,
+                            minHeight: '2px',
+                          }}
+                        />
+                      )}
+                      {/* Unsubmitted hours (top of stack - faded amber), still on Open timesheets */}
+                      {unsubmittedHeightPercent > 0 && (
+                        <div
+                          className={cn(
+                            'w-full transition-all',
+                            point.isCurrentWeek
+                              ? 'bg-amber-400/50'
+                              : 'bg-amber-500/40 group-hover:bg-amber-400/50',
+                            approvedHeightPercent === 0 &&
+                              submittedHeightPercent === 0 &&
+                              'rounded-t'
+                          )}
+                          style={{
+                            height: `${unsubmittedHeightPercent}%`,
                             minHeight: '2px',
                           }}
                         />
@@ -665,10 +698,16 @@ function WeeklyBarChart({ data, offsetWeeks, unit, hoursPerDay }: WeeklyBarChart
                           Approved: {formatEffort(point.approvedHours)}
                         </div>
                       )}
-                      {point.pendingHours > 0 && (
+                      {point.pendingHours - point.unsubmittedHours > 0 && (
                         <div className="flex items-center gap-2 text-gray-400">
                           <span className="inline-block h-2 w-2 rounded-sm bg-amber-500" />
-                          Pending: {formatEffort(point.pendingHours)}
+                          Submitted: {formatEffort(point.pendingHours - point.unsubmittedHours)}
+                        </div>
+                      )}
+                      {point.unsubmittedHours > 0 && (
+                        <div className="flex items-center gap-2 text-gray-400">
+                          <span className="inline-block h-2 w-2 rounded-sm bg-amber-500/40" />
+                          Unsubmitted: {formatEffort(point.unsubmittedHours)}
                         </div>
                       )}
                       {point.hours === 0 && point.plannedHours === 0 && (
@@ -705,7 +744,11 @@ function WeeklyBarChart({ data, offsetWeeks, unit, hoursPerDay }: WeeklyBarChart
         </div>
         <div className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-500" />
-          <span>Pending ({formatEffort(legendTotals.pending)})</span>
+          <span>Submitted ({formatEffort(legendTotals.submitted)})</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-500/40" />
+          <span>Unsubmitted ({formatEffort(legendTotals.unsubmitted)})</span>
         </div>
       </div>
     </div>
@@ -976,9 +1019,11 @@ function ProgressLineChart({
           value: forecastAtCompletion,
         }
       : null;
-  // Move the budget label below its line when the forecast label would sit on top of it
-  const forecastLabelNearBudget =
+  // When the forecast ends close to the budget line, both labels share one row on the side
+  // of the line away from the forecast's end point, so neither sits on a line or the other
+  const forecastNearBudget =
     !!forecastEnd && showBudget && Math.abs(forecastEnd.y - totalBudgetY) < 8;
+  const sharedLabelBelowLine = forecastNearBudget && forecastEnd!.y < totalBudgetY;
 
   return (
     <div>
@@ -1015,10 +1060,16 @@ function ProgressLineChart({
                 <span
                   className={cn(
                     'absolute right-0 text-xs text-amber-400',
-                    forecastLabelNearBudget ? 'top-1' : '-top-5'
+                    sharedLabelBelowLine ? 'top-1' : '-top-5'
                   )}
                 >
                   Budget: {formatValue(budgetValue)}
+                  {forecastNearBudget && forecastEnd && (
+                    <span className="text-sky-400">
+                      {' '}
+                      · Forecast: {formatValue(forecastEnd.value)}
+                    </span>
+                  )}
                 </span>
               </div>
             </>
@@ -1113,7 +1164,7 @@ function ProgressLineChart({
           </svg>
 
           {/* Forecast label at the end of the forecast line, like the budget line's */}
-          {forecastEnd && (
+          {forecastEnd && !forecastNearBudget && (
             <span
               className={cn(
                 'absolute -translate-y-full pb-1 text-xs whitespace-nowrap text-sky-400',

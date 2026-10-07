@@ -287,7 +287,7 @@ export function ProjectKPICards() {
         { label: 'Posted', hours: postedHours, color: 'bg-thyme-700' },
         { label: 'Approved', hours: approvedUnpostedHours, color: 'bg-thyme-500' },
         { label: 'Submitted', hours: submittedHours, color: 'bg-amber-500' },
-        { label: 'Unsubmitted', hours: unsubmittedHours, color: 'bg-gray-500' },
+        { label: 'Unsubmitted', hours: unsubmittedHours, color: 'bg-amber-500/40' },
       ],
     },
     {

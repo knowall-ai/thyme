@@ -95,6 +95,7 @@ interface WeeklyDataPoint {
   hours: number; // Total hours
   approvedHours: number; // Hours from Approved timesheets
   pendingHours: number; // Hours from Open + Submitted timesheets
+  unsubmittedHours: number; // The Open (not yet submitted) part of pendingHours
   plannedHours: number; // Budgeted hours from Job Planning Lines (by planningDate)
   cumulative: number;
 }
@@ -384,15 +385,24 @@ export const projectDetailsService = {
       .reduce((sum, e) => sum + e.hours, 0);
 
     // Weekly data aggregation - track approved vs pending hours
-    const weeklyMap = new Map<string, { total: number; approved: number; pending: number }>();
+    const weeklyMap = new Map<
+      string,
+      { total: number; approved: number; pending: number; unsubmitted: number }
+    >();
     for (const entry of timeEntries) {
-      const current = weeklyMap.get(entry.weekStart) || { total: 0, approved: 0, pending: 0 };
+      const current = weeklyMap.get(entry.weekStart) || {
+        total: 0,
+        approved: 0,
+        pending: 0,
+        unsubmitted: 0,
+      };
       current.total += entry.hours;
       // Approved status = approved hours, everything else (Open, Submitted) = pending
       if (entry.status === 'Approved') {
         current.approved += entry.hours;
       } else if (entry.status === 'Open' || entry.status === 'Submitted') {
         current.pending += entry.hours;
+        if (entry.status === 'Open') current.unsubmitted += entry.hours;
       }
       // Note: Rejected hours are excluded from pending/approved but included in total
       weeklyMap.set(entry.weekStart, current);
@@ -402,13 +412,14 @@ export const projectDetailsService = {
     const sortedWeeks = Array.from(weeklyMap.keys()).sort();
     let cumulative = 0;
     let weeklyData: WeeklyDataPoint[] = sortedWeeks.map((week) => {
-      const data = weeklyMap.get(week) || { total: 0, approved: 0, pending: 0 };
+      const data = weeklyMap.get(week) || { total: 0, approved: 0, pending: 0, unsubmitted: 0 };
       cumulative += data.total;
       return {
         week,
         hours: data.total,
         approvedHours: data.approved,
         pendingHours: data.pending,
+        unsubmittedHours: data.unsubmitted,
         plannedHours: 0, // Will be populated from planning lines
         cumulative,
       };
@@ -581,6 +592,7 @@ export const projectDetailsService = {
             hours: 0,
             approvedHours: 0,
             pendingHours: 0,
+            unsubmittedHours: 0,
             plannedHours,
             cumulative: 0, // Will be recalculated below
           });
