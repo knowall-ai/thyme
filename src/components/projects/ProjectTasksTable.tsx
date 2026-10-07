@@ -12,12 +12,137 @@ import {
   UserGroupIcon,
   ChevronDoubleDownIcon,
   ChevronDoubleUpIcon,
+  ChevronUpIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth, getUserProfilePhoto } from '@/services/auth';
 import { bcClient } from '@/services/bc';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
 
 type GroupBy = 'task' | 'team';
+
+type StatusKey = 'hours' | 'postedHours' | 'approvedHours' | 'submittedHours' | 'unsubmittedHours';
+type StatusRow = Record<StatusKey, number>;
+
+// Hour columns, in stage order then the total (same colours as the Time Spent card and weekly chart)
+const STATUS_COLUMNS: { key: StatusKey; label: string; text: string; subText: string }[] = [
+  { key: 'postedHours', label: 'Posted', text: 'text-thyme-600', subText: 'text-thyme-600/70' },
+  { key: 'approvedHours', label: 'Approved', text: 'text-green-400', subText: 'text-green-400/70' },
+  {
+    key: 'submittedHours',
+    label: 'Submitted',
+    text: 'text-amber-400',
+    subText: 'text-amber-400/70',
+  },
+  {
+    key: 'unsubmittedHours',
+    label: 'Unsubmitted',
+    text: 'text-amber-400/60',
+    subText: 'text-amber-400/40',
+  },
+  // The stages add up to this, so it comes last
+  { key: 'hours', label: 'Total Hours', text: 'text-white', subText: 'text-gray-400' },
+];
+
+// null = BC's own order (Job Task No. / Resource No.); otherwise a column, highest or lowest first
+type SortState = { key: StatusKey; dir: 'desc' | 'asc' } | null;
+
+const formatHours = (value: number, key: StatusKey) =>
+  key === 'hours' || value > 0 ? value.toFixed(1) : '-';
+
+function sortRows<T extends StatusRow>(
+  rows: T[],
+  sort: SortState,
+  bcOrder: (a: T, b: T) => number
+) {
+  const sorted = [...rows];
+  if (!sort) return sorted.sort(bcOrder);
+  const sign = sort.dir === 'desc' ? -1 : 1;
+  return sorted.sort((a, b) => sign * (a[sort.key] - b[sort.key]) || bcOrder(a, b));
+}
+
+function SortableHeaders({
+  firstLabel,
+  sort,
+  onSort,
+}: {
+  firstLabel: string;
+  sort: SortState;
+  onSort: (sort: SortState) => void;
+}) {
+  // Click a column: highest first, then lowest first, then back to BC's order
+  const next = (key: StatusKey): SortState =>
+    sort?.key !== key ? { key, dir: 'desc' } : sort.dir === 'desc' ? { key, dir: 'asc' } : null;
+  const ariaSort = (key: StatusKey) =>
+    sort?.key === key ? (sort.dir === 'desc' ? 'descending' : 'ascending') : 'none';
+  return (
+    <tr>
+      <th
+        className="px-4 py-3 text-left text-sm font-medium text-gray-400"
+        aria-sort={sort ? 'none' : 'ascending'}
+      >
+        <button
+          type="button"
+          onClick={() => onSort(null)}
+          className="focus-visible:ring-thyme-500 rounded hover:text-white focus:outline-none focus-visible:ring-1"
+          title="Business Central order"
+        >
+          {firstLabel}
+        </button>
+      </th>
+      {STATUS_COLUMNS.map((col) => (
+        <th
+          key={col.key}
+          className={cn(
+            'w-24 px-3 py-3 text-right text-sm font-medium whitespace-nowrap',
+            col.text
+          )}
+          aria-sort={ariaSort(col.key)}
+        >
+          <button
+            type="button"
+            onClick={() => onSort(next(col.key))}
+            className="focus-visible:ring-thyme-500 inline-flex items-center gap-0.5 rounded hover:brightness-125 focus:outline-none focus-visible:ring-1"
+            title={`Sort by ${col.label.toLowerCase()}`}
+          >
+            {sort?.key === col.key &&
+              (sort.dir === 'desc' ? (
+                <ChevronDownIcon className="h-3 w-3" />
+              ) : (
+                <ChevronUpIcon className="h-3 w-3" />
+              ))}
+            {col.label}
+          </button>
+        </th>
+      ))}
+    </tr>
+  );
+}
+
+function StatusCells({ row, variant }: { row: StatusRow; variant: 'row' | 'sub' | 'total' }) {
+  return (
+    <>
+      {STATUS_COLUMNS.map((col) => (
+        <td
+          key={col.key}
+          className={cn(
+            'px-3 text-right',
+            variant === 'sub' ? cn('py-2 text-sm', col.subText) : cn('py-3', col.text),
+            variant === 'total' && 'font-bold',
+            variant === 'row' && col.key === 'hours' && 'font-medium'
+          )}
+        >
+          {formatHours(row[col.key], col.key)}
+        </td>
+      ))}
+    </>
+  );
+}
+
+const sumStatus = (rows: StatusRow[]): StatusRow =>
+  STATUS_COLUMNS.reduce(
+    (acc, col) => ({ ...acc, [col.key]: rows.reduce((sum, r) => sum + r[col.key], 0) }),
+    {} as StatusRow
+  );
 
 interface ExpandedState {
   [key: string]: boolean;
@@ -36,6 +161,7 @@ export function ProjectTasksTable() {
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const [photoMap, setPhotoMap] = useState<PhotoMap>({});
   const [isPrinting, setIsPrinting] = useState(false);
+  const [sort, setSort] = useState<SortState>(null);
 
   // Detect print mode to expand all tasks
   // flushSync ensures React commits to DOM synchronously so the browser
@@ -159,7 +285,10 @@ export function ProjectTasksTable() {
         <h2 className="text-lg font-semibold text-white">Breakdown</h2>
         <div className="flex gap-2 print:hidden">
           <button
-            onClick={() => setGroupBy('task')}
+            onClick={() => {
+              setGroupBy('task');
+              setSort(null);
+            }}
             className={cn(
               'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
               groupBy === 'task'
@@ -170,7 +299,10 @@ export function ProjectTasksTable() {
             By Task
           </button>
           <button
-            onClick={() => setGroupBy('team')}
+            onClick={() => {
+              setGroupBy('team');
+              setSort(null);
+            }}
             className={cn(
               'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
               groupBy === 'team'
@@ -194,10 +326,15 @@ export function ProjectTasksTable() {
           companyName={companyName}
           projectNumber={projectNumber}
           printExpandAll={isPrinting}
+          sort={sort}
+          onSort={setSort}
         />
       ) : (
         <TeamBreakdownTable
           data={teamBreakdown}
+          tasks={tasks}
+          sort={sort}
+          onSort={setSort}
           expanded={expanded}
           toggleExpanded={toggleExpanded}
           photoMap={photoMap}
@@ -232,19 +369,13 @@ export function ProjectTasksTable() {
   );
 }
 
-interface TaskBreakdownItem {
+interface TaskBreakdownItem extends StatusRow {
   taskNo: string;
   description: string;
-  hours: number;
-  approvedHours: number;
-  pendingHours: number;
-  teamMembers?: {
+  teamMembers?: (StatusRow & {
     resourceNo: string;
     name: string;
-    hours: number;
-    approvedHours: number;
-    pendingHours: number;
-  }[];
+  })[];
 }
 
 // Helper component for profile avatar
@@ -289,6 +420,17 @@ interface TaskFromStore {
   name: string;
 }
 
+// BC's order: the project's task list as BC returns it (by Job Task No.), then any task
+// codes not in that list, with time on no task ('no-task') last
+function compareTaskNo(a: string, b: string, tasks: TaskFromStore[]): number {
+  const rank = (code: string) => {
+    if (code === 'no-task') return Number.MAX_SAFE_INTEGER;
+    const i = tasks.findIndex((t) => t.code === code);
+    return i >= 0 ? i : tasks.length;
+  };
+  return rank(a) - rank(b) || a.localeCompare(b, undefined, { numeric: true });
+}
+
 function TaskBreakdownTable({
   data,
   tasks,
@@ -298,6 +440,8 @@ function TaskBreakdownTable({
   companyName,
   projectNumber,
   printExpandAll = false,
+  sort,
+  onSort,
 }: {
   data: TaskBreakdownItem[];
   tasks: TaskFromStore[];
@@ -307,6 +451,8 @@ function TaskBreakdownTable({
   companyName?: string;
   projectNumber?: string;
   printExpandAll?: boolean;
+  sort: SortState;
+  onSort: (sort: SortState) => void;
 }) {
   if (data.length === 0) {
     return (
@@ -318,29 +464,17 @@ function TaskBreakdownTable({
 
   // Create a map of task codes to task info for descriptions
   const taskMap = new Map(tasks.map((t) => [t.code, t]));
-
-  // Calculate totals
-  const totalHours = data.reduce((sum, item) => sum + item.hours, 0);
-  const totalApproved = data.reduce((sum, item) => sum + item.approvedHours, 0);
-  const totalPending = data.reduce((sum, item) => sum + item.pendingHours, 0);
+  const rows = sortRows(data, sort, (a, b) => compareTaskNo(a.taskNo, b.taskNo, tasks));
+  const totals = sumStatus(data);
 
   return (
     <div className="border-dark-600 overflow-hidden rounded-lg border">
       <table className="w-full">
         <thead className="bg-dark-700">
-          <tr>
-            <th className="px-4 py-3 text-left text-sm font-medium text-gray-400">Task</th>
-            <th className="w-20 px-3 py-3 text-right text-sm font-medium text-gray-400">Hours</th>
-            <th className="w-20 px-3 py-3 text-right text-sm font-medium text-green-400">
-              Approved
-            </th>
-            <th className="w-20 px-3 py-3 text-right text-sm font-medium text-amber-400">
-              Pending
-            </th>
-          </tr>
+          <SortableHeaders firstLabel="Task" sort={sort} onSort={onSort} />
         </thead>
         <tbody className="divide-dark-600 divide-y">
-          {data.map((item) => {
+          {rows.map((item) => {
             const taskInfo = taskMap.get(item.taskNo);
             const hasDetails = item.teamMembers && item.teamMembers.length > 0;
             const isExpanded = printExpandAll || expanded[item.taskNo];
@@ -385,15 +519,7 @@ function TaskBreakdownTable({
                       </div>
                     </div>
                   </td>
-                  <td className="px-3 py-3 text-right font-medium text-white">
-                    {item.hours.toFixed(1)}
-                  </td>
-                  <td className="px-3 py-3 text-right text-green-400">
-                    {item.approvedHours.toFixed(1)}
-                  </td>
-                  <td className="px-3 py-3 text-right text-amber-400">
-                    {item.pendingHours > 0 ? item.pendingHours.toFixed(1) : '-'}
-                  </td>
+                  <StatusCells row={item} variant="row" />
                 </tr>
                 {/* Expanded details - always render but hide/show with CSS for print support */}
                 {item.teamMembers?.map((member) => (
@@ -421,15 +547,7 @@ function TaskBreakdownTable({
                         </a>
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-right text-sm text-gray-400">
-                      {member.hours.toFixed(1)}
-                    </td>
-                    <td className="px-3 py-2 text-right text-sm text-green-400/70">
-                      {member.approvedHours.toFixed(1)}
-                    </td>
-                    <td className="px-3 py-2 text-right text-sm text-amber-400/70">
-                      {member.pendingHours > 0 ? member.pendingHours.toFixed(1) : '-'}
-                    </td>
+                    <StatusCells row={member} variant="sub" />
                   </tr>
                 ))}
               </Fragment>
@@ -439,13 +557,7 @@ function TaskBreakdownTable({
         <tfoot className="bg-dark-700">
           <tr>
             <td className="px-4 py-3 font-medium text-white">Total</td>
-            <td className="px-3 py-3 text-right font-bold text-white">{totalHours.toFixed(1)}</td>
-            <td className="px-3 py-3 text-right font-bold text-green-400">
-              {totalApproved.toFixed(1)}
-            </td>
-            <td className="px-3 py-3 text-right font-bold text-amber-400">
-              {totalPending > 0 ? totalPending.toFixed(1) : '-'}
-            </td>
+            <StatusCells row={totals} variant="total" />
           </tr>
         </tfoot>
       </table>
@@ -453,23 +565,20 @@ function TaskBreakdownTable({
   );
 }
 
-interface TeamBreakdownItem {
+interface TeamBreakdownItem extends StatusRow {
   resourceNo: string;
   name: string;
-  hours: number;
-  approvedHours: number;
-  pendingHours: number;
-  tasks?: {
+  tasks?: (StatusRow & {
     taskNo: string;
     description: string;
-    hours: number;
-    approvedHours: number;
-    pendingHours: number;
-  }[];
+  })[];
 }
 
 function TeamBreakdownTable({
   data,
+  tasks,
+  sort,
+  onSort,
   expanded,
   toggleExpanded,
   photoMap,
@@ -478,6 +587,9 @@ function TeamBreakdownTable({
   printExpandAll = false,
 }: {
   data: TeamBreakdownItem[];
+  tasks: TaskFromStore[];
+  sort: SortState;
+  onSort: (sort: SortState) => void;
   expanded: ExpandedState;
   toggleExpanded: (key: string) => void;
   photoMap: PhotoMap;
@@ -494,28 +606,21 @@ function TeamBreakdownTable({
     );
   }
 
-  // Calculate totals
-  const totalHours = data.reduce((sum, item) => sum + item.hours, 0);
-  const totalApproved = data.reduce((sum, item) => sum + item.approvedHours, 0);
-  const totalPending = data.reduce((sum, item) => sum + item.pendingHours, 0);
+  const taskMap = new Map(tasks.map((t) => [t.code, t]));
+  // BC lists resources by No.
+  const rows = sortRows(data, sort, (a, b) =>
+    a.resourceNo.localeCompare(b.resourceNo, undefined, { numeric: true })
+  );
+  const totals = sumStatus(data);
 
   return (
     <div className="border-dark-600 overflow-hidden rounded-lg border">
       <table className="w-full">
         <thead className="bg-dark-700">
-          <tr>
-            <th className="px-4 py-3 text-left text-sm font-medium text-gray-400">Team Member</th>
-            <th className="w-20 px-3 py-3 text-right text-sm font-medium text-gray-400">Hours</th>
-            <th className="w-20 px-3 py-3 text-right text-sm font-medium text-green-400">
-              Approved
-            </th>
-            <th className="w-20 px-3 py-3 text-right text-sm font-medium text-amber-400">
-              Pending
-            </th>
-          </tr>
+          <SortableHeaders firstLabel="Team Member" sort={sort} onSort={onSort} />
         </thead>
         <tbody className="divide-dark-600 divide-y">
-          {data.map((item) => {
+          {rows.map((item) => {
             const hasDetails = item.tasks && item.tasks.length > 0;
             const isExpanded = printExpandAll || expanded[item.resourceNo];
 
@@ -557,49 +662,37 @@ function TeamBreakdownTable({
                       </a>
                     </div>
                   </td>
-                  <td className="px-3 py-3 text-right font-medium text-white">
-                    {item.hours.toFixed(1)}
-                  </td>
-                  <td className="px-3 py-3 text-right text-green-400">
-                    {item.approvedHours.toFixed(1)}
-                  </td>
-                  <td className="px-3 py-3 text-right text-amber-400">
-                    {item.pendingHours > 0 ? item.pendingHours.toFixed(1) : '-'}
-                  </td>
+                  <StatusCells row={item} variant="row" />
                 </tr>
-                {/* Expanded details */}
+                {/* Expanded details, in BC's task order */}
                 {isExpanded &&
-                  item.tasks?.map((task) => (
-                    <tr key={`${item.resourceNo}-${task.taskNo}`} className="bg-dark-800/50">
-                      <td className="py-2 pr-4 pl-12">
-                        <div className="flex items-center gap-1">
-                          <span className="font-mono text-xs text-gray-500">{task.taskNo}</span>
-                          <span className="ml-1 text-sm text-gray-400">{task.description}</span>
-                          {projectNumber && (
-                            <a
-                              href={getBCJobTaskUrl(projectNumber, task.taskNo, companyName)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="hover:text-thyme-400 text-gray-500 print:hidden"
-                              title="Open task in Business Central"
-                            >
-                              <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
-                            </a>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 text-right text-sm text-gray-400">
-                        {task.hours.toFixed(1)}
-                      </td>
-                      <td className="px-3 py-2 text-right text-sm text-green-400/70">
-                        {task.approvedHours.toFixed(1)}
-                      </td>
-                      <td className="px-3 py-2 text-right text-sm text-amber-400/70">
-                        {task.pendingHours > 0 ? task.pendingHours.toFixed(1) : '-'}
-                      </td>
-                    </tr>
-                  ))}
+                  [...(item.tasks ?? [])]
+                    .sort((a, b) => compareTaskNo(a.taskNo, b.taskNo, tasks))
+                    .map((task) => (
+                      <tr key={`${item.resourceNo}-${task.taskNo}`} className="bg-dark-800/50">
+                        <td className="py-2 pr-4 pl-12">
+                          <div className="flex items-center gap-1">
+                            <span className="font-mono text-xs text-gray-500">{task.taskNo}</span>
+                            <span className="ml-1 text-sm text-gray-400">
+                              {taskMap.get(task.taskNo)?.name || task.description}
+                            </span>
+                            {projectNumber && (
+                              <a
+                                href={getBCJobTaskUrl(projectNumber, task.taskNo, companyName)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="hover:text-thyme-400 text-gray-500 print:hidden"
+                                title="Open task in Business Central"
+                              >
+                                <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
+                              </a>
+                            )}
+                          </div>
+                        </td>
+                        <StatusCells row={task} variant="sub" />
+                      </tr>
+                    ))}
               </Fragment>
             );
           })}
@@ -607,13 +700,7 @@ function TeamBreakdownTable({
         <tfoot className="bg-dark-700">
           <tr>
             <td className="px-4 py-3 font-medium text-white">Total</td>
-            <td className="px-3 py-3 text-right font-bold text-white">{totalHours.toFixed(1)}</td>
-            <td className="px-3 py-3 text-right font-bold text-green-400">
-              {totalApproved.toFixed(1)}
-            </td>
-            <td className="px-3 py-3 text-right font-bold text-amber-400">
-              {totalPending > 0 ? totalPending.toFixed(1) : '-'}
-            </td>
+            <StatusCells row={totals} variant="total" />
           </tr>
         </tfoot>
       </table>

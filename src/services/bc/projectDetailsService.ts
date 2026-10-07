@@ -100,37 +100,36 @@ interface WeeklyDataPoint {
   cumulative: number;
 }
 
-interface TaskBreakdownItem {
-  taskNo: string;
-  description: string;
+// Hours by timesheet stage. Each hour counts once, in the latest stage it has reached, so
+// postedHours + approvedHours + submittedHours + unsubmittedHours = hours (less any Rejected)
+export interface StatusHours {
   hours: number;
-  approvedHours: number; // Hours from Approved timesheets
-  pendingHours: number; // Hours from Open + Submitted timesheets
-  unitPrice?: number; // Unit price from Resource Card or Job Planning Lines
-  teamMembers?: {
-    resourceNo: string;
-    name: string;
-    hours: number;
-    approvedHours: number;
-    pendingHours: number;
-    unitPrice?: number;
-  }[];
+  postedHours: number; // Approved and posted to the Job Ledger
+  approvedHours: number; // Approved, not yet posted
+  submittedHours: number; // Submitted, awaiting approval
+  unsubmittedHours: number; // Still on Open timesheets
+  pendingHours: number; // submittedHours + unsubmittedHours
 }
 
-interface TeamBreakdownItem {
+interface TaskBreakdownItem extends StatusHours {
+  taskNo: string;
+  description: string;
+  unitPrice?: number; // Unit price from Resource Card or Job Planning Lines
+  teamMembers?: (StatusHours & {
+    resourceNo: string;
+    name: string;
+    unitPrice?: number;
+  })[];
+}
+
+interface TeamBreakdownItem extends StatusHours {
   resourceNo: string;
   name: string;
-  hours: number;
-  approvedHours: number; // Hours from Approved timesheets
-  pendingHours: number; // Hours from Open + Submitted timesheets
   unitPrice?: number; // Unit price for this resource from Resource Card or Job Planning Lines
-  tasks?: {
+  tasks?: (StatusHours & {
     taskNo: string;
     description: string;
-    hours: number;
-    approvedHours: number;
-    pendingHours: number;
-  }[];
+  })[];
 }
 
 // Local storage key for favorites (shared with projectService)
@@ -637,8 +636,6 @@ export const projectDetailsService = {
     let invoicedPrice = 0;
     let hoursPosted = 0;
     // Track posted hours by task and resource for breakdown
-    const postedByTask = new Map<string, number>();
-    const postedByResource = new Map<string, number>();
     const postedByTaskResource = new Map<string, number>(); // key: "taskNo|resourceNo"
     try {
       const postedEntries = await postedEntriesPromise;
@@ -659,11 +656,6 @@ export const projectDetailsService = {
         const taskKey = entry.jobTaskNo || 'no-task';
         const resourceKey = entry.resourceNo;
         const taskResourceKey = `${taskKey}|${resourceKey}`;
-        postedByTask.set(taskKey, (postedByTask.get(taskKey) || 0) + entry.quantity);
-        postedByResource.set(
-          resourceKey,
-          (postedByResource.get(resourceKey) || 0) + entry.quantity
-        );
         postedByTaskResource.set(
           taskResourceKey,
           (postedByTaskResource.get(taskResourceKey) || 0) + entry.quantity
@@ -673,143 +665,116 @@ export const projectDetailsService = {
       // If time entries can't be fetched, leave values as 0
     }
 
-    // Task breakdown - track approved vs pending based on timesheet status (matches chart)
+    // Breakdowns by task and by team member, each split by timesheet stage (matches the
+    // Time Spent card). Timesheet lines stay Approved once posted, so a row's posted hours
+    // (from the Job Ledger) are taken out of its approved hours, capped at what was approved.
+    const emptyStatus = () => ({
+      hours: 0,
+      approvedHours: 0,
+      submittedHours: 0,
+      unsubmittedHours: 0,
+    });
+    type StatusTally = ReturnType<typeof emptyStatus>;
+    const tally = (t: StatusTally, entry: (typeof timeEntries)[number]) => {
+      t.hours += entry.hours;
+      if (entry.status === 'Approved') t.approvedHours += entry.hours;
+      else if (entry.status === 'Submitted') t.submittedHours += entry.hours;
+      else if (entry.status === 'Open') t.unsubmittedHours += entry.hours;
+      // Rejected hours count in the total only
+    };
+    // A row's posted hours are the sum of its task-resource pairs', each capped at that
+    // pair's approved hours, so a parent row always matches the child rows under it
+    const postedFor = (taskNo: string, resourceNo: string, t: StatusTally) =>
+      Math.min(postedByTaskResource.get(`${taskNo}|${resourceNo}`) ?? 0, t.approvedHours);
+    const toStatusHours = (t: StatusTally, posted: number): StatusHours => {
+      const postedHours = Math.min(posted, t.approvedHours);
+      return {
+        hours: t.hours,
+        postedHours,
+        approvedHours: t.approvedHours - postedHours,
+        submittedHours: t.submittedHours,
+        unsubmittedHours: t.unsubmittedHours,
+        pendingHours: t.submittedHours + t.unsubmittedHours,
+      };
+    };
+
     const taskMap = new Map<
       string,
-      {
-        description: string;
-        hours: number;
-        approvedHours: number;
-        pendingHours: number;
-        members: Map<
-          string,
-          { name: string; hours: number; approvedHours: number; pendingHours: number }
-        >;
-      }
+      { description: string; status: StatusTally; members: Map<string, StatusTally> }
     >();
+    const teamMap = new Map<
+      string,
+      { name: string; status: StatusTally; tasks: Map<string, StatusTally> }
+    >();
+    const descriptionByTask = new Map<string, string>();
+    const nameByResource = new Map<string, string>();
     for (const entry of timeEntries) {
-      const key = entry.taskNo || 'no-task';
-      if (!taskMap.has(key)) {
-        taskMap.set(key, {
-          description: entry.description || 'Unknown Task',
-          hours: 0,
-          approvedHours: 0,
-          pendingHours: 0,
-          members: new Map(),
-        });
+      const taskKey = entry.taskNo || 'no-task';
+      if (!descriptionByTask.has(taskKey)) {
+        descriptionByTask.set(taskKey, entry.description || 'Unknown Task');
       }
-      const task = taskMap.get(key)!;
-      task.hours += entry.hours;
-      if (entry.status === 'Approved') {
-        task.approvedHours += entry.hours;
-      } else if (entry.status === 'Open' || entry.status === 'Submitted') {
-        task.pendingHours += entry.hours;
-      }
+      nameByResource.set(entry.resourceNo, entry.resourceName);
 
-      const member = task.members.get(entry.resourceNo);
-      if (member) {
-        member.hours += entry.hours;
-        if (entry.status === 'Approved') {
-          member.approvedHours += entry.hours;
-        } else if (entry.status === 'Open' || entry.status === 'Submitted') {
-          member.pendingHours += entry.hours;
-        }
-      } else {
-        task.members.set(entry.resourceNo, {
-          name: entry.resourceName,
-          hours: entry.hours,
-          approvedHours: entry.status === 'Approved' ? entry.hours : 0,
-          pendingHours: entry.status === 'Open' || entry.status === 'Submitted' ? entry.hours : 0,
-        });
+      let task = taskMap.get(taskKey);
+      if (!task) {
+        task = {
+          description: descriptionByTask.get(taskKey)!,
+          status: emptyStatus(),
+          members: new Map(),
+        };
+        taskMap.set(taskKey, task);
       }
+      tally(task.status, entry);
+      let taskMember = task.members.get(entry.resourceNo);
+      if (!taskMember) task.members.set(entry.resourceNo, (taskMember = emptyStatus()));
+      tally(taskMember, entry);
+
+      let member = teamMap.get(entry.resourceNo);
+      if (!member) {
+        member = { name: entry.resourceName, status: emptyStatus(), tasks: new Map() };
+        teamMap.set(entry.resourceNo, member);
+      }
+      tally(member.status, entry);
+      let memberTask = member.tasks.get(taskKey);
+      if (!memberTask) member.tasks.set(taskKey, (memberTask = emptyStatus()));
+      tally(memberTask, entry);
     }
 
+    // Default order is by hours here; the table re-sorts into BC's own order for display
     const taskBreakdown: TaskBreakdownItem[] = Array.from(taskMap.entries())
       .map(([taskNo, data]) => ({
         taskNo,
         description: data.description,
-        hours: data.hours,
-        approvedHours: data.approvedHours,
-        pendingHours: data.pendingHours,
+        ...toStatusHours(
+          data.status,
+          [...data.members].reduce((sum, [res, t]) => sum + postedFor(taskNo, res, t), 0)
+        ),
         unitPrice: unitPriceByTask.get(taskNo),
         teamMembers: Array.from(data.members.entries())
-          .map(([resourceNo, memberData]) => ({
+          .map(([resourceNo, t]) => ({
             resourceNo,
-            name: memberData.name,
-            hours: memberData.hours,
-            approvedHours: memberData.approvedHours,
-            pendingHours: memberData.pendingHours,
+            name: nameByResource.get(resourceNo) ?? resourceNo,
+            ...toStatusHours(t, postedFor(taskNo, resourceNo, t)),
             unitPrice: unitPriceByResource.get(resourceNo),
           }))
           .sort((a, b) => b.hours - a.hours),
       }))
       .sort((a, b) => b.hours - a.hours);
 
-    // Team breakdown - track approved vs pending based on timesheet status (matches chart)
-    const teamMap = new Map<
-      string,
-      {
-        name: string;
-        hours: number;
-        approvedHours: number;
-        pendingHours: number;
-        tasks: Map<
-          string,
-          { description: string; hours: number; approvedHours: number; pendingHours: number }
-        >;
-      }
-    >();
-    for (const entry of timeEntries) {
-      if (!teamMap.has(entry.resourceNo)) {
-        teamMap.set(entry.resourceNo, {
-          name: entry.resourceName,
-          hours: 0,
-          approvedHours: 0,
-          pendingHours: 0,
-          tasks: new Map(),
-        });
-      }
-      const member = teamMap.get(entry.resourceNo)!;
-      member.hours += entry.hours;
-      if (entry.status === 'Approved') {
-        member.approvedHours += entry.hours;
-      } else if (entry.status === 'Open' || entry.status === 'Submitted') {
-        member.pendingHours += entry.hours;
-      }
-
-      const taskKey = entry.taskNo || 'no-task';
-      if (!member.tasks.has(taskKey)) {
-        member.tasks.set(taskKey, {
-          description: entry.description || 'Unknown Task',
-          hours: 0,
-          approvedHours: 0,
-          pendingHours: 0,
-        });
-      }
-      const task = member.tasks.get(taskKey)!;
-      task.hours += entry.hours;
-      if (entry.status === 'Approved') {
-        task.approvedHours += entry.hours;
-      } else if (entry.status === 'Open' || entry.status === 'Submitted') {
-        task.pendingHours += entry.hours;
-      }
-    }
-
     const teamBreakdown: TeamBreakdownItem[] = Array.from(teamMap.entries())
       .map(([resourceNo, data]) => ({
         resourceNo,
         name: data.name,
-        hours: data.hours,
-        approvedHours: data.approvedHours,
-        pendingHours: data.pendingHours,
+        ...toStatusHours(
+          data.status,
+          [...data.tasks].reduce((sum, [taskNo, t]) => sum + postedFor(taskNo, resourceNo, t), 0)
+        ),
         unitPrice: unitPriceByResource.get(resourceNo),
         tasks: Array.from(data.tasks.entries())
-          .map(([taskNo, taskData]) => ({
+          .map(([taskNo, t]) => ({
             taskNo,
-            description: taskData.description,
-            hours: taskData.hours,
-            approvedHours: taskData.approvedHours,
-            pendingHours: taskData.pendingHours,
+            description: descriptionByTask.get(taskNo) ?? 'Unknown Task',
+            ...toStatusHours(t, postedFor(taskNo, resourceNo, t)),
           }))
           .sort((a, b) => b.hours - a.hours),
       }))
