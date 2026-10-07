@@ -636,8 +636,6 @@ export const projectDetailsService = {
     let invoicedPrice = 0;
     let hoursPosted = 0;
     // Track posted hours by task and resource for breakdown
-    const postedByTask = new Map<string, number>();
-    const postedByResource = new Map<string, number>();
     const postedByTaskResource = new Map<string, number>(); // key: "taskNo|resourceNo"
     try {
       const postedEntries = await postedEntriesPromise;
@@ -658,11 +656,6 @@ export const projectDetailsService = {
         const taskKey = entry.jobTaskNo || 'no-task';
         const resourceKey = entry.resourceNo;
         const taskResourceKey = `${taskKey}|${resourceKey}`;
-        postedByTask.set(taskKey, (postedByTask.get(taskKey) || 0) + entry.quantity);
-        postedByResource.set(
-          resourceKey,
-          (postedByResource.get(resourceKey) || 0) + entry.quantity
-        );
         postedByTaskResource.set(
           taskResourceKey,
           (postedByTaskResource.get(taskResourceKey) || 0) + entry.quantity
@@ -689,6 +682,10 @@ export const projectDetailsService = {
       else if (entry.status === 'Open') t.unsubmittedHours += entry.hours;
       // Rejected hours count in the total only
     };
+    // A row's posted hours are the sum of its task-resource pairs', each capped at that
+    // pair's approved hours, so a parent row always matches the child rows under it
+    const postedFor = (taskNo: string, resourceNo: string, t: StatusTally) =>
+      Math.min(postedByTaskResource.get(`${taskNo}|${resourceNo}`) ?? 0, t.approvedHours);
     const toStatusHours = (t: StatusTally, posted: number): StatusHours => {
       const postedHours = Math.min(posted, t.approvedHours);
       return {
@@ -748,13 +745,16 @@ export const projectDetailsService = {
       .map(([taskNo, data]) => ({
         taskNo,
         description: data.description,
-        ...toStatusHours(data.status, postedByTask.get(taskNo) ?? 0),
+        ...toStatusHours(
+          data.status,
+          [...data.members].reduce((sum, [res, t]) => sum + postedFor(taskNo, res, t), 0)
+        ),
         unitPrice: unitPriceByTask.get(taskNo),
         teamMembers: Array.from(data.members.entries())
           .map(([resourceNo, t]) => ({
             resourceNo,
             name: nameByResource.get(resourceNo) ?? resourceNo,
-            ...toStatusHours(t, postedByTaskResource.get(`${taskNo}|${resourceNo}`) ?? 0),
+            ...toStatusHours(t, postedFor(taskNo, resourceNo, t)),
             unitPrice: unitPriceByResource.get(resourceNo),
           }))
           .sort((a, b) => b.hours - a.hours),
@@ -765,13 +765,16 @@ export const projectDetailsService = {
       .map(([resourceNo, data]) => ({
         resourceNo,
         name: data.name,
-        ...toStatusHours(data.status, postedByResource.get(resourceNo) ?? 0),
+        ...toStatusHours(
+          data.status,
+          [...data.tasks].reduce((sum, [taskNo, t]) => sum + postedFor(taskNo, resourceNo, t), 0)
+        ),
         unitPrice: unitPriceByResource.get(resourceNo),
         tasks: Array.from(data.tasks.entries())
           .map(([taskNo, t]) => ({
             taskNo,
             description: descriptionByTask.get(taskNo) ?? 'Unknown Task',
-            ...toStatusHours(t, postedByTaskResource.get(`${taskNo}|${resourceNo}`) ?? 0),
+            ...toStatusHours(t, postedFor(taskNo, resourceNo, t)),
           }))
           .sort((a, b) => b.hours - a.hours),
       }))
