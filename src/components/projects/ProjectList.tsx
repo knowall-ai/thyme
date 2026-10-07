@@ -493,8 +493,8 @@ function ProjectRow({
                 {project.status}
               </span>
             </div>
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <span className="font-mono text-xs">{project.code}</span>
+            <div className="flex items-center gap-2 font-mono text-xs text-gray-500">
+              <span>{project.code}</span>
               {dates.start !== null && (
                 <>
                   <span>·</span>
