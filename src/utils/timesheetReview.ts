@@ -90,14 +90,6 @@ export function latestStamp(a: string | null | undefined, b: string | null | und
 }
 
 /**
- * Changes this close after a review's version stamp count as the version reviewed.
- * BC stores DateTime to roughly 3 ms (.350, .353, .357) and drops trailing zeros, so the
- * stamp Poppie writes can read back a few ms off BC's own modified times. A real change
- * means reopening and editing the timesheet, which takes far longer than this.
- */
-export const VERSION_STAMP_TOLERANCE_MS = 1000;
-
-/**
  * A review is out of date when the timesheet has changed since the version Poppie saw.
  * Stamps are compared as instants (epoch ms), never as strings: '…33.35Z' is .350 and
  * sorts after '…33.353Z' as text. Unknown timestamps count as unchanged, so a missing
@@ -109,7 +101,7 @@ export function isReviewOutOfDate(
 ): boolean {
   const reviewed = toTime(review.versionStamp);
   const current = toTime(currentStamp);
-  return reviewed !== null && current !== null && current - reviewed > VERSION_STAMP_TOLERANCE_MS;
+  return reviewed !== null && current !== null && current > reviewed;
 }
 
 /** The newest review per timesheet, from reviews for any number of timesheets. */
