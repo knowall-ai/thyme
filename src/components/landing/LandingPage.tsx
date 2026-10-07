@@ -29,7 +29,7 @@ const features = [
     icon: SparklesIcon,
     title: 'AI Timesheet Suggestions',
     description:
-      'An AI assistant suggests entries from your calendar, GitHub and Azure DevOps activity, matched to the right project. Check each one and add it in a click.',
+      'An AI assistant suggests entries from your calendar, GitHub and Azure DevOps activity, matched to the right project. Review each one, then add it to your timesheet.',
   },
   {
     icon: ArrowPathIcon,
@@ -47,7 +47,7 @@ const features = [
     icon: SparklesIcon,
     title: 'AI Approval Recommendations',
     description:
-      'Every submitted timesheet gets an AI review before approval, flagging missing comments, short days, the billable mix and budget overruns.',
+      'Submitted timesheets can get an AI review before approval, flagging missing comments, short days, the billable mix and budget overruns.',
   },
   {
     icon: ChartBarIcon,
