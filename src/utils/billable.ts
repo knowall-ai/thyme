@@ -78,3 +78,33 @@ export function getBillableHours(
   }
   return hours;
 }
+
+/**
+ * Whether a project task is planned absence (holiday, sick leave...): its description
+ * starts with "Absence" (e.g. "Absence - Holiday"). Absence is time off, not work
+ * against a budget, so budget maths on non-internal projects leaves it out.
+ */
+export function isAbsenceTask(description: string | undefined): boolean {
+  return /^\s*absence/i.test(description ?? '');
+}
+
+/** Task numbers (jobTaskNo) of a project's absence tasks */
+export function getAbsenceTaskNos(
+  tasks: { jobTaskNo: string; description?: string }[]
+): Set<string> {
+  return new Set(tasks.filter((t) => isAbsenceTask(t.description)).map((t) => t.jobTaskNo));
+}
+
+/**
+ * Drop planning lines that sit on absence tasks, so they don't count towards a
+ * budget. Internal projects keep them: they have no budget, and the plan is
+ * shown as plain planned time.
+ */
+export function withoutAbsenceLines<T extends { jobTaskNo: string }>(
+  lines: T[],
+  absenceTaskNos: Set<string>,
+  isInternal: boolean
+): T[] {
+  if (isInternal || absenceTaskNos.size === 0) return lines;
+  return lines.filter((line) => !absenceTaskNos.has(line.jobTaskNo));
+}

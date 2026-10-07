@@ -1,6 +1,12 @@
 import { bcClient } from './bcClient';
 import type { Project, Task, BCProject, BCJobTask, BCTimeSheet, BCTimeSheetLine } from '@/types';
-import { buildUOMConversionMap, isInternalProject, sumPlannedHours } from '@/utils';
+import {
+  buildUOMConversionMap,
+  getAbsenceTaskNos,
+  isInternalProject,
+  sumPlannedHours,
+  withoutAbsenceLines,
+} from '@/utils';
 
 // Color palette for projects
 const PROJECT_COLORS = [
@@ -279,7 +285,10 @@ export const projectService = {
    * a column labelled "h", and the Remaining figure would go strongly
    * negative (issue #192).
    */
-  async getProjectBudgets(projectCodes: string[]): Promise<Map<string, number>> {
+  async getProjectBudgets(
+    projectCodes: string[],
+    internalCodes: ReadonlySet<string> = new Set()
+  ): Promise<Map<string, number>> {
     const projectBudgets = new Map<string, number>();
     if (projectCodes.length === 0) return projectBudgets;
 
@@ -289,7 +298,18 @@ export const projectService = {
 
     const budgetPromises = projectCodes.map(async (projectCode) => {
       try {
-        const planningLines = await bcClient.getJobPlanningLines(projectCode);
+        const allLines = await bcClient.getJobPlanningLines(projectCode);
+        const isInternal = internalCodes.has(projectCode);
+        // Planned absence isn't budgeted work (internal projects keep it as plain plan)
+        let planningLines = allLines;
+        if (!isInternal && allLines.length > 0) {
+          try {
+            const absenceTaskNos = getAbsenceTaskNos(await bcClient.getJobTasks(projectCode));
+            planningLines = withoutAbsenceLines(allLines, absenceTaskNos, isInternal);
+          } catch {
+            // Without task names nothing can be told apart, so keep every line
+          }
+        }
         const budgetHours = sumPlannedHours(planningLines, uomConversionMap);
         if (budgetHours > 0) {
           projectBudgets.set(projectCode, budgetHours);
