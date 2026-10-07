@@ -13,9 +13,16 @@ import {
   UserCircleIcon,
   EnvelopeIcon,
 } from '@heroicons/react/24/outline';
-import { useTimeEntriesStore, useProjectsStore, useTeammateStore, useSettingsStore } from '@/hooks';
+import {
+  useTimeEntriesStore,
+  useProjectsStore,
+  useTeammateStore,
+  useSettingsStore,
+  useTimesheetReview,
+} from '@/hooks';
 import { useAuth } from '@/services/auth';
 import { Button, Card, WeekNavigation, ExtensionPreviewWrapper } from '@/components/ui';
+import { PoppieReviewPanel } from '@/components/review';
 import { TimeEntryCell } from './TimeEntryCell';
 import { TimeEntryModal } from './TimeEntryModal';
 import { PoppieSuggestionsPanel } from './PoppieSuggestionsPanel';
@@ -69,6 +76,7 @@ export function WeeklyTimesheet() {
     reopenTimesheet,
     isTimesheetEditable,
     moveEntryDate,
+    timesheetVersionStamp,
   } = useTimeEntriesStore();
 
   const {
@@ -109,6 +117,22 @@ export function WeeklyTimesheet() {
 
   // Pick a random quote on mount
   const quote = useMemo(() => getRandomQuote(), []);
+
+  // Poppie's AI review of your own timesheet, so you can amend it before it's approved
+  const poppieReview = useTimesheetReview(currentTimesheet?.number, undefined, undefined, {
+    submitted: timesheetStatus === 'Submitted' || timesheetStatus === 'Partially Submitted',
+    versionStamp: timesheetVersionStamp,
+    enabled: !isViewingTeammate,
+  });
+  const hasPoppieReview = poppieReview.status === 'current' || poppieReview.status === 'outOfDate';
+
+  // Names a timesheet line in Poppie's notes by its project and description
+  const getReviewLineLabel = (lineNo: number): string | undefined => {
+    const entry = entries.find((e) => e.bcTimeSheetLineNo === lineNo);
+    if (!entry) return undefined;
+    const projectName = projects.find((p) => p.code === entry.projectId)?.name || entry.projectId;
+    return entry.notes ? `${projectName} (${entry.notes})` : projectName;
+  };
 
   // Determine if editing is allowed
   const canEdit = !isViewingTeammate && isTimesheetEditable();
@@ -614,6 +638,16 @@ Thank you!`)}`}
           </div>
         )}
 
+        {/* Poppie's review of the timesheet on screen */}
+        {currentTimesheet && !isViewingTeammate && (
+          <PoppieReviewPanel
+            result={poppieReview}
+            variant="submitter"
+            lineLabel={getReviewLineLabel}
+            collapsible
+          />
+        )}
+
         {/* Week Summary */}
         <div className="flex items-center gap-6">
           <div className="text-dark-400 text-sm">
@@ -682,6 +716,7 @@ Thank you!`)}`}
                     onEditEntry={handleEditEntry}
                     onMoveEntry={handleMoveEntry}
                     readOnly={!canEdit}
+                    reviewNotesByLine={hasPoppieReview ? poppieReview.notesByLine : undefined}
                   />
                 );
               })}
