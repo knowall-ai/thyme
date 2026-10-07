@@ -442,6 +442,14 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
           })
         );
         jobTasks = fetchedTasks;
+      } else if (options.projectCode && !jobTasks.get(options.projectCode)?.length) {
+        // The dialog's project has no cached tasks: retry, as getJobTasks returns [] on failure
+        try {
+          const tasks = await bcClient.getJobTasks(options.projectCode);
+          jobTasks = new Map(jobTasks).set(options.projectCode, tasks);
+        } catch {
+          // Leave it; the next load retries
+        }
       }
       // Map key is "jobNo|jobTaskNo" -> task description
       const taskNameMap = new Map<string, string>();

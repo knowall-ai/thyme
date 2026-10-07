@@ -120,6 +120,24 @@ describe("usePlanStore.fetchTeamData for a project's dialog", () => {
     expect(usePlanStore.getState().jobTasksByProject.get('PR001')).toEqual(tasks);
   });
 
+  it("retries the project's tasks when an earlier load got none", async () => {
+    const { bcClient } = await import('@/services/bc');
+    const tasks = [
+      { id: 't1', jobNo: 'PR001', jobTaskNo: '100', description: 'Build', jobTaskType: 'Posting' },
+    ];
+    getJobPlanningLines.mockResolvedValue([]);
+    const week = startOfWeek(new Date(), { weekStartsOn: 1 });
+
+    // e.g. a transient failure (getJobTasks returns [] rather than throwing)
+    await usePlanStore.getState().fetchTeamData(week, 3);
+    vi.mocked(bcClient.getJobTasks).mockResolvedValueOnce(tasks as never);
+    await usePlanStore
+      .getState()
+      .fetchTeamData(addWeeks(week, 8), 3, undefined, { projectCode: 'PR001' });
+
+    expect(usePlanStore.getState().jobTasksByProject.get('PR001')).toEqual(tasks);
+  });
+
   it('still loads only the weeks on screen for the Plan tab', async () => {
     const week = startOfWeek(new Date(), { weekStartsOn: 1 });
     getJobPlanningLines.mockResolvedValue([]);
