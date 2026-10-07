@@ -54,6 +54,21 @@ describe('buildCsvRows', () => {
   });
 });
 
+describe('buildCsvRows escaping', () => {
+  it('quotes names containing commas or quotes and neutralises formulas', () => {
+    const tricky: Project[] = [
+      {
+        ...projects[0],
+        name: 'Contoso, "Web" Site',
+        tasks: [{ ...projects[0].tasks[0], name: '=SUM(A1)' }],
+      },
+    ];
+    const [row] = buildCsvRows([entry()], tricky);
+    expect(row[1]).toBe('"Contoso, ""Web"" Site"');
+    expect(row[2]).toBe(`"'=SUM(A1)"`);
+  });
+});
+
 describe('buildCsv', () => {
   it('keeps the existing columns', () => {
     expect(buildCsv([], projects)).toBe('Date,Project,Task,Hours,Notes,Billable');

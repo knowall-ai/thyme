@@ -2,6 +2,12 @@ import type { Project, TimeEntry } from '@/types';
 
 export const CSV_HEADERS = ['Date', 'Project', 'Task', 'Hours', 'Notes', 'Billable'];
 
+/** Quote a free-text field, doubling embedded quotes, and neutralise spreadsheet formulas. */
+function escapeCsvField(value: string): string {
+  const safe = /^[=+\-@]/.test(value) ? `'${value}` : value;
+  return /[",\r\n]/.test(safe) || safe !== value ? `"${safe.replace(/"/g, '""')}"` : safe;
+}
+
 /**
  * Build the CSV rows for the Reports export.
  *
@@ -15,8 +21,8 @@ export function buildCsvRows(entries: TimeEntry[], projects: Project[]): string[
     const task = project?.tasks.find((t) => t.code === entry.taskId);
     return [
       entry.date,
-      project?.name || 'Unknown',
-      task?.name || 'Unknown',
+      escapeCsvField(project?.name || 'Unknown'),
+      escapeCsvField(task?.name || 'Unknown'),
       entry.hours.toFixed(2),
       `"${(entry.notes || '').replace(/"/g, '""')}"`,
       entry.isBillable ? 'Yes' : 'No',
