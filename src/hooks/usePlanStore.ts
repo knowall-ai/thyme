@@ -263,6 +263,9 @@ function rebuildFromCache(
   });
 }
 
+// Most weeks one fetchTeamData call may load (the grid shows up to 6)
+const MAX_WEEKS_TO_SHOW = 52;
+
 // Latest fetchTeamData call. The store is shared by the Plan tab and a project's Planned
 // dialog, so a slower, older load must not overwrite the weeks a newer one is showing.
 let latestFetchId = 0;
@@ -289,6 +292,16 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   // Fetch team members, timesheets, and planning allocations for multiple weeks
   // Uses caching to avoid re-fetching already loaded weeks
   fetchTeamData: async (weekStart: Date, weeksToShow: number, emailDomain?: string) => {
+    // Reject bad input before it can supersede a valid load still in flight
+    if (
+      !(weekStart instanceof Date) ||
+      Number.isNaN(weekStart.getTime()) ||
+      !Number.isInteger(weeksToShow) ||
+      weeksToShow < 1 ||
+      weeksToShow > MAX_WEEKS_TO_SHOW
+    ) {
+      return;
+    }
     const fetchId = ++latestFetchId;
     const isLatest = () => fetchId === latestFetchId;
     const { cache } = get();

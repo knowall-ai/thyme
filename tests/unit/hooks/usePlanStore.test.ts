@@ -60,4 +60,22 @@ describe('usePlanStore.fetchTeamData', () => {
 
     expect(usePlanStore.getState().allAllocations.map((a) => a.startDate)).toEqual([dayB]);
   });
+
+  it.each([
+    ['an invalid week', new Date(NaN), 1],
+    ['zero weeks', new Date(), 0],
+    ['a fractional week count', new Date(), 1.5],
+    ['too many weeks', new Date(), 53],
+  ])('ignores %s without superseding a load in flight', async (_label, weekStart, weeks) => {
+    const week = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const day = format(week, 'yyyy-MM-dd');
+    getJobPlanningLines.mockResolvedValue([line(day)]);
+
+    const valid = usePlanStore.getState().fetchTeamData(week, 1);
+    await usePlanStore.getState().fetchTeamData(weekStart as Date, weeks as number);
+    await valid;
+
+    expect(usePlanStore.getState().allAllocations.map((a) => a.startDate)).toEqual([day]);
+    expect(getJobPlanningLines).toHaveBeenCalledTimes(1);
+  });
 });

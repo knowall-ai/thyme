@@ -1744,8 +1744,9 @@ export function PlanPanel({
   // Handle plan modal save - clear cache to refetch with new planning lines
   const handlePlanSaved = async () => {
     clearCache();
-    await fetchTeamData(currentWeekStart, effectiveWeeksToShow, emailDomain);
+    // Before the refresh: the edit modals don't await onSave, so a host may close first
     onPlanChanged?.();
+    await fetchTeamData(currentWeekStart, effectiveWeeksToShow, emailDomain);
   };
 
   // Handle drop
