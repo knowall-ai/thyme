@@ -7,7 +7,6 @@ import {
   ChartBarIcon,
   CalendarIcon,
   ClockIcon,
-  DocumentArrowDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   UsersIcon,
@@ -42,6 +41,7 @@ import {
   BILLABLE_RULE_DESCRIPTION,
 } from '@/utils';
 import type { TimeEntry, BCResource } from '@/types';
+import { ExportButton } from './ExportButton';
 
 type DateRange = 'week' | 'month';
 
@@ -550,10 +550,11 @@ export function ReportsPanel() {
         <Card variant="bordered" className="p-6">
           <div className="mb-6 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-white">Hours by Project</h2>
-            <button className="bg-dark-700 text-dark-300 hover:bg-dark-600 flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors hover:text-white">
-              <DocumentArrowDownIcon className="h-4 w-4" />
-              Export
-            </button>
+            <ExportButton
+              entries={entries}
+              projects={projects}
+              fileSuffix={`${format(startDate, 'yyyy-MM-dd')}_to_${format(endDate, 'yyyy-MM-dd')}`}
+            />
           </div>
           {isLoading ? (
             <div className="text-dark-400 py-12 text-center">
