@@ -12,7 +12,11 @@ import {
   CheckIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
-import { useProjectDetailsStore, PROJECT_NAME_MAX_LENGTH } from '@/hooks/useProjectDetailsStore';
+import {
+  useProjectDetailsStore,
+  PROJECT_NAME_MAX_LENGTH,
+  ProjectRenamePermissionError,
+} from '@/hooks/useProjectDetailsStore';
 import { useCompanyStore } from '@/hooks';
 import { cn, DATE_FORMAT_FULL, formatDate as formatDateUtil, getBCJobUrl } from '@/utils';
 import type { BillingMode } from '@/services/bc/projectDetailsService';
@@ -155,12 +159,13 @@ function ProjectName({ projectId, name }: ProjectNameProps) {
     setError(null);
     try {
       await renameProject(trimmed);
+      setIsEditing(false);
     } catch (err) {
-      // Revert to the saved name and say why (e.g. no permission in BC)
       setError(err instanceof Error ? err.message : 'Failed to rename the project');
+      // Retrying won't help without permission, so revert to the saved name; otherwise keep the draft to retry
+      if (err instanceof ProjectRenamePermissionError) setIsEditing(false);
     } finally {
       setIsSaving(false);
-      setIsEditing(false);
     }
   };
 

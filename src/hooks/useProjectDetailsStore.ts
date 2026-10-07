@@ -13,6 +13,14 @@ function isPermissionError(message: string): boolean {
   return /\(403\)/.test(message) || /permission/i.test(message);
 }
 
+// Thrown when BC refuses a rename, so the UI can revert rather than offer a retry
+export class ProjectRenamePermissionError extends Error {
+  constructor() {
+    super("You don't have permission to rename projects in Business Central");
+    this.name = 'ProjectRenamePermissionError';
+  }
+}
+
 interface ProjectDetailsStore {
   // State
   project: Project | null;
@@ -122,7 +130,7 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
       console.error('Failed to rename project:', error);
       const message = error instanceof Error ? error.message : '';
       if (isPermissionError(message)) {
-        throw new Error("You don't have permission to rename projects in Business Central");
+        throw new ProjectRenamePermissionError();
       }
       throw new Error('Failed to rename the project in Business Central');
     }

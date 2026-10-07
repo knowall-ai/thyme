@@ -20,7 +20,11 @@ vi.mock('@/hooks/useProjectsStore', async () => {
   };
 });
 
-import { useProjectDetailsStore, PROJECT_NAME_MAX_LENGTH } from '@/hooks/useProjectDetailsStore';
+import {
+  useProjectDetailsStore,
+  PROJECT_NAME_MAX_LENGTH,
+  ProjectRenamePermissionError,
+} from '@/hooks/useProjectDetailsStore';
 import { useProjectsStore } from '@/hooks/useProjectsStore';
 import type { Project } from '@/types';
 
@@ -90,6 +94,9 @@ describe('useProjectDetailsStore.renameProject', () => {
     await expect(useProjectDetailsStore.getState().renameProject('Contoso Portal')).rejects.toThrow(
       "You don't have permission to rename projects in Business Central"
     );
+    await expect(
+      useProjectDetailsStore.getState().renameProject('Contoso Portal')
+    ).rejects.toBeInstanceOf(ProjectRenamePermissionError);
     expect(useProjectDetailsStore.getState().project?.name).toBe('Contoso Website');
     expect(useProjectsStore.getState().projects[0].name).toBe('Contoso Website');
   });
