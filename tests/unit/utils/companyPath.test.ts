@@ -144,6 +144,13 @@ describe('pathForCompanySwitch', () => {
     expect(pathForCompanySwitch('/time', '?week=2026-10-05')).toBe('/time?week=2026-10-05');
   });
 
+  it('drops the teammate, as resource numbers are per company', () => {
+    expect(pathForCompanySwitch('/time', '?week=2026-10-05&resource=R0070')).toBe(
+      '/time?week=2026-10-05'
+    );
+    expect(pathForCompanySwitch('/time', '?resource=R0070')).toBe('/time');
+  });
+
   it('sends detail pages to their list page', () => {
     expect(pathForCompanySwitch('/projects/PR00100', '?x=1')).toBe('/projects');
   });

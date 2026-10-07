@@ -20,6 +20,7 @@ import {
   useSettingsStore,
   useTimesheetReview,
 } from '@/hooks';
+import { useTeammateFromUrl } from '@/hooks/useTeammateFromUrl';
 import { useAuth } from '@/services/auth';
 import { Button, Card, WeekNavigation, ExtensionPreviewWrapper } from '@/components/ui';
 import { PoppieReviewPanel } from '@/components/review';
@@ -29,6 +30,7 @@ import { PoppieSuggestionsPanel } from './PoppieSuggestionsPanel';
 import type { TimeEntry, TimesheetDisplayStatus } from '@/types';
 import { getWeekDays, formatDate, isDayToday, formatTime, getWeekStart } from '@/utils';
 import { getBCResourcesListUrl } from '@/utils/bcUrls';
+import { RESOURCE_PARAM } from '@/utils/teammateParam';
 import { getRandomQuote } from '@/config/quotes';
 
 // Status badge colors
@@ -52,6 +54,8 @@ export function WeeklyTimesheet() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [urlInitialized, setUrlInitialized] = useState(false);
+  // Whose timesheet a shared `?resource=` link asked for has been settled
+  const teammateFromUrlResolved = useTeammateFromUrl(userEmail);
 
   const {
     entries,
@@ -179,25 +183,46 @@ export function WeeklyTimesheet() {
     setUrlInitialized(true);
   }, [urlInitialized, currentWeekStart, goToDate]);
 
-  // Effect 2: Sync URL when week changes (after initialization)
+  // Effect 2: Sync URL when the week or teammate changes (after initialization), so a
+  // refresh or a shared link shows the same timesheet. One effect writes both, as two
+  // replaces in the same render would each start from the same stale query.
   useEffect(() => {
     // Don't update URL until initialization is complete
     if (!urlInitialized) return;
 
-    const weekStr = format(currentWeekStart, 'yyyy-MM-dd');
-    const weekParam = searchParams.get('week');
+    const params = new URLSearchParams(searchParams.toString());
+    let changed = false;
 
-    if (weekStr !== weekParam) {
-      const params = new URLSearchParams(searchParams.toString());
+    const weekStr = format(currentWeekStart, 'yyyy-MM-dd');
+    if (params.get('week') !== weekStr) {
       params.set('week', weekStr);
-      router.replace(`?${params.toString()}`, { scroll: false });
+      changed = true;
     }
-  }, [urlInitialized, currentWeekStart, searchParams, router]);
+
+    // Leave a link's `resource=` alone until it's been resolved
+    if (teammateFromUrlResolved) {
+      const resourceNo = selectedTeammate?.resourceNo ?? null;
+      if (params.get(RESOURCE_PARAM) !== resourceNo) {
+        if (resourceNo) params.set(RESOURCE_PARAM, resourceNo);
+        else params.delete(RESOURCE_PARAM);
+        changed = true;
+      }
+    }
+
+    if (changed) router.replace(`?${params.toString()}`, { scroll: false });
+  }, [
+    urlInitialized,
+    teammateFromUrlResolved,
+    currentWeekStart,
+    selectedTeammate,
+    searchParams,
+    router,
+  ]);
 
   // Fetch data on mount and when week or teammate changes
-  // Wait for URL initialization to avoid fetching wrong week first
+  // Wait for URL initialization to avoid fetching the wrong week or person first
   useEffect(() => {
-    if (!urlInitialized) return;
+    if (!urlInitialized || !teammateFromUrlResolved) return;
 
     if (selectedTeammate) {
       fetchTeammateEntries(selectedTeammate, currentWeekStart);
@@ -206,6 +231,7 @@ export function WeeklyTimesheet() {
     }
   }, [
     urlInitialized,
+    teammateFromUrlResolved,
     userEmail,
     currentWeekStart,
     fetchWeekEntries,

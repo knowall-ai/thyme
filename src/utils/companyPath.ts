@@ -1,4 +1,5 @@
 import type { BCEnvironmentType } from '@/types';
+import { withResourceParam } from './teammateParam';
 
 /**
  * Company-scoped URLs.
@@ -120,14 +121,15 @@ export function isLegacyCompanyPath(pathname: string): boolean {
 
 /**
  * Where to go when switching company from the given page. List pages carry over
- * (with their query string, e.g. `?week=`), but a detail page such as
+ * (with their query string, e.g. `?week=`, less `resource=`), but a detail page such as
  * `/projects/PR00100` goes to its list - the record won't exist in the other company.
  */
 export function pathForCompanySwitch(rest: string, search: string = ''): string {
   const segments = rest.split('/').filter(Boolean);
   if (segments.length === 0) return DEFAULT_COMPANY_PATH;
   if (segments.length > 1) return `/${segments[0]}`;
-  return `/${segments[0]}${search}`;
+  // Resource numbers are per company: the other company's could be someone else, or nobody
+  return `/${segments[0]}${withResourceParam(search, null)}`;
 }
 
 /** Next.js page `searchParams`, resolved */

@@ -11,6 +11,7 @@ import {
 import { useTeammateStore, useCompanyStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
 import { cn } from '@/utils';
+import { isCurrentUserTeammate } from '@/utils/teammateParam';
 import type { Teammate } from '@/types';
 
 export function TeammateSelector() {
@@ -73,9 +74,7 @@ export function TeammateSelector() {
   // Separate current user from other teammates. isCurrentUser comes from matching the
   // signed-in user to a BC resource; the email comparison is a fallback for when the
   // resource could not be resolved.
-  const currentUserEmail = account?.username?.toLowerCase();
-  const isCurrentUser = (t: Teammate) =>
-    t.isCurrentUser || (!!t.email && t.email.toLowerCase() === currentUserEmail);
+  const isCurrentUser = (t: Teammate) => isCurrentUserTeammate(t, account?.username);
   const currentUserTeammate = filteredTeammates.find(isCurrentUser);
   const otherTeammates = filteredTeammates.filter((t) => !isCurrentUser(t));
 
