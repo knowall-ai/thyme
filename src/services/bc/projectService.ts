@@ -62,6 +62,8 @@ function mapBCProjectToProject(bcProject: BCProject, index: number, favorites: s
     status,
     isFavorite: favorites.includes(bcProject.id),
     tasks: [],
+    startDate: bcProject.startingDate,
+    endDate: bcProject.endingDate,
   };
 }
 
