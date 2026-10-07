@@ -217,18 +217,26 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
     return result;
   }, [filteredProjects, statusFilter, sortBy, customerFilter, billingModes, showFavoritesOnly]);
 
-  // Group projects by customer
-  const groupedProjects = processedProjects.reduce(
-    (groups, project) => {
+  // Group projects by customer. Sorting by Remaining puts internal projects last, so
+  // they're grouped separately and every internal group follows all the others.
+  const separateInternal = sortBy === 'remaining-asc' || sortBy === 'remaining-desc';
+  const projectGroups = (() => {
+    const groups = new Map<
+      string,
+      { key: string; customer: string; internal: boolean; projects: Project[] }
+    >();
+    for (const project of processedProjects) {
       const customer = project.customerName || 'No Customer';
-      if (!groups[customer]) {
-        groups[customer] = [];
-      }
-      groups[customer].push(project);
-      return groups;
-    },
-    {} as Record<string, Project[]>
-  );
+      const internal = separateInternal && !!project.isInternal;
+      const key = internal ? `${customer}::internal` : customer;
+      const group = groups.get(key) ?? { key, customer, internal, projects: [] };
+      group.projects.push(project);
+      groups.set(key, group);
+    }
+    return [...groups.values()].sort(
+      (a, b) => Number(a.internal) - Number(b.internal) || a.customer.localeCompare(b.customer)
+    );
+  })();
 
   if (isLoading) {
     return (
@@ -402,38 +410,27 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
               </tr>
             </thead>
             <tbody className="divide-dark-600 divide-y">
-              {Object.entries(groupedProjects)
-                .sort(([a, projectsA], [b, projectsB]) => {
-                  // Sorting by Remaining puts internal projects last, so customer groups
-                  // made up only of internal projects go after the others
-                  if (sortBy === 'remaining-asc' || sortBy === 'remaining-desc') {
-                    const internalA = projectsA.every((p) => p.isInternal);
-                    const internalB = projectsB.every((p) => p.isInternal);
-                    if (internalA !== internalB) return internalA ? 1 : -1;
-                  }
-                  return a.localeCompare(b);
-                })
-                .map(([customer, customerProjects]) => (
-                  <Fragment key={customer}>
-                    {/* Customer group header */}
-                    <tr className="bg-dark-800/50">
-                      <td colSpan={6} className="px-4 py-2 text-sm font-medium text-gray-400">
-                        {customer}
-                      </td>
-                    </tr>
-                    {/* Projects in this group */}
-                    {customerProjects.map((project) => (
-                      <ProjectRow
-                        key={project.id}
-                        project={project}
-                        billingMode={billingModes.get(project.code)}
-                        onProjectClick={handleProjectClick}
-                        onToggleFavorite={toggleFavorite}
-                        companyName={selectedCompany?.name}
-                      />
-                    ))}
-                  </Fragment>
-                ))}
+              {projectGroups.map(({ key, customer, projects: customerProjects }) => (
+                <Fragment key={key}>
+                  {/* Customer group header */}
+                  <tr className="bg-dark-800/50">
+                    <td colSpan={6} className="px-4 py-2 text-sm font-medium text-gray-400">
+                      {customer}
+                    </td>
+                  </tr>
+                  {/* Projects in this group */}
+                  {customerProjects.map((project) => (
+                    <ProjectRow
+                      key={project.id}
+                      project={project}
+                      billingMode={billingModes.get(project.code)}
+                      onProjectClick={handleProjectClick}
+                      onToggleFavorite={toggleFavorite}
+                      companyName={selectedCompany?.name}
+                    />
+                  ))}
+                </Fragment>
+              ))}
             </tbody>
           </table>
         </div>
