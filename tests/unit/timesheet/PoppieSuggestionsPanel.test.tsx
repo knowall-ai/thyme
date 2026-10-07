@@ -67,7 +67,7 @@ const projects = [
   },
 ] as unknown as Project[];
 
-const renderPanel = () =>
+const renderPanel = (canEdit = true) =>
   render(
     <PoppieSuggestionsPanel
       resourceNo="R0010"
@@ -75,7 +75,7 @@ const renderPanel = () =>
       entries={[]}
       entriesLoading={false}
       projects={projects}
-      canEdit
+      canEdit={canEdit}
     />
   );
 
@@ -137,5 +137,14 @@ describe('PoppieSuggestionsPanel Add and Edit', () => {
 
     expect(screen.getByRole('dialog')).toHaveTextContent('Editing s1');
     expect(addEntry).not.toHaveBeenCalled();
+  });
+
+  it('hides Add and Edit when the timesheet is read-only', () => {
+    suggestions = [suggestion({})];
+    renderPanel(false);
+
+    const suggestionRow = row('Contoso stand-up');
+    expect(within(suggestionRow).queryByTitle('Add to timesheet')).toBeNull();
+    expect(within(suggestionRow).queryByRole('button', { name: 'Edit before adding' })).toBeNull();
   });
 });
