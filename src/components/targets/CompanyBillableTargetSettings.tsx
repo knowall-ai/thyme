@@ -15,8 +15,13 @@ import { describeTargetSaveError, parseTargetPercent } from '@/utils';
 export function CompanyBillableTargetSettings() {
   const inputId = useId();
   const { companyVersion } = useCompanyStore();
-  const { companyDefaultPercent, setupAvailable, loadCompanyDefault, setCompanyDefault } =
-    useBillableTargetStore();
+  const {
+    companyDefaultPercent,
+    setupAvailable,
+    loadedForCompanyVersion,
+    loadCompanyDefault,
+    setCompanyDefault,
+  } = useBillableTargetStore();
   const [value, setValue] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -31,7 +36,14 @@ export function CompanyBillableTargetSettings() {
     setError(null);
   }, [companyDefaultPercent]);
 
-  if (!setupAvailable || companyDefaultPercent === null) return null;
+  // Only once the current company's setup has loaded, so another company's default never shows
+  if (
+    !setupAvailable ||
+    companyDefaultPercent === null ||
+    loadedForCompanyVersion !== companyVersion
+  ) {
+    return null;
+  }
 
   const parsed = parseTargetPercent(value);
   const invalid = parsed === null;
@@ -39,11 +51,13 @@ export function CompanyBillableTargetSettings() {
 
   const handleSave = async () => {
     if (parsed === null) return;
+    // The company the save is for; ignored by the store if the user switches company meanwhile
+    const savedForCompanyVersion = companyVersion;
     setIsSaving(true);
     setError(null);
     try {
       const saved = await bcClient.updateDefaultBillableTarget(parsed);
-      setCompanyDefault(saved.defaultBillableTargetPercent ?? parsed);
+      setCompanyDefault(saved.defaultBillableTargetPercent ?? parsed, savedForCompanyVersion);
       toast.success('Company billable target updated');
     } catch (err) {
       setError(describeTargetSaveError(err));

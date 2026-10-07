@@ -82,6 +82,19 @@ function normalizeBCProject(project: BCProject): BCProject {
   return project;
 }
 
+/**
+ * The ETag to send as If-Match, so a PATCH never overwrites someone else's newer
+ * change. Throws rather than falling back to '*' when BC didn't return one.
+ */
+function requireETag(etag: string | undefined, recordName: string): string {
+  if (!etag) {
+    throw new Error(
+      `BC API: no ETag returned for the ${recordName}, so it can't be updated safely`
+    );
+  }
+  return etag;
+}
+
 class BusinessCentralClient {
   private _companyId: string;
   private _environment: BCEnvironmentType;
@@ -994,13 +1007,14 @@ class BusinessCentralClient {
     targetPercent: number | null
   ): Promise<BCResource> {
     const current = await this.getResource(resourceId);
+    const etag = requireETag(current['@odata.etag'], 'resource');
     const body =
       targetPercent === null
         ? { billableTargetSet: false }
         : { billableTargetPercent: targetPercent, billableTargetSet: true };
     return this.customApiFetch<BCResource>(`/resources(${resourceId})`, {
       method: 'PATCH',
-      headers: { 'If-Match': current['@odata.etag'] || '*' },
+      headers: { 'If-Match': etag },
       body: JSON.stringify(body),
     });
   }
@@ -1029,9 +1043,10 @@ class BusinessCentralClient {
     if (!current) {
       throw new Error('BC API Error (404): Billable targets need a newer Thyme BC Extension');
     }
+    const etag = requireETag(current['@odata.etag'], 'Thyme Setup');
     return this.customApiFetch<BCThymeSetup>(`/thymeSetup(${current.id})`, {
       method: 'PATCH',
-      headers: { 'If-Match': current['@odata.etag'] || '*' },
+      headers: { 'If-Match': etag },
       body: JSON.stringify({ defaultBillableTargetPercent: targetPercent }),
     });
   }

@@ -125,15 +125,20 @@ export function TeamList() {
   const [currentUserInList, setCurrentUserInList] = useState(true);
   const [extensionNotInstalled, setExtensionNotInstalled] = useState(false);
   // Whether the Thyme BC Extension returns billable targets on resources
-  const [targetsEnabled, setTargetsEnabled] = useState(false);
+  const [targetFieldsPresent, setTargetFieldsPresent] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
 
   // Company default billable target, for anyone without their own
-  const { companyDefaultPercent, loadCompanyDefault } = useBillableTargetStore();
+  const { companyDefaultPercent, setupAvailable, loadedForCompanyVersion, loadCompanyDefault } =
+    useBillableTargetStore();
   const companyDefault = resolveCompanyDefault(companyDefaultPercent);
   useEffect(() => {
-    if (targetsEnabled) void loadCompanyDefault(companyVersion);
-  }, [targetsEnabled, companyVersion, loadCompanyDefault]);
+    if (targetFieldsPresent) void loadCompanyDefault(companyVersion);
+  }, [targetFieldsPresent, companyVersion, loadCompanyDefault]);
+  // Show targets only once this company's Thyme Setup has loaded, so another company's
+  // default is never used, and not at all on extensions without Thyme Setup
+  const targetsEnabled =
+    targetFieldsPresent && setupAvailable === true && loadedForCompanyVersion === companyVersion;
 
   // Week navigation state
   const [currentWeekStart, setCurrentWeekStart] = useState(() => getWeekStart(new Date()));
@@ -178,7 +183,7 @@ export function TeamList() {
         // they can never log hours and would only inflate Team Capacity.
         // Note: bcClient.getResources always applies a hardcoded "type eq 'Person'" filter.
         const resources = (await bcClient.getResources()).filter(isTeamMember);
-        setTargetsEnabled(hasBillableTargetFields(resources));
+        setTargetFieldsPresent(hasBillableTargetFields(resources));
 
         // Also check if current user has a resource record
         let currentUserResource: BCResource | null = null;

@@ -268,11 +268,15 @@ export function ReportsPanel() {
   // Billable target for the selection: the person's own (or the company default), or for
   // everyone the average of their targets (Reports gives everyone the same capacity, so
   // that's the capacity-weighted target). Null on Thyme BC Extensions without targets.
-  const { companyDefaultPercent, loadCompanyDefault } = useBillableTargetStore();
-  const targetsEnabled = hasBillableTargetFields(resources);
+  const { companyDefaultPercent, setupAvailable, loadedForCompanyVersion, loadCompanyDefault } =
+    useBillableTargetStore();
+  const targetFieldsPresent = hasBillableTargetFields(resources);
   useEffect(() => {
-    if (targetsEnabled) void loadCompanyDefault(companyVersion);
-  }, [targetsEnabled, companyVersion, loadCompanyDefault]);
+    if (targetFieldsPresent) void loadCompanyDefault(companyVersion);
+  }, [targetFieldsPresent, companyVersion, loadCompanyDefault]);
+  // Only once this company's Thyme Setup has loaded (never another company's default)
+  const targetsEnabled =
+    targetFieldsPresent && setupAvailable === true && loadedForCompanyVersion === companyVersion;
   const billableTarget = useMemo((): BillableTarget | null => {
     if (!targetsEnabled || !selectedMember) return null;
     const companyDefault = resolveCompanyDefault(companyDefaultPercent);
