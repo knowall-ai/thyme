@@ -12,6 +12,7 @@ import type {
   BCJobJournalLine,
   BCResource,
   BCResourceUnitOfMeasure,
+  BCThymeSetup,
   BCTimeSheet,
   BCTimeSheetLine,
   BCTimeSheetDetail,
@@ -981,6 +982,58 @@ class BusinessCentralClient {
       throw new ExtensionNotInstalledError();
     }
     return this.customApiFetch<BCResource>(`/resources(${resourceId})`);
+  }
+
+  /**
+   * Set a resource's own billable target, or clear it (null) so they fall back to the
+   * company default. Reads the resource first for a fresh ETag, as BC requires If-Match.
+   * Needs a Thyme BC Extension with billable targets; BC decides who may change them.
+   */
+  async updateResourceBillableTarget(
+    resourceId: string,
+    targetPercent: number | null
+  ): Promise<BCResource> {
+    const current = await this.getResource(resourceId);
+    const body =
+      targetPercent === null
+        ? { billableTargetSet: false }
+        : { billableTargetPercent: targetPercent, billableTargetSet: true };
+    return this.customApiFetch<BCResource>(`/resources(${resourceId})`, {
+      method: 'PATCH',
+      headers: { 'If-Match': current['@odata.etag'] || '*' },
+      body: JSON.stringify(body),
+    });
+  }
+
+  /**
+   * Thyme's company-wide settings (a single record), or null when the installed
+   * Thyme BC Extension predates them (404) or isn't installed.
+   */
+  async getThymeSetup(): Promise<BCThymeSetup | null> {
+    if (!(await this.isExtensionInstalled())) return null;
+    try {
+      const response = await this.customApiFetch<PaginatedResponse<BCThymeSetup> | BCThymeSetup>(
+        '/thymeSetup'
+      );
+      const setup = 'value' in response ? response.value[0] : response;
+      return setup?.id ? setup : null;
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('(404)')) return null;
+      throw error;
+    }
+  }
+
+  /** Change the company default billable target (0-100) on the thymeSetup record */
+  async updateDefaultBillableTarget(targetPercent: number): Promise<BCThymeSetup> {
+    const current = await this.getThymeSetup();
+    if (!current) {
+      throw new Error('BC API Error (404): Billable targets need a newer Thyme BC Extension');
+    }
+    return this.customApiFetch<BCThymeSetup>(`/thymeSetup(${current.id})`, {
+      method: 'PATCH',
+      headers: { 'If-Match': current['@odata.etag'] || '*' },
+      body: JSON.stringify({ defaultBillableTargetPercent: targetPercent }),
+    });
   }
 
   /**

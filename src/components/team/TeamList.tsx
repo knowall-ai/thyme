@@ -10,7 +10,9 @@ import {
   ExclamationTriangleIcon,
   ArrowTopRightOnSquareIcon,
   UserGroupIcon,
+  PencilSquareIcon,
 } from '@heroicons/react/24/outline';
+import { BillableTargetBadge, BillableTargetEditor } from '@/components/targets';
 import {
   Card,
   WeekNavigation,
@@ -20,7 +22,7 @@ import {
   getStageSegments,
 } from '@/components/ui';
 import { bcClient, projectService, ExtensionNotInstalledError } from '@/services/bc';
-import { useCompanyStore } from '@/hooks';
+import { useCompanyStore, useBillableTargetStore } from '@/hooks';
 import { useAuth, resolveResourceIdentity } from '@/services/auth';
 import {
   getWeekStart,
@@ -34,11 +36,24 @@ import {
   getWeeklyCapacityHours,
   getBillableHours,
   BILLABLE_RULE_DESCRIPTION,
+  hasBillableTargetFields,
+  resolveBillableTarget,
+  resolveCompanyDefault,
+  getWeightedBillableTarget,
+  getBillableTargetGap,
+  getBillableTargetBand,
+  formatTargetGap,
+  BILLABLE_TARGET_BAND_COLORS,
 } from '@/utils';
-import type { StageHours } from '@/utils';
+import type { StageHours, BillableTarget } from '@/utils';
 import { cn } from '@/utils';
 import type { BCProject, BCResource } from '@/types';
-import { teamConfig, getUtilizationColor, getBillableColor } from '@/config';
+import {
+  teamConfig,
+  getTimesheetCompletionColor,
+  getBillableColor,
+  TIMESHEET_COMPLETION_DESCRIPTION,
+} from '@/config';
 
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -54,15 +69,34 @@ interface TeamMember {
   billableHours: number;
   nonBillableHours: number;
   capacity: number;
-  utilization: number; // percentage
+  completion: number; // timesheet completion: hours logged as a percentage of capacity
   billablePercent: number; // percentage of total hours that are billable
   isCurrentUser: boolean; // Whether this resource belongs to the logged-in user
   photoUrl: string | null; // Azure AD profile photo URL
   userPrincipalName: string | null; // time sheet owner's UPN, used to resolve the member's own photo
+  // The person's own billable target from BC (undefined on older Thyme BC Extensions)
+  billableTargetPercent?: number;
+  billableTargetSet?: boolean;
 }
 
-type SortField = 'name' | 'code' | 'totalHours' | 'utilization' | 'capacity' | 'billablePercent';
+/** A member with their effective billable target (null when targets aren't available) */
+type TeamMemberRow = TeamMember & { target: BillableTarget | null };
+
+type SortField =
+  | 'name'
+  | 'code'
+  | 'totalHours'
+  | 'completion'
+  | 'capacity'
+  | 'billablePercent'
+  | 'billableGap';
 type SortDirection = 'asc' | 'desc';
+
+// Points above (+) or below (-) the member's billable target; 0 without a target.
+// Someone with no hours counts as 0% billable, so they sort with the furthest behind.
+function getMemberGap(member: TeamMemberRow): number {
+  return member.target ? getBillableTargetGap(member.billablePercent, member.target.percent) : 0;
+}
 
 // Build URL to open a resource in BC web client
 function getBCResourceUrl(
@@ -90,6 +124,16 @@ export function TeamList() {
   const [error, setError] = useState<string | null>(null);
   const [currentUserInList, setCurrentUserInList] = useState(true);
   const [extensionNotInstalled, setExtensionNotInstalled] = useState(false);
+  // Whether the Thyme BC Extension returns billable targets on resources
+  const [targetsEnabled, setTargetsEnabled] = useState(false);
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+
+  // Company default billable target, for anyone without their own
+  const { companyDefaultPercent, loadCompanyDefault } = useBillableTargetStore();
+  const companyDefault = resolveCompanyDefault(companyDefaultPercent);
+  useEffect(() => {
+    if (targetsEnabled) void loadCompanyDefault(companyVersion);
+  }, [targetsEnabled, companyVersion, loadCompanyDefault]);
 
   // Week navigation state
   const [currentWeekStart, setCurrentWeekStart] = useState(() => getWeekStart(new Date()));
@@ -134,6 +178,7 @@ export function TeamList() {
         // they can never log hours and would only inflate Team Capacity.
         // Note: bcClient.getResources always applies a hardcoded "type eq 'Person'" filter.
         const resources = (await bcClient.getResources()).filter(isTeamMember);
+        setTargetsEnabled(hasBillableTargetFields(resources));
 
         // Also check if current user has a resource record
         let currentUserResource: BCResource | null = null;
@@ -203,7 +248,7 @@ export function TeamList() {
 
             const totalHours = stages.total;
             const nonBillableHours = totalHours - billableHours;
-            const utilization = capacity > 0 ? (totalHours / capacity) * 100 : 0;
+            const completion = capacity > 0 ? (totalHours / capacity) * 100 : 0;
             const billablePercent = totalHours > 0 ? (billableHours / totalHours) * 100 : 0;
 
             // Derive UPN from BC timeSheetOwnerUserId (e.g., "BEN.WEEKS" -> "ben.weeks@domain.com")
@@ -223,11 +268,13 @@ export function TeamList() {
               billableHours,
               nonBillableHours,
               capacity,
-              utilization,
+              completion,
               billablePercent,
               isCurrentUser: resource.id === currentUserResourceId,
               photoUrl: null, // Will be fetched separately
               userPrincipalName,
+              billableTargetPercent: resource.billableTargetPercent,
+              billableTargetSet: resource.billableTargetSet,
             };
           })
         );
@@ -281,17 +328,62 @@ export function TeamList() {
     // companyVersion changes when company switches, ensuring refetch
   }, [companyVersion, currentWeekStart, userEmail]);
 
+  // Everyone's effective billable target: their own, or the company default
+  const rows = useMemo<TeamMemberRow[]>(
+    () =>
+      members.map((m) => ({
+        ...m,
+        target: targetsEnabled ? resolveBillableTarget(m, companyDefault) : null,
+      })),
+    [members, targetsEnabled, companyDefault]
+  );
+
   // Calculate totals
   const totals = useMemo(() => {
-    const totalHours = members.reduce((sum, m) => sum + m.totalHours, 0);
-    const stages = members.reduce((sum, m) => addStageHours(sum, m.stages), emptyStageHours());
-    const billableHours = members.reduce((sum, m) => sum + m.billableHours, 0);
-    const nonBillableHours = members.reduce((sum, m) => sum + m.nonBillableHours, 0);
-    const totalCapacity = members.reduce((sum, m) => sum + m.capacity, 0);
-    const utilization = totalCapacity > 0 ? (totalHours / totalCapacity) * 100 : 0;
+    const totalHours = rows.reduce((sum, m) => sum + m.totalHours, 0);
+    const stages = rows.reduce((sum, m) => addStageHours(sum, m.stages), emptyStageHours());
+    const billableHours = rows.reduce((sum, m) => sum + m.billableHours, 0);
+    const nonBillableHours = rows.reduce((sum, m) => sum + m.nonBillableHours, 0);
+    const totalCapacity = rows.reduce((sum, m) => sum + m.capacity, 0);
+    const completion = totalCapacity > 0 ? (totalHours / totalCapacity) * 100 : 0;
+    const billablePercent = totalHours > 0 ? (billableHours / totalHours) * 100 : 0;
+    // Team target: everyone's target weighted by their capacity
+    const billableTarget = targetsEnabled
+      ? getWeightedBillableTarget(
+          rows.flatMap((m) =>
+            m.target ? [{ capacity: m.capacity, targetPercent: m.target.percent }] : []
+          )
+        )
+      : null;
 
-    return { totalHours, stages, billableHours, nonBillableHours, totalCapacity, utilization };
-  }, [members]);
+    return {
+      totalHours,
+      stages,
+      billableHours,
+      nonBillableHours,
+      totalCapacity,
+      completion,
+      billablePercent,
+      billableTarget,
+    };
+  }, [rows, targetsEnabled]);
+
+  const editingMember = rows.find((m) => m.id === editingMemberId) ?? null;
+
+  // Apply a target saved in the editor without reloading the week
+  const handleTargetSaved = (memberId: string, resource: BCResource) => {
+    setMembers((prev) =>
+      prev.map((m) =>
+        m.id === memberId
+          ? {
+              ...m,
+              billableTargetPercent: resource.billableTargetPercent,
+              billableTargetSet: resource.billableTargetSet,
+            }
+          : m
+      )
+    );
+  };
 
   const totalSegments = getStageSegments(totals.stages);
 
@@ -339,7 +431,7 @@ export function TeamList() {
 
   // Sorting and filtering
   const filteredAndSortedMembers = useMemo(() => {
-    let result = [...members];
+    let result = [...rows];
 
     // Filter by search query
     if (searchQuery) {
@@ -365,8 +457,8 @@ export function TeamList() {
         case 'totalHours':
           comparison = a.totalHours - b.totalHours;
           break;
-        case 'utilization':
-          comparison = a.utilization - b.utilization;
+        case 'completion':
+          comparison = a.completion - b.completion;
           break;
         case 'capacity':
           comparison = a.capacity - b.capacity;
@@ -374,12 +466,15 @@ export function TeamList() {
         case 'billablePercent':
           comparison = a.billablePercent - b.billablePercent;
           break;
+        case 'billableGap':
+          comparison = getMemberGap(a) - getMemberGap(b);
+          break;
       }
       return sortDirection === 'asc' ? comparison : -comparison;
     });
 
     return result;
-  }, [members, searchQuery, sortField, sortDirection]);
+  }, [rows, searchQuery, sortField, sortDirection]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -402,14 +497,14 @@ export function TeamList() {
     return sortDirection === 'asc' ? 'ascending' : 'descending';
   };
 
-  // Get utilization status text for accessibility
-  const getUtilizationStatus = (utilization: number): string => {
-    if (utilization >= teamConfig.utilization.thresholds.high) {
-      return 'on target';
-    } else if (utilization >= teamConfig.utilization.thresholds.low) {
-      return 'moderate';
+  // Get timesheet completion status text for accessibility
+  const getCompletionStatus = (completion: number): string => {
+    if (completion >= teamConfig.timesheetCompletion.thresholds.high) {
+      return 'complete';
+    } else if (completion >= teamConfig.timesheetCompletion.thresholds.low) {
+      return 'partly complete';
     }
-    return 'low - needs attention';
+    return 'incomplete - needs attention';
   };
 
   // Stage breakdown for a member's Hours cell (tooltip and screen readers)
@@ -492,7 +587,12 @@ export function TeamList() {
         ) : (
           <>
             {/* Summary Row */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div
+              className={cn(
+                'grid grid-cols-1 gap-4',
+                totals.billableTarget !== null ? 'md:grid-cols-3 xl:grid-cols-5' : 'md:grid-cols-4'
+              )}
+            >
               {/* Total Hours */}
               <Card variant="bordered" className="p-4">
                 <p className="text-dark-400 text-sm">Total Hours</p>
@@ -516,19 +616,59 @@ export function TeamList() {
                 </p>
               </Card>
 
-              {/* Utilization */}
+              {/* Timesheet completion: hours logged ÷ capacity, expected 100% */}
               <Card variant="bordered" className="p-4">
-                <p className="text-dark-400 text-sm">Utilization</p>
+                <p className="text-dark-400 text-sm" title={TIMESHEET_COMPLETION_DESCRIPTION}>
+                  Timesheet completion
+                </p>
                 <p className="text-dark-100 mt-1 text-2xl font-bold">
-                  {totals.utilization.toFixed(0)}%
+                  {totals.completion.toFixed(0)}%
                 </p>
                 <div className="bg-dark-700 mt-2 h-4 w-full overflow-hidden rounded">
                   <div
-                    className={cn('h-full rounded', getUtilizationColor(totals.utilization))}
-                    style={{ width: `${Math.min(totals.utilization, 100)}%` }}
+                    className={cn('h-full rounded', getTimesheetCompletionColor(totals.completion))}
+                    style={{ width: `${Math.min(totals.completion, 100)}%` }}
                   />
                 </div>
               </Card>
+
+              {/* Billable vs target: team billable % against the capacity-weighted target */}
+              {totals.billableTarget !== null && (
+                <Card variant="bordered" className="p-4">
+                  <p
+                    className="text-dark-400 text-sm"
+                    title={`Team billable % against everyone's billable target, weighted by capacity. ${BILLABLE_RULE_DESCRIPTION}`}
+                  >
+                    Billable vs target
+                  </p>
+                  <p className="mt-1 text-2xl font-bold">
+                    <span
+                      className={cn(
+                        'rounded px-1',
+                        BILLABLE_TARGET_BAND_COLORS[
+                          getBillableTargetBand(
+                            totals.billablePercent,
+                            totals.billableTarget,
+                            totals.totalHours > 0
+                          )
+                        ]
+                      )}
+                    >
+                      {totals.totalHours > 0 ? `${totals.billablePercent.toFixed(0)}%` : '–'}
+                    </span>
+                    <span className="text-dark-300 ml-2 text-lg font-medium">
+                      / {totals.billableTarget.toFixed(0)}% target
+                    </span>
+                  </p>
+                  <p className="text-dark-400 mt-2 text-xs">
+                    {totals.totalHours > 0
+                      ? `${formatTargetGap(
+                          getBillableTargetGap(totals.billablePercent, totals.billableTarget)
+                        )} vs capacity-weighted target`
+                      : 'No hours logged yet'}
+                  </p>
+                </Card>
+              )}
 
               {/* Pie Chart */}
               <Card variant="bordered" className="p-4">
@@ -634,15 +774,16 @@ export function TeamList() {
                       </th>
                       <th
                         className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
-                        onClick={() => handleSort('utilization')}
+                        onClick={() => handleSort('completion')}
                         role="columnheader"
-                        aria-sort={getAriaSort('utilization')}
+                        aria-sort={getAriaSort('completion')}
                         tabIndex={0}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSort('utilization')}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSort('completion')}
+                        title={TIMESHEET_COMPLETION_DESCRIPTION}
                       >
                         <div className="flex items-center justify-end gap-1">
-                          Utilization
-                          <SortIcon field="utilization" />
+                          Timesheet completion
+                          <SortIcon field="completion" />
                         </div>
                       </th>
                       <th
@@ -668,10 +809,26 @@ export function TeamList() {
                         title={BILLABLE_RULE_DESCRIPTION}
                       >
                         <div className="flex items-center justify-end gap-1">
-                          Billable %
+                          {targetsEnabled ? 'Billable % / target' : 'Billable %'}
                           <SortIcon field="billablePercent" />
                         </div>
                       </th>
+                      {targetsEnabled && (
+                        <th
+                          className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
+                          onClick={() => handleSort('billableGap')}
+                          role="columnheader"
+                          aria-sort={getAriaSort('billableGap')}
+                          tabIndex={0}
+                          onKeyDown={(e) => e.key === 'Enter' && handleSort('billableGap')}
+                          title="Billable % minus the person's billable target, in percentage points"
+                        >
+                          <div className="flex items-center justify-end gap-1">
+                            Gap to target
+                            <SortIcon field="billableGap" />
+                          </div>
+                        </th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -755,18 +912,22 @@ export function TeamList() {
                           <div
                             className="flex flex-col items-end gap-1"
                             role="meter"
-                            aria-valuenow={member.utilization}
+                            aria-valuenow={member.completion}
                             aria-valuemin={0}
                             aria-valuemax={100}
-                            aria-label={`Utilization ${member.utilization.toFixed(0)}% - ${getUtilizationStatus(member.utilization)}`}
+                            aria-label={`Timesheet completion ${member.completion.toFixed(0)}% - ${getCompletionStatus(member.completion)}`}
+                            title={`${member.totalHours.toFixed(1)}h logged of ${member.capacity.toFixed(1)}h capacity`}
                           >
                             <span className="text-dark-100 text-sm font-medium">
-                              {member.utilization.toFixed(0)}%
+                              {member.completion.toFixed(0)}%
                             </span>
                             <div className="bg-dark-700 h-4 w-24 overflow-hidden rounded">
                               <div
-                                className={cn('h-full', getUtilizationColor(member.utilization))}
-                                style={{ width: `${Math.min(member.utilization, 100)}%` }}
+                                className={cn(
+                                  'h-full',
+                                  getTimesheetCompletionColor(member.completion)
+                                )}
+                                style={{ width: `${Math.min(member.completion, 100)}%` }}
                               />
                             </div>
                           </div>
@@ -775,21 +936,47 @@ export function TeamList() {
                           {member.capacity.toFixed(1)}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <span
-                            className={cn(
-                              'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
-                              getBillableColor(member.billablePercent)
-                            )}
-                            aria-label={`Billable percentage ${member.billablePercent.toFixed(0)}% - ${getBillableStatus(member.billablePercent)}`}
-                          >
-                            {member.billablePercent.toFixed(0)}%
-                          </span>
+                          {member.target ? (
+                            <div className="flex items-center justify-end gap-1">
+                              <BillableTargetBadge
+                                actualPercent={member.billablePercent}
+                                target={member.target}
+                                hasHours={member.totalHours > 0}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setEditingMemberId(member.id)}
+                                className="text-dark-400 hover:text-knowall-green rounded p-1"
+                                title="Edit billable target"
+                                aria-label={`Edit billable target for ${member.name}`}
+                              >
+                                <PencilSquareIcon className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span
+                              className={cn(
+                                'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
+                                getBillableColor(member.billablePercent)
+                              )}
+                              aria-label={`Billable percentage ${member.billablePercent.toFixed(0)}% - ${getBillableStatus(member.billablePercent)}`}
+                            >
+                              {member.billablePercent.toFixed(0)}%
+                            </span>
+                          )}
                         </td>
+                        {targetsEnabled && (
+                          <td className="text-dark-300 px-4 py-3 text-right text-sm tabular-nums">
+                            {member.target && member.totalHours > 0
+                              ? formatTargetGap(getMemberGap(member))
+                              : '–'}
+                          </td>
+                        )}
                       </tr>
                     ))}
                     {filteredAndSortedMembers.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="px-4 py-12 text-center">
+                        <td colSpan={targetsEnabled ? 7 : 6} className="px-4 py-12 text-center">
                           <UserGroupIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
                           <p className="text-dark-400">
                             {searchQuery
@@ -806,6 +993,18 @@ export function TeamList() {
           </>
         )}
       </div>
+
+      {editingMember?.target && (
+        <BillableTargetEditor
+          isOpen
+          onClose={() => setEditingMemberId(null)}
+          resourceId={editingMember.id}
+          personName={editingMember.name}
+          current={editingMember.target}
+          companyDefaultPercent={companyDefault}
+          onSaved={(resource) => handleTargetSaved(editingMember.id, resource)}
+        />
+      )}
     </ExtensionPreviewWrapper>
   );
 }

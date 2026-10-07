@@ -23,6 +23,15 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Team tab shows 0 hours for everyone during summer time
 | Upgrade to the latest Thyme version. Earlier versions looked up each person's timesheet with the week start converted to UTC, which in timezones ahead of UTC (e.g. UK summer time, BST) is the previous day (Sunday), so no timesheet matched and every person showed 0 hours. The same fix stops a custom date range on the Approvals page being stored one day early.
 
+| Team page shows no billable targets (no "/ 75% default" next to Billable %, no "Billable vs target" card), and Settings has no Billable Target section
+| Billable targets need a Thyme BC Extension version with billable targets (the `billableTargetPercent` / `billableTargetSet` fields on the resources API and the `thymeSetup` API). Install the latest extension in the BC environment; older versions keep working, just without targets.
+
+| "You don't have permission in Business Central to change billable targets" when saving a target
+| Business Central refused the change (403). Billable targets are saved to the Resource (per person) and Thyme Setup (company default) in BC, so the user needs permission to modify those records; ask a BC administrator to assign it, or to change the target for you.
+
+| Team page "Timesheet completion" is below 100% for someone who worked a full week
+| Timesheet completion is hours logged ÷ capacity. Check their timesheet for missing days, and that their capacity is right: it comes from the hours per day on the person's resource units of measure in BC (e.g. a DAY unit of 7.5 hours), falling back to 40 hours a week.
+
 | Timer state lost on refresh
 | Check browser allows localStorage; timer state persists in localStorage
 

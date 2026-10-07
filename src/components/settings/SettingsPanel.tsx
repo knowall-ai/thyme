@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Card } from '@/components/ui';
+import { CompanyBillableTargetSettings } from '@/components/targets';
 import { bcClient } from '@/services/bc/bcClient';
 import { useAuth, useProfilePhoto } from '@/services/auth';
 import { useCompanyStore, useSettingsStore } from '@/hooks';
@@ -260,6 +261,9 @@ export function SettingsPanel() {
           </div>
         </div>
       </Card>
+
+      {/* Company default billable target (hidden on older Thyme BC Extensions) */}
+      <CompanyBillableTargetSettings />
 
       {/* Connection Status */}
       <Card variant="bordered" className="p-6">
