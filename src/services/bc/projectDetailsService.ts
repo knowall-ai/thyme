@@ -55,6 +55,7 @@ export interface ProjectAnalytics {
   futurePlannedHours: number; // Planned (Budget lines) in weeks after the current one - the work still to do
   estimateByResource: ResourceHours[]; // Estimate split by resource, most hours first
   futurePlannedByResource: ResourceHours[]; // Future planned work split by person, most hours first
+  forecastEndDate?: string; // When the future planned work finishes: the latest planningDate (YYYY-MM-DD)
   hoursThisWeek: number;
   hoursPosted: number; // From timeEntries (Job Ledger Entry) - posted to ledger
   hoursUnposted: number; // hoursSpent - hoursPosted (in timesheets but not posted)
@@ -234,6 +235,7 @@ export const projectDetailsService = {
       futurePlannedHours: 0,
       estimateByResource: [],
       futurePlannedByResource: [],
+      forecastEndDate: undefined,
       hoursThisWeek: 0,
       hoursPosted: 0,
       hoursUnposted: 0,
@@ -443,6 +445,7 @@ export const projectDetailsService = {
     const estimateHoursByResource = new Map<string, number>();
     const futurePlannedHoursByResource = new Map<string, number>();
     const lastPlannedDateByResource = new Map<string, string>();
+    let forecastEndDate: string | undefined;
     const addHours = (map: Map<string, number>, resourceNo: string, hours: number) =>
       map.set(resourceNo, (map.get(resourceNo) ?? 0) + hours);
     let hoursPerDay = 8; // Default, will be updated from BC if DAY unit is configured
@@ -575,6 +578,10 @@ export const projectDetailsService = {
           // YYYY-MM-DD strings compare correctly as text
           if (line.planningDate > (lastPlannedDateByResource.get(line.number) ?? '')) {
             lastPlannedDateByResource.set(line.number, line.planningDate);
+          }
+          // Lines with no hours don't push the finish out
+          if (hours > 0 && line.planningDate > (forecastEndDate ?? '')) {
+            forecastEndDate = line.planningDate;
           }
         }
       }
@@ -885,6 +892,7 @@ export const projectDetailsService = {
       hoursThisWeek,
       estimateByResource,
       futurePlannedByResource,
+      forecastEndDate,
       hoursPosted,
       hoursUnposted,
       approvedHours,

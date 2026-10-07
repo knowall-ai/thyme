@@ -7,6 +7,7 @@ import {
   hoursToDecimal,
   decimalToHoursMinutes,
   secondsToHours,
+  describeFinishVsEndDate,
 } from '@/utils/dateUtils';
 
 describe('dateUtils', () => {
@@ -100,6 +101,51 @@ describe('dateUtils', () => {
       expect(secondsToHours(3600)).toBe(1);
       expect(secondsToHours(7200)).toBe(2);
       expect(secondsToHours(1800)).toBe(0.5);
+    });
+  });
+
+  describe('describeFinishVsEndDate', () => {
+    it('reports finishing on the end date', () => {
+      expect(describeFinishVsEndDate('2027-03-31', '2027-03-31')).toEqual({
+        text: 'on the end date',
+        isLate: false,
+      });
+    });
+
+    it('uses days under a week', () => {
+      expect(describeFinishVsEndDate('2027-03-30', '2027-03-31')).toEqual({
+        text: '1 day before the end date',
+        isLate: false,
+      });
+      expect(describeFinishVsEndDate('2027-04-05', '2027-03-31')).toEqual({
+        text: '5 days after the end date',
+        isLate: true,
+      });
+    });
+
+    it('uses whole weeks from a week on', () => {
+      expect(describeFinishVsEndDate('2027-03-10', '2027-03-31')).toEqual({
+        text: '3 weeks before the end date',
+        isLate: false,
+      });
+      expect(describeFinishVsEndDate('2027-04-07', '2027-03-31')).toEqual({
+        text: '1 week after the end date',
+        isLate: true,
+      });
+    });
+
+    it('counts across a clock change without drifting', () => {
+      // UK clocks go forward on 28 Mar 2027
+      expect(describeFinishVsEndDate('2027-04-04', '2027-03-21')?.text).toBe(
+        '2 weeks after the end date'
+      );
+    });
+
+    it('returns null when either date is missing or BC empty', () => {
+      expect(describeFinishVsEndDate(undefined, '2027-03-31')).toBeNull();
+      expect(describeFinishVsEndDate('2027-03-31', undefined)).toBeNull();
+      expect(describeFinishVsEndDate('2027-03-31', '0001-01-01')).toBeNull();
+      expect(describeFinishVsEndDate('not-a-date', '2027-03-31')).toBeNull();
     });
   });
 });
