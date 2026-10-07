@@ -113,6 +113,37 @@ describe('useTimesheetReview', () => {
     expect(getTimesheetReviewLines).not.toHaveBeenCalled();
   });
 
+  it('hides itself when the review lines endpoint does not exist', async () => {
+    getTimesheetReviews.mockResolvedValue([review('TS0001', 1)]);
+    getTimesheetReviewLines.mockResolvedValue(null);
+
+    const { result } = renderHook(() =>
+      useTimesheetReview('TS0001', [], undefined, { submitted: true })
+    );
+
+    await waitFor(() => expect(result.current.status).toBe('unavailable'));
+    expect(result.current.review).toBeNull();
+  });
+
+  it('retries a failed first fetch on the polling interval', async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    getTimesheetReviews.mockRejectedValueOnce(new Error('BC API Error (503): busy'));
+
+    const { result } = renderHook(() =>
+      useTimesheetReview('TS0001', [], undefined, { submitted: true })
+    );
+    await settle();
+    expect(result.current.status).toBe('error');
+
+    getTimesheetReviews.mockResolvedValue([review('TS0001', 2)]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(REVIEW_REFRESH_INTERVAL_MS);
+    });
+    expect(result.current.status).toBe('current');
+    warn.mockRestore();
+  });
+
   it('does not fetch when disabled', async () => {
     const { result } = renderHook(() =>
       useTimesheetReview('TS0001', [], undefined, { submitted: true, enabled: false })

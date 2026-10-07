@@ -61,9 +61,13 @@ export const useTimesheetReviewStore = create<TimesheetReviewStore>((set, get) =
         ...new Set(Object.values(latest).map((review) => review.entryNo)),
       ].filter((entryNo) => !notesByEntry.has(entryNo));
       if (missingNotes.length > 0) {
-        // A review without its notes is still worth showing, so a missing lines endpoint is []
-        const notes = (await bcClient.getTimesheetReviewLines(missingNotes)) ?? [];
+        const notes = await bcClient.getTimesheetReviewLines(missingNotes);
         if (isStale()) return;
+        // The extension is missing half the feature: treat reviews as unavailable
+        if (notes === null) {
+          set({ available: false });
+          return;
+        }
         for (const entryNo of missingNotes) {
           notesByEntry.set(
             entryNo,
@@ -85,7 +89,12 @@ export const useTimesheetReviewStore = create<TimesheetReviewStore>((set, get) =
           };
           delete nextFailed[no];
         }
-        return { available: true, reviews: nextReviews, failed: nextFailed };
+        // A concurrent batch may have found the endpoints missing: don't undo that
+        return {
+          available: state.available !== false,
+          reviews: nextReviews,
+          failed: nextFailed,
+        };
       });
     } catch (error) {
       if (isStale()) return;

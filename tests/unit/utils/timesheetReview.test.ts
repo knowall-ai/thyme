@@ -149,6 +149,11 @@ describe('needsReviewRefresh', () => {
     expect(needsReviewRefresh('outOfDate', true)).toBe(true);
   });
 
+  it('retries a submitted timesheet whose first fetch failed', () => {
+    expect(needsReviewRefresh('error', true)).toBe(true);
+    expect(needsReviewRefresh('error', false)).toBe(false);
+  });
+
   it('stops once reviewed, or when the timesheet is no longer submitted', () => {
     expect(needsReviewRefresh('current', true)).toBe(false);
     expect(needsReviewRefresh('outOfDate', false)).toBe(false);

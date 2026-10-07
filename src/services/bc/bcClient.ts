@@ -1300,7 +1300,9 @@ class BusinessCentralClient {
 
   // Poppie's timesheet reviews - requires the Thyme BC Extension review tables.
   // Both return null when the endpoint doesn't exist (extension not installed or too old),
-  // so callers can hide the feature rather than show an error.
+  // so callers can hide the feature rather than show an error. They skip the cached
+  // isExtensionInstalled() check on purpose: a transient failure there is cached as
+  // "not installed", whereas a failed request here stays retryable.
 
   /**
    * Get the reviews for one or more timesheets in a single query, newest first.
@@ -1308,7 +1310,6 @@ class BusinessCentralClient {
    */
   async getTimesheetReviews(timeSheetNos: string[]): Promise<BCTimesheetReview[] | null> {
     if (timeSheetNos.length === 0) return [];
-    if (!(await this.isExtensionInstalled())) return null;
 
     const filter = timeSheetNos
       .map((no) => `timeSheetNo eq '${this.sanitizeODataString(no)}'`)
@@ -1333,7 +1334,6 @@ class BusinessCentralClient {
    */
   async getTimesheetReviewLines(reviewEntryNos: number[]): Promise<BCTimesheetReviewLine[] | null> {
     if (reviewEntryNos.length === 0) return [];
-    if (!(await this.isExtensionInstalled())) return null;
 
     const filter = reviewEntryNos
       .filter((entryNo) => Number.isInteger(entryNo))

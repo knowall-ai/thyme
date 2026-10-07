@@ -173,10 +173,11 @@ export function getReviewStatus({
 
 /**
  * Whether a timesheet in this state should keep being re-checked: it's waiting on
- * Poppie's first review or on a re-review of changes that have been resubmitted.
+ * Poppie's first review or on a re-review of changes that have been resubmitted,
+ * or its first fetch failed and should be retried.
  */
 export function needsReviewRefresh(status: TimesheetReviewStatus, submitted: boolean): boolean {
-  return submitted && (status === 'awaiting' || status === 'outOfDate');
+  return submitted && (status === 'awaiting' || status === 'outOfDate' || status === 'error');
 }
 
 /**
