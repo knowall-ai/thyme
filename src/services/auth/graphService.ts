@@ -77,6 +77,52 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
+export interface GraphUserSummary {
+  id: string;
+  displayName: string;
+  userPrincipalName: string;
+}
+
+/**
+ * Looks up a directory user by UPN. Returns null when the user doesn't exist (404).
+ * Throws when Graph can't be reached (no token or a transient error) so callers can avoid
+ * caching a result that may be wrong.
+ */
+export async function getGraphUser(userPrincipalName: string): Promise<GraphUserSummary | null> {
+  const accessToken = await getGraphAccessToken();
+  if (!accessToken) throw new Error('No Graph access token');
+
+  const response = await fetch(
+    `${GRAPH_API_BASE}/users/${encodeURIComponent(userPrincipalName)}?$select=id,displayName,userPrincipalName`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`Graph user lookup failed (${response.status})`);
+  return (await response.json()) as GraphUserSummary;
+}
+
+/**
+ * Finds directory users whose display name equals the given name (Graph compares
+ * case-insensitively). Needs only User.ReadBasic.All, which Thyme already requests.
+ * Throws when Graph can't be reached.
+ */
+export async function findGraphUsersByDisplayName(
+  displayName: string
+): Promise<GraphUserSummary[]> {
+  const accessToken = await getGraphAccessToken();
+  if (!accessToken) throw new Error('No Graph access token');
+
+  const escaped = displayName.replace(/'/g, "''");
+  const filter = encodeURIComponent(`displayName eq '${escaped}'`);
+  const response = await fetch(
+    `${GRAPH_API_BASE}/users?$filter=${filter}&$select=id,displayName,userPrincipalName`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!response.ok) throw new Error(`Graph user search failed (${response.status})`);
+  const body = (await response.json()) as { value?: GraphUserSummary[] };
+  return body.value ?? [];
+}
+
 // Cache for user photos by UPN
 const userPhotoCache = new Map<string, { url: string | null; timestamp: number }>();
 

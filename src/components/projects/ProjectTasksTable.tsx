@@ -14,7 +14,7 @@ import {
   ChevronDoubleUpIcon,
   ChevronUpIcon,
 } from '@heroicons/react/24/outline';
-import { useAuth, getUserProfilePhoto } from '@/services/auth';
+import { useAuth, resolveResourceIdentity } from '@/services/auth';
 import { bcClient } from '@/services/bc';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
 
@@ -208,17 +208,23 @@ export function ProjectTasksTable() {
 
     async function fetchPhotos() {
       try {
-        // Get resources to map resourceNo to timeSheetOwnerUserId
+        // Get resources to map resourceNo to the resource's name and owner
         const resources = await bcClient.getResources();
         const resourceMap = new Map(resources.map((r) => [r.number, r]));
 
         const photoPromises = resourceNumbers.map(async (resourceNo) => {
           const resource = resourceMap.get(resourceNo);
-          if (!resource?.timeSheetOwnerUserId) {
+          if (!resource) {
             return { resourceNo, photoUrl: null };
           }
-          const upn = `${resource.timeSheetOwnerUserId.toLowerCase()}@${emailDomain}`;
-          const photoUrl = await getUserProfilePhoto(upn);
+          // The photo is the resource's own, not the (possibly shared) time sheet owner's
+          const { photoUrl } = await resolveResourceIdentity(
+            {
+              name: resource.name || resource.displayName,
+              ownerUserId: resource.timeSheetOwnerUserId,
+            },
+            emailDomain ?? ''
+          );
           return { resourceNo, photoUrl };
         });
 

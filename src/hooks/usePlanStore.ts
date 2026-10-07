@@ -204,7 +204,7 @@ function rebuildFromCache(
       }
     }
 
-    // Derive UPN for profile photo
+    // Time sheet owner's UPN; the member's own photo is resolved from it and the name
     let userPrincipalName: string | null = null;
     if (resource.timeSheetOwnerUserId && emailDomain) {
       userPrincipalName = `${resource.timeSheetOwnerUserId.toLowerCase()}@${emailDomain}`;

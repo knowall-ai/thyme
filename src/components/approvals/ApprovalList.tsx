@@ -17,7 +17,7 @@ import { ApprovalFilters } from './ApprovalFilters';
 import { prefetchTimeSheetLines } from './prefetchTimeSheetLines';
 import { useApprovalStore, useCompanyStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
-import { getUserProfilePhoto } from '@/services/auth/graphService';
+import { resolveResourceIdentity } from '@/services/auth/resourceIdentity';
 import { bcClient } from '@/services/bc/bcClient';
 import { cn, DATE_FORMAT_FULL, DATE_FORMAT_SHORT } from '@/utils';
 import type { BCTimeSheet, BCTimeSheetLine, BCProject, BCJobTask } from '@/types';
@@ -213,22 +213,21 @@ export function ApprovalList() {
   // Pre-fetch profile photos for all unique resources
   useEffect(() => {
     async function prefetchPhotos() {
-      const uniqueEmails = new Set<string>();
+      // Keyed by resource: one person can own several resources' time sheets
+      const toFetch = new Map<string, BCTimeSheet>();
       pendingApprovals.forEach((ts) => {
-        const email = getFullEmail(ts.resourceEmail);
-        if (email && !(email in photosCache)) {
-          uniqueEmails.add(email);
-        }
+        if (!(ts.resourceNo in photosCache)) toFetch.set(ts.resourceNo, ts);
       });
 
-      for (const email of uniqueEmails) {
-        try {
-          const photo = await getUserProfilePhoto(email);
-          setPhotosCache((prev) => ({ ...prev, [email]: photo }));
-        } catch {
-          setPhotosCache((prev) => ({ ...prev, [email]: null }));
-        }
-      }
+      await Promise.all(
+        Array.from(toFetch, async ([resourceNo, ts]) => {
+          const { photoUrl } = await resolveResourceIdentity(
+            { name: ts.resourceName, ownerUserId: getFullEmail(ts.resourceEmail) },
+            emailDomain
+          );
+          setPhotosCache((prev) => ({ ...prev, [resourceNo]: photoUrl }));
+        })
+      );
     }
     if (pendingApprovals.length > 0) {
       prefetchPhotos();
@@ -505,8 +504,7 @@ export function ApprovalList() {
                       // Show profile photo for person group
                       (() => {
                         const firstTs = group.items[0];
-                        const email = getFullEmail(firstTs?.resourceEmail);
-                        const photo = email ? photosCache[email] : null;
+                        const photo = firstTs ? photosCache[firstTs.resourceNo] : null;
                         return photo ? (
                           <img
                             src={photo}

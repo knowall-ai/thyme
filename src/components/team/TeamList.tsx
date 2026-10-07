@@ -21,7 +21,7 @@ import {
 } from '@/components/ui';
 import { bcClient, ExtensionNotInstalledError } from '@/services/bc';
 import { useCompanyStore } from '@/hooks';
-import { useAuth, getUserProfilePhoto } from '@/services/auth';
+import { useAuth, resolveResourceIdentity } from '@/services/auth';
 import {
   getWeekStart,
   getBCResourcesListUrl,
@@ -54,7 +54,7 @@ interface TeamMember {
   billablePercent: number; // percentage of total hours that are billable
   isCurrentUser: boolean; // Whether this resource belongs to the logged-in user
   photoUrl: string | null; // Azure AD profile photo URL
-  userPrincipalName: string | null; // UPN for fetching profile photo
+  userPrincipalName: string | null; // time sheet owner's UPN, used to resolve the member's own photo
 }
 
 type SortField = 'name' | 'code' | 'totalHours' | 'utilization' | 'capacity' | 'billablePercent';
@@ -217,15 +217,15 @@ export function TeamList() {
 
         setMembers(membersWithHours);
 
-        // Fetch profile photos for members with UPNs (don't block initial render)
+        // Fetch each member's own profile photo (don't block initial render)
         void (async () => {
           try {
             const photoUpdates = await Promise.all(
               membersWithHours.map(async (member) => {
-                if (!member.userPrincipalName) {
-                  return null;
-                }
-                const photoUrl = await getUserProfilePhoto(member.userPrincipalName);
+                const { photoUrl } = await resolveResourceIdentity(
+                  { name: member.name, ownerUserId: member.userPrincipalName },
+                  emailDomain ?? ''
+                );
                 if (!photoUrl) {
                   return null;
                 }
