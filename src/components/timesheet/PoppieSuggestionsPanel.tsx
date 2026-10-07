@@ -372,11 +372,13 @@ export function PoppieSuggestionsPanel({
                               )}
                               aria-hidden="true"
                             />
-                            <span className="shrink-0 whitespace-nowrap">
-                              {s.confidence} confidence
-                            </span>
-                            {s.evidence && <span className="min-w-0 truncate">· {s.evidence}</span>}
+                            <span className="whitespace-nowrap">{s.confidence} confidence</span>
                           </p>
+                          {s.evidence && (
+                            <p className="text-dark-500 truncate text-xs" title={s.evidence}>
+                              {s.evidence}
+                            </p>
+                          )}
                         </div>
                         <span className="text-dark-200 shrink-0 text-sm font-medium">
                           {formatTime(roundToQuarterHour(s.quantity))}
