@@ -22,6 +22,12 @@ export interface UseTimesheetReviewOptions {
   versionStamp?: string | null;
   /** Set false to skip fetching (e.g. a read-only teammate view) */
   enabled?: boolean;
+  /**
+   * Whether every timestamp source has loaded (e.g. false while details are still
+   * loading). Until then a review isn't reported as current, since a later timestamp
+   * may still turn up; out of date is already certain from what has loaded.
+   */
+  versionReady?: boolean;
 }
 
 export interface TimesheetReviewResult {
@@ -47,7 +53,7 @@ export function useTimesheetReview(
   timeSheetNo: string | null | undefined,
   lines: Stamped | undefined,
   details: Stamped | undefined,
-  { submitted, versionStamp, enabled = true }: UseTimesheetReviewOptions
+  { submitted, versionStamp, enabled = true, versionReady = true }: UseTimesheetReviewOptions
 ): TimesheetReviewResult {
   const available = useTimesheetReviewStore((s) => s.available);
   const cached = useTimesheetReviewStore((s) => (timeSheetNo ? s.reviews[timeSheetNo] : undefined));
@@ -62,7 +68,7 @@ export function useTimesheetReview(
     [lines, details, versionStamp]
   );
 
-  const status: TimesheetReviewStatus = !active
+  const fetchedStatus: TimesheetReviewStatus = !active
     ? available === false
       ? 'unavailable'
       : 'none'
@@ -74,6 +80,8 @@ export function useTimesheetReview(
         submitted,
         currentStamp,
       });
+  const status: TimesheetReviewStatus =
+    fetchedStatus === 'current' && !versionReady ? 'loading' : fetchedStatus;
   const awaiting = needsReviewRefresh(status, submitted);
 
   // Fetch on first view (and again after a company switch clears the cache)

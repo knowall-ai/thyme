@@ -89,6 +89,8 @@ export function ApprovalCard({
   // Poppie's AI review (renders nothing if the extension has no review endpoints)
   const poppieReview = useTimesheetReview(timeSheet.number, lines, details, {
     submitted: timeSheet.submittedExists,
+    // Daily details can carry the latest change, so don't call a review current without them
+    versionReady: details !== undefined,
   });
 
   // Reset local UI state when timesheet is no longer actionable

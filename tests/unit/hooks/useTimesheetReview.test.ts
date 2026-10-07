@@ -85,6 +85,39 @@ describe('useTimesheetReview', () => {
     await waitFor(() => expect(result.current.status).toBe('outOfDate'));
   });
 
+  it('waits for every timestamp source before calling a review current', async () => {
+    getTimesheetReviews.mockResolvedValue([review('TS0001', 1, '2026-10-05T09:00:00Z')]);
+    const lines = [{ lastModifiedDateTime: '2026-10-05T08:00:00Z' }];
+
+    const { result, rerender } = renderHook(
+      ({ details }: { details?: { lastModifiedDateTime?: string }[] }) =>
+        useTimesheetReview('TS0001', lines, details, {
+          submitted: true,
+          versionReady: details !== undefined,
+        }),
+      { initialProps: {} as { details?: { lastModifiedDateTime?: string }[] } }
+    );
+    await settle();
+    // Fetched, but details haven't loaded: not yet known to be current
+    expect(getTimesheetReviews).toHaveBeenCalledTimes(1);
+    expect(result.current.status).toBe('loading');
+
+    // A detail changed after the review
+    rerender({ details: [{ lastModifiedDateTime: '2026-10-05T10:00:00Z' }] });
+    expect(result.current.status).toBe('outOfDate');
+  });
+
+  it('reports out of date from lines alone while details are still loading', async () => {
+    getTimesheetReviews.mockResolvedValue([review('TS0001', 1, '2026-10-05T09:00:00Z')]);
+    const lines = [{ lastModifiedDateTime: '2026-10-05T09:30:00Z' }];
+
+    const { result } = renderHook(() =>
+      useTimesheetReview('TS0001', lines, undefined, { submitted: true, versionReady: false })
+    );
+
+    await waitFor(() => expect(result.current.status).toBe('outOfDate'));
+  });
+
   it('counts a local edit as a change via versionStamp', async () => {
     getTimesheetReviews.mockResolvedValue([review('TS0001', 1, '2026-10-05T09:00:00Z')]);
 
