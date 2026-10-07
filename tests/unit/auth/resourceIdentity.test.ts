@@ -130,7 +130,11 @@ describe('resolveResourceIdentity', () => {
   it('does not cache a transient photo failure', async () => {
     vi.mocked(getUserProfilePhoto).mockRejectedValueOnce(new Error('503'));
     const input = { name: 'Alex Contoso', ownerUserId: 'ALEX.CONTOSO' };
-    expect(await resolveResourceIdentity(input, domain)).toEqual({ upn: null, photoUrl: null });
+    expect(await resolveResourceIdentity(input, domain)).toEqual({
+      upn: null,
+      photoUrl: null,
+      failed: true,
+    });
     vi.mocked(getUserProfilePhoto).mockResolvedValueOnce('data:image/png;base64,abc');
     expect((await resolveResourceIdentity(input, domain)).photoUrl).toBe(
       'data:image/png;base64,abc'
@@ -140,7 +144,11 @@ describe('resolveResourceIdentity', () => {
   it('gives no photo and does not cache when Graph fails', async () => {
     vi.mocked(getGraphUser).mockRejectedValue(new Error('offline'));
     const input = { name: 'Helper Bot', ownerUserId: 'ALEX.CONTOSO' };
-    expect(await resolveResourceIdentity(input, domain)).toEqual({ upn: null, photoUrl: null });
+    expect(await resolveResourceIdentity(input, domain)).toEqual({
+      upn: null,
+      photoUrl: null,
+      failed: true,
+    });
     await resolveResourceIdentity(input, domain);
     expect(getGraphUser).toHaveBeenCalledTimes(2);
     expect(getUserProfilePhoto).not.toHaveBeenCalled();

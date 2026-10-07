@@ -226,11 +226,12 @@ export function ApprovalList() {
 
       await Promise.all(
         Array.from(toFetch, async ([key, ts]) => {
-          const { photoUrl } = await resolveResourceIdentity(
+          const { photoUrl, failed } = await resolveResourceIdentity(
             { name: ts.resourceName, ownerUserId: getFullEmail(ts.resourceEmail) },
             emailDomain
           );
-          setPhotosCache((prev) => ({ ...prev, [key]: photoUrl }));
+          // Leave the key unset on a failed lookup so a later pass can retry it
+          if (!failed) setPhotosCache((prev) => ({ ...prev, [key]: photoUrl }));
         })
       );
     }

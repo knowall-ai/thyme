@@ -12,6 +12,8 @@ export interface ResourceIdentityInput {
 export interface ResourceIdentity {
   upn: string | null;
   photoUrl: string | null;
+  /** True when Graph couldn't be reached, so null results are unknown rather than "no photo" */
+  failed?: boolean;
 }
 
 interface GraphLookups {
@@ -91,7 +93,7 @@ export function resolveResourceIdentity(
     return { upn, photoUrl };
   })().catch(() => {
     identityCache.delete(key);
-    return { upn: null, photoUrl: null };
+    return { upn: null, photoUrl: null, failed: true };
   });
   identityCache.set(key, promise);
   return promise;
