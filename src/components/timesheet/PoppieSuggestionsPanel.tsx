@@ -8,7 +8,7 @@ import {
   LockClosedIcon,
   PlusIcon,
   SparklesIcon,
-  XMarkIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 import { useTimeEntriesStore, useSettingsStore } from '@/hooks';
 import { useTimeSuggestions } from '@/hooks/useTimeSuggestions';
@@ -399,16 +399,17 @@ export function PoppieSuggestionsPanel({
                               <PlusIcon className="h-4 w-4 sm:mr-1" />
                               <span className="hidden sm:inline">Add</span>
                             </Button>
-                            <button
-                              type="button"
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={() => handleDismiss(s)}
                               disabled={busy || isAddingAll}
-                              className="text-dark-400 hover:bg-dark-700 rounded-md p-1.5 hover:text-white disabled:opacity-50"
-                              title="Dismiss"
+                              title="Dismiss this suggestion"
                               aria-label="Dismiss suggestion"
+                              className="hover:border-red-500/50 hover:text-red-400"
                             >
-                              <XMarkIcon className="h-4 w-4" />
-                            </button>
+                              <TrashIcon className="h-4 w-4" />
+                            </Button>
                           </div>
                         )}
                       </li>
