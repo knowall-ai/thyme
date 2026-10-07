@@ -232,6 +232,7 @@ export interface BCTimeSheetLine {
   status: 'Open' | 'Submitted' | 'Rejected' | 'Approved';
   timeSheetStartingDate?: string; // ISO date of the parent timesheet's start
   chargeable?: boolean; // BC defaults this to true, even on internal projects
+  lastModifiedDateTime?: string;
   '@odata.etag'?: string;
 }
 
@@ -245,6 +246,7 @@ export interface BCTimeSheetDetail {
   postedQuantity?: number; // Hours already posted to the Job Ledger
   status?: 'Open' | 'Submitted' | 'Rejected' | 'Approved';
   jobNo?: string;
+  lastModifiedDateTime?: string;
   '@odata.etag'?: string;
 }
 
@@ -283,6 +285,34 @@ export interface BCTimeSuggestionUpdate {
   timeSheetNo?: string;
   timeSheetLineNo?: number;
   actionedAt?: string;
+}
+
+// Poppie's timesheet reviews - requires the Thyme BC Extension review tables.
+// Poppie (an AI agent) reviews submitted timesheets and writes one review per version.
+export type TimesheetReviewVerdict = 'Approve' | 'Check' | 'Query';
+export type TimesheetReviewSeverity = 'Info' | 'Warning' | 'Issue';
+
+export interface BCTimesheetReview {
+  id: string;
+  entryNo: number;
+  timeSheetNo: string;
+  // Latest lastModifiedDateTime across the timesheet's lines and details when reviewed
+  versionStamp: string;
+  verdict: TimesheetReviewVerdict;
+  summary: string;
+  reviewer: string;
+  reviewedAt: string;
+  lastModifiedDateTime?: string;
+}
+
+export interface BCTimesheetReviewLine {
+  id: string;
+  reviewEntryNo: number;
+  lineNo: number;
+  timeSheetNo: string;
+  timeSheetLineNo: number; // 0 = the whole timesheet
+  severity: TimesheetReviewSeverity;
+  note: string;
 }
 
 // Approval workflow types
@@ -353,6 +383,7 @@ export interface TimeEntry {
   // BC Timesheet Line reference
   bcTimeSheetLineId?: string;
   bcTimeSheetNo?: string;
+  bcTimeSheetLineNo?: number;
   lineStatus?: 'Open' | 'Submitted' | 'Rejected' | 'Approved';
 }
 

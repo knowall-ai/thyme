@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import {
   MagnifyingGlassIcon,
   StarIcon as StarOutlineIcon,
-  FunnelIcon,
   FolderIcon,
   ChevronUpIcon,
   ChevronDownIcon,
@@ -28,8 +27,14 @@ import {
 } from '@/utils';
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import { useCompanyStore } from '@/hooks';
+import { ProjectStatusFilter } from './ProjectStatusFilter';
+import {
+  DEFAULT_PROJECT_STATUSES,
+  filterProjectsByStatus,
+  isDefaultProjectStatuses,
+  type ProjectStatus,
+} from '@/utils/projectStatusFilter';
 
-type StatusFilter = 'all' | string;
 type SortOption =
   | 'name-desc'
   | 'code'
@@ -83,7 +88,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
   const selectedCompany = useCompanyStore((state) => state.selectedCompany);
   const companyVersion = useCompanyStore((state) => state.companyVersion);
 
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<ProjectStatus[]>(DEFAULT_PROJECT_STATUSES);
   const [sortBy, setSortBy] = useState<SortOption>('code');
   const [customerFilter, setCustomerFilter] = useState<CustomerFilter>('all');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
@@ -138,15 +143,6 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
     return Array.from(customers).sort();
   }, [filteredProjects]);
 
-  // Get unique statuses for the filter dropdown
-  const uniqueStatuses = useMemo(() => {
-    const statuses = new Set<string>();
-    filteredProjects.forEach((p) => {
-      if (p.status) statuses.add(p.status);
-    });
-    return Array.from(statuses).sort();
-  }, [filteredProjects]);
-
   // Apply filter and sort
   const processedProjects = useMemo(() => {
     let result = [...filteredProjects];
@@ -161,12 +157,8 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
       result = result.filter((p) => p.isFavorite);
     }
 
-    // Apply status filter — hide archived by default
-    if (statusFilter === 'all') {
-      result = result.filter((p) => p.status !== 'archived');
-    } else {
-      result = result.filter((p) => p.status === statusFilter);
-    }
+    // Apply status filter (multi-select; default Active only)
+    result = filterProjectsByStatus(result, statusFilter);
 
     // Apply sort (with null safety for undefined names/codes)
     switch (sortBy) {
@@ -302,21 +294,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
             </div>
 
             {/* Status Filter */}
-            <div className="flex items-center gap-2">
-              <FunnelIcon className="h-4 w-4 text-gray-400" />
-              <Select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-40"
-                options={[
-                  { value: 'all', label: 'Active & Completed' },
-                  ...uniqueStatuses.map((status) => ({
-                    value: status,
-                    label: status.charAt(0).toUpperCase() + status.slice(1),
-                  })),
-                ]}
-              />
-            </div>
+            <ProjectStatusFilter value={statusFilter} onChange={setStatusFilter} />
 
             {/* Favorites Toggle */}
             <Button
@@ -335,7 +313,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
 
             {/* Clear filters button */}
             {(customerFilter !== 'all' ||
-              statusFilter !== 'all' ||
+              !isDefaultProjectStatuses(statusFilter) ||
               showFavoritesOnly ||
               searchQuery) && (
               <Button
@@ -343,7 +321,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
                 size="sm"
                 onClick={() => {
                   setCustomerFilter('all');
-                  setStatusFilter('all');
+                  setStatusFilter(DEFAULT_PROJECT_STATUSES);
                   setShowFavoritesOnly(false);
                   setSearchQuery('');
                 }}
@@ -440,11 +418,13 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
           <div className="py-12 text-center">
             <FolderIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
             <p className="text-dark-400">
-              {searchQuery
-                ? 'No projects match your search'
-                : statusFilter !== 'all'
+              {statusFilter.length === 0
+                ? 'No statuses selected. Choose at least one status to see projects.'
+                : filteredProjects.length > 0
                   ? 'No projects match the current filter'
-                  : 'No projects available'}
+                  : searchQuery
+                    ? 'No projects match your search'
+                    : 'No projects available'}
             </p>
           </div>
         )}
