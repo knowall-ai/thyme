@@ -29,6 +29,7 @@ const getProjectDetails = vi.fn();
 const getProjectAnalytics = vi.fn();
 const getBillingMode = vi.fn();
 const getProjects = vi.fn();
+const getWeekEntries = vi.fn();
 
 vi.mock('@/services/bc/bcClient', () => ({ bcClient: client }));
 vi.mock('@/services/bc/projectDetailsService', () => ({
@@ -41,6 +42,13 @@ vi.mock('@/services/bc/projectDetailsService', () => ({
 vi.mock('@/services/bc', () => ({
   bcClient: client,
   ExtensionNotInstalledError: class extends Error {},
+  NoResourceError: class extends Error {},
+  NoTimesheetError: class extends Error {},
+  TimesheetNotEditableError: class extends Error {},
+  timeEntryService: {
+    getWeekEntries: (...args: unknown[]) => getWeekEntries(...args),
+    getCurrentTimesheet: () => null,
+  },
   projectService: {
     getProjects: (...args: unknown[]) => getProjects(...args),
     getProjectTasks: vi.fn().mockResolvedValue([]),
@@ -54,6 +62,7 @@ import { useCompanyStore } from '@/hooks/useCompanyStore';
 import { usePlanStore } from '@/hooks/usePlanStore';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { useProjectsStore } from '@/hooks/useProjectsStore';
+import { useTimeEntriesStore } from '@/hooks/useTimeEntriesStore';
 
 const companyA: BCCompany = {
   id: ID_A,
@@ -149,6 +158,22 @@ describe('projects list across a company switch', () => {
     getBillingMode.mockResolvedValueOnce('Mixed');
     await useProjectsStore.getState().fetchBillingModes(['PR00100']);
     expect(useProjectsStore.getState().billingModes.get('PR00100')).toBe('Mixed');
+  });
+});
+
+describe('time entries across a company switch', () => {
+  it("drops company A's week when it lands after switching to B", async () => {
+    const weekA = deferred<{ id: string }[]>();
+    getWeekEntries.mockReturnValueOnce(weekA.promise);
+
+    const fetchA = useTimeEntriesStore.getState().fetchWeekEntries('user@contoso.com');
+    switchCompany(companyB);
+    expect(useTimeEntriesStore.getState().isLoading).toBe(false);
+
+    weekA.resolve([{ id: 'a-entry' }]);
+    await fetchA;
+
+    expect(useTimeEntriesStore.getState().entries).toEqual([]);
   });
 });
 

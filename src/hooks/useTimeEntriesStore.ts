@@ -285,8 +285,12 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
   },
 
   clearEntries: () => {
+    // Supersede any week load still in flight (e.g. the previous company's), so it
+    // can't repopulate the store after it's been cleared
+    weekFetchSeq += 1;
     set({
       entries: [],
+      isLoading: false,
       error: null,
       currentTimesheet: null,
       timesheetStatus: null,
