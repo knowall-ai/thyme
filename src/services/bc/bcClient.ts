@@ -19,6 +19,8 @@ import type {
   BCTimeEntry,
   BCTimeSuggestion,
   BCTimeSuggestionUpdate,
+  BCSuggestionRequest,
+  BCAgentHeartbeat,
   BCTimesheetReview,
   BCTimesheetReviewLine,
   TimeSheetStatus,
@@ -118,6 +120,13 @@ function requireTargetPercent(percent: number): number {
     throw new Error('BC API: a billable target must be from 0 to 100');
   }
   return percent;
+}
+
+function requireWeeklyCapacityHours(hours: number): number {
+  if (!Number.isFinite(hours) || hours < 0 || hours > 168) {
+    throw new Error('BC API: a weekly capacity must be from 0 to 168 hours');
+  }
+  return hours;
 }
 
 // How long the optional company-name lookups may hold up loading projects
@@ -1116,6 +1125,37 @@ class BusinessCentralClient {
   }
 
   /**
+   * Set a resource's own weekly capacity (hours, 0 = listed but not counted), or clear it
+   * (null) so Thyme falls back to hours per day x 5, plus whether they work flexible days.
+   * Reads the resource first for a fresh ETag, as BC requires If-Match. Needs Thyme BC
+   * Extension 1.19+; BC decides who may change it.
+   */
+  async updateResourceWeeklyCapacity(
+    resourceId: string,
+    weeklyCapacityHours: number | null,
+    flexibleWorkingDays: boolean
+  ): Promise<BCResource> {
+    const id = requireSystemId(resourceId, 'resource');
+    // Hours before the flag: BC applies fields in page order, and setting hours sets the flag
+    const body =
+      weeklyCapacityHours === null
+        ? { weeklyCapacitySet: false, flexibleWorkingDays }
+        : {
+            weeklyCapacityHours: requireWeeklyCapacityHours(weeklyCapacityHours),
+            weeklyCapacitySet: true,
+            flexibleWorkingDays,
+          };
+    const baseUrl = this.customApiBaseUrl;
+    const current = await this.customApiFetch<BCResource>(`/resources(${id})`, {}, baseUrl);
+    const etag = requireETag(current['@odata.etag'], 'resource');
+    return this.customApiFetch<BCResource>(
+      `/resources(${id})`,
+      { method: 'PATCH', headers: { 'If-Match': etag }, body: JSON.stringify(body) },
+      baseUrl
+    );
+  }
+
+  /**
    * Thyme's company-wide settings (a single record), or null when the installed
    * Thyme BC Extension predates them (404) or isn't installed.
    */
@@ -1421,6 +1461,93 @@ class BusinessCentralClient {
     });
   }
 
+  // ============================================
+  // Suggestion Requests (ask Poppie for suggestions now)
+  // ============================================
+
+  /**
+   * The latest suggestion request for a resource and week, or null if there's none.
+   * Returns undefined when the extension has no suggestionRequests endpoint (older than
+   * 1.18), so callers can hide the feature.
+   */
+  async getLatestSuggestionRequest(
+    resourceNo: string,
+    fromDate: string,
+    toDate: string
+  ): Promise<BCSuggestionRequest | null | undefined> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) return undefined;
+
+    const filter = `resourceNo eq '${this.sanitizeODataString(resourceNo)}' and fromDate eq ${this.sanitizeDateInput(fromDate)} and toDate eq ${this.sanitizeDateInput(toDate)}`;
+    try {
+      const response = await this.customApiFetch<PaginatedResponse<BCSuggestionRequest>>(
+        `/suggestionRequests?$filter=${encodeURIComponent(filter)}&$orderby=${encodeURIComponent('requestedAt desc')}&$top=1`
+      );
+      return response.value[0] ?? null;
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('BC API Error (404)')) {
+        return undefined;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Every AI agent's heartbeat (when it was last seen). Returns undefined when the extension
+   * has no agentHeartbeats endpoint (older than 1.18), so callers can leave the feature out.
+   */
+  async getAgentHeartbeats(): Promise<BCAgentHeartbeat[] | undefined> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) return undefined;
+    try {
+      return await this.customApiFetchAll<BCAgentHeartbeat>('/agentHeartbeats');
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('BC API Error (404)')) {
+        return undefined;
+      }
+      throw error;
+    }
+  }
+
+  /** Re-read one suggestion request (progress polling). */
+  async getSuggestionRequest(id: string): Promise<BCSuggestionRequest> {
+    return this.customApiFetch<BCSuggestionRequest>(`/suggestionRequests(${id})`);
+  }
+
+  /**
+   * Ask Poppie to generate suggestions for a resource's week. BC checks the caller may
+   * (the resource's owner or approver, or a Thyme administrator) and rejects a second
+   * open request for the same week.
+   */
+  async createSuggestionRequest(
+    resourceNo: string,
+    fromDate: string,
+    toDate: string
+  ): Promise<BCSuggestionRequest> {
+    return this.customApiFetch<BCSuggestionRequest>('/suggestionRequests', {
+      method: 'POST',
+      body: JSON.stringify({
+        resourceNo,
+        fromDate: this.sanitizeDateInput(fromDate),
+        toDate: this.sanitizeDateInput(toDate),
+      }),
+    });
+  }
+
+  /**
+   * Whether the signed-in user may request suggestions for a resource. Undefined when the
+   * extension doesn't say (older than 1.18) or the resource can't be read.
+   */
+  async canRequestSuggestions(resourceNo: string): Promise<boolean | undefined> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) return undefined;
+    const filter = `number eq '${this.sanitizeODataString(resourceNo)}'`;
+    const response = await this.customApiFetch<PaginatedResponse<BCResource>>(
+      `/resources?$filter=${encodeURIComponent(filter)}`
+    );
+    return response.value[0]?.canRequestSuggestions;
+  }
+
   /**
    * Get timesheets, optionally filtered by resource number and/or date.
    * @param resourceNo - Filter by resource number (employee)
@@ -1450,6 +1577,23 @@ class BusinessCentralClient {
 
     const response = await this.customApiFetch<PaginatedResponse<BCTimeSheet>>(endpoint);
     return response.value;
+  }
+
+  /**
+   * Everyone's timesheets (that the user can see) starting between two dates, inclusive
+   * (YYYY-MM-DD): one request for a whole team's week or month.
+   */
+  async getTimeSheetsStartingBetween(fromDate: string, toDate: string): Promise<BCTimeSheet[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error(
+        'Thyme BC Extension is not installed. Timesheet functionality requires the extension.'
+      );
+    }
+    const from = this.sanitizeDateInput(fromDate);
+    const to = this.sanitizeDateInput(toDate);
+    const filter = `startingDate ge ${from} and startingDate le ${to}`;
+    return this.customApiFetchAll<BCTimeSheet>(`/timeSheets?$filter=${encodeURIComponent(filter)}`);
   }
 
   /**

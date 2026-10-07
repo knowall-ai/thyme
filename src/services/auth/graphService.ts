@@ -10,6 +10,7 @@ let cachedPhotoUrl: string | null | undefined = undefined;
 let cacheTimestamp: number = 0;
 const CACHE_DURATION_MS = 30 * 60 * 1000; // 30 minutes
 const GRAPH_LOOKUP_TIMEOUT_MS = 15_000; // so a stalled request can't block a lookup forever
+const MAX_USER_SEARCH_PAGES = 5;
 
 /**
  * Fetches the current user's profile photo from Microsoft Graph API.
@@ -130,6 +131,39 @@ export async function findGraphUsersByDisplayName(
   return body.value ?? [];
 }
 
+/**
+ * Finds directory users whose display name starts with the given text (Graph compares
+ * case-insensitively), following pagination. `complete` is false when there were more pages than
+ * we were willing to read, so callers can treat the result as ambiguous. Needs only
+ * User.ReadBasic.All, which Thyme already requests. Throws when Graph can't be reached.
+ */
+export async function findGraphUsersByDisplayNamePrefix(
+  prefix: string
+): Promise<{ users: GraphUserSummary[]; complete: boolean }> {
+  const accessToken = await getGraphAccessToken();
+  if (!accessToken) throw new Error('No Graph access token');
+
+  const escaped = prefix.replace(/'/g, "''");
+  const filter = encodeURIComponent(`startswith(displayName,'${escaped}')`);
+  let url: string | undefined =
+    `${GRAPH_API_BASE}/users?$filter=${filter}&$select=id,displayName,userPrincipalName&$top=100`;
+  const users: GraphUserSummary[] = [];
+  for (let page = 0; url && page < MAX_USER_SEARCH_PAGES; page++) {
+    const response: Response = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(GRAPH_LOOKUP_TIMEOUT_MS),
+    });
+    if (!response.ok) throw new Error(`Graph user search failed (${response.status})`);
+    const body = (await response.json()) as {
+      value?: GraphUserSummary[];
+      '@odata.nextLink'?: string;
+    };
+    users.push(...(body.value ?? []));
+    url = body['@odata.nextLink'];
+  }
+  return { users, complete: !url };
+}
+
 // Cache for user photos by UPN
 const userPhotoCache = new Map<string, { url: string | null; timestamp: number }>();
 
@@ -165,6 +199,7 @@ export async function getUserProfilePhoto(
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
+        signal: AbortSignal.timeout(GRAPH_LOOKUP_TIMEOUT_MS),
       }
     );
 

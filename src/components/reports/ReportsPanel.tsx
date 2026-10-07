@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useId } from 'react';
 import { Card, ExtensionPreviewWrapper } from '@/components/ui';
-import { ExtensionNotInstalledError, NoTimesheetError } from '@/services/bc';
+import { ExtensionNotInstalledError, loadTeamHours } from '@/services/bc';
 import {
   ChartBarIcon,
   CalendarIcon,
@@ -28,26 +28,24 @@ import {
   isSameWeek,
   isSameMonth,
 } from 'date-fns';
-import { useAuth } from '@/services/auth';
 import { useProjectsStore, useCompanyStore, useBillableTargetStore } from '@/hooks';
-import { timeEntryService, bcClient } from '@/services/bc';
 import {
   cn,
   formatTime,
   DATE_FORMAT_FULL,
   DATE_FORMAT_SHORT,
   DATE_FORMAT_DAY_SHORT,
-  isTeamMember,
   BILLABLE_RULE_DESCRIPTION,
   hasBillableTargetFields,
   resolveBillableTarget,
   resolveCompanyDefault,
-  getWeightedBillableTarget,
+  summariseHours,
+  isCounted,
   getBillableTargetBand,
   BILLABLE_TARGET_BAND_COLORS,
 } from '@/utils';
-import type { BillableTarget } from '@/utils';
-import type { TimeEntry, BCResource } from '@/types';
+import type { BillableTarget, PersonHours } from '@/utils';
+import type { BCResource } from '@/types';
 import { ExportButton } from './ExportButton';
 
 type DateRange = 'week' | 'month';
@@ -113,17 +111,13 @@ function BillableInfo({ label }: { label: string }) {
 export function ReportsPanel() {
   const [dateRange, setDateRange] = useState<DateRange>('week');
   const [referenceDate, setReferenceDate] = useState(new Date());
-  const [entries, setEntries] = useState<TimeEntry[]>([]);
+  const [people, setPeople] = useState<PersonHours[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [extensionNotInstalled, setExtensionNotInstalled] = useState(false);
   const [selectedMember, setSelectedMember] = useState<BCResource | 'everyone' | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [resources, setResources] = useState<BCResource[]>([]);
-  const [isLoadingResources, setIsLoadingResources] = useState(false);
 
-  const { account } = useAuth();
-  const currentUserEmail = account?.username || '';
   const { projects, fetchProjects } = useProjectsStore();
   const { selectedCompany, companyVersion } = useCompanyStore();
 
@@ -163,30 +157,39 @@ export function ReportsPanel() {
     setReferenceDate(new Date());
   };
 
-  // Fetch resources on mount and when company changes
+  // The team and their hours for the period: the same calculation as the Team page
+  // (loadTeamHours), so both agree for the same week
   useEffect(() => {
-    const fetchResources = async () => {
-      setIsLoadingResources(true);
+    let cancelled = false;
+    const fetchTeamHours = async () => {
+      setIsLoading(true);
+      setError(null);
       setExtensionNotInstalled(false);
       try {
-        // The people who can log time (same rule as the Team page): leaves out
-        // placeholder role resources, blocked resources and empty resource cards
-        const data = await bcClient.getResources();
-        setResources(data.filter(isTeamMember));
+        const { people: loaded } = await loadTeamHours(startDate, endDate);
+        if (!cancelled) setPeople(loaded);
       } catch (err) {
+        if (cancelled) return;
         if (err instanceof ExtensionNotInstalledError) {
           setExtensionNotInstalled(true);
         } else {
-          console.error('Failed to fetch resources:', err);
+          console.error('Failed to load report data:', err);
+          setError('Failed to load report data');
         }
-        setResources([]);
+        setPeople([]);
       } finally {
-        setIsLoadingResources(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
-    fetchResources();
-    // companyVersion changes when company switches, ensuring refetch
-  }, [companyVersion]);
+    fetchTeamHours();
+    return () => {
+      cancelled = true;
+    };
+    // companyVersion ensures refetch when company switches
+  }, [startDate, endDate, companyVersion]);
+
+  const resources = useMemo(() => people.map((p) => p.resource), [people]);
+  const isLoadingResources = isLoading && resources.length === 0;
 
   // Set default to 'everyone' once resources are loaded
   useEffect(() => {
@@ -195,79 +198,23 @@ export function ReportsPanel() {
     }
   }, [resources, selectedMember]);
 
-  // Get the resource timeSheetOwnerUserId(s) to fetch based on selection
-  const getResourceUserIds = (): string[] => {
-    if (selectedMember === 'everyone') {
-      return resources.map((r) => r.timeSheetOwnerUserId).filter((id): id is string => !!id);
-    } else if (selectedMember) {
-      return selectedMember.timeSheetOwnerUserId ? [selectedMember.timeSheetOwnerUserId] : [];
-    }
-    return [];
-  };
-
-  // Fetch entries when date range or selected member changes
-  useEffect(() => {
-    const userIds = getResourceUserIds();
-    if (userIds.length === 0 && selectedMember !== null) {
-      setEntries([]);
-      return;
-    }
-
-    const fetchAllEntries = async () => {
-      setIsLoading(true);
-      setError(null);
-      // Don't reset extensionNotInstalled here - fetchResources sets it
-      try {
-        // Fetch entries for all selected resources
-        const allEntries: TimeEntry[] = [];
-        for (const userId of userIds) {
-          try {
-            const data = await timeEntryService.getEntries(startDate, endDate, userId);
-            allEntries.push(...data);
-          } catch (err) {
-            if (err instanceof ExtensionNotInstalledError) {
-              setExtensionNotInstalled(true);
-              break;
-            } else if (!(err instanceof NoTimesheetError)) {
-              // Log but continue for other users
-              console.error(`Failed to fetch entries for ${userId}:`, err);
-            }
-          }
-        }
-        setEntries(allEntries);
-      } catch (err) {
-        console.error('Failed to fetch entries for reports:', err);
-        setError('Failed to load report data');
-        setEntries([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAllEntries();
-    // companyVersion ensures refetch when company switches
-  }, [selectedMember, resources, startDate, endDate, companyVersion]);
+  // The people in the selection: everyone, or the one picked (by resource number, so
+  // resources whose time sheets share an owner never pick up each other's time)
+  const selectedPeople = useMemo(() => {
+    // Everyone means the people who count: not those on a weekly capacity of 0
+    if (selectedMember === 'everyone') return people.filter(isCounted);
+    if (!selectedMember) return [];
+    return people.filter((p) => p.resource.number === selectedMember.number);
+  }, [people, selectedMember]);
+  const entries = useMemo(() => selectedPeople.flatMap((p) => p.entries), [selectedPeople]);
 
   // Fetch projects on mount
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
 
-  // Calculate statistics from entries
-  const stats = useMemo(() => {
-    const totalHours = entries.reduce((sum, entry) => sum + entry.hours, 0);
-    const billableHours = entries
-      .filter((entry) => entry.isBillable)
-      .reduce((sum, entry) => sum + entry.hours, 0);
-    const uniqueProjects = new Set(entries.map((entry) => entry.projectId)).size;
-    const billablePercentage = totalHours > 0 ? Math.round((billableHours / totalHours) * 100) : 0;
-
-    return { totalHours, billableHours, uniqueProjects, billablePercentage };
-  }, [entries]);
-
-  // Billable target for the selection: the person's own (or the company default), or for
-  // everyone the average of their targets (Reports gives everyone the same capacity, so
-  // that's the capacity-weighted target). Null on Thyme BC Extensions without targets.
+  // Billable targets: each person's own (or the company default). Null on Thyme BC
+  // Extensions without targets.
   const { companyDefaultPercent, setupAvailable, loadedForCompanyVersion, loadCompanyDefault } =
     useBillableTargetStore();
   const targetFieldsPresent = hasBillableTargetFields(resources);
@@ -277,20 +224,41 @@ export function ReportsPanel() {
   // Only once this company's Thyme Setup has loaded (never another company's default)
   const targetsEnabled =
     targetFieldsPresent && setupAvailable === true && loadedForCompanyVersion === companyVersion;
-  const billableTarget = useMemo((): BillableTarget | null => {
-    if (!targetsEnabled || !selectedMember) return null;
+
+  // Totals for the selection: the same calculation as the Team page's summary
+  const summary = useMemo(() => {
     const companyDefault = resolveCompanyDefault(companyDefaultPercent);
-    if (selectedMember !== 'everyone') {
-      return resolveBillableTarget(selectedMember, companyDefault);
-    }
-    const percent = getWeightedBillableTarget(
-      resources.map((r) => ({
-        capacity: 1,
-        targetPercent: resolveBillableTarget(r, companyDefault).percent,
+    return summariseHours(
+      selectedPeople.map((p) => ({
+        ...p,
+        targetPercent: targetsEnabled
+          ? resolveBillableTarget(p.resource, companyDefault).percent
+          : null,
       }))
     );
-    return percent === null ? null : { percent, isDefault: false };
-  }, [targetsEnabled, selectedMember, resources, companyDefaultPercent]);
+  }, [selectedPeople, targetsEnabled, companyDefaultPercent]);
+
+  const stats = useMemo(
+    () => ({
+      totalHours: summary.totalHours,
+      billableHours: summary.billableHours,
+      uniqueProjects: new Set(entries.map((entry) => entry.projectId)).size,
+      billablePercentage: Math.round(summary.billablePercent),
+    }),
+    [summary, entries]
+  );
+
+  // Billable target for the selection: the person's own (or the company default), or for
+  // everyone the team target, weighted by capacity exactly as on the Team page
+  const billableTarget = useMemo((): BillableTarget | null => {
+    if (!targetsEnabled || !selectedMember) return null;
+    if (selectedMember !== 'everyone') {
+      return resolveBillableTarget(selectedMember, resolveCompanyDefault(companyDefaultPercent));
+    }
+    return summary.billableTarget === null
+      ? null
+      : { percent: summary.billableTarget, isDefault: false };
+  }, [targetsEnabled, selectedMember, companyDefaultPercent, summary]);
 
   // Calculate hours by project
   const projectHours = useMemo((): ProjectHours[] => {
@@ -352,9 +320,8 @@ export function ReportsPanel() {
 
   // Find max hours for bar chart scaling
   const maxProjectHours = Math.max(...projectHours.map((p) => p.hours), 1);
-  // Daily capacity based on selected resources (8 hours per resource per day)
-  const resourceCount = selectedMember === 'everyone' ? resources.length : 1;
-  const dailyCapacity = resourceCount * 8;
+  // Daily capacity of the selected people: their weekly capacity over 5 working days
+  const dailyCapacity = Math.round((summary.capacity / 5) * 10) / 10;
   // Use the greater of capacity or max hours to ensure bars fit
   const maxDailyHours = Math.max(...dailyBreakdown.map((d) => d.hours), dailyCapacity);
 

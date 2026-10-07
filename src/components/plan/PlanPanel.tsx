@@ -22,6 +22,7 @@ import { usePlanStore } from '@/hooks';
 import { useCompanyStore } from '@/hooks';
 import { useAuth, resolveResourceIdentity } from '@/services/auth';
 import { ExtensionNotInstalledError } from '@/services/bc';
+import { teamConfig } from '@/config';
 import {
   cn,
   getBCResourceUrl,
@@ -30,6 +31,7 @@ import {
   buildResourceDailyTotals,
   getOverAllocationTitle,
   getResourceHoursPerDay,
+  resolveWeeklyCapacity,
   groupAllocationsByTask,
   DAILY_CAPACITY_HOURS,
   type PlanJobTask,
@@ -1468,6 +1470,7 @@ export function PlanPanel({
     error,
     jobTasksByProject,
     uomConversionMap,
+    cache,
     selectedAllocationId,
     isDragging,
     fetchTeamData,
@@ -1529,7 +1532,24 @@ export function PlanPanel({
     [allAllocations]
   );
 
-  // Red flags use each person's own working day (as the Edit Allocation modal does), else 8h
+  // People with their own weekly capacity in BC (part-timers, or 0 = not counted). Everyone
+  // else has no weekly cap here: their daily capacity already limits a working week.
+  const planResources = cache?.resources;
+  const weeklyCapacityByResource = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const resource of planResources ?? []) {
+      const capacity = resolveWeeklyCapacity(
+        resource,
+        uomConversionMap,
+        teamConfig.defaultCapacity
+      );
+      if (capacity.isSet) map.set(resource.number, capacity.hours);
+    }
+    return map;
+  }, [planResources, uomConversionMap]);
+
+  // Red flags use each person's own working day (as the Edit Allocation modal does), else 8h,
+  // and their weekly capacity when they have one
   const getOverAllocation = useCallback<OverAllocationLookup>(
     (dayAllocations, date, includeName = false) =>
       getOverAllocationTitle(
@@ -1538,9 +1558,10 @@ export function PlanPanel({
         date,
         includeName,
         (resourceNumber) =>
-          getResourceHoursPerDay(resourceNumber, uomConversionMap) ?? DAILY_CAPACITY_HOURS
+          getResourceHoursPerDay(resourceNumber, uomConversionMap) ?? DAILY_CAPACITY_HOURS,
+        (resourceNumber) => weeklyCapacityByResource.get(resourceNumber) ?? null
       ),
-    [resourceDailyTotals, uomConversionMap]
+    [resourceDailyTotals, uomConversionMap, weeklyCapacityByResource]
   );
 
   // A project's dialog loads its plan up front (and skips team-only data)

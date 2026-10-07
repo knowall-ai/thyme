@@ -30,7 +30,13 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Business Central refused the change (403). Billable targets are saved to the Resource (per person) and Thyme Setup (company default) in BC, so the user needs permission to modify those records; ask a BC administrator to assign it, or to change the target for you.
 
 | Team page "Timesheet completion" is below 100% for someone who worked a full week
-| Timesheet completion is hours logged ÷ capacity. Check their timesheet for missing days, and that their capacity is right: it comes from the hours per day on the person's resource units of measure in BC (e.g. a DAY unit of 7.5 hours), falling back to 40 hours a week.
+| Timesheet completion is hours logged ÷ capacity. Check their timesheet for missing days, and that their capacity is right: it is the person's own *Weekly Capacity* when set (Thyme BC Extension 1.19+), otherwise the hours per day on their resource units of measure in BC (e.g. a DAY unit of 7.5 hours) x 5, falling back to 40 hours a week.
+
+| A part-timer's capacity on the Team page is too high (e.g. 37.5h a week for someone who works two days)
+| Capacity defaults to hours per day x 5. On the Team page, click the pencil next to their capacity and enter their hours a week (e.g. 15). Tick *Flexible working days* if they work those hours on any days rather than fixed weekdays. Needs Thyme BC Extension 1.19+ and permission to modify Resources in BC; the pencil only shows when the extension supports it.
+
+| A person is greyed out on the Team page with completion "–"
+| Their weekly capacity is set to 0, which means "listed but not counted" (used for AI agents and anyone who shouldn't count). They're left out of Team Capacity, Timesheet completion and the billable target. To count them again, click the pencil next to their capacity and tick *Use default*, or enter their real hours.
 
 | Timer state lost on refresh
 | Check browser allows localStorage; timer state persists in localStorage
@@ -86,6 +92,18 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Poppie's suggestions show but have no Add button
 | Suggestions can only be added to an open (or rejected) timesheet of your own. Reopen a submitted timesheet first; approved timesheets and teammates' timesheets are read-only, and the panel says why.
 
+| There's no *Request suggestions* button in Poppie's suggestions panel
+| The button needs Thyme BC Extension 1.18 or later (the `suggestionRequests` API); on older versions it's hidden. It also only shows for weeks that have started: always for past weeks, and for the current week while it has fewer than three suggestions (Poppie's midday and evening runs usually cover it). On someone else's timesheet you need to be their *Time Sheet Approver* on the Resource card, or a Thyme administrator (*Time Sheet Admin.* in User Setup, or the `THYME ADMIN` permission set).
+
+| *Request suggestions* is greyed out and the panel says "Poppie offline"
+| Thyme reads Poppie's heartbeat (Thyme BC Extension 1.18+). She refreshes it every minute from her `suggestion-requests` job, and after 5 minutes without one Thyme treats her as offline. Hover the button to see when she was last seen. Her VM is probably stopped, or the job isn't running. Ask an administrator to check the VM and `hermes cron list`. The button comes back by itself within a minute of her returning.
+
+| A suggestion request stays on "Queued" or says "Poppie seems to be offline"
+| Poppie checks for requests every minute, so a request waiting longer than a few minutes means her VM or its `suggestion-requests` job isn't running. The request stays queued and runs when she's back; you don't need to ask again. If it never starts, ask an administrator to check Poppie's `suggestion-requests` cron job. A request that started but stopped updating is marked failed after 30 minutes, so you can ask again.
+
+| Poppie finished a request for a teammate but no suggestions appear
+| Suggestions are only visible to the person they're for and to Thyme administrators, because they can include meeting subjects and other activity the person hasn't logged yet. As their approver you can ask Poppie to check their week, and Thyme tells you how many she found. They see the suggestions on their own timesheet.
+
 | "No Approval Access" on Timesheet Approvals page
 | To approve timesheets, configure the approver in Business Central: (1) *Make user a Time Sheet Admin:* Search for "User Setup" → find your user (or create a new entry) → check the "Time Sheet Admin" checkbox. This allows the user to approve any timesheet. (2) *Or link approver to specific resources:* Search for "Resources" → open each Resource Card for employees you manage → set "Time Sheet Approver User ID" to your BC user ID. This allows you to approve only timesheets for those specific resources.
 
@@ -104,6 +122,9 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Internal time shows as billable in Reports (or a customer project's time shows as non-billable)
 | Thyme counts time as billable only if its project isn't internal and the timesheet line isn't marked not chargeable. A project is internal when it has no Bill-to Customer, its Bill-to Customer's name contains the whole word "Internal" (e.g. "Contoso - Internal"; "Contoso International" doesn't count), or its Bill-to Customer has the company's own name (e.g. "CRONUS UK Ltd." in the CRONUS UK Ltd. company; case, punctuation and spacing are ignored). In BC, open the Project card and check *Bill-to Customer No.*: give internal projects an internal customer - named "... - Internal" or exactly like the company - (or leave it empty), and make sure customer projects are billed to the real customer. A customer named e.g. "Internal Audit Ltd" would also be treated as internal, so rename it or bill the project to another customer. Lines with *Chargeable* unticked on the timesheet are never billable.
 
+| Reports (All Resources) shows more hours than the Team page for the same week, e.g. one person's time counted several times
+| Fixed in Thyme: older versions looked up each resource's time sheet through its *Time Sheet Owner User ID*, so when one user owns the time sheets of several resources (e.g. AI agents whose time sheets a colleague looks after), that user's own time sheet was counted once per resource. Team and Reports now use the same calculation, matching time sheets to people by resource number. Reload Thyme to get the fix. If the two pages still differ, check that both are showing the same week (Reports' *This Month* covers the whole month).
+
 | "Poppie's recommendation" never appears on the Approvals or Time page
 | The panel only shows when the Thyme BC Extension has the `timesheetReviews` and `timesheetReviewLines` API pages; on an older extension Thyme hides it (the browser console shows "timesheetReviews endpoint not found"). Update the extension in BC. If the panel says "Awaiting Poppie's review…" for more than about 10 minutes, check that Poppie's review job is running and can reach the company: Thyme only reads reviews, it doesn't create them.
 
@@ -117,7 +138,7 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | The URL must be `/{environment}/{companyId}/{page}`, where the environment is `production` or `sandbox` and the company ID is the BC company GUID (e.g. `/production/00000000-0000-0000-0000-000000000001/plan`). A truncated or hand-edited link won't match; copy the link again from the browser's address bar. Old links without a company (e.g. `/projects/PR00100`) still work and open in your current company.
 
 | A Plan cell has a red outline
-| The person is over-allocated that day across *all* projects, not just the one shown. Hover the cell for the total planned hours, how many projects they span, the person's daily capacity and a per-project breakdown. Capacity is the person's hours per day from their units of measure in Business Central (e.g. 7.5h), or 8h when none is set; see the DAY/HOUR unit-of-measure entry above to set it. Move or reduce some of that day's allocations to clear the outline.
+| The person is over-allocated that day across *all* projects, not just the one shown. Hover the cell for the total planned hours, how many projects they span, the person's daily capacity and a per-project breakdown. Capacity is the person's hours per day from their units of measure in Business Central (e.g. 7.5h), or 8h when none is set; see the DAY/HOUR unit-of-measure entry above to set it. People with their own weekly capacity (e.g. 15h for two days a week) are also flagged from the day their week so far goes over it. Move or reduce some of that day's allocations to clear the outline.
 
 | A task is missing from a project's Planned dialog
 | The dialog lists every *Posting* task on the project. Heading and total tasks can't hold plan lines, so they're left out. If a Posting task is missing, check its Job Task Type in Business Central, then close and reopen the dialog to reload.

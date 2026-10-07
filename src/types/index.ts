@@ -46,6 +46,13 @@ export interface BCResource {
   // Billable target (Thyme BC Extension with billable targets; undefined on older versions)
   billableTargetPercent?: number; // 0-100, only meaningful when billableTargetSet
   billableTargetSet?: boolean; // false = use the company default (thymeSetup)
+  // Weekly capacity (Thyme BC Extension 1.19+; undefined on older versions)
+  weeklyCapacityHours?: number; // only meaningful when weeklyCapacitySet; 0 = listed, not counted
+  weeklyCapacitySet?: boolean; // false = hours per day x 5
+  flexibleWorkingDays?: boolean; // works the weekly capacity on any days
+  // Whether the signed-in user may ask Poppie for suggestions for this resource (Thyme BC
+  // Extension 1.18+; undefined on older versions)
+  canRequestSuggestions?: boolean;
   '@odata.etag'?: string;
 }
 
@@ -313,6 +320,39 @@ export interface BCTimeSuggestionUpdate {
   timeSheetNo?: string;
   timeSheetLineNo?: number;
   actionedAt?: string;
+}
+
+// A request for Poppie to generate time suggestions for a resource's week now (Thyme BC
+// Extension 1.18+ suggestionRequests API). Poppie claims it within a minute, updates
+// `progress` as she checks each source, then marks it Done or Failed.
+export type SuggestionRequestStatus = 'Requested' | 'Running' | 'Done' | 'Failed';
+
+export interface BCSuggestionRequest {
+  id: string;
+  entryNo: number;
+  resourceNo: string;
+  fromDate: string; // YYYY-MM-DD
+  toDate: string; // YYYY-MM-DD
+  status: SuggestionRequestStatus;
+  progress: string; // what Poppie is doing now; a summary once Done
+  createdCount: number;
+  updatedCount: number;
+  errorMessage: string;
+  requestedBy?: string;
+  requestedAt?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  lastModifiedDateTime?: string;
+}
+
+// When an AI agent (Poppie) was last seen (Thyme BC Extension 1.18+ agentHeartbeats API).
+// lastSeenAt is stamped by BC on every poll the agent makes.
+export interface BCAgentHeartbeat {
+  id: string;
+  agentName: string;
+  lastSeenAt: string; // ISO date-time
+  status?: string; // e.g. "Idle", "Working on 1 request", "Paused"
+  version?: string;
 }
 
 // Poppie's timesheet reviews - requires the Thyme BC Extension review tables.

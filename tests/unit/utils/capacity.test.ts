@@ -5,6 +5,8 @@ import {
   getOverAllocationHours,
   getOverAllocatedResources,
   getOverAllocationTitle,
+  getWeekToDateHours,
+  formatOverAllocation,
   type DailyResourceAllocation,
 } from '@/utils/capacity';
 
@@ -197,5 +199,83 @@ describe('getOverAllocationTitle', () => {
         '  Contoso Website: 9h',
       ].join('\n')
     );
+  });
+});
+
+describe('weekly capacity', () => {
+  // Mon 5 Oct to Wed 7 Oct 2026, 7.5h each, for someone on 15h a week
+  const week = ['2026-10-05', '2026-10-06', '2026-10-07'].map((startDate) =>
+    alloc({ startDate, hoursPerDay: 7.5 })
+  );
+  const totals = buildResourceDailyTotals(week);
+  const daily = () => 7.5;
+
+  it('sums the week from Monday up to the day', () => {
+    expect(getWeekToDateHours(totals, 'R001', '2026-10-05')).toBe(7.5);
+    expect(getWeekToDateHours(totals, 'R001', '2026-10-07')).toBe(22.5);
+    // Sunday belongs to the same week; the next Monday starts again
+    expect(getWeekToDateHours(totals, 'R001', '2026-10-11')).toBe(22.5);
+    expect(getWeekToDateHours(totals, 'R001', '2026-10-12')).toBe(0);
+  });
+
+  it('allows full days until the week goes over its capacity', () => {
+    const weekly = () => 15;
+    expect(getOverAllocatedResources(week, totals, '2026-10-05', daily, weekly)).toEqual([]);
+    expect(getOverAllocatedResources(week, totals, '2026-10-06', daily, weekly)).toEqual([]);
+    const [over] = getOverAllocatedResources(week, totals, '2026-10-07', daily, weekly);
+    expect(over).toMatchObject({
+      overByHours: 0,
+      weekPlannedHours: 22.5,
+      weekCapacityHours: 15,
+      weekOverByHours: 7.5,
+    });
+    expect(formatOverAllocation(over)).toBe(
+      'Over weekly capacity: 22.5h planned this week so far (capacity 15h a week)\n  Contoso Website: 7.5h'
+    );
+  });
+
+  it('still flags a single day over a full day', () => {
+    const allocations = [alloc({ hoursPerDay: 9 })];
+    const [over] = getOverAllocatedResources(
+      allocations,
+      buildResourceDailyTotals(allocations),
+      DAY,
+      daily,
+      () => 15
+    );
+    expect(over.overByHours).toBe(1.5);
+    expect(over.weekOverByHours).toBeUndefined();
+  });
+
+  it('has no weekly cap without a weekly capacity (unchanged behaviour)', () => {
+    expect(getOverAllocatedResources(week, totals, '2026-10-07', daily, () => null)).toEqual([]);
+    expect(getOverAllocatedResources(week, totals, '2026-10-07', daily)).toEqual([]);
+  });
+
+  it('never flags someone who is not counted (weekly capacity 0)', () => {
+    const allocations = [alloc({ hoursPerDay: 12 })];
+    expect(
+      getOverAllocatedResources(
+        allocations,
+        buildResourceDailyTotals(allocations),
+        DAY,
+        daily,
+        () => 0
+      )
+    ).toEqual([]);
+  });
+
+  it('names the person and both reasons in the tooltip', () => {
+    const allocations = [...week, alloc({ startDate: '2026-10-07', hoursPerDay: 2 })];
+    const title = getOverAllocationTitle(
+      allocations,
+      buildResourceDailyTotals(allocations),
+      '2026-10-07',
+      true,
+      daily,
+      () => 15
+    );
+    expect(title).toContain('Alex Contoso over-allocated: 9.5h planned');
+    expect(title).toContain('Alex Contoso over weekly capacity: 24.5h planned this week so far');
   });
 });
