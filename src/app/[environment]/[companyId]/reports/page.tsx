@@ -1,10 +1,10 @@
 'use client';
 
-import { AuthenticatedTemplate, UnauthenticatedTemplate } from '@/services/auth';
 import { Layout } from '@/components/layout';
 import { ReportsPanel } from '@/components/reports';
 
-function ReportsContent() {
+// Sign-in and company sync are handled by the [environment]/[companyId] layout
+export default function ReportsPage() {
   return (
     <Layout>
       <div className="space-y-6">
@@ -15,18 +15,5 @@ function ReportsContent() {
         <ReportsPanel />
       </div>
     </Layout>
-  );
-}
-
-export default function ReportsPage() {
-  return (
-    <>
-      <UnauthenticatedTemplate>
-        <meta httpEquiv="refresh" content="0;url=/" />
-      </UnauthenticatedTemplate>
-      <AuthenticatedTemplate>
-        <ReportsContent />
-      </AuthenticatedTemplate>
-    </>
   );
 }

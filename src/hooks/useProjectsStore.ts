@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Project, Task } from '@/types';
 import { projectService, ExtensionNotInstalledError } from '@/services/bc';
 import { projectDetailsService, type BillingMode } from '@/services/bc/projectDetailsService';
+import { activeCompanyKey } from './companyScope';
 
 interface ProjectsStore {
   projects: Project[];
@@ -41,6 +42,9 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
   searchQuery: '',
 
   fetchProjects: async () => {
+    // Results are only committed if the company hasn't switched while loading
+    const companyKey = activeCompanyKey();
+    const isStale = () => activeCompanyKey() !== companyKey;
     set({ isLoading: true, error: null, extensionNotInstalled: false });
     try {
       const projects = await projectService.getProjects();
@@ -58,11 +62,13 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
         })
       );
 
+      if (isStale()) return;
       set({ projects: projectsWithTasks, isLoading: false, extensionNotInstalled: false });
 
       // Fetch hours in the background (don't block)
       get().fetchProjectHours();
     } catch (error) {
+      if (isStale()) return;
       // Check if this is an extension not installed error (custom API returns 404)
       const isExtensionError =
         error instanceof ExtensionNotInstalledError ||
@@ -77,6 +83,7 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
   },
 
   fetchProjectHours: async () => {
+    const companyKey = activeCompanyKey();
     set({ isLoadingHours: true });
     try {
       const { projects } = get();
@@ -91,6 +98,9 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
         ),
       ]);
 
+      // Another company's figures: drop them (the new company loads its own)
+      if (activeCompanyKey() !== companyKey) return;
+
       // Update projects with hours and budget data
       set((state) => ({
         projects: state.projects.map((project) => ({
@@ -104,11 +114,14 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
       // Also fetch billing modes in the background
       get().fetchBillingModes(projectCodes);
     } catch {
-      set({ isLoadingHours: false });
+      if (activeCompanyKey() === companyKey) set({ isLoadingHours: false });
     }
   },
 
   fetchBillingModes: async (projectCodes?: string[]) => {
+    // billingModes is keyed by project code, which only means something within a company
+    const companyKey = activeCompanyKey();
+    const isStale = () => activeCompanyKey() !== companyKey;
     set({ isLoadingBillingModes: true });
     try {
       const codes = projectCodes ?? get().projects.map((p) => p.code);
@@ -135,6 +148,7 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
           })
         );
 
+        if (isStale()) return;
         for (const { code, mode } of results) {
           newModes.set(code, mode);
         }
@@ -145,12 +159,21 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
 
       set({ isLoadingBillingModes: false });
     } catch {
-      set({ isLoadingBillingModes: false });
+      if (!isStale()) set({ isLoadingBillingModes: false });
     }
   },
 
   clearProjects: () => {
-    set({ projects: [], selectedProject: null, selectedTask: null });
+    // Billing modes are cached by project code, so they go with the company's projects
+    set({
+      projects: [],
+      selectedProject: null,
+      selectedTask: null,
+      billingModes: new Map(),
+      isLoading: false,
+      isLoadingHours: false,
+      isLoadingBillingModes: false,
+    });
   },
 
   selectProject: (project: Project | null) => {

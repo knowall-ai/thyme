@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { BCResource, BCTimeSheet, BCJobPlanningLine, TimesheetDisplayStatus } from '@/types';
 import { bcClient, ExtensionNotInstalledError } from '@/services/bc';
+import { activeCompanyKey } from './companyScope';
 import {
   getTimesheetDisplayStatus,
   buildUOMConversionMap,
@@ -98,6 +99,8 @@ interface PlanStore {
   // Actions
   fetchTeamData: (weekStart: Date, weeksToShow: number, emailDomain?: string) => Promise<void>;
   clearCache: () => void;
+  /** Drop the displayed plan and its cache, and ignore loads started before the switch */
+  resetForCompanySwitch: () => void;
   setCurrentWeekStart: (date: Date) => void;
   setWeeksToShow: (weeks: number) => void;
   setViewMode: (mode: ViewMode) => void;
@@ -526,6 +529,25 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     set({ cache: null });
   },
 
+  resetForCompanySwitch: () => {
+    // Supersede any load still in flight, so it can't write the old company's plan back
+    latestFetchId++;
+    set({
+      cache: null,
+      teamMembers: [],
+      projects: [],
+      allAllocations: [],
+      uomConversionMap: new Map(),
+      isLoading: false,
+      isLoadingWeeks: new Set(),
+      error: null,
+      selectedMemberIds: [],
+      selectedAllocationId: null,
+      isDragging: false,
+      draggedAllocation: null,
+    });
+  },
+
   setCurrentWeekStart: (date: Date) => {
     set({ currentWeekStart: date, selectedMemberIds: [], selectedAllocationId: null });
   },
@@ -575,12 +597,16 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       .map((id) => teamMembers.find((m) => m.id === id)?.number)
       .filter((no): no is string => !!no);
 
+    const companyKey = activeCompanyKey();
     const results = await bcClient.createTimeSheetsForResources(resourceNos, weekStartStr);
 
     const successes = results.filter((r) => r.success);
     const failures = results.filter((r) => !r.success);
 
-    set({ isCreatingTimesheets: false, selectedMemberIds: [] });
+    // After a company switch the selection belongs to the new company; leave it alone
+    if (activeCompanyKey() === companyKey) {
+      set({ isCreatingTimesheets: false, selectedMemberIds: [] });
+    }
 
     return {
       success: successes.length,

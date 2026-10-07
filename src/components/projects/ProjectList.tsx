@@ -26,7 +26,7 @@ import {
   getBCJobUrl,
 } from '@/utils';
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
-import { useCompanyStore } from '@/hooks';
+import { useCompanyPath, useCompanyStore } from '@/hooks';
 import { ProjectStatusFilter } from './ProjectStatusFilter';
 import {
   DEFAULT_PROJECT_STATUSES,
@@ -87,6 +87,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
 
   const selectedCompany = useCompanyStore((state) => state.selectedCompany);
   const companyVersion = useCompanyStore((state) => state.companyVersion);
+  const toHref = useCompanyPath();
 
   const [statusFilter, setStatusFilter] = useState<ProjectStatus[]>(DEFAULT_PROJECT_STATUSES);
   const [sortBy, setSortBy] = useState<SortOption>('code');
@@ -123,7 +124,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
       onSelectProject(project);
     } else {
       // Navigate to project details page
-      router.push(`/projects/${encodeURIComponent(project.code)}`);
+      router.push(toHref(`/projects/${encodeURIComponent(project.code)}`));
     }
   };
 

@@ -7,16 +7,16 @@ import {
   ChevronDownIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
-import { useCompanyStore, useProjectsStore, useTimeEntriesStore, useTimerStore } from '@/hooks';
-import { useAuth } from '@/services/auth';
+import { usePathname, useRouter } from 'next/navigation';
+import { confirmDiscardRunningTimer, switchCompany, useCompanyStore } from '@/hooks';
 import { cn } from '@/utils';
+import {
+  ENVIRONMENT_LABELS as ENV_LABELS,
+  companyPath,
+  parseCompanyPath,
+  pathForCompanySwitch,
+} from '@/utils/companyPath';
 import type { BCCompany, BCEnvironmentType } from '@/types';
-
-// Environment display names
-const ENV_LABELS: Record<BCEnvironmentType, string> = {
-  sandbox: 'Sandbox',
-  production: 'Production',
-};
 
 export function CompanySwitcher() {
   const [isOpen, setIsOpen] = useState(false);
@@ -26,20 +26,16 @@ export function CompanySwitcher() {
   );
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const router = useRouter();
+  const pathname = usePathname();
   const {
     companies,
     selectedCompany,
     isLoading,
     fetchCompanies,
-    selectCompany,
     getCompaniesByEnvironment,
     getEnvironments,
   } = useCompanyStore();
-  const { fetchProjects, clearProjects } = useProjectsStore();
-  const { clearEntries, fetchWeekEntries } = useTimeEntriesStore();
-  const { isRunning: timerIsRunning, reset: resetTimer } = useTimerStore();
-  const { account } = useAuth();
-  const userEmail = account?.username || '';
 
   // Fetch companies on mount (Zustand actions are stable, empty dependency is intentional)
 
@@ -71,7 +67,7 @@ export function CompanySwitcher() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
-  const handleCompanySelect = async (company: BCCompany) => {
+  const handleCompanySelect = (company: BCCompany) => {
     // Check both ID and environment for accurate comparison
     const isSame =
       company.id === selectedCompany?.id && company.environment === selectedCompany?.environment;
@@ -81,28 +77,29 @@ export function CompanySwitcher() {
     }
 
     // Stop timer if running (timer data belongs to old company)
-    if (timerIsRunning) {
-      const confirmed = window.confirm(
-        'You have a timer running. Switching companies will discard this timer. Continue?'
-      );
-      if (!confirmed) {
-        return;
-      }
-      resetTimer();
+    if (!confirmDiscardRunningTimer()) {
+      return;
     }
 
-    selectCompany(company);
     setIsOpen(false);
     setSearchQuery('');
 
-    // Clear all data before fetching new company data
-    clearEntries();
-    clearProjects();
-    await fetchProjects();
-    // Re-fetch timesheet entries for the new company
-    if (userEmail) {
-      fetchWeekEntries(userEmail);
+    // On a company page, open the same page under the new company; the URL drives
+    // the switch (see CompanyRouteGate), which clears the old company's data first.
+    // Detail pages go to their list, as the record won't exist in the other company.
+    const current = parseCompanyPath(pathname);
+    if (current && company.environment) {
+      router.push(
+        companyPath(
+          { id: company.id, environment: company.environment },
+          pathForCompanySwitch(current.rest, window.location.search)
+        )
+      );
+      return;
     }
+
+    // Not on a company page (e.g. the landing page): just switch
+    switchCompany(company);
   };
 
   const toggleEnvExpanded = (env: BCEnvironmentType) => {

@@ -4,6 +4,7 @@ import { projectDetailsService, type ProjectAnalytics } from '@/services/bc/proj
 import { bcClient } from '@/services/bc/bcClient';
 import { useProjectsStore } from './useProjectsStore';
 import { usePlanStore } from './usePlanStore';
+import { activeCompanyKey } from './companyScope';
 
 // BC Job Description is Text[100]
 export const PROJECT_NAME_MAX_LENGTH = 100;
@@ -50,8 +51,10 @@ interface ProjectDetailsStore {
   clearProject: () => void;
 }
 
-// In-flight loads by project, so concurrent calls for the same project (e.g. React
-// re-running the page effect) share one set of BC requests instead of each fetching everything
+// In-flight loads by company + project, so concurrent calls for the same project (e.g.
+// React re-running the page effect) share one set of BC requests instead of each fetching
+// everything. The company is part of the key because project numbers repeat across
+// companies: company B's PR00100 must never join company A's load.
 const inFlight = new Map<string, Promise<void>>();
 
 export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => ({
@@ -73,8 +76,12 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
     if (!options?.force) set({ hiddenKpis: [...DEFAULT_HIDDEN_KPIS] });
 
     // Join a load already under way, so callers resolve when it completes
-    const pending = inFlight.get(projectNumber);
+    const companyKey = activeCompanyKey();
+    const loadKey = `${companyKey}|${projectNumber}`;
+    const pending = inFlight.get(loadKey);
     if (pending) return pending;
+    // The company switched while loading: drop the results, they belong to the old one
+    const isStale = () => activeCompanyKey() !== companyKey;
 
     // Don't refetch if we already have this project, unless forced
     const currentProject = get().project;
@@ -93,6 +100,7 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
           projectDetailsService.getProjectDetails(projectNumber),
           bcClient.getCompanyInfo().catch(() => null),
         ]);
+        if (isStale()) return;
         const { project, tasks } = projectData;
         const currencyCode = companyInfo?.currencyCode || 'GBP';
         set({ project, tasks, currencyCode, isLoading: false });
@@ -104,8 +112,10 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
             projectNumber,
             project.isInternal
           );
+          if (isStale()) return;
           set({ analytics, isLoadingAnalytics: false });
         } catch (analyticsError) {
+          if (isStale()) return;
           // Surface the failure rather than showing zero hours/costs that look real
           console.error('Failed to load analytics:', analyticsError);
           const reason = analyticsError instanceof Error ? `: ${analyticsError.message}` : '';
@@ -115,13 +125,14 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
           });
         }
       } catch (error) {
+        if (isStale()) return;
         const message = error instanceof Error ? error.message : 'Failed to fetch project';
         set({ error: message, isLoading: false, isLoadingAnalytics: false });
       }
     })().finally(() => {
-      if (inFlight.get(projectNumber) === promise) inFlight.delete(projectNumber);
+      if (inFlight.get(loadKey) === promise) inFlight.delete(loadKey);
     });
-    inFlight.set(projectNumber, promise);
+    inFlight.set(loadKey, promise);
     return promise;
   },
 
@@ -185,6 +196,8 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
       tasks: [],
       analytics: null,
       currencyCode: 'GBP',
+      isLoading: false,
+      isLoadingAnalytics: false,
       error: null,
       hiddenKpis: [...DEFAULT_HIDDEN_KPIS],
     }),

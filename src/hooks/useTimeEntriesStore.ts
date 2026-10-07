@@ -10,6 +10,7 @@ import {
 } from '@/services/bc';
 import { getWeekStart, getWeekEnd } from '@/utils';
 import { format } from 'date-fns';
+import { setIfSameCompany } from './companyScope';
 
 interface TimeEntriesStore {
   entries: TimeEntry[];
@@ -197,10 +198,11 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
   },
 
   addEntry: async (entryData) => {
+    const commit = setIfSameCompany(set);
     try {
       const entry = await timeEntryService.createEntry(entryData);
       // BC aggregates hours on the same line/date, so update existing entry if ID matches
-      set((state) => {
+      commit((state) => {
         const existingIndex = state.entries.findIndex((e) => e.id === entry.id);
         if (existingIndex >= 0) {
           // Update existing entry
@@ -217,76 +219,83 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
       return entry;
     } catch (error) {
       if (error instanceof TimesheetNotEditableError) {
-        set({ error: error.message });
+        commit({ error: error.message });
       } else {
         const message = error instanceof Error ? error.message : 'Failed to add entry';
-        set({ error: message });
+        commit({ error: message });
       }
       throw error;
     }
   },
 
   updateEntry: async (entryId: string, updates: Partial<TimeEntry>) => {
+    const commit = setIfSameCompany(set);
     try {
       const updated = await timeEntryService.updateEntry(entryId, updates);
       if (updated) {
-        set((state) => ({
+        commit((state) => ({
           entries: state.entries.map((e) => (e.id === entryId ? { ...e, ...updated } : e)),
           timesheetVersionStamp: new Date().toISOString(),
         }));
       }
     } catch (error) {
       if (error instanceof TimesheetNotEditableError) {
-        set({ error: error.message });
+        commit({ error: error.message });
       } else {
         const message = error instanceof Error ? error.message : 'Failed to update entry';
-        set({ error: message });
+        commit({ error: message });
       }
       throw error;
     }
   },
 
   moveEntryDate: async (entryId: string, newDate: string) => {
+    const commit = setIfSameCompany(set);
     const { userEmail } = get();
     try {
       await timeEntryService.moveEntryDate(entryId, newDate);
       // Re-derive entries from the service's cache so merges/splits are reflected
       const refreshed = timeEntryService.getCachedEntries(userEmail || '');
-      set({ entries: refreshed, timesheetVersionStamp: new Date().toISOString() });
+      commit({ entries: refreshed, timesheetVersionStamp: new Date().toISOString() });
     } catch (error) {
       if (error instanceof TimesheetNotEditableError) {
-        set({ error: error.message });
+        commit({ error: error.message });
       } else {
         const message = error instanceof Error ? error.message : 'Failed to move entry';
-        set({ error: message });
+        commit({ error: message });
       }
       throw error;
     }
   },
 
   deleteEntry: async (entryId: string) => {
+    const commit = setIfSameCompany(set);
     try {
       const success = await timeEntryService.deleteEntry(entryId);
       if (success) {
-        set((state) => ({
+        commit((state) => ({
           entries: state.entries.filter((e) => e.id !== entryId),
           timesheetVersionStamp: new Date().toISOString(),
         }));
       }
     } catch (error) {
       if (error instanceof TimesheetNotEditableError) {
-        set({ error: error.message });
+        commit({ error: error.message });
       } else {
         const message = error instanceof Error ? error.message : 'Failed to delete entry';
-        set({ error: message });
+        commit({ error: message });
       }
       throw error;
     }
   },
 
   clearEntries: () => {
+    // Supersede any week load still in flight (e.g. the previous company's), so it
+    // can't repopulate the store after it's been cleared
+    weekFetchSeq += 1;
     set({
       entries: [],
+      isLoading: false,
       error: null,
       currentTimesheet: null,
       timesheetStatus: null,
@@ -300,18 +309,19 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
   },
 
   copyPreviousWeek: async (userId: string) => {
+    const commit = setIfSameCompany(set);
     const { currentWeekStart } = get();
     const previousWeekStart = new Date(currentWeekStart);
     previousWeekStart.setDate(previousWeekStart.getDate() - 7);
 
     try {
-      set({ isLoading: true });
+      commit({ isLoading: true });
       const newEntries = await timeEntryService.copyFromPreviousWeek(
         previousWeekStart,
         currentWeekStart,
         userId
       );
-      set((state) => ({
+      commit((state) => ({
         entries: [...state.entries, ...newEntries],
         timesheetVersionStamp:
           newEntries.length > 0 ? new Date().toISOString() : state.timesheetVersionStamp,
@@ -319,10 +329,10 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
       }));
     } catch (error) {
       if (error instanceof TimesheetNotEditableError) {
-        set({ error: error.message, isLoading: false });
+        commit({ error: error.message, isLoading: false });
       } else {
         const message = error instanceof Error ? error.message : 'Failed to copy entries';
-        set({ error: message, isLoading: false });
+        commit({ error: message, isLoading: false });
       }
       throw error;
     }
@@ -347,6 +357,7 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
   // Creates the timesheet only. The caller re-reads the week afterwards, since whether
   // that means your own timesheet or a teammate's depends on what is being viewed.
   createTimesheet: async () => {
+    const commit = setIfSameCompany(set);
     // Resource and week come from the same "no timesheet" result, so they always match
     // what's on screen even if the user has since switched person or week
     const resourceNo = get().missingTimesheetResourceNo;
@@ -356,52 +367,54 @@ export const useTimeEntriesStore = create<TimeEntriesStore>((set, get) => ({
     }
 
     try {
-      set({ isLoading: true, error: null });
+      commit({ isLoading: true, error: null });
       await bcClient.createTimeSheet(resourceNo, format(week, 'yyyy-MM-dd'));
-      set({
+      commit({
         missingTimesheetResourceNo: null,
         missingTimesheetWeek: null,
         noTimesheetExists: false,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to create timesheet';
-      set({ error: message, isLoading: false });
+      commit({ error: message, isLoading: false });
       throw error;
     }
   },
 
   submitTimesheet: async () => {
+    const commit = setIfSameCompany(set);
     try {
-      set({ isLoading: true });
+      commit({ isLoading: true });
       await timeEntryService.submitTimesheet();
       const timesheet = timeEntryService.getCurrentTimesheet();
       const status = timesheet ? bcClient.getTimesheetDisplayStatus(timesheet) : null;
-      set({
+      commit({
         currentTimesheet: timesheet,
         timesheetStatus: status,
         isLoading: false,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to submit timesheet';
-      set({ error: message, isLoading: false });
+      commit({ error: message, isLoading: false });
       throw error;
     }
   },
 
   reopenTimesheet: async () => {
+    const commit = setIfSameCompany(set);
     try {
-      set({ isLoading: true });
+      commit({ isLoading: true });
       await timeEntryService.reopenTimesheet();
       const timesheet = timeEntryService.getCurrentTimesheet();
       const status = timesheet ? bcClient.getTimesheetDisplayStatus(timesheet) : null;
-      set({
+      commit({
         currentTimesheet: timesheet,
         timesheetStatus: status,
         isLoading: false,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to reopen timesheet';
-      set({ error: message, isLoading: false });
+      commit({ error: message, isLoading: false });
       throw error;
     }
   },
