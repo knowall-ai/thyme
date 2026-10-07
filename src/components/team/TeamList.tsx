@@ -21,33 +21,26 @@ import {
   StageLegend,
   getStageSegments,
 } from '@/components/ui';
-import { bcClient, projectService, ExtensionNotInstalledError } from '@/services/bc';
+import { bcClient, loadTeamHours, ExtensionNotInstalledError } from '@/services/bc';
 import { useCompanyStore, useBillableTargetStore } from '@/hooks';
 import { useAuth, resolveResourceIdentity } from '@/services/auth';
 import {
   getWeekStart,
   getBCResourcesListUrl,
-  formatDate,
-  getStageHours,
-  emptyStageHours,
-  addStageHours,
-  isTeamMember,
-  buildUOMConversionMap,
-  getWeeklyCapacityHours,
-  getBillableHours,
   BILLABLE_RULE_DESCRIPTION,
   hasBillableTargetFields,
   resolveBillableTarget,
   resolveCompanyDefault,
-  getWeightedBillableTarget,
+  summariseHours,
   getBillableTargetGap,
   getBillableTargetBand,
   formatTargetGap,
+  TARGET_GAP_DESCRIPTION,
   BILLABLE_TARGET_BAND_COLORS,
 } from '@/utils';
 import type { StageHours, BillableTarget } from '@/utils';
 import { cn } from '@/utils';
-import type { BCProject, BCResource } from '@/types';
+import type { BCResource } from '@/types';
 import {
   teamConfig,
   getTimesheetCompletionColor,
@@ -178,19 +171,16 @@ export function TeamList() {
       setError(null);
       setExtensionNotInstalled(false);
       try {
-        // Team members are the people who can log time (isTeamMember). Placeholder role
-        // resources used for estimates and blocked leavers are Person resources too, but
-        // they can never log hours and would only inflate Team Capacity.
-        // Note: bcClient.getResources always applies a hardcoded "type eq 'Person'" filter.
-        const resources = (await bcClient.getResources()).filter(isTeamMember);
-        setTargetFieldsPresent(hasBillableTargetFields(resources));
-
-        // Also check if current user has a resource record
-        let currentUserResource: BCResource | null = null;
-        if (userEmail) {
-          currentUserResource = await bcClient.getResourceByEmail(userEmail);
-          setCurrentUserInList(currentUserResource !== null);
-        }
+        // Hours, capacity and the people on the team come from loadTeamHours, the same
+        // calculation as Reports, so both pages agree for the same week
+        const weekEnd = new Date(currentWeekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        const [{ people }, currentUserResource] = await Promise.all([
+          loadTeamHours(currentWeekStart, weekEnd),
+          userEmail ? bcClient.getResourceByEmail(userEmail) : Promise.resolve(null),
+        ]);
+        setTargetFieldsPresent(hasBillableTargetFields(people.map((p) => p.resource)));
+        if (userEmail) setCurrentUserInList(currentUserResource !== null);
 
         // Get the current user's resource ID to mark them in the list
         const currentUserResourceId = currentUserResource?.id;
@@ -198,59 +188,8 @@ export function TeamList() {
         // Extract domain from current user's email for deriving UPNs
         const emailDomain = userEmail ? userEmail.split('@')[1] : null;
 
-        // Local calendar date: toISOString() would give the previous day in timezones
-        // ahead of UTC (e.g. BST), and BC matches startingDate exactly
-        const weekStartStr = formatDate(currentWeekStart);
-
-        // Hours per day come from each person's BC units of measure; fetch them once for
-        // everyone (an empty list just means everyone falls back to the default capacity)
-        const uomMap = buildUOMConversionMap(await bcClient.getResourceUnitsOfMeasure());
-
-        // Projects' bill-to customers decide which time is billable; fetched once for everyone
-        const projectsByNumber = await projectService
-          .getProjectsByNumber()
-          .catch(() => new Map<string, BCProject>());
-
-        // Fetch hours for each resource for the selected week
-        const membersWithHours = await Promise.all(
-          resources.map(async (resource) => {
-            const capacity = getWeeklyCapacityHours(
-              resource.number,
-              uomMap,
-              teamConfig.defaultCapacity
-            );
-            let stages = emptyStageHours();
-            let billableHours = 0;
-
-            try {
-              // Get timesheet for this resource
-              const timesheets = await bcClient.getTimeSheets(resource.number, weekStartStr);
-
-              if (timesheets.length > 0) {
-                const timesheet = timesheets[0];
-                const [lines, details] = await Promise.all([
-                  bcClient.getTimeSheetLines(timesheet.number),
-                  bcClient.getAllTimeSheetDetails(timesheet.number),
-                ]);
-
-                // Project (Job) hours from timesheet details, split by stage
-                stages = getStageHours(lines, details);
-                billableHours = getBillableHours(lines, details, projectsByNumber);
-              }
-            } catch (error) {
-              // Resource might not have a timesheet for this week - that's OK.
-              // Log the error in development so unexpected failures are not silently ignored.
-              if (process.env.NODE_ENV === 'development') {
-                console.error(
-                  'Failed to fetch timesheet data for resource',
-                  resource.number,
-                  'for week starting',
-                  weekStartStr,
-                  error
-                );
-              }
-            }
-
+        const membersWithHours = people.map(
+          ({ resource, capacity, stages, billableHours }): TeamMember => {
             const totalHours = stages.total;
             const nonBillableHours = totalHours - billableHours;
             const completion = capacity > 0 ? (totalHours / capacity) * 100 : 0;
@@ -281,7 +220,7 @@ export function TeamList() {
               billableTargetPercent: resource.billableTargetPercent,
               billableTargetSet: resource.billableTargetSet,
             };
-          })
+          }
         );
 
         setMembers(membersWithHours);
@@ -343,33 +282,16 @@ export function TeamList() {
     [members, targetsEnabled, companyDefault]
   );
 
-  // Calculate totals
+  // Totals: the same calculation as Reports. Team target: everyone's target weighted
+  // by their capacity
   const totals = useMemo(() => {
-    const totalHours = rows.reduce((sum, m) => sum + m.totalHours, 0);
-    const stages = rows.reduce((sum, m) => addStageHours(sum, m.stages), emptyStageHours());
-    const billableHours = rows.reduce((sum, m) => sum + m.billableHours, 0);
-    const nonBillableHours = rows.reduce((sum, m) => sum + m.nonBillableHours, 0);
-    const totalCapacity = rows.reduce((sum, m) => sum + m.capacity, 0);
-    const completion = totalCapacity > 0 ? (totalHours / totalCapacity) * 100 : 0;
-    const billablePercent = totalHours > 0 ? (billableHours / totalHours) * 100 : 0;
-    // Team target: everyone's target weighted by their capacity
-    const billableTarget = targetsEnabled
-      ? getWeightedBillableTarget(
-          rows.flatMap((m) =>
-            m.target ? [{ capacity: m.capacity, targetPercent: m.target.percent }] : []
-          )
-        )
-      : null;
-
+    const summary = summariseHours(
+      rows.map((m) => ({ ...m, targetPercent: m.target?.percent ?? null }))
+    );
     return {
-      totalHours,
-      stages,
-      billableHours,
-      nonBillableHours,
-      totalCapacity,
-      completion,
-      billablePercent,
-      billableTarget,
+      ...summary,
+      totalCapacity: summary.capacity,
+      billableTarget: targetsEnabled ? summary.billableTarget : null,
     };
   }, [rows, targetsEnabled]);
 
@@ -665,11 +587,15 @@ export function TeamList() {
                       / {totals.billableTarget.toFixed(0)}% target
                     </span>
                   </p>
-                  <p className="text-dark-400 mt-2 text-xs">
+                  <p
+                    className="text-dark-400 mt-2 text-xs"
+                    title={`${TARGET_GAP_DESCRIPTION} The team target is everyone's target weighted by their capacity.`}
+                  >
                     {totals.totalHours > 0
-                      ? `${formatTargetGap(
-                          getBillableTargetGap(totals.billablePercent, totals.billableTarget)
-                        )} vs capacity-weighted target`
+                      ? formatTargetGap(
+                          getBillableTargetGap(totals.billablePercent, totals.billableTarget),
+                          'the team target'
+                        )
                       : 'No hours logged yet'}
                   </p>
                 </Card>
@@ -826,7 +752,7 @@ export function TeamList() {
                           aria-sort={getAriaSort('billableGap')}
                           tabIndex={0}
                           onKeyDown={(e) => e.key === 'Enter' && handleSort('billableGap')}
-                          title="Billable % minus the person's billable target, in percentage points"
+                          title={TARGET_GAP_DESCRIPTION}
                         >
                           <div className="flex items-center justify-end gap-1">
                             Gap to target
@@ -971,7 +897,10 @@ export function TeamList() {
                           )}
                         </td>
                         {targetsEnabled && (
-                          <td className="text-dark-300 px-4 py-3 text-right text-sm tabular-nums">
+                          <td
+                            className="text-dark-300 px-4 py-3 text-right text-sm tabular-nums"
+                            title={TARGET_GAP_DESCRIPTION}
+                          >
                             {member.target && member.totalHours > 0
                               ? formatTargetGap(getMemberGap(member))
                               : '–'}

@@ -126,10 +126,13 @@ describe('gap to target', () => {
     expect(getBillableTargetGap(83, 80)).toBe(3);
   });
 
-  it('formats with a sign', () => {
-    expect(formatTargetGap(-8)).toBe('-8 pts');
-    expect(formatTargetGap(3.4)).toBe('+3 pts');
-    expect(formatTargetGap(0.2)).toBe('0 pts');
+  it('says how far above or below target, in plain words', () => {
+    expect(formatTargetGap(-8)).toBe('8% below target');
+    expect(formatTargetGap(-37.6)).toBe('38% below target');
+    expect(formatTargetGap(3.4)).toBe('3% above target');
+    expect(formatTargetGap(0.2)).toBe('On target');
+    expect(formatTargetGap(-0.49)).toBe('On target');
+    expect(formatTargetGap(-14, 'the team target')).toBe('14% below the team target');
   });
 });
 

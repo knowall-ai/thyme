@@ -9,3 +9,5 @@ export {
   TimesheetNotEditableError,
   ExtensionNotInstalledError,
 } from './timeEntryService';
+export { loadTeamHours } from './teamHoursService';
+export type { TeamHours } from './teamHoursService';

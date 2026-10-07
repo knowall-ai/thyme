@@ -103,15 +103,23 @@ export function getWeightedBillableTarget(
   return totalCapacity > 0 ? weightedSum / totalCapacity : null;
 }
 
-/** Points above (+) or below (-) target, e.g. for sorting by gap */
+/** Billable % minus the target: above (+) or below (-) it, e.g. for sorting by gap */
 export function getBillableTargetGap(actualPercent: number, targetPercent: number): number {
   return actualPercent - targetPercent;
 }
 
-/** e.g. "+3 pts", "-8 pts", "0 pts" */
-export function formatTargetGap(gap: number): string {
-  const rounded = Math.round(gap);
-  return `${rounded > 0 ? '+' : ''}${rounded} pts`;
+/** Explains the gap wording, for tooltips */
+export const TARGET_GAP_DESCRIPTION =
+  'The billable % minus the billable target, e.g. 40% billable against an 80% target is 40% below target.';
+
+/**
+ * A gap in plain words: "38% below target", "5% above target", or "On target"
+ * within half a percent. `targetName` names the target, e.g. "the team target".
+ */
+export function formatTargetGap(gap: number, targetName = 'target'): string {
+  if (Math.abs(gap) < 0.5) return 'On target';
+  const rounded = Math.round(Math.abs(gap));
+  return `${rounded}% ${gap > 0 ? 'above' : 'below'} ${targetName}`;
 }
 
 /**

@@ -1453,6 +1453,23 @@ class BusinessCentralClient {
   }
 
   /**
+   * Everyone's timesheets (that the user can see) starting between two dates, inclusive
+   * (YYYY-MM-DD): one request for a whole team's week or month.
+   */
+  async getTimeSheetsStartingBetween(fromDate: string, toDate: string): Promise<BCTimeSheet[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error(
+        'Thyme BC Extension is not installed. Timesheet functionality requires the extension.'
+      );
+    }
+    const from = this.sanitizeDateInput(fromDate);
+    const to = this.sanitizeDateInput(toDate);
+    const filter = `startingDate ge ${from} and startingDate le ${to}`;
+    return this.customApiFetchAll<BCTimeSheet>(`/timeSheets?$filter=${encodeURIComponent(filter)}`);
+  }
+
+  /**
    * Get a specific timesheet by ID.
    */
   async getTimeSheet(timeSheetId: string): Promise<BCTimeSheet> {

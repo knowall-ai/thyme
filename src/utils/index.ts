@@ -14,3 +14,4 @@ export * from './csvExport';
 export * from './companyPath';
 export * from './planScope';
 export * from './currency';
+export * from './teamHours';
