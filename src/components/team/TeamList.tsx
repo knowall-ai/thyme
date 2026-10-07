@@ -13,6 +13,7 @@ import {
   PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 import { BillableTargetBadge, BillableTargetEditor } from '@/components/targets';
+import { WeeklyCapacityEditor } from './WeeklyCapacityEditor';
 import {
   Card,
   WeekNavigation,
@@ -22,7 +23,7 @@ import {
   getStageSegments,
 } from '@/components/ui';
 import { bcClient, loadTeamHours, ExtensionNotInstalledError } from '@/services/bc';
-import { useCompanyStore, useBillableTargetStore } from '@/hooks';
+import { useCompanyStore, useBillableTargetStore, usePlanStore } from '@/hooks';
 import { useAuth, resolveResourceIdentity } from '@/services/auth';
 import {
   getWeekStart,
@@ -32,13 +33,17 @@ import {
   resolveBillableTarget,
   resolveCompanyDefault,
   summariseHours,
+  isCounted,
+  hasWeeklyCapacityFields,
+  withWeeklyCapacityFields,
+  describeWeeklyCapacity,
   getBillableTargetGap,
   getBillableTargetBand,
   formatTargetGap,
   TARGET_GAP_DESCRIPTION,
   BILLABLE_TARGET_BAND_COLORS,
 } from '@/utils';
-import type { StageHours, BillableTarget } from '@/utils';
+import type { StageHours, BillableTarget, WeeklyCapacity } from '@/utils';
 import { cn } from '@/utils';
 import type { BCResource } from '@/types';
 import {
@@ -61,8 +66,8 @@ interface TeamMember {
   stages: StageHours; // totalHours split by timesheet stage
   billableHours: number;
   nonBillableHours: number;
-  capacity: number;
-  completion: number; // timesheet completion: hours logged as a percentage of capacity
+  /** Their working day and default week, from BC units of measure (see resolveWeeklyCapacity) */
+  weeklyBase: Pick<WeeklyCapacity, 'hoursPerDay' | 'defaultHours'>;
   billablePercent: number; // percentage of total hours that are billable
   isCurrentUser: boolean; // Whether this resource belongs to the logged-in user
   photoUrl: string | null; // Azure AD profile photo URL
@@ -70,10 +75,24 @@ interface TeamMember {
   // The person's own billable target from BC (undefined on older Thyme BC Extensions)
   billableTargetPercent?: number;
   billableTargetSet?: boolean;
+  // The person's own weekly capacity from BC (undefined on older Thyme BC Extensions)
+  weeklyCapacityHours?: number;
+  weeklyCapacitySet?: boolean;
+  flexibleWorkingDays?: boolean;
 }
 
-/** A member with their effective billable target (null when targets aren't available) */
-type TeamMemberRow = TeamMember & { target: BillableTarget | null };
+/**
+ * A member with their weekly capacity and effective billable target (null when targets
+ * aren't available). Someone with a weekly capacity of 0 is listed but not counted
+ * (`weekly.excluded`): no completion or target, and left out of the team totals.
+ */
+type TeamMemberRow = TeamMember & {
+  weekly: WeeklyCapacity;
+  capacity: number;
+  /** Timesheet completion: hours logged as a percentage of capacity (null when not counted) */
+  completion: number | null;
+  target: BillableTarget | null;
+};
 
 type SortField =
   | 'name'
@@ -90,6 +109,9 @@ type SortDirection = 'asc' | 'desc';
 function getMemberGap(member: TeamMemberRow): number {
   return member.target ? getBillableTargetGap(member.billablePercent, member.target.percent) : 0;
 }
+
+// People who aren't counted sort below everyone else by completion
+const sortableCompletion = (member: TeamMemberRow) => member.completion ?? -1;
 
 // Build URL to open a resource in BC web client
 function getBCResourceUrl(
@@ -120,6 +142,9 @@ export function TeamList() {
   // Whether the Thyme BC Extension returns billable targets on resources
   const [targetFieldsPresent, setTargetFieldsPresent] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  // Whether the Thyme BC Extension returns weekly capacity on resources (1.17+)
+  const [capacityFieldsPresent, setCapacityFieldsPresent] = useState(false);
+  const [editingCapacityMemberId, setEditingCapacityMemberId] = useState<string | null>(null);
 
   // Company default billable target, for anyone without their own
   const { companyDefaultPercent, setupAvailable, loadedForCompanyVersion, loadCompanyDefault } =
@@ -180,6 +205,7 @@ export function TeamList() {
           userEmail ? bcClient.getResourceByEmail(userEmail) : Promise.resolve(null),
         ]);
         setTargetFieldsPresent(hasBillableTargetFields(people.map((p) => p.resource)));
+        setCapacityFieldsPresent(hasWeeklyCapacityFields(people.map((p) => p.resource)));
         if (userEmail) setCurrentUserInList(currentUserResource !== null);
 
         // Get the current user's resource ID to mark them in the list
@@ -189,10 +215,9 @@ export function TeamList() {
         const emailDomain = userEmail ? userEmail.split('@')[1] : null;
 
         const membersWithHours = people.map(
-          ({ resource, capacity, stages, billableHours }): TeamMember => {
+          ({ resource, capacity, weekly, stages, billableHours }): TeamMember => {
             const totalHours = stages.total;
             const nonBillableHours = totalHours - billableHours;
-            const completion = capacity > 0 ? (totalHours / capacity) * 100 : 0;
             const billablePercent = totalHours > 0 ? (billableHours / totalHours) * 100 : 0;
 
             // Derive UPN from BC timeSheetOwnerUserId (e.g., "BEN.WEEKS" -> "ben.weeks@domain.com")
@@ -211,14 +236,16 @@ export function TeamList() {
               stages,
               billableHours,
               nonBillableHours,
-              capacity,
-              completion,
+              weeklyBase: weekly ?? { hoursPerDay: capacity / 5, defaultHours: capacity },
               billablePercent,
               isCurrentUser: resource.id === currentUserResourceId,
               photoUrl: null, // Will be fetched separately
               userPrincipalName,
               billableTargetPercent: resource.billableTargetPercent,
               billableTargetSet: resource.billableTargetSet,
+              weeklyCapacityHours: resource.weeklyCapacityHours,
+              weeklyCapacitySet: resource.weeklyCapacitySet,
+              flexibleWorkingDays: resource.flexibleWorkingDays,
             };
           }
         );
@@ -272,21 +299,30 @@ export function TeamList() {
     // companyVersion changes when company switches, ensuring refetch
   }, [companyVersion, currentWeekStart, userEmail]);
 
-  // Everyone's effective billable target: their own, or the company default
+  // Everyone's weekly capacity (their own, or hours per day x 5) and effective billable
+  // target (their own, or the company default)
   const rows = useMemo<TeamMemberRow[]>(
     () =>
-      members.map((m) => ({
-        ...m,
-        target: targetsEnabled ? resolveBillableTarget(m, companyDefault) : null,
-      })),
+      members.map((m) => {
+        const weekly = withWeeklyCapacityFields(m.weeklyBase, m);
+        const capacity = weekly.hours;
+        return {
+          ...m,
+          weekly,
+          capacity,
+          completion: weekly.excluded ? null : capacity > 0 ? (m.totalHours / capacity) * 100 : 0,
+          target:
+            targetsEnabled && !weekly.excluded ? resolveBillableTarget(m, companyDefault) : null,
+        };
+      }),
     [members, targetsEnabled, companyDefault]
   );
 
   // Totals: the same calculation as Reports. Team target: everyone's target weighted
-  // by their capacity
+  // by their capacity. People on a weekly capacity of 0 are listed but not counted.
   const totals = useMemo(() => {
     const summary = summariseHours(
-      rows.map((m) => ({ ...m, targetPercent: m.target?.percent ?? null }))
+      rows.filter(isCounted).map((m) => ({ ...m, targetPercent: m.target?.percent ?? null }))
     );
     return {
       ...summary,
@@ -296,6 +332,25 @@ export function TeamList() {
   }, [rows, targetsEnabled]);
 
   const editingMember = rows.find((m) => m.id === editingMemberId) ?? null;
+  const editingCapacityMember = rows.find((m) => m.id === editingCapacityMemberId) ?? null;
+
+  // Apply a weekly capacity saved in the editor without reloading the week. The Plan caches
+  // resources (for its weekly over-allocation flags), so drop that cache to pick it up.
+  const handleCapacitySaved = (memberId: string, resource: BCResource) => {
+    usePlanStore.getState().clearCache();
+    setMembers((prev) =>
+      prev.map((m) =>
+        m.id === memberId
+          ? {
+              ...m,
+              weeklyCapacityHours: resource.weeklyCapacityHours,
+              weeklyCapacitySet: resource.weeklyCapacitySet,
+              flexibleWorkingDays: resource.flexibleWorkingDays,
+            }
+          : m
+      )
+    );
+  };
 
   // Apply a target saved in the editor without reloading the week
   const handleTargetSaved = (memberId: string, resource: BCResource) => {
@@ -385,7 +440,7 @@ export function TeamList() {
           comparison = a.totalHours - b.totalHours;
           break;
         case 'completion':
-          comparison = a.completion - b.completion;
+          comparison = sortableCompletion(a) - sortableCompletion(b);
           break;
         case 'capacity':
           comparison = a.capacity - b.capacity;
@@ -766,7 +821,16 @@ export function TeamList() {
                     {filteredAndSortedMembers.map((member) => (
                       <tr
                         key={member.id}
-                        className="border-dark-700 hover:bg-dark-800/50 border-b last:border-b-0"
+                        className={cn(
+                          'border-dark-700 hover:bg-dark-800/50 border-b last:border-b-0',
+                          member.weekly.excluded && 'opacity-50'
+                        )}
+                        title={
+                          member.weekly.excluded
+                            ? 'Not counted: weekly capacity is 0, so this person is left out of the team totals'
+                            : undefined
+                        }
+                        data-testid={member.weekly.excluded ? 'team-member-not-counted' : undefined}
                       >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
@@ -840,34 +904,67 @@ export function TeamList() {
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <div
-                            className="flex flex-col items-end gap-1"
-                            role="meter"
-                            aria-valuenow={member.completion}
-                            aria-valuemin={0}
-                            aria-valuemax={100}
-                            aria-label={`Timesheet completion ${member.completion.toFixed(0)}% - ${getCompletionStatus(member.completion)}`}
-                            title={`${member.totalHours.toFixed(1)}h logged of ${member.capacity.toFixed(1)}h capacity`}
-                          >
-                            <span className="text-dark-100 text-sm font-medium">
-                              {member.completion.toFixed(0)}%
-                            </span>
-                            <div className="bg-dark-700 h-4 w-24 overflow-hidden rounded">
-                              <div
-                                className={cn(
-                                  'h-full',
-                                  getTimesheetCompletionColor(member.completion)
-                                )}
-                                style={{ width: `${Math.min(member.completion, 100)}%` }}
-                              />
+                          {member.completion === null ? (
+                            <div className="text-dark-400 text-right text-sm" title="Not counted">
+                              –
                             </div>
-                          </div>
+                          ) : (
+                            <div
+                              className="flex flex-col items-end gap-1"
+                              role="meter"
+                              aria-valuenow={member.completion}
+                              aria-valuemin={0}
+                              aria-valuemax={100}
+                              aria-label={`Timesheet completion ${member.completion.toFixed(0)}% - ${getCompletionStatus(member.completion)}`}
+                              title={`${member.totalHours.toFixed(1)}h logged of ${member.capacity.toFixed(1)}h capacity`}
+                            >
+                              <span className="text-dark-100 text-sm font-medium">
+                                {member.completion.toFixed(0)}%
+                              </span>
+                              <div className="bg-dark-700 h-4 w-24 overflow-hidden rounded">
+                                <div
+                                  className={cn(
+                                    'h-full',
+                                    getTimesheetCompletionColor(member.completion)
+                                  )}
+                                  style={{ width: `${Math.min(member.completion, 100)}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
                         </td>
                         <td className="text-dark-300 px-4 py-3 text-right">
-                          {member.capacity.toFixed(1)}
+                          <div
+                            className="flex items-center justify-end gap-1"
+                            title={describeWeeklyCapacity(member.weekly)}
+                          >
+                            {member.weekly.flexible && (
+                              <span className="bg-dark-700 text-dark-300 rounded px-1.5 py-0.5 text-xs">
+                                flexible
+                              </span>
+                            )}
+                            <span className="tabular-nums">{member.capacity.toFixed(1)}</span>
+                            {capacityFieldsPresent && (
+                              <button
+                                type="button"
+                                onClick={() => setEditingCapacityMemberId(member.id)}
+                                className="text-dark-400 hover:text-knowall-green rounded p-1"
+                                title="Edit weekly capacity"
+                                aria-label={`Edit weekly capacity for ${member.name}`}
+                              >
+                                <PencilSquareIcon className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          {member.target ? (
+                          {member.weekly.excluded ? (
+                            <span className="text-dark-400 text-sm">
+                              {member.totalHours > 0
+                                ? `${member.billablePercent.toFixed(0)}%`
+                                : '–'}
+                            </span>
+                          ) : member.target ? (
                             <div className="flex items-center justify-end gap-1">
                               <BillableTargetBadge
                                 actualPercent={member.billablePercent}
@@ -937,6 +1034,17 @@ export function TeamList() {
           current={editingMember.target}
           companyDefaultPercent={companyDefault}
           onSaved={(resource) => handleTargetSaved(editingMember.id, resource)}
+        />
+      )}
+
+      {editingCapacityMember && (
+        <WeeklyCapacityEditor
+          isOpen
+          onClose={() => setEditingCapacityMemberId(null)}
+          resourceId={editingCapacityMember.id}
+          personName={editingCapacityMember.name}
+          current={editingCapacityMember.weekly}
+          onSaved={(resource) => handleCapacitySaved(editingCapacityMember.id, resource)}
         />
       )}
     </ExtensionPreviewWrapper>

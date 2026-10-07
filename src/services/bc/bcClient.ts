@@ -120,6 +120,13 @@ function requireTargetPercent(percent: number): number {
   return percent;
 }
 
+function requireWeeklyCapacityHours(hours: number): number {
+  if (!Number.isFinite(hours) || hours < 0 || hours > 168) {
+    throw new Error('BC API: a weekly capacity must be from 0 to 168 hours');
+  }
+  return hours;
+}
+
 // How long the optional company-name lookups may hold up loading projects
 const COMPANY_NAMES_TIMEOUT_MS = 10_000;
 
@@ -1105,6 +1112,37 @@ class BusinessCentralClient {
         ? { billableTargetSet: false }
         : { billableTargetPercent: requireTargetPercent(targetPercent), billableTargetSet: true };
     // Read and write the same company even if the user switches company meanwhile
+    const baseUrl = this.customApiBaseUrl;
+    const current = await this.customApiFetch<BCResource>(`/resources(${id})`, {}, baseUrl);
+    const etag = requireETag(current['@odata.etag'], 'resource');
+    return this.customApiFetch<BCResource>(
+      `/resources(${id})`,
+      { method: 'PATCH', headers: { 'If-Match': etag }, body: JSON.stringify(body) },
+      baseUrl
+    );
+  }
+
+  /**
+   * Set a resource's own weekly capacity (hours, 0 = listed but not counted), or clear it
+   * (null) so Thyme falls back to hours per day x 5, plus whether they work flexible days.
+   * Reads the resource first for a fresh ETag, as BC requires If-Match. Needs Thyme BC
+   * Extension 1.17+; BC decides who may change it.
+   */
+  async updateResourceWeeklyCapacity(
+    resourceId: string,
+    weeklyCapacityHours: number | null,
+    flexibleWorkingDays: boolean
+  ): Promise<BCResource> {
+    const id = requireSystemId(resourceId, 'resource');
+    // Hours before the flag: BC applies fields in page order, and setting hours sets the flag
+    const body =
+      weeklyCapacityHours === null
+        ? { weeklyCapacitySet: false, flexibleWorkingDays }
+        : {
+            weeklyCapacityHours: requireWeeklyCapacityHours(weeklyCapacityHours),
+            weeklyCapacitySet: true,
+            flexibleWorkingDays,
+          };
     const baseUrl = this.customApiBaseUrl;
     const current = await this.customApiFetch<BCResource>(`/resources(${id})`, {}, baseUrl);
     const etag = requireETag(current['@odata.etag'], 'resource');

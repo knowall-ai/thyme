@@ -21,7 +21,7 @@ vi.mock('@/services/bc/projectService', () => ({
 }));
 
 import { loadTeamHours } from '@/services/bc/teamHoursService';
-import { summariseHours } from '@/utils';
+import { isCounted, summariseHours } from '@/utils';
 
 const person = (number: string, name: string, owner: string) => ({
   id: `id-${number}`,
@@ -114,5 +114,44 @@ describe('loadTeamHours', () => {
 
     getAllTimeSheetDetails.mockRejectedValueOnce(new Error('BC API Error (429)'));
     await expect(loadTeamHours(new Date(2026, 9, 5), new Date(2026, 9, 11))).rejects.toThrow('429');
+  });
+});
+
+describe('loadTeamHours weekly capacity', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getResourceUnitsOfMeasure.mockResolvedValue([
+      { resourceNo: 'R1', code: 'HOUR', qtyPerUnitOfMeasure: 7.5 },
+      { resourceNo: 'R2', code: 'HOUR', qtyPerUnitOfMeasure: 7.5 },
+      { resourceNo: 'R3', code: 'HOUR', qtyPerUnitOfMeasure: 7.5 },
+    ]);
+    getProjectsByNumber.mockResolvedValue(new Map());
+    getTimeSheetsStartingBetween.mockResolvedValue([]);
+  });
+
+  it("uses each person's own weekly capacity, and 0 means listed but not counted", async () => {
+    getResources.mockResolvedValue([
+      person('R1', 'Alex Contoso', 'ALEX.CONTOSO'),
+      {
+        ...person('R2', 'Sam Contoso', 'SAM.CONTOSO'),
+        weeklyCapacitySet: true,
+        weeklyCapacityHours: 15,
+        flexibleWorkingDays: true,
+      },
+      {
+        ...person('R3', 'Contoso Agent', 'SAM.CONTOSO'),
+        weeklyCapacitySet: true,
+        weeklyCapacityHours: 0,
+      },
+    ]);
+
+    const { people } = await loadTeamHours(new Date(2026, 9, 5), new Date(2026, 9, 11));
+
+    expect(people.map((p) => p.capacity)).toEqual([37.5, 15, 0]);
+    expect(people[1].weekly).toMatchObject({ flexible: true, isSet: true });
+    expect(people.map(isCounted)).toEqual([true, true, false]);
+    expect(
+      summariseHours(people.filter(isCounted).map((p) => ({ ...p, targetPercent: null }))).capacity
+    ).toBe(52.5);
   });
 });
