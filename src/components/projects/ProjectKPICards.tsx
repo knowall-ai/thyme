@@ -223,7 +223,7 @@ export function ProjectKPICards() {
     },
     Forecast: {
       title: 'Forecast',
-      description: `Where the project is heading: time spent so far plus the work still planned, compared with the Estimate. Finishes on the last planned date (latest Budget Resource line after this week), compared with the project's end date. Days = hours ÷ ${hoursPerDayLabel}.`,
+      description: `Where the project is heading: time spent so far plus the work still planned, compared with the Estimate. Finishes on the last planned date (the latest Resource line with hours and lineType "Budget" or "Both Budget and Billable" after this week), compared with the project's end date. Days = hours ÷ ${hoursPerDayLabel}.`,
       formula: 'Time Spent + Planned (from next week)',
       source: 'Calculated',
     },
