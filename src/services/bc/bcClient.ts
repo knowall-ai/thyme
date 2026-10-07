@@ -1006,17 +1006,19 @@ class BusinessCentralClient {
     resourceId: string,
     targetPercent: number | null
   ): Promise<BCResource> {
-    const current = await this.getResource(resourceId);
+    // Read and write the same company even if the user switches company meanwhile
+    const baseUrl = this.customApiBaseUrl;
+    const current = await this.customApiFetch<BCResource>(`/resources(${resourceId})`, {}, baseUrl);
     const etag = requireETag(current['@odata.etag'], 'resource');
     const body =
       targetPercent === null
         ? { billableTargetSet: false }
         : { billableTargetPercent: targetPercent, billableTargetSet: true };
-    return this.customApiFetch<BCResource>(`/resources(${resourceId})`, {
-      method: 'PATCH',
-      headers: { 'If-Match': etag },
-      body: JSON.stringify(body),
-    });
+    return this.customApiFetch<BCResource>(
+      `/resources(${resourceId})`,
+      { method: 'PATCH', headers: { 'If-Match': etag }, body: JSON.stringify(body) },
+      baseUrl
+    );
   }
 
   /**
@@ -1024,10 +1026,18 @@ class BusinessCentralClient {
    * Thyme BC Extension predates them (404) or isn't installed.
    */
   async getThymeSetup(): Promise<BCThymeSetup | null> {
+    const baseUrl = this.customApiBaseUrl;
     if (!(await this.isExtensionInstalled())) return null;
+    return this.fetchThymeSetup(baseUrl);
+  }
+
+  /** The thymeSetup record for the company at `baseUrl`, or null on a 404 */
+  private async fetchThymeSetup(baseUrl: string): Promise<BCThymeSetup | null> {
     try {
       const response = await this.customApiFetch<PaginatedResponse<BCThymeSetup> | BCThymeSetup>(
-        '/thymeSetup'
+        '/thymeSetup',
+        {},
+        baseUrl
       );
       const setup = 'value' in response ? response.value[0] : response;
       return setup?.id ? setup : null;
@@ -1039,16 +1049,22 @@ class BusinessCentralClient {
 
   /** Change the company default billable target (0-100) on the thymeSetup record */
   async updateDefaultBillableTarget(targetPercent: number): Promise<BCThymeSetup> {
-    const current = await this.getThymeSetup();
+    // Read and write the same company even if the user switches company meanwhile
+    const baseUrl = this.customApiBaseUrl;
+    const current = await this.fetchThymeSetup(baseUrl);
     if (!current) {
       throw new Error('BC API Error (404): Billable targets need a newer Thyme BC Extension');
     }
     const etag = requireETag(current['@odata.etag'], 'Thyme Setup');
-    return this.customApiFetch<BCThymeSetup>(`/thymeSetup(${current.id})`, {
-      method: 'PATCH',
-      headers: { 'If-Match': etag },
-      body: JSON.stringify({ defaultBillableTargetPercent: targetPercent }),
-    });
+    return this.customApiFetch<BCThymeSetup>(
+      `/thymeSetup(${current.id})`,
+      {
+        method: 'PATCH',
+        headers: { 'If-Match': etag },
+        body: JSON.stringify({ defaultBillableTargetPercent: targetPercent }),
+      },
+      baseUrl
+    );
   }
 
   /**
@@ -1185,14 +1201,22 @@ class BusinessCentralClient {
     return items;
   }
 
-  private async customApiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  /**
+   * @param baseUrl - The company's custom API URL; pass one captured earlier to keep a
+   * read-then-write pair on the same company even if the selection changes in between
+   */
+  private async customApiFetch<T>(
+    endpoint: string,
+    options: RequestInit = {},
+    baseUrl: string = this.customApiBaseUrl
+  ): Promise<T> {
     const token = await getBCAccessToken();
 
     if (!token) {
       throw new Error('Failed to get Business Central access token');
     }
 
-    const url = `${this.customApiBaseUrl}${endpoint}`;
+    const url = `${baseUrl}${endpoint}`;
 
     // Debug logging (development only)
     if (process.env.NODE_ENV === 'development' && options.body) {
