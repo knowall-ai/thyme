@@ -20,15 +20,15 @@ const screenshots: Screenshot[] = [
   },
   {
     src: '/screenshots/projects.png',
-    alt: 'Projects list from Business Central',
+    alt: 'Projects list from Business Central with planned, spent and remaining hours',
     title: 'Projects',
-    description: 'Browse all your Business Central projects with search and favorites.',
+    description: 'Browse your Business Central projects with planned, spent and remaining hours.',
   },
   {
     src: '/screenshots/team.png',
-    alt: 'Team overview with timesheet status',
+    alt: 'Team overview with hours by timesheet stage and utilization',
     title: 'Team',
-    description: 'View your team members and their timesheet submission status at a glance.',
+    description: "See your team's hours, utilization and timesheet progress at a glance.",
   },
   {
     src: '/screenshots/plan.png',
