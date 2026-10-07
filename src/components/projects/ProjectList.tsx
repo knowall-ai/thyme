@@ -20,6 +20,7 @@ import type { BillingMode } from '@/services/bc/projectDetailsService';
 import {
   cn,
   compareByRemaining,
+  describeProjectDates,
   getRemainingHours,
   getBCJobsListUrl,
   getBCCustomersListUrl,
@@ -472,6 +473,12 @@ function ProjectRow({
       ? Math.round((hours / budget) * 100)
       : undefined;
 
+  const dates = describeProjectDates(
+    project.startDate,
+    project.endDate,
+    project.status === 'active'
+  );
+
   return (
     <tr
       className="hover:bg-dark-700/50 cursor-pointer transition-colors"
@@ -501,8 +508,22 @@ function ProjectRow({
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <span className="font-mono text-xs">{project.code}</span>
-              <span>·</span>
-              <span>{project.tasks.length} tasks</span>
+              {dates.start !== null && (
+                <>
+                  <span>·</span>
+                  <span>
+                    {dates.start} –{' '}
+                    <span
+                      className={cn(
+                        dates.endUrgency === 'soon' && 'text-amber-400',
+                        dates.endUrgency === 'overdue' && 'text-red-400'
+                      )}
+                    >
+                      {dates.end}
+                    </span>
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>
