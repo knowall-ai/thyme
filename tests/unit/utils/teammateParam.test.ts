@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  invalidResourceParamMessage,
   isCurrentUserTeammate,
   parseResourceParam,
   resolveTeammateParam,
@@ -87,5 +88,13 @@ describe('resolveTeammateParam', () => {
     const result = resolveTeammateParam('R0070', [], { loadError: 'Network error' });
     expect(result.kind).toBe('fallback');
     expect(result.kind === 'fallback' && result.message).toMatch(/couldn't load your team/i);
+  });
+});
+
+describe('invalidResourceParamMessage', () => {
+  it('explains an empty or malformed value, clipping long ones', () => {
+    expect(invalidResourceParamMessage('  ')).toMatch(/empty resource/);
+    const message = invalidResourceParamMessage('Y'.repeat(50));
+    expect(message).toContain(`"${'Y'.repeat(30)}…"`);
   });
 });

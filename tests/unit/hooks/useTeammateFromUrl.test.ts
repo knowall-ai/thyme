@@ -7,6 +7,7 @@ vi.mock('@/services/bc/bcClient', () => ({ bcClient: {} }));
 
 import { useTeammateFromUrl } from '@/hooks/useTeammateFromUrl';
 import { useTeammateStore } from '@/hooks/useTeammateStore';
+import { useTimeEntriesStore } from '@/hooks/useTimeEntriesStore';
 import type { Teammate } from '@/types';
 
 const me: Teammate = { id: 'a', resourceNo: 'R0010', displayName: 'Me', isCurrentUser: true };
@@ -43,6 +44,7 @@ describe('useTeammateFromUrl', () => {
     window.history.replaceState(null, '', '/time?week=2026-09-28');
     const { result } = renderHook(() => useTeammateFromUrl());
     expect(result.current).toBe(true);
+    expect(toast).not.toHaveBeenCalled();
   });
 
   it("waits for a fresh list, then opens the teammate's timesheet", () => {
@@ -71,6 +73,31 @@ describe('useTeammateFromUrl', () => {
     expect(useTeammateStore.getState().selectedTeammate).toBeNull();
     expect(toast).toHaveBeenCalledTimes(1);
     expect(toast.mock.calls[0][0]).toContain('R9999');
+  });
+
+  it("hides whoever's entries were on screen while the link resolves", () => {
+    useTimeEntriesStore.setState({
+      entries: [{ id: 'e1' } as never],
+      currentTimesheet: { number: 'TS1' } as never,
+      isLoading: false,
+    });
+    window.history.replaceState(null, '', '/time?resource=R0070');
+    renderHook(() => useTeammateFromUrl());
+    const state = useTimeEntriesStore.getState();
+    expect(state.entries).toEqual([]);
+    expect(state.currentTimesheet).toBeNull();
+    expect(state.isLoading).toBe(true);
+  });
+
+  it.each([
+    ['blank', '/time?resource=', /empty resource/],
+    ['too long', `/time?resource=${'X'.repeat(25)}`, /isn't a resource number/],
+  ])('falls back with a toast for a %s resource=', (_label, url, message) => {
+    window.history.replaceState(null, '', url);
+    const { result } = renderHook(() => useTeammateFromUrl());
+    expect(result.current).toBe(true);
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(toast.mock.calls[0][0]).toMatch(message);
   });
 
   it('falls back with a toast when the team fails to load', () => {

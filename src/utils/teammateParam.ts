@@ -32,6 +32,14 @@ export function withResourceParam(search: string, resourceNo: string | null): st
   return text ? `?${text}` : '';
 }
 
+/** Toast for a `resource=` that isn't a resource number at all (blank or too long). */
+export function invalidResourceParamMessage(value: string): string {
+  const shown = value.trim();
+  if (!shown) return 'The link has an empty resource, so showing your own timesheet';
+  const clipped = shown.length > 30 ? `${shown.slice(0, 30)}…` : shown;
+  return `"${clipped}" isn't a resource number, so showing your own timesheet`;
+}
+
 /** Whether `teammate` is the signed-in user (resource match, falling back to email). */
 export function isCurrentUserTeammate(teammate: Teammate, currentUserEmail?: string): boolean {
   if (teammate.isCurrentUser) return true;
