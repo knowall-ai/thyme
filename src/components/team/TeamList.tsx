@@ -30,6 +30,8 @@ import {
   emptyStageHours,
   addStageHours,
   isTeamMember,
+  buildUOMConversionMap,
+  getWeeklyCapacityHours,
 } from '@/utils';
 import type { StageHours } from '@/utils';
 import { cn } from '@/utils';
@@ -148,10 +150,18 @@ export function TeamList() {
         // ahead of UTC (e.g. BST), and BC matches startingDate exactly
         const weekStartStr = formatDate(currentWeekStart);
 
+        // Hours per day come from each person's BC units of measure; fetch them once for
+        // everyone (an empty list just means everyone falls back to the default capacity)
+        const uomMap = buildUOMConversionMap(await bcClient.getResourceUnitsOfMeasure());
+
         // Fetch hours for each resource for the selected week
         const membersWithHours = await Promise.all(
           resources.map(async (resource) => {
-            const capacity = teamConfig.defaultCapacity;
+            const capacity = getWeeklyCapacityHours(
+              resource.number,
+              uomMap,
+              teamConfig.defaultCapacity
+            );
             let stages = emptyStageHours();
 
             try {
