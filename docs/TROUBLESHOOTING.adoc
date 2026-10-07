@@ -77,4 +77,7 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Hours and days display incorrectly (e.g., 12h shows as 12d instead of 1.5d)
 | Resources with Base Unit of Measure = DAY need an HOUR unit configured for conversion. In BC: (1) Open the Resource card (2) Go to Related → Resource → Units of Measure (3) The DAY row must stay at Qty per Unit of Measure = 1 (base unit, cannot change) (4) Add a new row for HOUR with Qty per Unit of Measure = 0.125 (for 8-hour days) or 0.133 (for 7.5-hour days). This tells BC that 1 HOUR = 0.125 DAYs. Thyme reads these conversion factors from the `/resourceUnitsOfMeasure` API (requires BC Extension v1.7.0+).
 
+| "You don't have permission to rename projects in Business Central" when renaming a project
+| Renaming saves the project's Description to the BC Job, so your BC user needs Modify permission on the Job table. Ask your BC administrator to assign a permission set that allows editing projects (e.g. one that includes `JOBS-ALL` or a custom set with Modify on TableData Job), then try again. The name stays as it was until the save succeeds.
+
 |===

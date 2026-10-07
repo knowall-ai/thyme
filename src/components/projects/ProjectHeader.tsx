@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeftIcon,
@@ -8,8 +8,15 @@ import {
   DocumentArrowDownIcon,
   CalendarIcon,
   InformationCircleIcon,
+  PencilIcon,
+  CheckIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
-import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
+import {
+  useProjectDetailsStore,
+  PROJECT_NAME_MAX_LENGTH,
+  ProjectRenamePermissionError,
+} from '@/hooks/useProjectDetailsStore';
 import { useCompanyStore } from '@/hooks';
 import { cn, DATE_FORMAT_FULL, formatDate as formatDateUtil, getBCJobUrl } from '@/utils';
 import type { BillingMode } from '@/services/bc/projectDetailsService';
@@ -95,6 +102,158 @@ function BillingModeBadge({ mode, showTooltip = true }: BillingModeBadgeProps) {
   );
 }
 
+interface ProjectNameProps {
+  projectId: string;
+  name: string;
+}
+
+/**
+ * Project title with an inline rename. BC decides whether the user may rename
+ * (Job modify permission), so a refusal is shown inline and the name is left as it was.
+ */
+function ProjectName({ projectId, name }: ProjectNameProps) {
+  const renameProject = useProjectDetailsStore((state) => state.renameProject);
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const editButtonRef = useRef<HTMLButtonElement>(null);
+  const wasEditing = useRef(false);
+
+  // Drop an open edit when navigating to another project
+  useEffect(() => {
+    setIsEditing(false);
+    setError(null);
+  }, [projectId]);
+
+  // Focus the input when editing starts, and return focus to the pencil when it ends
+  useEffect(() => {
+    if (isEditing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    } else if (wasEditing.current) {
+      editButtonRef.current?.focus();
+    }
+    wasEditing.current = isEditing;
+  }, [isEditing]);
+
+  const startEditing = () => {
+    setDraft(name);
+    setError(null);
+    setIsEditing(true);
+  };
+
+  const cancel = () => {
+    setIsEditing(false);
+    setError(null);
+  };
+
+  const save = async () => {
+    const trimmed = draft.trim();
+    if (!trimmed) {
+      setError('Project name cannot be empty');
+      return;
+    }
+    setIsSaving(true);
+    setError(null);
+    try {
+      await renameProject(trimmed);
+      setIsEditing(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to rename the project');
+      // Retrying won't help without permission, so revert to the saved name; otherwise keep the draft to retry
+      if (err instanceof ProjectRenamePermissionError) setIsEditing(false);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (!isEditing) {
+    return (
+      <div className="mt-1">
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-white">{name}</h1>
+          <button
+            ref={editButtonRef}
+            type="button"
+            onClick={startEditing}
+            className="focus:ring-thyme-500 focus:ring-offset-dark-800 hover:text-thyme-400 rounded p-1 text-gray-500 transition-colors focus:ring-1 focus:ring-offset-1 focus:outline-none print:hidden"
+            title="Rename project"
+            aria-label="Rename project"
+          >
+            <PencilIcon className="h-4 w-4" />
+          </button>
+        </div>
+        {error && (
+          <p className="mt-1 text-sm text-red-400 print:hidden" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-1">
+      <h1 className="hidden text-2xl font-bold text-white print:block">{name}</h1>
+      <form
+        className="flex items-center gap-2 print:hidden"
+        onSubmit={(e) => {
+          e.preventDefault();
+          save();
+        }}
+      >
+        <input
+          ref={inputRef}
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              cancel();
+            }
+          }}
+          maxLength={PROJECT_NAME_MAX_LENGTH}
+          disabled={isSaving}
+          aria-label="Project name"
+          aria-invalid={error ? true : undefined}
+          className="border-dark-600 bg-dark-700 focus:border-thyme-500 focus:ring-thyme-500 w-full max-w-xl rounded-lg border px-3 py-1 text-2xl font-bold text-white focus:ring-1 focus:outline-none disabled:opacity-60"
+        />
+        <button
+          type="submit"
+          disabled={isSaving}
+          className="bg-thyme-600 hover:bg-thyme-500 rounded-lg p-2 text-white transition-colors disabled:opacity-50"
+          title="Save name"
+          aria-label="Save name"
+        >
+          <CheckIcon className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={cancel}
+          disabled={isSaving}
+          className="border-dark-600 bg-dark-700 rounded-lg border p-2 text-gray-300 transition-colors hover:text-white disabled:opacity-50"
+          title="Cancel"
+          aria-label="Cancel renaming"
+        >
+          <XMarkIcon className="h-4 w-4" />
+        </button>
+      </form>
+      {error ? (
+        <p className="mt-1 text-sm text-red-400 print:hidden" role="alert">
+          {error}
+        </p>
+      ) : (
+        <p className="mt-1 text-xs text-gray-500 print:hidden">
+          {isSaving ? 'Saving…' : 'Enter to save, Esc to cancel'}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function ProjectHeader() {
   const { project, analytics } = useProjectDetailsStore();
   const selectedCompany = useCompanyStore((state) => state.selectedCompany);
@@ -155,7 +314,7 @@ export function ProjectHeader() {
               </span>
               {analytics?.billingMode && <BillingModeBadge mode={analytics.billingMode} />}
             </div>
-            <h1 className="mt-1 text-2xl font-bold text-white">{project.name}</h1>
+            <ProjectName projectId={project.id} name={project.name} />
             {project.customerName && <p className="mt-1 text-gray-400">{project.customerName}</p>}
             {/* Project dates */}
             <div className="mt-2 flex items-center gap-4 text-sm text-gray-500">
