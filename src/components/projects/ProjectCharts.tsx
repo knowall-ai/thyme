@@ -75,7 +75,6 @@ function PrintChartTitle({ children }: { children: ReactNode }) {
 export function ProjectCharts() {
   const { analytics, isLoadingAnalytics, hiddenKpis, currencyCode, project } =
     useProjectDetailsStore();
-  // Follow the Budget Cost / Actual Cost KPI card Eye toggles
   // £ mode is customer-facing (selling rates vs Billable Price), so it follows that card's eye
   const showBillablePrice = !hiddenKpis.includes('Billable Price');
   // ...and the Time Budgeted / Time Spent eyes in effort (hours/days) mode
@@ -208,7 +207,7 @@ export function ProjectCharts() {
             </button>
           )}
           {/* Unit toggle: Hours | Days for Hours per Week; Hours | Days | £ for Spend vs Budget
-              (effort shows no money; £ is internal cost) */}
+              (effort shows no money; £ uses customer-facing selling rates, never internal cost) */}
           <div
             className="border-dark-600 ml-2 flex overflow-hidden rounded-lg border"
             role="group"

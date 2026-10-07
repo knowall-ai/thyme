@@ -8,6 +8,10 @@ import { usePlanStore } from './usePlanStore';
 // BC Job Description is Text[100]
 export const PROJECT_NAME_MAX_LENGTH = 100;
 
+// KPI cards whose amounts start masked every time a project page opens: the internal cost cards.
+// Customer-facing price cards and time cards stay visible. The user can reveal them with the Eye toggle.
+export const DEFAULT_HIDDEN_KPIS: readonly string[] = ['Budget Cost', 'Actual Cost'];
+
 // BC rejects writes the user's permission sets don't allow with a 403, or an error naming the missing permission
 function isPermissionError(message: string): boolean {
   return /\(403\)/.test(message) || /permission/i.test(message);
@@ -61,9 +65,13 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
   error: null,
   chartView: 'weekly',
   tableGroupBy: 'task',
-  hiddenKpis: [], // All amounts visible by default; resets on reload (not persisted)
+  hiddenKpis: [...DEFAULT_HIDDEN_KPIS], // Internal costs masked by default; reset on each page open, never persisted
 
   fetchProjectDetails: async (projectNumber: string, options?: { force?: boolean }) => {
+    // Opening a project page (not a forced refresh) re-masks internal costs, so a reveal
+    // never carries over to another project or a later visit
+    if (!options?.force) set({ hiddenKpis: [...DEFAULT_HIDDEN_KPIS] });
+
     // Join a load already under way, so callers resolve when it completes
     const pending = inFlight.get(projectNumber);
     if (pending) return pending;
@@ -178,6 +186,6 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
       analytics: null,
       currencyCode: 'GBP',
       error: null,
-      hiddenKpis: [],
+      hiddenKpis: [...DEFAULT_HIDDEN_KPIS],
     }),
 }));
