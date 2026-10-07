@@ -1,7 +1,12 @@
 'use client';
 
 import { useState, useMemo, useRef, useCallback, useEffect, type ReactNode } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  EyeIcon,
+  EyeSlashIcon,
+} from '@heroicons/react/24/outline';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { Card } from '@/components/ui';
 import { cn } from '@/utils';
@@ -63,6 +68,41 @@ function TodayMarker({ leftPercent }: { leftPercent: number }) {
   );
 }
 
+// Shown in place of a chart whose figures are all hidden by the KPI cards' eye toggles
+function MaskedChartState({
+  title,
+  hiddenCards,
+  actionLabel,
+  onShow,
+}: {
+  title: string;
+  hiddenCards: string[];
+  actionLabel: string;
+  onShow: () => void;
+}) {
+  return (
+    <div
+      role="status"
+      className="border-dark-600 flex h-48 flex-col items-center justify-center gap-2 rounded-lg border border-dashed text-center"
+    >
+      <EyeSlashIcon className="h-6 w-6 text-gray-500" aria-hidden="true" />
+      <p className="text-sm font-medium text-gray-300">{title}</p>
+      <p className="text-xs text-gray-500">
+        {hiddenCards.join(' and ')} {hiddenCards.length > 1 ? 'are' : 'is'} hidden on the cards
+        above
+      </p>
+      <button
+        type="button"
+        onClick={onShow}
+        className="bg-dark-600 hover:bg-dark-500 mt-1 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-300 transition-colors hover:text-white print:hidden"
+      >
+        <EyeIcon className="h-4 w-4" aria-hidden="true" />
+        {actionLabel}
+      </button>
+    </div>
+  );
+}
+
 // Chart title shown only in print, where the on-screen view toggle is hidden
 function PrintChartTitle({ children }: { children: ReactNode }) {
   return (
@@ -73,7 +113,7 @@ function PrintChartTitle({ children }: { children: ReactNode }) {
 }
 
 export function ProjectCharts() {
-  const { analytics, isLoadingAnalytics, hiddenKpis, currencyCode, project } =
+  const { analytics, isLoadingAnalytics, hiddenKpis, toggleKpiHidden, currencyCode, project } =
     useProjectDetailsStore();
   // £ mode is customer-facing (selling rates vs Billable Price), so it follows that card's eye
   const showBillablePrice = !hiddenKpis.includes('Billable Price');
@@ -320,6 +360,9 @@ export function ProjectCharts() {
             showBillablePrice={showBillablePrice}
             showTimeBudgeted={showTimeBudgeted}
             showTimeSpent={showTimeSpent}
+            onShowCards={(labels) =>
+              labels.filter((l) => hiddenKpis.includes(l)).forEach((l) => toggleKpiHidden(l))
+            }
             unit={spendUnit}
             hoursPerDay={analytics?.hoursPerDay ?? 8}
             projectStartDate={projectStartDate}
@@ -849,6 +892,7 @@ function ProgressLineChart({
   showBillablePrice,
   showTimeBudgeted,
   showTimeSpent,
+  onShowCards,
   unit,
   hoursPerDay,
   projectStartDate,
@@ -866,6 +910,8 @@ function ProgressLineChart({
   showBillablePrice: boolean;
   showTimeBudgeted: boolean;
   showTimeSpent: boolean;
+  // Reveals the given (hidden) KPI cards, which unmasks the chart
+  onShowCards: (labels: string[]) => void;
   unit: SpendUnit;
   hoursPerDay: number;
   projectStartDate?: string;
@@ -1030,6 +1076,21 @@ function ProgressLineChart({
   const forecastNearBudget =
     !!forecastEnd && showBudget && Math.abs(forecastEnd.y - totalBudgetY) < 8;
   const sharedLabelBelowLine = forecastNearBudget && forecastEnd!.y < totalBudgetY;
+
+  // With both the budget and the spend hidden there is nothing left to plot: drawing the
+  // chart would give a flat line at zero against a '•••' axis, which looks broken. Say why
+  // instead, and offer to reveal the governing cards. Nothing here depends on the figures.
+  if (!showBudget && !showActual) {
+    const hiddenCards = isCost ? ['Billable Price'] : ['Estimate', 'Time Spent'];
+    return (
+      <MaskedChartState
+        title={isCost ? 'Amounts are hidden' : 'Effort figures are hidden'}
+        hiddenCards={hiddenCards}
+        actionLabel={isCost ? 'Show amounts' : 'Show figures'}
+        onShow={() => onShowCards(hiddenCards)}
+      />
+    );
+  }
 
   return (
     <div>
@@ -1220,7 +1281,7 @@ function ProgressLineChart({
           </div>
 
           {/* Tooltip with breakdown */}
-          {hoveredIndex !== null && (showBudget || showActual) && (
+          {hoveredIndex !== null && (
             <div
               className="bg-dark-700 pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded px-3 py-2 text-xs whitespace-nowrap shadow-lg"
               style={{
@@ -1274,34 +1335,6 @@ function ProgressLineChart({
               )}
               {displayDataWithCost[hoveredIndex].isCurrentWeek && (
                 <div className="text-thyme-400 mt-1">This week</div>
-              )}
-            </div>
-          )}
-
-          {/* Simple tooltip when costs are hidden */}
-          {hoveredIndex !== null && !showBudget && !showActual && (
-            <div
-              className="bg-dark-700 pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded px-2 py-1 text-xs whitespace-nowrap shadow-lg"
-              style={{
-                left: `${xFor(hoveredIndex)}%`,
-                top: `${yFor(pointCost(displayDataWithCost[hoveredIndex]))}%`,
-                marginTop: '-8px',
-              }}
-            >
-              <div className="font-medium text-white">
-                {displayDataWithCost[hoveredIndex].date.toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </div>
-              {showTimeSpent && (
-                <div className="text-gray-400">
-                  {displayDataWithCost[hoveredIndex].cumulative.toFixed(1)} hours
-                </div>
-              )}
-              {displayDataWithCost[hoveredIndex].isCurrentWeek && (
-                <div className="text-thyme-400">This week</div>
               )}
             </div>
           )}
