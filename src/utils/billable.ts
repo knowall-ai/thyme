@@ -15,7 +15,7 @@ import type { BCTimeSheetDetail, BCTimeSheetLine } from '@/types';
 
 /** User-facing explanation of the rule, shown wherever billable figures appear */
 export const BILLABLE_RULE_DESCRIPTION =
-  "Excludes internal projects (no bill-to customer, or a customer named '…Internal…') and lines marked not chargeable in Business Central.";
+  "Excludes internal projects (no bill-to customer, or a customer whose name has the word 'Internal') and lines marked not chargeable in Business Central.";
 
 /** The bill-to fields of a BC project needed to tell whether it's internal */
 export interface ProjectBillTo {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useId } from 'react';
 import { Card, ExtensionPreviewWrapper } from '@/components/ui';
 import { ExtensionNotInstalledError, NoTimesheetError } from '@/services/bc';
 import {
@@ -63,14 +63,18 @@ interface DayBreakdown {
 // Explains which time counts as billable, next to the billable figures
 function BillableInfo({ label }: { label: string }) {
   const [isOpen, setIsOpen] = useState(false);
+  const tooltipId = useId();
 
   return (
-    <span className="relative inline-flex print:hidden">
+    // Hover is tracked on the wrapper so the pointer can move onto the tooltip
+    <span
+      className="relative inline-flex print:hidden"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
       <button
         type="button"
         className="focus:ring-thyme-500 focus:ring-offset-dark-800 flex cursor-help rounded text-gray-600 hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none"
-        onMouseEnter={() => setIsOpen(true)}
-        onMouseLeave={() => setIsOpen(false)}
         // Keyboard focus opens it; a tap (which may also focus) is handled by onClick
         onFocus={(e) => e.currentTarget.matches(':focus-visible') && setIsOpen(true)}
         onBlur={() => setIsOpen(false)}
@@ -78,18 +82,22 @@ function BillableInfo({ label }: { label: string }) {
         onClick={() => setIsOpen((open) => !open)}
         onKeyDown={(e) => e.key === 'Escape' && setIsOpen(false)}
         aria-label={`Info: ${label}`}
+        aria-describedby={tooltipId}
         aria-expanded={isOpen}
       >
         <InformationCircleIcon className="h-4 w-4" />
       </button>
-      {isOpen && (
-        <span
-          role="tooltip"
-          className="bg-dark-700 absolute top-6 left-0 z-20 w-64 rounded px-3 py-2 text-xs text-gray-300 shadow-lg"
-        >
+      {/* Always rendered (hidden when closed) so aria-describedby can read it. The top
+          padding bridges the gap to the button, so hover isn't lost on the way across */}
+      <span
+        id={tooltipId}
+        role="tooltip"
+        className={cn('absolute top-full left-0 z-20 w-64 pt-2', !isOpen && 'hidden')}
+      >
+        <span className="bg-dark-700 block rounded px-3 py-2 text-xs text-gray-300 shadow-lg">
           {BILLABLE_RULE_DESCRIPTION}
         </span>
-      )}
+      </span>
     </span>
   );
 }
