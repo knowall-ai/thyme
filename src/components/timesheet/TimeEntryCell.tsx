@@ -79,7 +79,8 @@ export function TimeEntryCell({
   return (
     <div
       className={cn(
-        'border-dark-700 min-h-[100px] border-r p-2 transition-colors last:border-r-0 sm:min-h-[120px]',
+        // Flex column so the day total can sit at the bottom, level across the week
+        'border-dark-700 flex min-h-[100px] flex-col border-r p-2 transition-colors last:border-r-0 sm:min-h-[120px]',
         isToday ? 'bg-knowall-green/5' : 'bg-dark-800',
         isHovered && !isDragOver && 'bg-dark-700/50',
         isDragOver && 'ring-knowall-green/60 bg-knowall-green/10 ring-2 ring-inset'
@@ -163,10 +164,12 @@ export function TimeEntryCell({
         </button>
       )}
 
-      {/* Day total */}
+      {/* Day total - pinned to the bottom so every day's total lines up */}
       {totalHours > 0 && (
-        <div className="border-dark-700 mt-2 border-t pt-2">
-          <p className="text-dark-300 text-right text-xs font-medium">{formatTime(totalHours)}</p>
+        <div className="mt-auto pt-2">
+          <div className="border-dark-700 border-t pt-2">
+            <p className="text-dark-300 text-right text-xs font-medium">{formatTime(totalHours)}</p>
+          </div>
         </div>
       )}
     </div>
