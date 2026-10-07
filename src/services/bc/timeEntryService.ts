@@ -201,6 +201,13 @@ export const timeEntryService = {
   },
 
   /**
+   * Get the BC line number of a loaded timesheet line, by its SystemId.
+   */
+  getTimeSheetLineNo(lineId: string): number | null {
+    return this._currentTimesheetLines.find((l) => l.id === lineId)?.lineNo ?? null;
+  },
+
+  /**
    * Check if current timesheet is editable.
    */
   isTimesheetEditable(): boolean {

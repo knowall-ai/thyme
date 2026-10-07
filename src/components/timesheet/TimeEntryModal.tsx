@@ -13,15 +13,36 @@ import { formatDate, formatDateForDisplay, getWeekDays } from '@/utils';
 // BC Time Sheet Line Description field has a 100-character limit
 const MAX_NOTES_LENGTH = 100;
 
+// Values to start a new entry with, e.g. from one of Poppie's suggestions.
+// `key` identifies the source so the form resets when a different one opens.
+export interface TimeEntryPrefill {
+  key: string;
+  projectCode?: string;
+  taskCode?: string;
+  hours?: number;
+  notes?: string;
+}
+
 interface TimeEntryModalProps {
   isOpen: boolean;
   onClose: () => void;
   date: string | null;
   entry: TimeEntry | null;
   weekStart: Date;
+  prefill?: TimeEntryPrefill | null;
+  // Called after a successful save with the entry created (null when an existing one was updated)
+  onSaved?: (created: TimeEntry | null) => void;
 }
 
-export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: TimeEntryModalProps) {
+export function TimeEntryModal({
+  isOpen,
+  onClose,
+  date,
+  entry,
+  weekStart,
+  prefill,
+  onSaved,
+}: TimeEntryModalProps) {
   const { account } = useAuth();
   const userId = account?.localAccountId || '';
 
@@ -146,7 +167,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
   // still listed honestly for exhaustive-deps; the guard makes them no-ops.
   const lastResetKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    const resetKey = isOpen ? `${entry?.id ?? 'new'}|${date ?? ''}` : null;
+    const resetKey = isOpen ? `${entry?.id ?? 'new'}|${date ?? ''}|${prefill?.key ?? ''}` : null;
     if (!isOpen) {
       lastResetKeyRef.current = null;
       return;
@@ -171,6 +192,26 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
       setHours(h.toString());
       setMinutes(m.toString());
       setNotes(entry.notes || '');
+    } else if (prefill) {
+      // New entry from a suggestion - match its job/task codes to the loaded projects
+      const project = prefill.projectCode
+        ? projects.find((p) => p.code === prefill.projectCode)
+        : undefined;
+      setCustomerId(findMatchingCustomerOption(project?.customerName));
+      setProjectId(project?.id || '');
+      const task = project?.tasks.find((t) => t.code === prefill.taskCode);
+      setTaskId(task?.id || '');
+      setSelectedDate(date || '');
+      if (prefill.hours) {
+        const h = Math.floor(prefill.hours);
+        const m = Math.round((prefill.hours - h) * 60);
+        setHours(h.toString());
+        setMinutes(m.toString());
+      } else {
+        setHours('');
+        setMinutes('');
+      }
+      setNotes((prefill.notes || '').slice(0, MAX_NOTES_LENGTH));
     } else {
       // New entry - use matching customer option value
       const matchedCustomer = findMatchingCustomerOption(selectedProject?.customerName);
@@ -182,7 +223,16 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
       setMinutes('');
       setNotes('');
     }
-  }, [isOpen, entry, date, projects, findMatchingCustomerOption, selectedProject, selectedTask]);
+  }, [
+    isOpen,
+    entry,
+    date,
+    prefill,
+    projects,
+    findMatchingCustomerOption,
+    selectedProject,
+    selectedTask,
+  ]);
 
   const projectOptions: SelectOption[] = filteredProjects.map((p) => ({
     value: p.id,
@@ -249,6 +299,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
     const jobTaskNo = task.code;
 
     setIsSubmitting(true);
+    let created: TimeEntry | null = null;
     try {
       if (entry) {
         // A BC timesheet line is bound to a single project+task, so a project
@@ -301,7 +352,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
         }
       } else {
         // Create new entry
-        await addEntry({
+        created = await addEntry({
           projectId: jobNo,
           taskId: jobTaskNo,
           userId,
@@ -315,6 +366,7 @@ export function TimeEntryModal({ isOpen, onClose, date, entry, weekStart }: Time
         selectProject(null);
       }
       toast.success(entry ? 'Time entry updated' : 'Time entry saved');
+      onSaved?.(created);
       onClose();
     } catch {
       toast.error('Failed to save time entry. Please try again.');

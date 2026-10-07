@@ -18,6 +18,7 @@ import { useAuth } from '@/services/auth';
 import { Button, Card, WeekNavigation, ExtensionPreviewWrapper } from '@/components/ui';
 import { TimeEntryCell } from './TimeEntryCell';
 import { TimeEntryModal } from './TimeEntryModal';
+import { PoppieSuggestionsPanel } from './PoppieSuggestionsPanel';
 import type { TimeEntry, TimesheetDisplayStatus } from '@/types';
 import { getWeekDays, formatDate, isDayToday, formatTime, getWeekStart } from '@/utils';
 import { getBCResourcesListUrl } from '@/utils/bcUrls';
@@ -111,6 +112,15 @@ export function WeeklyTimesheet() {
 
   // Determine if editing is allowed
   const canEdit = !isViewingTeammate && isTimesheetEditable();
+
+  // Why Poppie's suggestions can't be added to the timesheet on screen
+  const suggestionsReadOnlyReason = isViewingTeammate
+    ? `Read-only: this is ${selectedTeammate.displayName}'s timesheet`
+    : timesheetStatus === 'Approved'
+      ? 'Timesheet approved, so suggestions can no longer be added'
+      : timesheetStatus && timesheetStatus !== 'Open' && timesheetStatus !== 'Rejected'
+        ? `Timesheet ${timesheetStatus.toLowerCase()}: reopen it to add suggestions`
+        : null;
 
   // Effect 1: Initialize from URL on mount (runs synchronously before paint)
   // Read directly from window.location for reliable access on initial render
@@ -702,6 +712,17 @@ Thank you!`)}`}
             </div>
           )}
         </Card>
+
+        {/* Poppie's suggested entries for this week */}
+        <PoppieSuggestionsPanel
+          resourceNo={selectedTeammate?.resourceNo ?? currentTimesheet?.resourceNo ?? null}
+          weekStart={currentWeekStart}
+          entries={entries}
+          entriesLoading={isLoading}
+          projects={projects}
+          canEdit={canEdit}
+          readOnlyReason={suggestionsReadOnlyReason}
+        />
 
         {/* Time Entry Modal */}
         <TimeEntryModal
