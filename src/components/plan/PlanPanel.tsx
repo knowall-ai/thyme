@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   MagnifyingGlassIcon,
@@ -29,7 +29,10 @@ import {
   formatHours,
   buildResourceDailyTotals,
   getOverAllocationTitle,
-  type ResourceDailyTotals,
+  getResourceHoursPerDay,
+  groupAllocationsByTask,
+  DAILY_CAPACITY_HOURS,
+  type PlanJobTask,
 } from '@/utils';
 import type { AllocationBlock, PlanTeamMember, PlanProject, ViewMode } from '@/hooks/usePlanStore';
 import {
@@ -48,6 +51,22 @@ import {
 // (same red treatment as the Edit Allocation modal's "Other Workload" bars)
 const OVER_ALLOCATED_CLASS = 'ring-2 ring-inset ring-red-500';
 
+/**
+ * Over-allocation tooltip for a cell's allocations on a day (undefined when within capacity),
+ * e.g. "Over-allocated: 28.75h planned across 3 projects (capacity 7.5h)".
+ * `includeName` names each person, for rows that roll up several people.
+ */
+type OverAllocationLookup = (
+  dayAllocations: AllocationBlock[],
+  date: string,
+  includeName?: boolean
+) => string | undefined;
+
+/** Reads a red-ringed cell's over-allocation to screen readers (sighted users get the tooltip) */
+function OverAllocationLabel({ title }: { title?: string }) {
+  return title ? <span className="sr-only">{title}</span> : null;
+}
+
 // Context for adding plans - allows pre-selecting project, task, and resource
 interface AddPlanContext {
   projectCode?: string;
@@ -57,8 +76,8 @@ interface AddPlanContext {
 
 // Resource Row Component with expandable allocations
 interface ResourceRowProps {
-  /** Per-resource daily totals across all projects, for over-allocation flags */
-  dailyTotals: ResourceDailyTotals;
+  /** Over-allocation tooltip for a cell, from every project's allocations */
+  getOverAllocation: OverAllocationLookup;
   member: PlanTeamMember;
   days: Date[];
   selectedAllocationId: string | null;
@@ -75,7 +94,7 @@ interface ResourceRowProps {
 }
 
 function ResourceRow({
-  dailyTotals,
+  getOverAllocation,
   member,
   days,
   selectedAllocationId,
@@ -261,11 +280,7 @@ function ResourceRow({
                 // Calculate hours for this day
                 const dayAllocations = member.allocations.filter((a) => a.startDate === dayStr);
                 const dayHours = dayAllocations.reduce((sum, a) => sum + a.hoursPerDay, 0);
-                const overAllocationTitle = getOverAllocationTitle(
-                  dayAllocations,
-                  dailyTotals,
-                  dayStr
-                );
+                const overAllocationTitle = getOverAllocation(dayAllocations, dayStr);
                 return (
                   <div
                     key={day.toISOString()}
@@ -293,6 +308,7 @@ function ResourceRow({
                         }
                       >
                         {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
+                        <OverAllocationLabel title={overAllocationTitle} />
                       </div>
                     )}
                   </div>
@@ -341,7 +357,7 @@ function ResourceRow({
                 <div key={projectNumber}>
                   {/* Project row - clickable to expand/collapse tasks, with Add button */}
                   <TeamProjectRow
-                    dailyTotals={dailyTotals}
+                    getOverAllocation={getOverAllocation}
                     projectData={projectData}
                     weekGroups={weekGroups}
                     projectTotalHours={projectTotalHours}
@@ -383,7 +399,7 @@ function ResourceRow({
                           return (
                             <TeamTaskRow
                               key={taskKey}
-                              dailyTotals={dailyTotals}
+                              getOverAllocation={getOverAllocation}
                               taskData={taskData}
                               projectData={projectData}
                               weekGroups={weekGroups}
@@ -454,8 +470,8 @@ function ResourceRow({
 
 // Team Task Row Component (for Team view - shows task under a project with add capability)
 interface TeamTaskRowProps {
-  /** Per-resource daily totals across all projects, for over-allocation flags */
-  dailyTotals: ResourceDailyTotals;
+  /** Over-allocation tooltip for a cell, from every project's allocations */
+  getOverAllocation: OverAllocationLookup;
   taskData: { taskNumber: string; taskName: string; allocations: AllocationBlock[] };
   projectData: {
     projectNumber: string;
@@ -471,7 +487,7 @@ interface TeamTaskRowProps {
 }
 
 function TeamTaskRow({
-  dailyTotals,
+  getOverAllocation,
   taskData,
   projectData,
   weekGroups,
@@ -541,11 +557,7 @@ function TeamTaskRow({
                 const dayStr = format(day, 'yyyy-MM-dd');
                 const dayAllocations = taskData.allocations.filter((a) => a.startDate === dayStr);
                 const dayHours = dayAllocations.reduce((sum, a) => sum + a.hoursPerDay, 0);
-                const overAllocationTitle = getOverAllocationTitle(
-                  dayAllocations,
-                  dailyTotals,
-                  dayStr
-                );
+                const overAllocationTitle = getOverAllocation(dayAllocations, dayStr);
                 return (
                   <div
                     key={day.toISOString()}
@@ -578,6 +590,7 @@ function TeamTaskRow({
                         title={overAllocationTitle}
                       >
                         {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
+                        <OverAllocationLabel title={overAllocationTitle} />
                       </div>
                     )}
                   </div>
@@ -614,8 +627,8 @@ function TeamTaskRow({
 
 // Team Project Row Component (for Team view - shows project under a resource with add capability)
 interface TeamProjectRowProps {
-  /** Per-resource daily totals across all projects, for over-allocation flags */
-  dailyTotals: ResourceDailyTotals;
+  /** Over-allocation tooltip for a cell, from every project's allocations */
+  getOverAllocation: OverAllocationLookup;
   projectData: {
     projectNumber: string;
     projectName: string;
@@ -630,7 +643,7 @@ interface TeamProjectRowProps {
 }
 
 function TeamProjectRow({
-  dailyTotals,
+  getOverAllocation,
   projectData,
   weekGroups,
   projectTotalHours,
@@ -693,11 +706,7 @@ function TeamProjectRow({
                   (a) => a.startDate === dayStr
                 );
                 const dayHours = dayAllocations.reduce((sum, a) => sum + a.hoursPerDay, 0);
-                const overAllocationTitle = getOverAllocationTitle(
-                  dayAllocations,
-                  dailyTotals,
-                  dayStr
-                );
+                const overAllocationTitle = getOverAllocation(dayAllocations, dayStr);
                 return (
                   <div
                     key={day.toISOString()}
@@ -727,6 +736,7 @@ function TeamProjectRow({
                         title={overAllocationTitle}
                       >
                         {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
+                        <OverAllocationLabel title={overAllocationTitle} />
                       </div>
                     )}
                   </div>
@@ -762,8 +772,8 @@ function TeamProjectRow({
 
 // Task Row Component (for Projects view - shows task under a project with add capability)
 interface TaskRowProps {
-  /** Per-resource daily totals across all projects, for over-allocation flags */
-  dailyTotals: ResourceDailyTotals;
+  /** Over-allocation tooltip for a cell, from every project's allocations */
+  getOverAllocation: OverAllocationLookup;
   taskData: { taskNumber: string; taskName: string; allocations: AllocationBlock[] };
   taskKey: string;
   days: Date[];
@@ -776,7 +786,7 @@ interface TaskRowProps {
 }
 
 function TaskRow({
-  dailyTotals,
+  getOverAllocation,
   taskData,
   taskKey,
   days,
@@ -839,12 +849,7 @@ function TaskRow({
                 const dayStr = format(day, 'yyyy-MM-dd');
                 const dayAllocations = taskData.allocations.filter((a) => a.startDate === dayStr);
                 const dayHours = dayAllocations.reduce((sum, a) => sum + a.hoursPerDay, 0);
-                const overAllocationTitle = getOverAllocationTitle(
-                  dayAllocations,
-                  dailyTotals,
-                  dayStr,
-                  true
-                );
+                const overAllocationTitle = getOverAllocation(dayAllocations, dayStr, true);
                 return (
                   <div
                     key={day.toISOString()}
@@ -872,6 +877,7 @@ function TaskRow({
                         title={overAllocationTitle}
                       >
                         {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
+                        <OverAllocationLabel title={overAllocationTitle} />
                       </div>
                     )}
                   </div>
@@ -905,8 +911,8 @@ function TaskRow({
 
 // Resource-Task Row Component (for Projects view - shows resource under a task with add capability)
 interface ResourceTaskRowProps {
-  /** Per-resource daily totals across all projects, for over-allocation flags */
-  dailyTotals: ResourceDailyTotals;
+  /** Over-allocation tooltip for a cell, from every project's allocations */
+  getOverAllocation: OverAllocationLookup;
   allocations: AllocationBlock[];
   days: Date[];
   weekGroups: { weekStart: Date; days: Date[] }[];
@@ -919,7 +925,7 @@ interface ResourceTaskRowProps {
 }
 
 function ResourceTaskRow({
-  dailyTotals,
+  getOverAllocation,
   allocations,
   days,
   weekGroups,
@@ -992,11 +998,7 @@ function ResourceTaskRow({
                 const dayStr = format(day, 'yyyy-MM-dd');
                 const dayAllocations = allocations.filter((a) => a.startDate === dayStr);
                 const dayHours = dayAllocations.reduce((sum, a) => sum + a.hoursPerDay, 0);
-                const overAllocationTitle = getOverAllocationTitle(
-                  dayAllocations,
-                  dailyTotals,
-                  dayStr
-                );
+                const overAllocationTitle = getOverAllocation(dayAllocations, dayStr);
                 return (
                   <div
                     key={day.toISOString()}
@@ -1029,6 +1031,7 @@ function ResourceTaskRow({
                         title={overAllocationTitle}
                       >
                         {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
+                        <OverAllocationLabel title={overAllocationTitle} />
                       </div>
                     )}
                   </div>
@@ -1063,10 +1066,75 @@ function ResourceTaskRow({
   );
 }
 
+// "+ Add resource" row (Projects view): hover a week to add a plan for it
+interface AddResourceRowProps {
+  weekGroups: { weekStart: Date; days: Date[] }[];
+  onAdd: (weekStart: Date) => void;
+  /** Left padding of the label, to line up under its parent row */
+  indentClassName?: string;
+  /** Accessible name of each week's Add button */
+  label?: string;
+}
+
+function AddResourceRow({
+  weekGroups,
+  onAdd,
+  indentClassName = 'pl-12',
+  label = 'Add resource',
+}: AddResourceRowProps) {
+  const [hoveredWeekStart, setHoveredWeekStart] = useState<Date | null>(null);
+
+  return (
+    <div className="hover:bg-dark-700/60 flex w-full items-center">
+      <div className="bg-dark-850 sticky left-0 z-10 flex shrink-0">
+        <div className={cn('text-dark-500 w-[230px] py-1.5 pr-4 text-xs italic', indentClassName)}>
+          + Add resource
+        </div>
+      </div>
+      <div className="relative flex flex-1" style={{ minHeight: '28px' }}>
+        {/* Week groups with Add Plan button */}
+        {weekGroups.map((weekGroup) => (
+          <div
+            key={weekGroup.weekStart.toISOString()}
+            className="group relative flex flex-1"
+            onMouseEnter={() => setHoveredWeekStart(weekGroup.weekStart)}
+            onMouseLeave={() => setHoveredWeekStart(null)}
+          >
+            {/* Day cells within this week */}
+            {weekGroup.days.map((day) => (
+              <div
+                key={day.toISOString()}
+                className={cn(
+                  'border-dark-700 h-7 flex-1 border-l',
+                  isWeekend(day) && 'bg-dark-700/60',
+                  isToday(day) && 'bg-knowall-green/5'
+                )}
+              />
+            ))}
+
+            {/* Add Plan button - appears on hover */}
+            {hoveredWeekStart && isSameDay(hoveredWeekStart, weekGroup.weekStart) && (
+              <button
+                onClick={() => onAdd(weekGroup.weekStart)}
+                aria-label={`${label}, week of ${format(weekGroup.weekStart, 'd MMM')}`}
+                className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
+              >
+                <PlusIcon className="h-3 w-3" />
+                Add
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="w-16 shrink-0" />
+    </div>
+  );
+}
+
 // Project Row Component (for Projects view)
 interface ProjectRowProps {
-  /** Per-resource daily totals across all projects, for over-allocation flags */
-  dailyTotals: ResourceDailyTotals;
+  /** Over-allocation tooltip for a cell, from every project's allocations */
+  getOverAllocation: OverAllocationLookup;
   project: PlanProject;
   days: Date[];
   selectedAllocationId: string | null;
@@ -1081,10 +1149,17 @@ interface ProjectRowProps {
   companyName?: string;
   /** Start with every task expanded (people visible); clicking a task collapses it */
   defaultTasksExpanded?: boolean;
+  /**
+   * The project's job tasks (a project's Plan dialog): list every Posting task, even with
+   * no allocations, each with its own "+ Add resource" row
+   */
+  jobTasks?: PlanJobTask[];
+  /** Search text, which hides listed tasks that neither match it nor have matching people */
+  searchQuery?: string;
 }
 
 function ProjectRow({
-  dailyTotals,
+  getOverAllocation,
   project,
   days,
   selectedAllocationId,
@@ -1098,30 +1173,20 @@ function ProjectRow({
   onToggleExpand,
   companyName,
   defaultTasksExpanded = false,
+  jobTasks,
+  searchQuery,
 }: ProjectRowProps) {
   const [hoveredWeekStart, setHoveredWeekStart] = useState<Date | null>(null);
   // Tasks toggled away from the default (expanded ones, or collapsed ones when defaultTasksExpanded)
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set());
 
-  // Group allocations by task, then by resource within each task
-  const allocationsByTask = useMemo(() => {
-    const map = new Map<
-      string,
-      { taskNumber: string; taskName: string; allocations: AllocationBlock[] }
-    >();
-    for (const allocation of project.allocations) {
-      const key = allocation.taskNumber || 'no-task';
-      if (!map.has(key)) {
-        map.set(key, {
-          taskNumber: allocation.taskNumber || '',
-          taskName: allocation.taskName || '(No task)',
-          allocations: [],
-        });
-      }
-      map.get(key)!.allocations.push(allocation);
-    }
-    return map;
-  }, [project.allocations]);
+  const hasPostingTasks = !!jobTasks?.some((task) => task.jobTaskType === 'Posting');
+
+  // Group allocations by task (then by resource within each task, below)
+  const taskGroups = useMemo(
+    () => groupAllocationsByTask(project.allocations, jobTasks, searchQuery),
+    [project.allocations, jobTasks, searchQuery]
+  );
 
   const toggleTaskExpanded = (taskId: string) => {
     setExpandedTaskIds((prev) => {
@@ -1248,12 +1313,7 @@ function ProjectRow({
                 // Calculate total hours for this project on this day
                 const dayAllocations = project.allocations.filter((a) => a.startDate === dayStr);
                 const dayHours = dayAllocations.reduce((sum, a) => sum + a.hoursPerDay, 0);
-                const overAllocationTitle = getOverAllocationTitle(
-                  dayAllocations,
-                  dailyTotals,
-                  dayStr,
-                  true
-                );
+                const overAllocationTitle = getOverAllocation(dayAllocations, dayStr, true);
                 return (
                   <div
                     key={day.toISOString()}
@@ -1274,6 +1334,7 @@ function ProjectRow({
                         title={overAllocationTitle}
                       >
                         {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
+                        <OverAllocationLabel title={overAllocationTitle} />
                       </div>
                     )}
                   </div>
@@ -1308,100 +1369,66 @@ function ProjectRow({
       {/* Expanded Content: Tasks list (grouped by task, expandable to show resources) */}
       {isExpanded && (
         <div className="bg-dark-850 border-dark-700 border-t">
-          {/* Tasks under this project - sorted alphabetically by task name */}
-          {Array.from(allocationsByTask.entries())
-            .sort(([, a], [, b]) => a.taskName.localeCompare(b.taskName))
-            .map(([taskKey, taskData]) => {
-              const isTaskExpanded = expandedTaskIds.has(taskKey) !== defaultTasksExpanded;
-              const taskTotalHours = taskData.allocations.reduce((sum, a) => sum + a.totalHours, 0);
-              const resourcesByTask = groupByResource(taskData.allocations);
+          {/* Tasks under this project - by name, or in BC order when all tasks are listed */}
+          {taskGroups.map((taskData) => {
+            const taskKey = taskData.key;
+            const isTaskExpanded = expandedTaskIds.has(taskKey) !== defaultTasksExpanded;
+            const taskTotalHours = taskData.allocations.reduce((sum, a) => sum + a.totalHours, 0);
+            const resourcesByTask = groupByResource(taskData.allocations);
 
-              return (
-                <div key={taskKey}>
-                  {/* Task row - clickable to expand/collapse resources */}
-                  <TaskRow
-                    dailyTotals={dailyTotals}
-                    taskData={taskData}
-                    taskKey={taskKey}
-                    days={days}
-                    weekGroups={weekGroups}
-                    projectColor={project.color}
-                    isTaskExpanded={isTaskExpanded}
-                    onToggleExpand={() => toggleTaskExpanded(taskKey)}
-                    onAddPlan={onAddPlan}
-                    taskTotalHours={taskTotalHours}
-                  />
+            return (
+              <div key={taskKey}>
+                {/* Task row - clickable to expand/collapse resources */}
+                <TaskRow
+                  getOverAllocation={getOverAllocation}
+                  taskData={taskData}
+                  taskKey={taskKey}
+                  days={days}
+                  weekGroups={weekGroups}
+                  projectColor={project.color}
+                  isTaskExpanded={isTaskExpanded}
+                  onToggleExpand={() => toggleTaskExpanded(taskKey)}
+                  onAddPlan={onAddPlan}
+                  taskTotalHours={taskTotalHours}
+                />
 
-                  {/* Resource rows - shown when task is expanded, sorted alphabetically */}
-                  {isTaskExpanded &&
-                    Array.from(resourcesByTask.entries())
-                      .sort(([, a], [, b]) => a[0].resourceName.localeCompare(b[0].resourceName))
-                      .map(([resourceNumber, allocations]) => (
-                        <ResourceTaskRow
-                          key={resourceNumber}
-                          dailyTotals={dailyTotals}
-                          allocations={allocations}
-                          days={days}
-                          weekGroups={weekGroups}
-                          projectColor={project.color}
-                          projectNumber={project.number}
-                          taskNumber={taskData.taskNumber}
-                          taskName={taskData.taskName}
-                          onEditAllocation={onEditAllocation}
-                          onAddPlan={onAddPlan}
-                        />
-                      ))}
-                </div>
-              );
-            })}
-
-          {/* Add Resource row */}
-          <div className="hover:bg-dark-700/60 flex w-full items-center">
-            <div className="bg-dark-850 sticky left-0 z-10 flex shrink-0">
-              <div className="text-dark-500 w-[230px] py-1.5 pr-4 pl-12 text-xs italic">
-                + Add resource
-              </div>
-            </div>
-            <div className="relative flex flex-1" style={{ minHeight: '28px' }}>
-              {/* Week groups with Add Plan button */}
-              {weekGroups.map((weekGroup) => (
-                <div
-                  key={weekGroup.weekStart.toISOString()}
-                  className="group relative flex flex-1"
-                  onMouseEnter={() => setHoveredWeekStart(weekGroup.weekStart)}
-                  onMouseLeave={() => setHoveredWeekStart(null)}
-                >
-                  {/* Day cells within this week */}
-                  {weekGroup.days.map((day) => {
-                    const dayIsToday = isToday(day);
-                    const dayIsWeekend = isWeekend(day);
-                    return (
-                      <div
-                        key={day.toISOString()}
-                        className={cn(
-                          'border-dark-700 h-7 flex-1 border-l',
-                          dayIsWeekend && 'bg-dark-700/60',
-                          dayIsToday && 'bg-knowall-green/5'
-                        )}
+                {/* Resource rows - shown when task is expanded, sorted alphabetically */}
+                {isTaskExpanded &&
+                  Array.from(resourcesByTask.entries())
+                    .sort(([, a], [, b]) => a[0].resourceName.localeCompare(b[0].resourceName))
+                    .map(([resourceNumber, allocations]) => (
+                      <ResourceTaskRow
+                        key={resourceNumber}
+                        getOverAllocation={getOverAllocation}
+                        allocations={allocations}
+                        days={days}
+                        weekGroups={weekGroups}
+                        projectColor={project.color}
+                        projectNumber={project.number}
+                        taskNumber={taskData.taskNumber}
+                        taskName={taskData.taskName}
+                        onEditAllocation={onEditAllocation}
+                        onAddPlan={onAddPlan}
                       />
-                    );
-                  })}
+                    ))}
 
-                  {/* Add Plan button - appears on hover */}
-                  {hoveredWeekStart && isSameDay(hoveredWeekStart, weekGroup.weekStart) && (
-                    <button
-                      onClick={() => onAddPlan(weekGroup.weekStart)}
-                      className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
-                    >
-                      <PlusIcon className="h-3 w-3" />
-                      Add
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-            <div className="w-16 shrink-0" />
-          </div>
+                {/* A listed task can be planned even before anyone is on it */}
+                {isTaskExpanded && jobTasks && taskData.taskNumber && (
+                  <AddResourceRow
+                    weekGroups={weekGroups}
+                    indentClassName="pl-16"
+                    label={`Add resource to ${taskData.taskName}`}
+                    onAdd={(weekStart) => onAddPlan(weekStart, { taskCode: taskData.taskNumber })}
+                  />
+                )}
+              </div>
+            );
+          })}
+
+          {/* Add Resource row (a project's dialog adds per task instead, above) */}
+          {!hasPostingTasks && (
+            <AddResourceRow weekGroups={weekGroups} onAdd={(weekStart) => onAddPlan(weekStart)} />
+          )}
         </div>
       )}
     </div>
@@ -1439,6 +1466,8 @@ export function PlanPanel({
     viewMode: storeViewMode,
     isLoading,
     error,
+    jobTasksByProject,
+    uomConversionMap,
     selectedAllocationId,
     isDragging,
     fetchTeamData,
@@ -1500,6 +1529,25 @@ export function PlanPanel({
     [allAllocations]
   );
 
+  // Red flags use each person's own working day (as the Edit Allocation modal does), else 8h
+  const getOverAllocation = useCallback<OverAllocationLookup>(
+    (dayAllocations, date, includeName = false) =>
+      getOverAllocationTitle(
+        dayAllocations,
+        resourceDailyTotals,
+        date,
+        includeName,
+        (resourceNumber) =>
+          getResourceHoursPerDay(resourceNumber, uomConversionMap) ?? DAILY_CAPACITY_HOURS
+      ),
+    [resourceDailyTotals, uomConversionMap]
+  );
+
+  // A project's dialog loads its plan up front (and skips team-only data)
+  const loadOptions = useMemo(() => (projectCode ? { projectCode } : undefined), [projectCode]);
+  // Until its first load finishes, so the dialog shows one loading state rather than "No allocations"
+  const [hasLoaded, setHasLoaded] = useState(false);
+
   // Calculate all days to display
   const allDays = useMemo(() => {
     const endDate = endOfWeek(addWeeks(currentWeekStart, effectiveWeeksToShow - 1), {
@@ -1559,16 +1607,25 @@ export function PlanPanel({
     async function loadData() {
       setExtensionNotInstalled(false);
       try {
-        await fetchTeamData(currentWeekStart, effectiveWeeksToShow, emailDomain);
+        await fetchTeamData(currentWeekStart, effectiveWeeksToShow, emailDomain, loadOptions);
       } catch (err) {
         if (err instanceof ExtensionNotInstalledError) {
           setExtensionNotInstalled(true);
         }
+      } finally {
+        setHasLoaded(true);
       }
     }
     loadData();
     // companyVersion ensures refetch when company switches
-  }, [companyVersion, currentWeekStart, effectiveWeeksToShow, emailDomain, fetchTeamData]);
+  }, [
+    companyVersion,
+    currentWeekStart,
+    effectiveWeeksToShow,
+    emailDomain,
+    fetchTeamData,
+    loadOptions,
+  ]);
 
   // Create a stable key for tracking when team members change
   const teamMemberIds = useMemo(() => teamMembers.map((m) => m.id).join(','), [teamMembers]);
@@ -1751,7 +1808,7 @@ export function PlanPanel({
     clearCache();
     // Before the refresh: the edit modals don't await onSave, so a host may close first
     onPlanChanged?.();
-    await fetchTeamData(currentWeekStart, effectiveWeeksToShow, emailDomain);
+    await fetchTeamData(currentWeekStart, effectiveWeeksToShow, emailDomain, loadOptions);
   };
 
   // Handle drop
@@ -1759,12 +1816,14 @@ export function PlanPanel({
     const success = await dropAllocation(date);
     if (success) {
       toast.success('Allocation moved');
-      await fetchTeamData(currentWeekStart, effectiveWeeksToShow, emailDomain);
+      await fetchTeamData(currentWeekStart, effectiveWeeksToShow, emailDomain, loadOptions);
     } else {
       // dropAllocation returns false when not implemented (requires BC extension update)
       toast.error('Move not available. BC extension update required.');
     }
   };
+
+  const showLoading = isLoading || (!!projectCode && !hasLoaded);
 
   // Error state (only show if not loading)
   if (error && !isLoading && !extensionNotInstalled) {
@@ -1773,7 +1832,9 @@ export function PlanPanel({
         <div className="text-center">
           <p className="mb-2 text-red-500">{error}</p>
           <button
-            onClick={() => fetchTeamData(currentWeekStart, effectiveWeeksToShow, emailDomain)}
+            onClick={() =>
+              fetchTeamData(currentWeekStart, effectiveWeeksToShow, emailDomain, loadOptions)
+            }
             className="text-knowall-green hover:text-knowall-green-light underline"
           >
             Try again
@@ -1955,14 +2016,14 @@ export function PlanPanel({
         </div>
 
         {/* Loading State */}
-        {isLoading && (
+        {showLoading && (
           <div className="flex h-64 items-center justify-center">
             <div className="border-knowall-green h-8 w-8 animate-spin rounded-full border-b-2"></div>
           </div>
         )}
 
         {/* Content */}
-        {!isLoading && (
+        {!showLoading && (
           <div className={cn('w-full', isFullscreen && 'flex-1 overflow-y-auto')}>
             {viewMode === 'team' ? (
               // Team View
@@ -1970,7 +2031,7 @@ export function PlanPanel({
                 filteredMembers.map((member) => (
                   <ResourceRow
                     key={member.id}
-                    dailyTotals={resourceDailyTotals}
+                    getOverAllocation={getOverAllocation}
                     member={member}
                     days={allDays}
                     selectedAllocationId={selectedAllocationId}
@@ -1999,7 +2060,7 @@ export function PlanPanel({
               filteredProjects.map((project) => (
                 <ProjectRow
                   key={project.number}
-                  dailyTotals={resourceDailyTotals}
+                  getOverAllocation={getOverAllocation}
                   project={project}
                   days={allDays}
                   selectedAllocationId={selectedAllocationId}
@@ -2016,6 +2077,9 @@ export function PlanPanel({
                   onToggleExpand={() => toggleProjectExpanded(project.id)}
                   companyName={selectedCompany?.name}
                   defaultTasksExpanded={!!projectCode}
+                  // A single project lists all its tasks, so any of them can be planned
+                  jobTasks={projectCode ? jobTasksByProject.get(project.number) : undefined}
+                  searchQuery={projectCode ? searchQuery : undefined}
                 />
               ))
             ) : (

@@ -1,7 +1,8 @@
 import { formatHours } from './unitConversion';
 
 /**
- * Hours a resource can be allocated per day before they're over capacity.
+ * Hours a resource can be allocated per day before they're over capacity, when BC
+ * has no hours per day for them (see getResourceHoursPerDay).
  *
  * Shared by the Edit Allocation modal's "Other Workload" panel and the Plan grid
  * so both agree on what a working day is. Applies to every day (the modal's
@@ -9,22 +10,46 @@ import { formatHours } from './unitConversion';
  */
 export const DAILY_CAPACITY_HOURS = 8;
 
+/** A resource's daily capacity in hours, e.g. from their unit of measure */
+export type CapacityLookup = (resourceNumber: string) => number;
+
+const defaultCapacity: CapacityLookup = () => DAILY_CAPACITY_HOURS;
+
 /** Minimal allocation shape needed to work out per-resource daily totals */
 export interface DailyResourceAllocation {
   resourceNumber: string;
   resourceName?: string;
+  /** Project the hours are planned on, for the per-project breakdown */
+  projectNumber?: string;
+  projectName?: string;
   startDate: string; // YYYY-MM-DD
   hoursPerDay: number;
 }
 
-/** Total allocated hours keyed by "resourceNumber|YYYY-MM-DD" */
-export type ResourceDailyTotals = Map<string, number>;
+/** One project's share of a resource's day */
+export interface ProjectDayHours {
+  projectNumber: string;
+  projectName: string;
+  hours: number;
+}
+
+/** A resource's total hours on one day across all projects, and how they split by project */
+export interface ResourceDayLoad {
+  hours: number;
+  byProject: Map<string, ProjectDayHours>;
+}
+
+/** Each resource's daily load, keyed by "resourceNumber|YYYY-MM-DD" */
+export type ResourceDailyTotals = Map<string, ResourceDayLoad>;
 
 export interface OverAllocation {
   resourceNumber: string;
   resourceName: string;
   allocatedHours: number;
+  capacityHours: number;
   overByHours: number;
+  /** Projects planned that day, most hours first */
+  projects: ProjectDayHours[];
 }
 
 const dailyTotalKey = (resourceNumber: string, date: string) => `${resourceNumber}|${date}`;
@@ -50,7 +75,24 @@ export function buildResourceDailyTotals(
     // Skip malformed hours (e.g. a failed unit conversion) rather than poisoning the day's total
     if (!Number.isFinite(allocation.hoursPerDay) || allocation.hoursPerDay < 0) continue;
     const key = dailyTotalKey(allocation.resourceNumber, allocation.startDate);
-    totals.set(key, (totals.get(key) || 0) + allocation.hoursPerDay);
+    let load = totals.get(key);
+    if (!load) {
+      load = { hours: 0, byProject: new Map() };
+      totals.set(key, load);
+    }
+    load.hours += allocation.hoursPerDay;
+
+    const projectNumber = allocation.projectNumber ?? '';
+    const project = load.byProject.get(projectNumber);
+    if (project) {
+      project.hours += allocation.hoursPerDay;
+    } else {
+      load.byProject.set(projectNumber, {
+        projectNumber,
+        projectName: allocation.projectName || projectNumber || '(No project)',
+        hours: allocation.hoursPerDay,
+      });
+    }
   }
   return totals;
 }
@@ -62,44 +104,62 @@ export function buildResourceDailyTotals(
 export function getOverAllocatedResources(
   dayAllocations: DailyResourceAllocation[],
   dailyTotals: ResourceDailyTotals,
-  date: string
+  date: string,
+  getCapacity: CapacityLookup = defaultCapacity
 ): OverAllocation[] {
   const result = new Map<string, OverAllocation>();
   for (const allocation of dayAllocations) {
     if (allocation.startDate !== date || result.has(allocation.resourceNumber)) continue;
-    const allocatedHours = dailyTotals.get(dailyTotalKey(allocation.resourceNumber, date)) || 0;
-    const overByHours = getOverAllocationHours(allocatedHours);
+    const load = dailyTotals.get(dailyTotalKey(allocation.resourceNumber, date));
+    const allocatedHours = load?.hours ?? 0;
+    const capacityHours = getCapacity(allocation.resourceNumber);
+    const overByHours = getOverAllocationHours(allocatedHours, capacityHours);
     if (overByHours > 0) {
       result.set(allocation.resourceNumber, {
         resourceNumber: allocation.resourceNumber,
         resourceName: allocation.resourceName || allocation.resourceNumber,
         allocatedHours,
+        capacityHours,
         overByHours,
+        projects: Array.from(load?.byProject.values() ?? []).sort(
+          (a, b) => b.hours - a.hours || a.projectName.localeCompare(b.projectName)
+        ),
       });
     }
   }
   return Array.from(result.values());
 }
 
-/** e.g. "Over by 17.5h (25.5h allocated / 8h capacity)", optionally prefixed with the name */
+/**
+ * e.g. "Over-allocated: 28.75h planned across 3 projects (capacity 7.5h)", then one
+ * line per project. Optionally names the resource, for rows that roll up several people.
+ */
 export function formatOverAllocation(overAllocation: OverAllocation, includeName = false): string {
-  const detail = `Over by ${formatHours(overAllocation.overByHours)}h (${formatHours(
-    overAllocation.allocatedHours
-  )}h allocated / ${formatHours(DAILY_CAPACITY_HOURS)}h capacity)`;
-  return includeName ? `${overAllocation.resourceName}: ${detail}` : detail;
+  const projectCount = overAllocation.projects.length;
+  const planned = `${formatHours(overAllocation.allocatedHours)}h planned across ${projectCount} ${
+    projectCount === 1 ? 'project' : 'projects'
+  } (capacity ${formatHours(overAllocation.capacityHours)}h)`;
+  const summary = includeName
+    ? `${overAllocation.resourceName} over-allocated: ${planned}`
+    : `Over-allocated: ${planned}`;
+  const breakdown = overAllocation.projects.map(
+    (p) => `  ${p.projectName}: ${formatHours(p.hours)}h`
+  );
+  return [summary, ...breakdown].join('\n');
 }
 
 /**
- * Tooltip for a grid cell listing over-allocated resources (one per line),
+ * Tooltip (and accessible label) for a grid cell listing over-allocated resources,
  * or undefined when everyone on that day is within capacity.
  */
 export function getOverAllocationTitle(
   dayAllocations: DailyResourceAllocation[],
   dailyTotals: ResourceDailyTotals,
   date: string,
-  includeName = false
+  includeName = false,
+  getCapacity: CapacityLookup = defaultCapacity
 ): string | undefined {
-  const overAllocations = getOverAllocatedResources(dayAllocations, dailyTotals, date);
+  const overAllocations = getOverAllocatedResources(dayAllocations, dailyTotals, date, getCapacity);
   if (overAllocations.length === 0) return undefined;
   return overAllocations.map((o) => formatOverAllocation(o, includeName)).join('\n');
 }

@@ -116,4 +116,10 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | A shared Thyme link shows "This page could not be found"
 | The URL must be `/{environment}/{companyId}/{page}`, where the environment is `production` or `sandbox` and the company ID is the BC company GUID (e.g. `/production/00000000-0000-0000-0000-000000000001/plan`). A truncated or hand-edited link won't match; copy the link again from the browser's address bar. Old links without a company (e.g. `/projects/PR00100`) still work and open in your current company.
 
+| A Plan cell has a red outline
+| The person is over-allocated that day across *all* projects, not just the one shown. Hover the cell for the total planned hours, how many projects they span, the person's daily capacity and a per-project breakdown. Capacity is the person's hours per day from their units of measure in Business Central (e.g. 7.5h), or 8h when none is set; see the DAY/HOUR unit-of-measure entry above to set it. Move or reduce some of that day's allocations to clear the outline.
+
+| A task is missing from a project's Planned dialog
+| The dialog lists every *Posting* task on the project. Heading and total tasks can't hold plan lines, so they're left out. If a Posting task is missing, check its Job Task Type in Business Central, then close and reopen the dialog to reload.
+
 |===

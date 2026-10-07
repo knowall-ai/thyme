@@ -5,7 +5,7 @@ import { format, startOfWeek } from 'date-fns';
 // Planning lines this week, so they fall inside the grid's visible range
 const thisWeek = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
 
-const planningLine = (jobNo: string, resourceNo: string, lineNo: number) => ({
+const planningLine = (jobNo: string, resourceNo: string, lineNo: number, quantity = 8) => ({
   id: `${jobNo}-${lineNo}`,
   jobNo,
   jobTaskNo: '100',
@@ -15,7 +15,7 @@ const planningLine = (jobNo: string, resourceNo: string, lineNo: number) => ({
   type: 'Resource',
   number: resourceNo,
   description: '',
-  quantity: 8,
+  quantity,
   unitCost: 0,
   unitPrice: 0,
   totalCost: 0,
@@ -35,10 +35,15 @@ vi.mock('@/services/bc', () => ({
       { id: 'p2', number: 'PR002', displayName: 'Contoso App', billToCustomerName: 'Contoso' },
     ]),
     getJobTasks: vi.fn(async (jobNo: string) => [
-      { jobNo, jobTaskNo: '100', description: 'Build' },
+      { jobNo, jobTaskNo: '000', description: 'Phase 1', jobTaskType: 'Heading' },
+      { jobNo, jobTaskNo: '100', description: 'Build', jobTaskType: 'Posting' },
+      { jobNo, jobTaskNo: '200', description: 'Design', jobTaskType: 'Posting' },
     ]),
+    // Alex has 8h on PR001 and 1.5h on PR002 the same day: over an 8h day
     getJobPlanningLines: vi.fn(async (jobNo: string) =>
-      jobNo === 'PR001' ? [planningLine('PR001', 'RES01', 1)] : [planningLine('PR002', 'RES02', 1)]
+      jobNo === 'PR001'
+        ? [planningLine('PR001', 'RES01', 1)]
+        : [planningLine('PR002', 'RES02', 1), planningLine('PR002', 'RES01', 2, 1.5)]
     ),
     getResourceUnitsOfMeasure: vi.fn(async () => []),
     getTimeSheets: vi.fn(async () => []),
@@ -51,6 +56,7 @@ vi.mock('@/services/auth', () => ({
 }));
 
 import { PlanPanel } from '@/components/plan';
+import { bcClient } from '@/services/bc';
 import { usePlanStore } from '@/hooks/usePlanStore';
 
 describe('PlanPanel scoped to one project', () => {
@@ -99,6 +105,44 @@ describe('PlanPanel scoped to one project', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Exit fullscreen' })).toBeInTheDocument()
     );
+  });
+
+  it("lists every one of the project's tasks, even those with no one planned yet", async () => {
+    render(<PlanPanel projectCode="PR001" />);
+    await screen.findByText('Alex Contoso');
+
+    expect(screen.getByText('Build')).toBeInTheDocument();
+    expect(screen.getByText('Design')).toBeInTheDocument();
+    // Headings aren't plannable
+    expect(screen.queryByText('Phase 1')).not.toBeInTheDocument();
+    // Each task can have people added
+    expect(screen.getAllByText('+ Add resource')).toHaveLength(2);
+  });
+
+  it('explains a red cell: over-allocated across all projects', async () => {
+    render(<PlanPanel projectCode="PR001" />);
+    await screen.findByText('Alex Contoso');
+
+    const labels = screen.getAllByText(
+      /^Over-allocated: 9\.5h planned across 2 projects \(capacity 8h\)/
+    );
+    expect(labels.length).toBeGreaterThan(0);
+    expect(labels[0]).toHaveClass('sr-only');
+    expect(labels[0].textContent).toContain('Contoso Website: 8h');
+    expect(labels[0].textContent).toContain('Contoso App: 1.5h');
+    expect(labels[0].parentElement).toHaveAttribute('title', labels[0].textContent);
+  });
+
+  it('loads once on open, then moves between weeks without fetching', async () => {
+    render(<PlanPanel projectCode="PR001" />);
+    await screen.findByText('Alex Contoso');
+    const calls = vi.mocked(bcClient.getJobPlanningLines).mock.calls.length;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next week' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next week' }));
+
+    expect(screen.getByText('Design')).toBeInTheDocument();
+    expect(vi.mocked(bcClient.getJobPlanningLines).mock.calls.length).toBe(calls);
   });
 
   it('still shows every project with the toggle on the Plan tab', async () => {
