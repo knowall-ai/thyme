@@ -77,6 +77,9 @@ export interface BCProject {
   blocked?: ' ' | 'Posting' | 'All';
   startingDate?: string;
   endingDate?: string;
+  // Currency of the project's prices; blank = the company's local currency (LCY).
+  // Requires Thyme BC Extension 1.14.0.0+ (undefined on older versions)
+  currencyCode?: string;
   lastModifiedDateTime?: string;
   '@odata.etag'?: string;
 }
@@ -147,10 +150,18 @@ export interface BCJobPlanningLine {
   description: string;
   quantity: number;
   unitOfMeasureCode?: string; // e.g., "HOUR", "DAY" - requires Thyme BC Extension v1.7.0+
+  // Costs and prices in the project currency (currencyCode; blank = LCY)
   unitCost: number;
   unitPrice: number;
   totalCost: number;
   totalPrice: number;
+  // The same in the company's local currency, and the line's currency -
+  // requires Thyme BC Extension 1.14.0.0+ (undefined on older versions)
+  currencyCode?: string;
+  unitCostLCY?: number;
+  totalCostLCY?: number;
+  unitPriceLCY?: number;
+  totalPriceLCY?: number;
   lastModifiedDateTime: string;
   '@odata.etag'?: string;
 }
@@ -193,8 +204,12 @@ export interface BCTimeEntry {
   jobTaskNo: string;
   resourceNo: string;
   quantity: number; // Hours posted
-  totalCost: number; // Internal: actual cost (quantity × unitCost)
-  totalPrice: number; // Customer: invoiced price (quantity × unitPrice)
+  totalCost: number; // Internal: actual cost (quantity × unitCost), in LCY
+  totalPrice: number; // Customer: invoiced price (quantity × unitPrice), in LCY
+  // Project currency (blank = LCY) and the price in it -
+  // requires Thyme BC Extension 1.14.0.0+ (undefined on older versions)
+  currencyCode?: string;
+  totalPriceProjectCurrency?: number;
   postingDate: string;
   description?: string;
 }
@@ -365,6 +380,9 @@ export interface Project {
   // Dates from BC Job
   startDate?: string; // ISO date string or undefined
   endDate?: string; // ISO date string or undefined
+  // BC Job Currency Code: the currency of the project's prices. Blank, or undefined with
+  // Thyme BC Extension before 1.14.0.0, means the company currency
+  currencyCode?: string;
   // Analytics data (loaded separately)
   totalHours?: number;
   budgetHours?: number;

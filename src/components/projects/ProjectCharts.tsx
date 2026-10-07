@@ -9,7 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { Card } from '@/components/ui';
-import { cn } from '@/utils';
+import { cn, formatCurrencyShort, getCurrencySymbol } from '@/utils';
 
 // Interval for auto-repeat when holding navigation buttons (ms)
 const HOLD_INITIAL_DELAY = 400; // Delay before repeat starts
@@ -31,28 +31,10 @@ const SPEND_UNITS: { value: SpendUnit; label: string; title: string }[] = [
     label: 'Days',
     title: 'Effort in days against the quoted estimate (or the Plan if there is no estimate)',
   },
-  { value: 'cost', label: '£', title: 'Time at selling rates against the quoted Billable Price' }, // label replaced by the company currency symbol
+  { value: 'cost', label: '£', title: 'Time at selling rates against the quoted Billable Price' }, // label replaced by the project currency symbol
 ];
 
 const WEEKS_TO_SHOW = 24;
-
-// Map currency codes to symbols for compact chart labels
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  GBP: '£',
-  USD: '$',
-  EUR: '€',
-  CAD: 'CA$',
-  AUD: 'A$',
-};
-
-// Format currency for chart labels using compact notation
-function formatCurrencyShort(amount: number, currencyCode: string): string {
-  const symbol = CURRENCY_SYMBOLS[currencyCode] || currencyCode;
-  if (amount >= 1000) {
-    return `${symbol}${(amount / 1000).toFixed(1)}k`;
-  }
-  return `${symbol}${amount.toFixed(0)}`;
-}
 
 // Vertical dashed line marking today's date on a chart
 function TodayMarker({ leftPercent }: { leftPercent: number }) {
@@ -113,8 +95,15 @@ function PrintChartTitle({ children }: { children: ReactNode }) {
 }
 
 export function ProjectCharts() {
-  const { analytics, isLoadingAnalytics, hiddenKpis, toggleKpiHidden, currencyCode, project } =
-    useProjectDetailsStore();
+  // Money here is customer prices, so it's in the project's currency (not the company's)
+  const {
+    analytics,
+    isLoadingAnalytics,
+    hiddenKpis,
+    toggleKpiHidden,
+    projectCurrencyCode,
+    project,
+  } = useProjectDetailsStore();
   // £ mode is customer-facing (selling rates vs Billable Price), so it follows that card's eye
   const showBillablePrice = !hiddenKpis.includes('Billable Price');
   // ...and the Time Budgeted / Time Spent eyes in effort (hours/days) mode
@@ -274,7 +263,7 @@ export function ProjectCharts() {
                       : 'bg-dark-700 text-gray-400 hover:text-white'
                   )}
                 >
-                  {u.value === 'cost' ? CURRENCY_SYMBOLS[currencyCode] || currencyCode : u.label}
+                  {u.value === 'cost' ? getCurrencySymbol(projectCurrencyCode) : u.label}
                 </button>
               );
             })}
@@ -367,7 +356,7 @@ export function ProjectCharts() {
             hoursPerDay={analytics?.hoursPerDay ?? 8}
             projectStartDate={projectStartDate}
             projectEndDate={projectEndDate}
-            currencyCode={currencyCode}
+            currencyCode={projectCurrencyCode}
           />
         </div>
       )}
