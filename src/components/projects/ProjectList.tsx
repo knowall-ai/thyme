@@ -403,7 +403,16 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
             </thead>
             <tbody className="divide-dark-600 divide-y">
               {Object.entries(groupedProjects)
-                .sort(([a], [b]) => a.localeCompare(b))
+                .sort(([a, projectsA], [b, projectsB]) => {
+                  // Sorting by Remaining puts internal projects last, so customer groups
+                  // made up only of internal projects go after the others
+                  if (sortBy === 'remaining-asc' || sortBy === 'remaining-desc') {
+                    const internalA = projectsA.every((p) => p.isInternal);
+                    const internalB = projectsB.every((p) => p.isInternal);
+                    if (internalA !== internalB) return internalA ? 1 : -1;
+                  }
+                  return a.localeCompare(b);
+                })
                 .map(([customer, customerProjects]) => (
                   <Fragment key={customer}>
                     {/* Customer group header */}
