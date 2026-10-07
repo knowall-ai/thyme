@@ -130,6 +130,20 @@ export function pathForCompanySwitch(rest: string, search: string = ''): string 
   return `/${segments[0]}${search}`;
 }
 
+/** Next.js page `searchParams`, resolved */
+export type SearchParamsRecord = Record<string, string | string[] | undefined>;
+
+/** Rebuild a `?a=1&b=2` query string from page `searchParams` (empty string if none). */
+export function toSearchString(searchParams: SearchParamsRecord | null | undefined): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams ?? {})) {
+    if (value === undefined) continue;
+    for (const item of Array.isArray(value) ? value : [value]) query.append(key, item);
+  }
+  const text = query.toString();
+  return text ? `?${text}` : '';
+}
+
 /**
  * Turn a legacy URL into the same page under the given company, keeping the query
  * string and hash: `/projects/PR00100?x=1#tasks` -> `/production/{id}/projects/PR00100?x=1#tasks`.

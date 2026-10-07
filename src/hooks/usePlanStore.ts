@@ -98,6 +98,8 @@ interface PlanStore {
   // Actions
   fetchTeamData: (weekStart: Date, weeksToShow: number, emailDomain?: string) => Promise<void>;
   clearCache: () => void;
+  /** Drop the displayed plan and its cache, and ignore loads started before the switch */
+  resetForCompanySwitch: () => void;
   setCurrentWeekStart: (date: Date) => void;
   setWeeksToShow: (weeks: number) => void;
   setViewMode: (mode: ViewMode) => void;
@@ -524,6 +526,25 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
   clearCache: () => {
     set({ cache: null });
+  },
+
+  resetForCompanySwitch: () => {
+    // Supersede any load still in flight, so it can't write the old company's plan back
+    latestFetchId++;
+    set({
+      cache: null,
+      teamMembers: [],
+      projects: [],
+      allAllocations: [],
+      uomConversionMap: new Map(),
+      isLoading: false,
+      isLoadingWeeks: new Set(),
+      error: null,
+      selectedMemberIds: [],
+      selectedAllocationId: null,
+      isDragging: false,
+      draggedAllocation: null,
+    });
   },
 
   setCurrentWeekStart: (date: Date) => {

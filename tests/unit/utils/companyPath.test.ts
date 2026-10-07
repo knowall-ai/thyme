@@ -12,6 +12,7 @@ import {
   pathForCompanySwitch,
   resolveLinkCompany,
   stripCompanyPrefix,
+  toSearchString,
   type CompanyRef,
 } from '@/utils/companyPath';
 
@@ -297,5 +298,14 @@ describe('resolveLinkCompany with a partial company list', () => {
         storedCompany: null,
       })
     ).toEqual(SANDBOX_A);
+  });
+});
+
+describe('toSearchString', () => {
+  it('rebuilds the query string for the bare-company redirect', () => {
+    expect(toSearchString({ week: '2026-10-05' })).toBe('?week=2026-10-05');
+    expect(toSearchString({ tag: ['a', 'b'], skip: undefined })).toBe('?tag=a&tag=b');
+    expect(toSearchString({})).toBe('');
+    expect(toSearchString(undefined)).toBe('');
   });
 });
