@@ -3,7 +3,7 @@
 import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui';
 import { useTimeEntriesStore, useProjectsStore } from '@/hooks';
-import { formatDate } from '@/utils';
+import { buildCsv, formatDate } from '@/utils';
 
 export function ExportButton() {
   const { entries, currentWeekStart } = useTimeEntriesStore();
@@ -12,22 +12,7 @@ export function ExportButton() {
   const handleExport = () => {
     if (entries.length === 0) return;
 
-    // Build CSV content
-    const headers = ['Date', 'Project', 'Task', 'Hours', 'Notes', 'Billable'];
-    const rows = entries.map((entry) => {
-      const project = projects.find((p) => p.id === entry.projectId);
-      const task = project?.tasks.find((t) => t.id === entry.taskId);
-      return [
-        entry.date,
-        project?.name || 'Unknown',
-        task?.name || 'Unknown',
-        entry.hours.toFixed(2),
-        `"${(entry.notes || '').replace(/"/g, '""')}"`,
-        entry.isBillable ? 'Yes' : 'No',
-      ];
-    });
-
-    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const csv = buildCsv(entries, projects);
 
     // Create and download file
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
