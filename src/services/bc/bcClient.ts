@@ -400,6 +400,22 @@ class BusinessCentralClient {
     return normalizeBCProject(project);
   }
 
+  /**
+   * Rename a project (BC Job Description, Text[100]).
+   * Reads the project first for a fresh ETag, as BC requires If-Match for PATCH.
+   */
+  async updateProjectName(projectId: string, name: string): Promise<BCProject> {
+    const current = await this.fetchCustomApi<BCProject>(`/projects(${projectId})`);
+    const project = await this.fetchCustomApi<BCProject>(`/projects(${projectId})`, {
+      method: 'PATCH',
+      headers: {
+        'If-Match': current['@odata.etag'] || '*',
+      },
+      body: JSON.stringify({ displayName: name }),
+    });
+    return normalizeBCProject(project);
+  }
+
   // Customers
   async getCustomers(filter?: string): Promise<BCCustomer[]> {
     let endpoint = '/customers';

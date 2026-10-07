@@ -2,6 +2,16 @@ import { create } from 'zustand';
 import type { Project, Task } from '@/types';
 import { projectDetailsService, type ProjectAnalytics } from '@/services/bc/projectDetailsService';
 import { bcClient } from '@/services/bc/bcClient';
+import { useProjectsStore } from './useProjectsStore';
+import { usePlanStore } from './usePlanStore';
+
+// BC Job Description is Text[100]
+export const PROJECT_NAME_MAX_LENGTH = 100;
+
+// BC rejects writes the user's permission sets don't allow with a 403, or an error naming the missing permission
+function isPermissionError(message: string): boolean {
+  return /\(403\)/.test(message) || /permission/i.test(message);
+}
 
 interface ProjectDetailsStore {
   // State
@@ -20,6 +30,7 @@ interface ProjectDetailsStore {
 
   // Actions
   fetchProjectDetails: (projectNumber: string) => Promise<void>;
+  renameProject: (name: string) => Promise<void>;
   setChartView: (view: 'weekly' | 'progress') => void;
   setTableGroupBy: (groupBy: 'task' | 'team') => void;
   toggleKpiHidden: (label: string) => void;
@@ -90,6 +101,49 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
     });
     inFlight.set(projectNumber, promise);
     return promise;
+  },
+
+  renameProject: async (name: string) => {
+    const project = get().project;
+    if (!project) return;
+
+    const trimmed = name.trim();
+    if (!trimmed) throw new Error('Project name cannot be empty');
+    if (trimmed.length > PROJECT_NAME_MAX_LENGTH) {
+      throw new Error(`Project name cannot be longer than ${PROJECT_NAME_MAX_LENGTH} characters`);
+    }
+    if (trimmed === project.name) return;
+
+    let saved: string;
+    try {
+      const updated = await bcClient.updateProjectName(project.id, trimmed);
+      saved = updated.displayName || trimmed;
+    } catch (error) {
+      console.error('Failed to rename project:', error);
+      const message = error instanceof Error ? error.message : '';
+      if (isPermissionError(message)) {
+        throw new Error("You don't have permission to rename projects in Business Central");
+      }
+      throw new Error('Failed to rename the project in Business Central');
+    }
+
+    // Only apply if the user is still on the project that was renamed
+    const current = get().project;
+    if (current?.id === project.id) {
+      set({ project: { ...current, name: saved } });
+    }
+
+    // Keep the projects list in step so it doesn't show the old name
+    useProjectsStore.setState((state) => ({
+      projects: state.projects.map((p) => (p.id === project.id ? { ...p, name: saved } : p)),
+      selectedProject:
+        state.selectedProject?.id === project.id
+          ? { ...state.selectedProject, name: saved }
+          : state.selectedProject,
+    }));
+
+    // The plan caches project names in its allocations, so reload it next time it's shown
+    usePlanStore.getState().clearCache();
   },
 
   setChartView: (view) => set({ chartView: view }),

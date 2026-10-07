@@ -67,6 +67,7 @@ export interface BCProject {
   startingDate?: string;
   endingDate?: string;
   lastModifiedDateTime?: string;
+  '@odata.etag'?: string;
 }
 
 export interface BCCustomer {
