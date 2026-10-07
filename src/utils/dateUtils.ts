@@ -116,8 +116,11 @@ export function secondsToHours(seconds: number): number {
 function ymdToUTCDays(ymd: string | undefined): number | null {
   const match = ymd ? /^(\d{4})-(\d{2})-(\d{2})/.exec(ymd) : null;
   if (!match || match[1] === '0001') return null;
-  const ms = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-  return isNaN(ms) ? null : ms / 86_400_000;
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const date = new Date(Date.UTC(year, month - 1, day));
+  // Reject dates Date would roll over (e.g. 2027-02-30 -> 2 March)
+  const isRealDate = date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  return isRealDate ? date.getTime() / 86_400_000 : null;
 }
 
 // How a finish date sits against an end date, e.g. "3 weeks before the end date".

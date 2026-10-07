@@ -146,6 +146,7 @@ describe('dateUtils', () => {
       expect(describeFinishVsEndDate('2027-03-31', undefined)).toBeNull();
       expect(describeFinishVsEndDate('2027-03-31', '0001-01-01')).toBeNull();
       expect(describeFinishVsEndDate('not-a-date', '2027-03-31')).toBeNull();
+      expect(describeFinishVsEndDate('2027-02-30', '2027-03-31')).toBeNull();
     });
   });
 });
