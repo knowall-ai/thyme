@@ -17,6 +17,7 @@ import { Card, Button } from '@/components/ui';
 import { PoppieReviewPanel, PoppieVerdictChip, PoppieLineNotes } from '@/components/review';
 import { useTimesheetReview } from '@/hooks';
 import { resolveResourceIdentity } from '@/services/auth/resourceIdentity';
+import { useCompanyPath } from '@/hooks/useCompanyPath';
 import type {
   BCTimeSheet,
   BCTimeSheetLine,
@@ -82,6 +83,7 @@ export function ApprovalCard({
   jobsCache = {},
   tasksCache = {},
 }: ApprovalCardProps) {
+  const toHref = useCompanyPath();
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -436,7 +438,7 @@ export function ApprovalCard({
                             {line.jobNo}
                           </span>
                           <Link
-                            href={`/projects/${line.jobNo}`}
+                            href={toHref(`/projects/${encodeURIComponent(line.jobNo)}`)}
                             className="hover:text-thyme-400 truncate font-medium hover:underline"
                             onClick={(e) => e.stopPropagation()}
                           >

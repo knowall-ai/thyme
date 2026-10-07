@@ -1,10 +1,10 @@
 'use client';
 
-import { AuthenticatedTemplate, UnauthenticatedTemplate } from '@/services/auth';
 import { Layout } from '@/components/layout';
 import { SettingsPanel } from '@/components/settings';
 
-function SettingsContent() {
+// Sign-in and company sync are handled by the [environment]/[companyId] layout
+export default function SettingsPage() {
   return (
     <Layout>
       <div className="space-y-6">
@@ -17,18 +17,5 @@ function SettingsContent() {
         <SettingsPanel />
       </div>
     </Layout>
-  );
-}
-
-export default function SettingsPage() {
-  return (
-    <>
-      <UnauthenticatedTemplate>
-        <meta httpEquiv="refresh" content="0;url=/" />
-      </UnauthenticatedTemplate>
-      <AuthenticatedTemplate>
-        <SettingsContent />
-      </AuthenticatedTemplate>
-    </>
   );
 }

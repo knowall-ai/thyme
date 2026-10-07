@@ -17,7 +17,7 @@ import {
   PROJECT_NAME_MAX_LENGTH,
   ProjectRenamePermissionError,
 } from '@/hooks/useProjectDetailsStore';
-import { useCompanyStore } from '@/hooks';
+import { useCompanyPath, useCompanyStore } from '@/hooks';
 import { cn, DATE_FORMAT_FULL, formatDate as formatDateUtil, getBCJobUrl } from '@/utils';
 import type { BillingMode } from '@/services/bc/projectDetailsService';
 
@@ -298,6 +298,7 @@ function ProjectName({ projectId, name }: ProjectNameProps) {
 export function ProjectHeader() {
   const { project, analytics } = useProjectDetailsStore();
   const selectedCompany = useCompanyStore((state) => state.selectedCompany);
+  const toHref = useCompanyPath();
 
   if (!project) return null;
 
@@ -322,7 +323,7 @@ export function ProjectHeader() {
     <div className="space-y-4">
       {/* Back link */}
       <Link
-        href="/projects"
+        href={toHref('/projects')}
         className="inline-flex items-center gap-2 text-sm text-gray-400 transition-colors hover:text-white print:hidden"
       >
         <ArrowLeftIcon className="h-4 w-4" />

@@ -4,10 +4,11 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { ClockIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import { Card } from '@/components/ui';
-import { useApprovalStore, useCompanyStore } from '@/hooks';
+import { useApprovalStore, useCompanyPath, useCompanyStore } from '@/hooks';
 
 export function PendingApprovalCard() {
   const { selectedCompany } = useCompanyStore();
+  const toHref = useCompanyPath();
   const {
     pendingCount,
     pendingHours,
@@ -39,7 +40,7 @@ export function PendingApprovalCard() {
   }
 
   return (
-    <Link href="/approvals">
+    <Link href={toHref('/approvals')}>
       <Card
         variant="bordered"
         className="hover:bg-dark-750 group hover:border-thyme-600/50 cursor-pointer p-4 transition-all"

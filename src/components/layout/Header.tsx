@@ -16,8 +16,8 @@ import {
   ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth, useProfilePhoto } from '@/services/auth';
-import { useCompanyStore } from '@/hooks';
-import { cn } from '@/utils';
+import { useCompanyPath } from '@/hooks';
+import { cn, stripCompanyPrefix } from '@/utils';
 import { ThymeLogo } from '@/components/icons';
 import { CompanySwitcher } from './CompanySwitcher';
 
@@ -42,8 +42,8 @@ export function Header() {
   const { photoUrl } = useProfilePhoto(isAuthenticated);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
-  // selectedCompany used for context but not directly in render
-  useCompanyStore();
+  // Nav links open in the current company (/{environment}/{companyId}/…)
+  const toHref = useCompanyPath();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -74,8 +74,10 @@ export function Header() {
   };
 
   const isActive = (href: string) => {
-    if (href === '/time') return pathname === '/time' || pathname.startsWith('/time');
-    return pathname.startsWith(href);
+    // Compare the page path, ignoring the company prefix
+    const pagePath = stripCompanyPrefix(pathname ?? '');
+    if (href === '/time') return pagePath === '/time' || pagePath.startsWith('/time');
+    return pagePath.startsWith(href);
   };
 
   return (
@@ -103,7 +105,7 @@ export function Header() {
                   return (
                     <Link
                       key={item.name}
-                      href={item.href}
+                      href={toHref(item.href)}
                       className={cn(
                         'inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors',
                         active
@@ -126,7 +128,7 @@ export function Header() {
               <>
                 {/* Settings icon */}
                 <Link
-                  href="/settings"
+                  href={toHref('/settings')}
                   className={cn(
                     'hidden rounded-lg p-2 transition-colors sm:block',
                     isActive('/settings')
@@ -242,7 +244,7 @@ export function Header() {
               return (
                 <Link
                   key={item.name}
-                  href={item.href}
+                  href={toHref(item.href)}
                   className={cn(
                     'flex flex-col items-center gap-1 px-4 py-3 text-xs font-medium transition-colors',
                     active ? 'text-knowall-green' : 'text-dark-400 hover:text-white'
@@ -255,7 +257,7 @@ export function Header() {
             })}
             {/* Settings in mobile nav */}
             <Link
-              href="/settings"
+              href={toHref('/settings')}
               className={cn(
                 'flex flex-col items-center gap-1 px-4 py-3 text-xs font-medium transition-colors',
                 isActive('/settings') ? 'text-knowall-green' : 'text-dark-400 hover:text-white'

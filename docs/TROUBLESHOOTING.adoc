@@ -98,4 +98,10 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Poppie's review says "Out of date"
 | The timesheet's lines or daily hours were changed after Poppie reviewed it (Thyme compares their latest modified time with the review's version stamp). Once the timesheet is submitted again, Poppie re-reviews it on her next pass and the panel updates by itself; no action is needed.
 
+| A link opens with "You don't have access to that company in Business Central"
+| Thyme URLs include the environment and company (`/production/{companyId}/projects/...`), and the link points at a company your account can't see. This happens when the company is in an environment you don't have (e.g. a Sandbox), or your BC user hasn't been given access to that company. (1) Ask your Business Central administrator to give your user access to the company in that environment, then sign out of Thyme and back in. (2) Or click *Go to …* to open the same page in your current company instead.
+
+| A shared Thyme link shows "This page could not be found"
+| The URL must be `/{environment}/{companyId}/{page}`, where the environment is `production` or `sandbox` and the company ID is the BC company GUID (e.g. `/production/00000000-0000-0000-0000-000000000001/plan`). A truncated or hand-edited link won't match; copy the link again from the browser's address bar. Old links without a company (e.g. `/projects/PR00100`) still work and open in your current company.
+
 |===

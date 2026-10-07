@@ -7,6 +7,8 @@ interface CompanyStore {
   selectedCompany: BCCompany | null;
   /** Increments each time company changes - use in effect deps to force refetch */
   companyVersion: number;
+  /** True once the company list has loaded successfully at least once */
+  companiesLoaded: boolean;
   isLoading: boolean;
   error: string | null;
 
@@ -17,58 +19,74 @@ interface CompanyStore {
   getEnvironments: () => BCEnvironmentType[];
 }
 
+// In-flight company fetch, shared so the company picker and the URL sync don't
+// both query every environment at the same time
+let companiesRequest: Promise<void> | null = null;
+
 export const useCompanyStore = create<CompanyStore>((set, get) => ({
   companies: [],
   selectedCompany: null,
   companyVersion: 0,
+  companiesLoaded: false,
   isLoading: false,
   error: null,
 
-  fetchCompanies: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      // Fetch companies from all environments
-      const companies = await bcClient.getAllCompanies();
+  fetchCompanies: () => {
+    if (!companiesRequest) {
+      companiesRequest = loadCompanies().finally(() => {
+        companiesRequest = null;
+      });
+    }
+    return companiesRequest;
 
-      // Handle empty companies array
-      if (!companies || companies.length === 0) {
+    async function loadCompanies() {
+      set({ isLoading: true, error: null });
+      try {
+        // Fetch companies from all environments
+        const companies = await bcClient.getAllCompanies();
+
+        // Handle empty companies array
+        if (!companies || companies.length === 0) {
+          set({
+            companies: [],
+            selectedCompany: null,
+            companiesLoaded: true,
+            isLoading: false,
+          });
+          return;
+        }
+
+        // Find the currently selected company (match by ID and environment)
+        const currentCompanyId = bcClient.companyId;
+        const currentEnv = bcClient.environment;
+        let selectedCompany = companies.find(
+          (c) => c.id === currentCompanyId && c.environment === currentEnv
+        );
+
+        // Fallback: find by ID only, or use first company
+        if (!selectedCompany) {
+          selectedCompany = companies.find((c) => c.id === currentCompanyId) || companies[0];
+        }
+
+        // Update bcClient if selection changed
+        if (selectedCompany && selectedCompany.environment) {
+          const needsUpdate =
+            selectedCompany.id !== currentCompanyId || selectedCompany.environment !== currentEnv;
+          if (needsUpdate) {
+            bcClient.setCompany(selectedCompany.id, selectedCompany.environment);
+          }
+        }
+
         set({
-          companies: [],
-          selectedCompany: null,
+          companies,
+          selectedCompany,
+          companiesLoaded: true,
           isLoading: false,
         });
-        return;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to fetch companies';
+        set({ error: message, isLoading: false });
       }
-
-      // Find the currently selected company (match by ID and environment)
-      const currentCompanyId = bcClient.companyId;
-      const currentEnv = bcClient.environment;
-      let selectedCompany = companies.find(
-        (c) => c.id === currentCompanyId && c.environment === currentEnv
-      );
-
-      // Fallback: find by ID only, or use first company
-      if (!selectedCompany) {
-        selectedCompany = companies.find((c) => c.id === currentCompanyId) || companies[0];
-      }
-
-      // Update bcClient if selection changed
-      if (selectedCompany && selectedCompany.environment) {
-        const needsUpdate =
-          selectedCompany.id !== currentCompanyId || selectedCompany.environment !== currentEnv;
-        if (needsUpdate) {
-          bcClient.setCompany(selectedCompany.id, selectedCompany.environment);
-        }
-      }
-
-      set({
-        companies,
-        selectedCompany,
-        isLoading: false,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to fetch companies';
-      set({ error: message, isLoading: false });
     }
   },
 

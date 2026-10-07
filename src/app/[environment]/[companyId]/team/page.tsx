@@ -1,10 +1,10 @@
 'use client';
 
-import { AuthenticatedTemplate, UnauthenticatedTemplate } from '@/services/auth';
 import { Layout } from '@/components/layout';
 import { TeamList } from '@/components/team';
 
-function TeamContent() {
+// Sign-in and company sync are handled by the [environment]/[companyId] layout
+export default function TeamPage() {
   return (
     <Layout>
       <div className="space-y-6">
@@ -15,18 +15,5 @@ function TeamContent() {
         <TeamList />
       </div>
     </Layout>
-  );
-}
-
-export default function TeamPage() {
-  return (
-    <>
-      <UnauthenticatedTemplate>
-        <meta httpEquiv="refresh" content="0;url=/" />
-      </UnauthenticatedTemplate>
-      <AuthenticatedTemplate>
-        <TeamContent />
-      </AuthenticatedTemplate>
-    </>
   );
 }

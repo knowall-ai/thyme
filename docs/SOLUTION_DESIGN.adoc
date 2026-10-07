@@ -53,6 +53,25 @@ src/
 └── utils/                  # Utility functions
 ----
 
+=== URL Structure
+
+Every company-scoped page carries the Business Central environment and company in its URL, mirroring BC's own `/{tenant}/{environment}/...` shape, so links can be shared and bookmarked:
+
+[source]
+----
+/{environment}/{companyId}/{page}
+
+/production/00000000-0000-0000-0000-000000000001/projects/PR00100
+/sandbox/00000000-0000-0000-0000-000000000002/plan
+----
+
+* `{environment}` is the environment Thyme stores on the company (`production` or `sandbox`, matched case-insensitively) and `{companyId}` is the BC company GUID. Company identity is id + environment, because a sandbox copy can share GUIDs with Production.
+* Company pages (Time, Projects, Team, Plan, Approvals, Reports, Settings) live under `src/app/[environment]/[companyId]/`. Its layout 404s anything that isn't a known environment plus a GUID, then `CompanyRouteGate` makes the URL's company the active one before rendering the page. If the user doesn't have that company, it shows "You don't have access to that company in Business Central" instead of another company's data.
+* Public pages (`/`, `/pricing`, `/help`, `/privacy`, `/terms`, `/eula`) stay at the top level.
+* The old unprefixed URLs (`/time`, `/projects/PR00100`, ...) live in `src/app/(legacy)/` and redirect to the same page under the remembered company, keeping the query string and hash.
+* Build internal links with `useCompanyPath()` (e.g. `toHref('/projects')`) rather than hard-coding paths. Switching company in the picker opens the same page under the new company; detail pages such as `/projects/PR00100` fall back to their list page.
+* Signed-out visitors to a company URL see the landing page in place. MSAL's `navigateToLoginRequestUrl` returns them to the URL they opened once they've signed in.
+
 === State Management
 
 The application uses Zustand for state management with the following stores:
