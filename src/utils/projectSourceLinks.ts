@@ -45,16 +45,21 @@ function stripScheme(v: string): string {
 
 function normaliseGitHub(raw: string): NormalisedValue {
   let v = raw.toLowerCase();
-  let isUrl = /^https?:\/\//.test(v);
+  const hasScheme = /^https?:\/\//.test(v);
   v = stripScheme(v).replace(/^www\./, '');
-  if (v.startsWith('github.com/')) {
-    v = v.slice('github.com/'.length);
-    isUrl = true;
+  const onGitHub = v.startsWith('github.com/');
+  // A URL must be a GitHub one: a GitLab or DevOps URL would otherwise pass as owner/repo
+  if (hasScheme && !onGitHub) {
+    return {
+      error: 'That is not a GitHub URL. Enter owner/repo or https://github.com/owner/repo.',
+    };
   }
+  if (onGitHub) v = v.slice('github.com/'.length);
   v = v.replace(/\/+$/, '');
-  const parts = v.split('/');
   const error = `Enter owner/repo, owner/* for every repo of an owner, owner/prefix-* for repos starting with a prefix, or the repo's URL.`;
-  if (parts.length < 2 || (parts.length > 2 && !isUrl)) return { error };
+  const parts = v.split('/');
+  // A URL may go deeper (…/owner/repo/pull/12); owner/repo as typed may not
+  if (parts.length < 2 || (parts.length > 2 && !onGitHub)) return { error };
   const owner = parts[0];
   const repo = parts[1].replace(/\.git$/, '');
   if (!SLUG.test(owner)) return { error };

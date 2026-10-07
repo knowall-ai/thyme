@@ -27,6 +27,15 @@ describe('normaliseSourceLinkValue', () => {
     expect(normaliseSourceLinkValue('GitHubRepo', 'contoso').error).toBeTruthy();
     expect(normaliseSourceLinkValue('GitHubRepo', 'contoso/app/extra').error).toBeTruthy();
     expect(normaliseSourceLinkValue('GitHubRepo', 'contoso/my app').error).toBeTruthy();
+    expect(normaliseSourceLinkValue('GitHubRepo', 'https://gitlab.com/contoso/app').error).toMatch(
+      /not a GitHub URL/
+    );
+    expect(
+      normaliseSourceLinkValue('GitHubRepo', 'https://dev.azure.com/contoso/app/_git/x').error
+    ).toBeTruthy();
+    expect(normaliseSourceLinkValue('GitHubRepo', 'github.com/contoso/app').value).toBe(
+      'contoso/app'
+    );
     expect(normaliseSourceLinkValue('GitHubRepo', '  ').error).toBe('Enter a value.');
   });
 

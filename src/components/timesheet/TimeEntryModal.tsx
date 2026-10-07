@@ -279,6 +279,8 @@ export function TimeEntryModal({
     setCustomerId(value);
     setProjectId('');
     setTaskId('');
+    // A new project needs a new opt-in to "Always map this"
+    setAlwaysMap(false);
     selectProject(null);
     selectTask(null);
   };
@@ -286,6 +288,7 @@ export function TimeEntryModal({
   const handleProjectChange = (value: string) => {
     setProjectId(value);
     setTaskId('');
+    setAlwaysMap(false);
     const project = projects.find((p) => p.id === value);
     selectProject(project || null);
   };
