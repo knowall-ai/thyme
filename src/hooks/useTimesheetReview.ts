@@ -39,6 +39,8 @@ export interface TimesheetReviewResult {
   notesByLine: Map<number, BCTimesheetReviewLine[]>;
   verdict: VerdictDisplay | null;
   submitted: boolean;
+  /** The timesheet's latest change as known here, compared with the review's versionStamp */
+  currentStamp: string | null;
 }
 
 /**
@@ -106,5 +108,6 @@ export function useTimesheetReview(
     notesByLine,
     verdict: review ? getVerdictDisplay(review.verdict) : null,
     submitted,
+    currentStamp,
   };
 }

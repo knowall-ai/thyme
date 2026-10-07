@@ -124,7 +124,10 @@ export function PoppieReviewPanel({
           {verdict.label}
         </span>
         {outOfDate && (
-          <span className="text-dark-400 inline-flex items-center gap-1 text-xs">
+          <span
+            className="text-dark-400 inline-flex items-center gap-1 text-xs"
+            title={`Reviewed version ${review.versionStamp}; latest change ${result.currentStamp ?? 'unknown'}`}
+          >
             <ArrowPathIcon className="h-3.5 w-3.5" />
             Out of date
           </span>

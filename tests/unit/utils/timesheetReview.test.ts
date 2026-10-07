@@ -78,9 +78,37 @@ describe('latestStamp', () => {
 describe('isReviewOutOfDate', () => {
   it('is out of date only when the timesheet changed after the reviewed version', () => {
     const reviewed = review({ versionStamp: '2026-10-05T09:00:00Z' });
-    expect(isReviewOutOfDate(reviewed, '2026-10-05T09:00:00.001Z')).toBe(true);
+    expect(isReviewOutOfDate(reviewed, '2026-10-05T09:00:01.001Z')).toBe(true);
+    expect(isReviewOutOfDate(reviewed, '2026-10-05T09:00:00.001Z')).toBe(false);
     expect(isReviewOutOfDate(reviewed, '2026-10-05T09:00:00Z')).toBe(false);
     expect(isReviewOutOfDate(reviewed, '2026-10-05T08:59:59Z')).toBe(false);
+  });
+
+  it('compares instants, not strings, when BC drops trailing millisecond zeros', () => {
+    // '…33.35Z' is .350 ms, earlier than .353, though it sorts after it as text
+    const reviewed = review({ versionStamp: '2026-10-07T02:23:33.353Z' });
+    const current = computeVersionStamp(
+      [{ lastModifiedDateTime: '2026-10-07T02:23:33.35Z' }],
+      [{ lastModifiedDateTime: '2026-10-07T02:23:33.3Z' }]
+    );
+    expect(current).toBe('2026-10-07T02:23:33.35Z');
+    expect(isReviewOutOfDate(reviewed, current)).toBe(false);
+    expect(
+      computeVersionStamp([
+        { lastModifiedDateTime: '2026-10-07T02:23:33.35Z' },
+        { lastModifiedDateTime: '2026-10-07T02:23:33.353Z' },
+      ])
+    ).toBe('2026-10-07T02:23:33.353Z');
+    expect(latestStamp('2026-10-07T02:23:33.353Z', '2026-10-07T02:23:33.35Z')).toBe(
+      '2026-10-07T02:23:33.353Z'
+    );
+  });
+
+  it("treats BC's millisecond rounding just after the stamp as the same version", () => {
+    const reviewed = review({ versionStamp: '2026-10-07T02:23:33.353Z' });
+    expect(isReviewOutOfDate(reviewed, '2026-10-07T02:23:33.357Z')).toBe(false);
+    expect(isReviewOutOfDate(reviewed, '2026-10-07T02:23:34.353Z')).toBe(false);
+    expect(isReviewOutOfDate(reviewed, '2026-10-07T02:23:34.354Z')).toBe(true);
   });
 
   it('compares instants, not strings, across time zone offsets', () => {
