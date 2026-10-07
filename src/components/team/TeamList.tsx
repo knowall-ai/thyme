@@ -19,7 +19,7 @@ import {
   StageLegend,
   getStageSegments,
 } from '@/components/ui';
-import { bcClient, ExtensionNotInstalledError } from '@/services/bc';
+import { bcClient, projectService, ExtensionNotInstalledError } from '@/services/bc';
 import { useCompanyStore } from '@/hooks';
 import { useAuth, resolveResourceIdentity } from '@/services/auth';
 import {
@@ -32,10 +32,12 @@ import {
   isTeamMember,
   buildUOMConversionMap,
   getWeeklyCapacityHours,
+  getBillableHours,
+  BILLABLE_RULE_DESCRIPTION,
 } from '@/utils';
 import type { StageHours } from '@/utils';
 import { cn } from '@/utils';
-import type { BCResource } from '@/types';
+import type { BCProject, BCResource } from '@/types';
 import { teamConfig, getUtilizationColor, getBillableColor } from '@/config';
 
 // Register Chart.js components
@@ -154,6 +156,11 @@ export function TeamList() {
         // everyone (an empty list just means everyone falls back to the default capacity)
         const uomMap = buildUOMConversionMap(await bcClient.getResourceUnitsOfMeasure());
 
+        // Projects' bill-to customers decide which time is billable; fetched once for everyone
+        const projectsByNumber = await projectService
+          .getProjectsByNumber()
+          .catch(() => new Map<string, BCProject>());
+
         // Fetch hours for each resource for the selected week
         const membersWithHours = await Promise.all(
           resources.map(async (resource) => {
@@ -163,6 +170,7 @@ export function TeamList() {
               teamConfig.defaultCapacity
             );
             let stages = emptyStageHours();
+            let billableHours = 0;
 
             try {
               // Get timesheet for this resource
@@ -177,6 +185,7 @@ export function TeamList() {
 
                 // Project (Job) hours from timesheet details, split by stage
                 stages = getStageHours(lines, details);
+                billableHours = getBillableHours(lines, details, projectsByNumber);
               }
             } catch (error) {
               // Resource might not have a timesheet for this week - that's OK.
@@ -193,8 +202,6 @@ export function TeamList() {
             }
 
             const totalHours = stages.total;
-            // TODO: Currently all job entries are considered billable; update when BC exposes billable vs non-billable job types
-            const billableHours = totalHours;
             const nonBillableHours = totalHours - billableHours;
             const utilization = capacity > 0 ? (totalHours / capacity) * 100 : 0;
             const billablePercent = totalHours > 0 ? (billableHours / totalHours) * 100 : 0;
@@ -658,6 +665,7 @@ export function TeamList() {
                         aria-sort={getAriaSort('billablePercent')}
                         tabIndex={0}
                         onKeyDown={(e) => e.key === 'Enter' && handleSort('billablePercent')}
+                        title={BILLABLE_RULE_DESCRIPTION}
                       >
                         <div className="flex items-center justify-end gap-1">
                           Billable %

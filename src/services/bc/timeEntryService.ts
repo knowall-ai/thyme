@@ -1,7 +1,16 @@
 import toast from 'react-hot-toast';
 import { bcClient } from './bcClient';
-import type { TimeEntry, BCTimeSheet, BCTimeSheetLine, BCTimeSheetDetail, Teammate } from '@/types';
+import { projectService } from './projectService';
+import type {
+  TimeEntry,
+  BCProject,
+  BCTimeSheet,
+  BCTimeSheetLine,
+  BCTimeSheetDetail,
+  Teammate,
+} from '@/types';
 import { format, startOfWeek } from 'date-fns';
+import { isBillableEntry } from '@/utils';
 
 // Error thrown when no resource record exists in BC for the user
 export class NoResourceError extends Error {
@@ -74,6 +83,24 @@ function parseEntryId(entryId: string): { lineId: string; date: string } | null 
 }
 
 /**
+ * Projects keyed by number, for deciding which time is billable. A failed lookup
+ * isn't fatal: entries still load, judged on their lines' chargeable flag alone.
+ */
+async function loadProjectsByNumber(): Promise<Map<string, BCProject>> {
+  try {
+    return await projectService.getProjectsByNumber();
+  } catch (error) {
+    console.warn('Could not load projects to work out billable time:', error);
+    return new Map();
+  }
+}
+
+/** Whether a line's time is billable, given the projects it might belong to */
+function isLineBillable(line: BCTimeSheetLine, projectsByNumber: Map<string, BCProject>): boolean {
+  return isBillableEntry(line, line.jobNo ? projectsByNumber.get(line.jobNo) : undefined);
+}
+
+/**
  * Convert BC Timesheet Lines and Details to TimeEntry objects.
  * Each detail record becomes one TimeEntry.
  */
@@ -81,7 +108,8 @@ function bcDataToTimeEntries(
   lines: BCTimeSheetLine[],
   details: BCTimeSheetDetail[],
   _timesheet: BCTimeSheet,
-  userId: string
+  userId: string,
+  projectsByNumber: Map<string, BCProject>
 ): TimeEntry[] {
   const entries: TimeEntry[] = [];
 
@@ -108,7 +136,7 @@ function bcDataToTimeEntries(
         date: detail.date,
         hours: detail.quantity,
         notes: line.description || undefined,
-        isBillable: true, // BC timesheets are typically billable
+        isBillable: isLineBillable(line, projectsByNumber),
         isRunning: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -129,6 +157,7 @@ export const timeEntryService = {
   _currentTimesheet: null as BCTimeSheet | null,
   _currentTimesheetLines: [] as BCTimeSheetLine[],
   _currentTimesheetDetails: [] as BCTimeSheetDetail[],
+  _currentProjectsByNumber: new Map<string, BCProject>(),
 
   /**
    * Get the timesheet for a user and week.
@@ -161,17 +190,19 @@ export const timeEntryService = {
 
     try {
       const timesheet = await this.getTimesheet(resource.number, weekStart);
-      const [lines, details] = await Promise.all([
+      const [lines, details, projectsByNumber] = await Promise.all([
         bcClient.getTimeSheetLines(timesheet.number),
         bcClient.getAllTimeSheetDetails(timesheet.number),
+        loadProjectsByNumber(),
       ]);
 
       // Cache for later operations
       this._currentTimesheet = timesheet;
       this._currentTimesheetLines = lines;
       this._currentTimesheetDetails = details;
+      this._currentProjectsByNumber = projectsByNumber;
 
-      return bcDataToTimeEntries(lines, details, timesheet, userId);
+      return bcDataToTimeEntries(lines, details, timesheet, userId, projectsByNumber);
     } catch (error) {
       if (error instanceof NoTimesheetError || error instanceof NoResourceError) {
         // Clear cache
@@ -262,7 +293,8 @@ export const timeEntryService = {
       date: entry.date,
       hours: entry.hours,
       notes: entry.notes,
-      isBillable: entry.isBillable,
+      // The task's flag (from the projects store) and the new line must both allow it
+      isBillable: entry.isBillable && isLineBillable(line, this._currentProjectsByNumber),
       isRunning: entry.isRunning,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -333,7 +365,7 @@ export const timeEntryService = {
       date: date,
       hours: updates.hours ?? 0,
       notes: updates.notes ?? line.description,
-      isBillable: true,
+      isBillable: isLineBillable(line, this._currentProjectsByNumber),
       isRunning: false,
       updatedAt: new Date().toISOString(),
       bcTimeSheetLineId: line.id,
@@ -419,7 +451,8 @@ export const timeEntryService = {
       this._currentTimesheetLines,
       this._currentTimesheetDetails,
       this._currentTimesheet,
-      userId
+      userId,
+      this._currentProjectsByNumber
     );
   },
 
@@ -614,7 +647,7 @@ export const timeEntryService = {
           date: newDateStr,
           hours: prevDetail.quantity,
           notes: currentLine.description,
-          isBillable: true,
+          isBillable: isLineBillable(currentLine, this._currentProjectsByNumber),
           isRunning: false,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -660,12 +693,13 @@ export const timeEntryService = {
   async getTeammateEntries(weekStart: Date, teammate: Teammate): Promise<TimeEntry[]> {
     try {
       const timesheet = await this.getTimesheet(teammate.resourceNo, weekStart);
-      const [lines, details] = await Promise.all([
+      const [lines, details, projectsByNumber] = await Promise.all([
         bcClient.getTimeSheetLines(timesheet.number),
         bcClient.getAllTimeSheetDetails(timesheet.number),
+        loadProjectsByNumber(),
       ]);
 
-      return bcDataToTimeEntries(lines, details, timesheet, teammate.id);
+      return bcDataToTimeEntries(lines, details, timesheet, teammate.id, projectsByNumber);
     } catch (error) {
       // A missing timesheet is actionable - the caller can offer to create one - so
       // it travels up rather than being flattened into an empty week like the rest.

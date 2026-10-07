@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useId } from 'react';
 import { Card, ExtensionPreviewWrapper } from '@/components/ui';
 import { ExtensionNotInstalledError, NoTimesheetError } from '@/services/bc';
 import {
@@ -13,6 +13,7 @@ import {
   UsersIcon,
   ChevronDownIcon,
   UserIcon,
+  InformationCircleIcon,
 } from '@heroicons/react/24/outline';
 import {
   format,
@@ -38,6 +39,7 @@ import {
   DATE_FORMAT_SHORT,
   DATE_FORMAT_DAY_SHORT,
   isTeamMember,
+  BILLABLE_RULE_DESCRIPTION,
 } from '@/utils';
 import type { TimeEntry, BCResource } from '@/types';
 
@@ -56,6 +58,49 @@ interface DayBreakdown {
   label: string;
   hours: number;
   billableHours: number;
+}
+
+// Explains which time counts as billable, next to the billable figures
+function BillableInfo({ label }: { label: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const tooltipId = useId();
+
+  return (
+    // Hover is tracked on the wrapper so the pointer can move onto the tooltip
+    <span
+      className="relative inline-flex print:hidden"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
+      <button
+        type="button"
+        className="focus:ring-thyme-500 focus:ring-offset-dark-800 flex cursor-help rounded text-gray-600 hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none"
+        // Keyboard focus opens it; a tap (which may also focus) is handled by onClick
+        onFocus={(e) => e.currentTarget.matches(':focus-visible') && setIsOpen(true)}
+        onBlur={() => setIsOpen(false)}
+        // Tap to show or hide it on touch screens. Enter/Space clicks (detail 0) keep it
+        // open, since keyboard focus has already shown it
+        onClick={(e) => setIsOpen((open) => (e.detail === 0 ? true : !open))}
+        onKeyDown={(e) => e.key === 'Escape' && setIsOpen(false)}
+        aria-label={`Info: ${label}`}
+        aria-describedby={tooltipId}
+        aria-expanded={isOpen}
+      >
+        <InformationCircleIcon className="h-4 w-4" />
+      </button>
+      {/* Always rendered (hidden when closed) so aria-describedby can read it. The top
+          padding bridges the gap to the button, so hover isn't lost on the way across */}
+      <span
+        id={tooltipId}
+        role="tooltip"
+        className={cn('absolute top-full left-0 z-20 w-64 pt-2', !isOpen && 'hidden')}
+      >
+        <span className="bg-dark-700 block rounded px-3 py-2 text-xs text-gray-300 shadow-lg">
+          {BILLABLE_RULE_DESCRIPTION}
+        </span>
+      </span>
+    </span>
+  );
 }
 
 export function ReportsPanel() {
@@ -460,7 +505,10 @@ export function ReportsPanel() {
                 <ChartBarIcon className="h-5 w-5 text-blue-500" />
               </div>
               <div>
-                <p className="text-dark-400 text-sm">Billable Hours</p>
+                <p className="text-dark-400 flex items-center gap-1 text-sm">
+                  Billable Hours
+                  <BillableInfo label="Billable Hours" />
+                </p>
                 <p className="text-dark-100 text-xl font-bold">
                   {isLoading ? '...' : formatTime(stats.billableHours)}
                 </p>
@@ -486,7 +534,10 @@ export function ReportsPanel() {
                 <ChartBarIcon className="h-5 w-5 text-amber-500" />
               </div>
               <div>
-                <p className="text-dark-400 text-sm">Billable %</p>
+                <p className="text-dark-400 flex items-center gap-1 text-sm">
+                  Billable %
+                  <BillableInfo label="Billable %" />
+                </p>
                 <p className="text-dark-100 text-xl font-bold">
                   {isLoading ? '...' : `${stats.billablePercentage}%`}
                 </p>

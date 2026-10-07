@@ -231,6 +231,7 @@ export interface BCTimeSheetLine {
   totalQuantity: number;
   status: 'Open' | 'Submitted' | 'Rejected' | 'Approved';
   timeSheetStartingDate?: string; // ISO date of the parent timesheet's start
+  chargeable?: boolean; // BC defaults this to true, even on internal projects
   '@odata.etag'?: string;
 }
 
@@ -278,6 +279,7 @@ export interface Project {
   code: string;
   name: string;
   customerName?: string;
+  isInternal?: boolean; // No bill-to customer, or an "Internal" one: its time is never billable
   color: string;
   status: 'active' | 'completed' | 'archived';
   isFavorite: boolean;

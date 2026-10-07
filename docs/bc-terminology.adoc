@@ -158,6 +158,17 @@ Thyme shows this as:
 | Hours Unposted × average billable rate
 |===
 
+=== Billable Hours
+
+Reports (Billable Hours, Billable %, per-project and per-day splits, CSV export), the Team page's Billable %, the Approvals billable % and new time entries all use one rule (`isBillableEntry` in `src/utils/billable.ts`). Time is billable only when *both*:
+
+* the timesheet line isn't marked not chargeable (`chargeable` on `/timeSheetLines` is not `false`), and
+* its project isn't *internal*.
+
+A project is internal when it has no bill-to customer (`billToCustomerNo` is empty), or its bill-to customer's name contains "Internal" as a whole word (case-insensitive, e.g. "Contoso - Internal"; "Contoso International" doesn't count).
+
+NOTE: BC defaults `chargeable` to true on every timesheet line, internal projects included, so the line flag alone can't separate internal time. If a project's details can't be loaded, its time is judged on the line's `chargeable` flag alone.
+
 == Line Types (Resource, Item, G/L Account)
 
 Business Central categorises costs/prices by **line type**:
