@@ -6,10 +6,9 @@ import {
   ArrowTopRightOnSquareIcon,
   CalendarDaysIcon,
   LockClosedIcon,
-  PencilSquareIcon,
   PlusIcon,
   SparklesIcon,
-  XMarkIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 import { useTimeEntriesStore, useSettingsStore } from '@/hooks';
 import { useTimeSuggestions } from '@/hooks/useTimeSuggestions';
@@ -165,21 +164,10 @@ export function PoppieSuggestionsPanel({
     await markAccepted(s, entry);
   };
 
-  const handleAdd = async (s: BCTimeSuggestion) => {
+  // Always via the pre-filled modal, so the entry is checked before it's saved
+  const handleAdd = (s: BCTimeSuggestion) => {
     if (!canEdit) return;
-    if (!isQuickAddable(s)) {
-      setEditing(s);
-      return;
-    }
-    setBusy(s.id, true);
-    try {
-      await addSuggestion(s);
-      toast.success('Time entry added');
-    } catch {
-      toast.error('Failed to add time entry. Please try again.');
-    } finally {
-      setBusy(s.id, false);
-    }
+    setEditing(s);
   };
 
   const handleUndoDismiss = async (s: BCTimeSuggestion) => {
@@ -379,14 +367,18 @@ export function PoppieSuggestionsPanel({
                           <p className="text-dark-500 flex items-center gap-1.5 text-xs">
                             <span
                               className={cn(
-                                'h-1.5 w-1.5 rounded-full',
+                                'h-1.5 w-1.5 shrink-0 rounded-full',
                                 confidenceDots[s.confidence]
                               )}
                               aria-hidden="true"
                             />
-                            <span>{s.confidence} confidence</span>
-                            {s.evidence && <span className="truncate">· {s.evidence}</span>}
+                            <span className="whitespace-nowrap">{s.confidence} confidence</span>
                           </p>
+                          {s.evidence && (
+                            <p className="text-dark-500 truncate text-xs" title={s.evidence}>
+                              {s.evidence}
+                            </p>
+                          )}
                         </div>
                         <span className="text-dark-200 shrink-0 text-sm font-medium">
                           {formatTime(roundToQuarterHour(s.quantity))}
@@ -400,33 +392,24 @@ export function PoppieSuggestionsPanel({
                               disabled={busy || isAddingAll}
                               title={
                                 isQuickAddable(s)
-                                  ? 'Add to timesheet'
-                                  : 'Choose a project and task first'
+                                  ? 'Check and add to timesheet'
+                                  : 'Choose a project and task, then add'
                               }
                             >
                               <PlusIcon className="h-4 w-4 sm:mr-1" />
                               <span className="hidden sm:inline">Add</span>
                             </Button>
-                            <button
-                              type="button"
-                              onClick={() => setEditing(s)}
-                              disabled={busy || isAddingAll}
-                              className="text-dark-400 hover:bg-dark-700 rounded-md p-1.5 hover:text-white disabled:opacity-50"
-                              title="Edit before adding"
-                              aria-label="Edit before adding"
-                            >
-                              <PencilSquareIcon className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={() => handleDismiss(s)}
                               disabled={busy || isAddingAll}
-                              className="text-dark-400 hover:bg-dark-700 rounded-md p-1.5 hover:text-white disabled:opacity-50"
-                              title="Dismiss"
+                              title="Dismiss this suggestion"
                               aria-label="Dismiss suggestion"
+                              className="hover:border-red-500/50 hover:text-red-400"
                             >
-                              <XMarkIcon className="h-4 w-4" />
-                            </button>
+                              <TrashIcon className="h-4 w-4" />
+                            </Button>
                           </div>
                         )}
                       </li>
