@@ -1128,7 +1128,7 @@ class BusinessCentralClient {
    * Set a resource's own weekly capacity (hours, 0 = listed but not counted), or clear it
    * (null) so Thyme falls back to hours per day x 5, plus whether they work flexible days.
    * Reads the resource first for a fresh ETag, as BC requires If-Match. Needs Thyme BC
-   * Extension 1.17+; BC decides who may change it.
+   * Extension 1.19+; BC decides who may change it.
    */
   async updateResourceWeeklyCapacity(
     resourceId: string,

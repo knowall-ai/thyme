@@ -30,10 +30,10 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Business Central refused the change (403). Billable targets are saved to the Resource (per person) and Thyme Setup (company default) in BC, so the user needs permission to modify those records; ask a BC administrator to assign it, or to change the target for you.
 
 | Team page "Timesheet completion" is below 100% for someone who worked a full week
-| Timesheet completion is hours logged ÷ capacity. Check their timesheet for missing days, and that their capacity is right: it is the person's own *Weekly Capacity* when set (Thyme BC Extension 1.17+), otherwise the hours per day on their resource units of measure in BC (e.g. a DAY unit of 7.5 hours) x 5, falling back to 40 hours a week.
+| Timesheet completion is hours logged ÷ capacity. Check their timesheet for missing days, and that their capacity is right: it is the person's own *Weekly Capacity* when set (Thyme BC Extension 1.19+), otherwise the hours per day on their resource units of measure in BC (e.g. a DAY unit of 7.5 hours) x 5, falling back to 40 hours a week.
 
 | A part-timer's capacity on the Team page is too high (e.g. 37.5h a week for someone who works two days)
-| Capacity defaults to hours per day x 5. On the Team page, click the pencil next to their capacity and enter their hours a week (e.g. 15). Tick *Flexible working days* if they work those hours on any days rather than fixed weekdays. Needs Thyme BC Extension 1.17+ and permission to modify Resources in BC; the pencil only shows when the extension supports it.
+| Capacity defaults to hours per day x 5. On the Team page, click the pencil next to their capacity and enter their hours a week (e.g. 15). Tick *Flexible working days* if they work those hours on any days rather than fixed weekdays. Needs Thyme BC Extension 1.19+ and permission to modify Resources in BC; the pencil only shows when the extension supports it.
 
 | A person is greyed out on the Team page with completion "–"
 | Their weekly capacity is set to 0, which means "listed but not counted" (used for AI agents and anyone who shouldn't count). They're left out of Team Capacity, Timesheet completion and the billable target. To count them again, click the pencil next to their capacity and tick *Use default*, or enter their real hours.
