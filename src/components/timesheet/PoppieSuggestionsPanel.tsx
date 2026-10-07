@@ -1,10 +1,13 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import toast from 'react-hot-toast';
 import {
+  ArrowPathIcon,
   ArrowTopRightOnSquareIcon,
   CalendarDaysIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
   LockClosedIcon,
   PlusIcon,
   SparklesIcon,
@@ -12,11 +15,14 @@ import {
 } from '@heroicons/react/24/outline';
 import { useTimeEntriesStore, useSettingsStore } from '@/hooks';
 import { useTimeSuggestions } from '@/hooks/useTimeSuggestions';
+import { useSuggestionRequest } from '@/hooks/useSuggestionRequest';
+import { useAgentPresence } from '@/hooks/useAgentPresence';
 import { useAuth } from '@/services/auth';
 import { timeEntryService } from '@/services/bc';
 import { Button, Card } from '@/components/ui';
 import { TimeEntryModal, type TimeEntryPrefill } from './TimeEntryModal';
 import type {
+  BCSuggestionRequest,
   BCTimeSuggestion,
   Project,
   Task,
@@ -32,6 +38,14 @@ import {
   roundToQuarterHour,
   suggestionNotes,
 } from '@/utils/timeSuggestions';
+import {
+  isOpenRequest,
+  requestDoneText,
+  requestProgressText,
+  shouldOfferRequest,
+  weekTiming,
+} from '@/utils/suggestionRequests';
+import { offlineText } from '@/utils/agentPresence';
 
 function GitHubIcon({ className }: { className?: string }) {
   return (
@@ -79,12 +93,16 @@ interface PoppieSuggestionsPanelProps {
   canEdit: boolean;
   // Why suggestions can't be added, shown in place of the Add buttons
   readOnlyReason?: string | null;
+  // Whose timesheet this is when it isn't the signed-in user's (for request messages)
+  personName?: string | null;
 }
 
 /**
  * Poppie's suggested time entries for the week on screen. Add creates the entry the
  * same way the grid's "+ Add" does; Edit opens the entry modal pre-filled; Dismiss
- * hides it (with undo). Hidden entirely when the BC extension has no timeSuggestions API.
+ * hides it (with undo). "Request suggestions" asks Poppie to check the week now (past
+ * weeks, a quiet current week, or a teammate's week when BC allows) and shows her progress.
+ * Hidden entirely when the BC extension has no timeSuggestions API.
  */
 export function PoppieSuggestionsPanel({
   resourceNo,
@@ -94,15 +112,33 @@ export function PoppieSuggestionsPanel({
   projects,
   canEdit,
   readOnlyReason,
+  personName,
 }: PoppieSuggestionsPanelProps) {
   const { account } = useAuth();
   const userId = account?.localAccountId || '';
   const { addEntry } = useTimeEntriesStore();
   const { requireTimesheetComments } = useSettingsStore();
-  const { suggestions, isLoading, isAvailable, accept, dismiss, restore } = useTimeSuggestions(
-    resourceNo,
-    weekStart
+  const { suggestions, isLoading, isAvailable, refetch, accept, dismiss, restore } =
+    useTimeSuggestions(resourceNo, weekStart);
+
+  // Poppie finished a requested run: show what she wrote straight away
+  const handleRequestFinished = useCallback(
+    (request: BCSuggestionRequest) => {
+      if (request.status === 'Done') refetch();
+    },
+    [refetch]
   );
+  const {
+    canRequest,
+    request,
+    finishedHere,
+    isSubmitting,
+    error: requestError,
+    requestSuggestions,
+  } = useSuggestionRequest(resourceNo, weekStart, handleRequestFinished);
+  // Poppie's heartbeat: only worth reading where requesting is possible at all
+  const presence = useAgentPresence(canRequest);
+  const agentOffline = presence.isAvailable && presence.state === 'offline';
 
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const [isAddingAll, setIsAddingAll] = useState(false);
@@ -264,6 +300,20 @@ export function PoppieSuggestionsPanel({
   if (!resourceNo || !isAvailable) return null;
 
   const showSkeleton = (isLoading || entriesLoading) && visible.length === 0;
+  const timing = weekTiming(weekStart);
+  const requestOpen = request !== null && isOpenRequest(request);
+  const offerRequest = shouldOfferRequest({
+    canRequest,
+    timing,
+    request,
+    suggestionCount: visible.length,
+  });
+
+  const emptyText = requestOpen
+    ? 'Suggestions will appear here when Poppie has finished.'
+    : offerRequest && timing === 'past'
+      ? 'No suggestions for this week. Request suggestions and Poppie will check calendars, GitHub and Azure DevOps.'
+      : 'No suggestions yet — Poppie checks calendars, GitHub and DevOps through the day.';
 
   return (
     <>
@@ -278,26 +328,115 @@ export function PoppieSuggestionsPanel({
                 {visible.length}
               </span>
             )}
+            {presence.isAvailable && (
+              <span
+                className="text-dark-400 ml-1 flex items-center gap-1.5 text-xs"
+                title={
+                  agentOffline
+                    ? offlineText(presence.lastSeenAt)
+                    : 'Poppie checks for requests every minute'
+                }
+              >
+                <span
+                  className={cn(
+                    'h-2 w-2 rounded-full',
+                    agentOffline ? 'bg-dark-500' : 'bg-green-400'
+                  )}
+                  aria-hidden="true"
+                />
+                {agentOffline ? 'Poppie offline' : 'Poppie online'}
+              </span>
+            )}
           </div>
-          {canEdit
-            ? highConfidence.length > 0 && (
-                <Button variant="outline" size="sm" onClick={handleAddAll} disabled={isAddingAll}>
-                  <PlusIcon className="h-4 w-4 sm:mr-2" />
+          <div className="flex flex-wrap items-center gap-2">
+            {offerRequest && (
+              // The title sits on a wrapper too: a disabled button gets no hover in some browsers
+              <span title={agentOffline ? offlineText(presence.lastSeenAt) : undefined}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={requestSuggestions}
+                  disabled={isSubmitting || agentOffline}
+                  title={
+                    agentOffline
+                      ? offlineText(presence.lastSeenAt)
+                      : 'Ask Poppie to check calendars, GitHub and Azure DevOps for this week now'
+                  }
+                >
+                  <ArrowPathIcon
+                    className={cn('h-4 w-4 sm:mr-2', isSubmitting && 'animate-spin')}
+                  />
                   <span className="hidden sm:inline">
-                    {isAddingAll
-                      ? 'Adding...'
-                      : `Add all high confidence (${highConfidence.length})`}
+                    {isSubmitting ? 'Asking Poppie...' : 'Request suggestions'}
                   </span>
                 </Button>
-              )
-            : readOnlyReason &&
-              visible.length > 0 && (
-                <span className="text-dark-400 flex items-center gap-1.5 text-xs">
-                  <LockClosedIcon className="h-3.5 w-3.5" />
-                  {readOnlyReason}
-                </span>
-              )}
+              </span>
+            )}
+            {canEdit
+              ? highConfidence.length > 0 && (
+                  <Button variant="outline" size="sm" onClick={handleAddAll} disabled={isAddingAll}>
+                    <PlusIcon className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">
+                      {isAddingAll
+                        ? 'Adding...'
+                        : `Add all high confidence (${highConfidence.length})`}
+                    </span>
+                  </Button>
+                )
+              : readOnlyReason &&
+                visible.length > 0 && (
+                  <span className="text-dark-400 flex items-center gap-1.5 text-xs">
+                    <LockClosedIcon className="h-3.5 w-3.5" />
+                    {readOnlyReason}
+                  </span>
+                )}
+          </div>
         </div>
+
+        {/* A requested run: live progress, then the outcome */}
+        {request && requestOpen && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="border-dark-700 bg-thyme-500/5 flex items-center gap-3 border-b px-4 py-2.5 text-sm"
+          >
+            <span
+              className="border-thyme-400 h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-t-transparent"
+              aria-hidden="true"
+            />
+            <span className="text-dark-200">
+              {requestProgressText(
+                request,
+                Date.now(),
+                presence.isAvailable ? !agentOffline : undefined
+              )}
+            </span>
+          </div>
+        )}
+        {request && finishedHere && request.status === 'Done' && (
+          <div
+            role="status"
+            className="border-dark-700 flex items-center gap-3 border-b px-4 py-2.5 text-sm"
+          >
+            <CheckCircleIcon className="h-4 w-4 shrink-0 text-green-400" aria-hidden="true" />
+            <span className="text-dark-200">
+              {requestDoneText(request, { visibleCount: visible.length, personName })}
+            </span>
+          </div>
+        )}
+        {((request && finishedHere && request.status === 'Failed') || requestError) && (
+          <div
+            role="alert"
+            className="border-dark-700 flex items-center gap-3 border-b px-4 py-2.5 text-sm"
+          >
+            <ExclamationTriangleIcon className="h-4 w-4 shrink-0 text-red-400" aria-hidden="true" />
+            <span className="text-dark-200">
+              {requestError ||
+                request?.errorMessage ||
+                "Poppie couldn't finish checking this week. Please try again."}
+            </span>
+          </div>
+        )}
 
         {/* Body */}
         {showSkeleton ? (
@@ -307,9 +446,7 @@ export function PoppieSuggestionsPanel({
             ))}
           </div>
         ) : visible.length === 0 ? (
-          <p className="text-dark-400 px-4 py-6 text-center text-sm">
-            No suggestions yet — Poppie checks calendars, GitHub and DevOps through the day.
-          </p>
+          <p className="text-dark-400 px-4 py-6 text-center text-sm">{emptyText}</p>
         ) : (
           <div className="divide-dark-700 divide-y">
             {days.map((day) => (

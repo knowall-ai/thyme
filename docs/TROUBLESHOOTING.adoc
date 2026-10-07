@@ -92,6 +92,18 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Poppie's suggestions show but have no Add button
 | Suggestions can only be added to an open (or rejected) timesheet of your own. Reopen a submitted timesheet first; approved timesheets and teammates' timesheets are read-only, and the panel says why.
 
+| There's no *Request suggestions* button in Poppie's suggestions panel
+| The button needs Thyme BC Extension 1.18 or later (the `suggestionRequests` API); on older versions it's hidden. It also only shows for weeks that have started: always for past weeks, and for the current week while it has fewer than three suggestions (Poppie's midday and evening runs usually cover it). On someone else's timesheet you need to be their *Time Sheet Approver* on the Resource card, or a Thyme administrator (*Time Sheet Admin.* in User Setup, or the `THYME ADMIN` permission set).
+
+| *Request suggestions* is greyed out and the panel says "Poppie offline"
+| Thyme reads Poppie's heartbeat (Thyme BC Extension 1.18+). She refreshes it every minute from her `suggestion-requests` job, and after 5 minutes without one Thyme treats her as offline. Hover the button to see when she was last seen. Her VM is probably stopped, or the job isn't running. Ask an administrator to check the VM and `hermes cron list`. The button comes back by itself within a minute of her returning.
+
+| A suggestion request stays on "Queued" or says "Poppie seems to be offline"
+| Poppie checks for requests every minute, so a request waiting longer than a few minutes means her VM or its `suggestion-requests` job isn't running. The request stays queued and runs when she's back; you don't need to ask again. If it never starts, ask an administrator to check Poppie's `suggestion-requests` cron job. A request that started but stopped updating is marked failed after 30 minutes, so you can ask again.
+
+| Poppie finished a request for a teammate but no suggestions appear
+| Suggestions are only visible to the person they're for and to Thyme administrators, because they can include meeting subjects and other activity the person hasn't logged yet. As their approver you can ask Poppie to check their week, and Thyme tells you how many she found. They see the suggestions on their own timesheet.
+
 | "No Approval Access" on Timesheet Approvals page
 | To approve timesheets, configure the approver in Business Central: (1) *Make user a Time Sheet Admin:* Search for "User Setup" → find your user (or create a new entry) → check the "Time Sheet Admin" checkbox. This allows the user to approve any timesheet. (2) *Or link approver to specific resources:* Search for "Resources" → open each Resource Card for employees you manage → set "Time Sheet Approver User ID" to your BC user ID. This allows you to approve only timesheets for those specific resources.
 
