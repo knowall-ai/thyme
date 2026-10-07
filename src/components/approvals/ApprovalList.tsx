@@ -17,7 +17,7 @@ import { ApprovalFilters } from './ApprovalFilters';
 import { prefetchTimeSheetLines } from './prefetchTimeSheetLines';
 import { useApprovalStore, useCompanyStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
-import { getUserProfilePhoto } from '@/services/auth/graphService';
+import { resolveResourceIdentity } from '@/services/auth/resourceIdentity';
 import { bcClient } from '@/services/bc/bcClient';
 import { cn, DATE_FORMAT_FULL, DATE_FORMAT_SHORT } from '@/utils';
 import type {
@@ -29,6 +29,9 @@ import type {
 } from '@/types';
 
 type GroupBy = 'none' | 'week' | 'person';
+
+const photoKey = (ts: BCTimeSheet) =>
+  `${ts.resourceName ?? ts.resourceNo}|${ts.resourceEmail ?? ''}`.toLowerCase();
 
 export function ApprovalList() {
   const { selectedCompany, companyVersion } = useCompanyStore();
@@ -229,22 +232,24 @@ export function ApprovalList() {
   // Pre-fetch profile photos for all unique resources
   useEffect(() => {
     async function prefetchPhotos() {
-      const uniqueEmails = new Set<string>();
+      // Keyed by resource name and owner, not number: one person can own several resources'
+      // time sheets, and numbers can repeat across companies
+      const toFetch = new Map<string, BCTimeSheet>();
       pendingApprovals.forEach((ts) => {
-        const email = getFullEmail(ts.resourceEmail);
-        if (email && !(email in photosCache)) {
-          uniqueEmails.add(email);
-        }
+        const key = photoKey(ts);
+        if (!(key in photosCache)) toFetch.set(key, ts);
       });
 
-      for (const email of uniqueEmails) {
-        try {
-          const photo = await getUserProfilePhoto(email);
-          setPhotosCache((prev) => ({ ...prev, [email]: photo }));
-        } catch {
-          setPhotosCache((prev) => ({ ...prev, [email]: null }));
-        }
-      }
+      await Promise.all(
+        Array.from(toFetch, async ([key, ts]) => {
+          const { photoUrl, failed } = await resolveResourceIdentity(
+            { name: ts.resourceName, ownerUserId: getFullEmail(ts.resourceEmail) },
+            emailDomain
+          );
+          // Leave the key unset on a failed lookup so a later pass can retry it
+          if (!failed) setPhotosCache((prev) => ({ ...prev, [key]: photoUrl }));
+        })
+      );
     }
     if (pendingApprovals.length > 0) {
       prefetchPhotos();
@@ -534,8 +539,7 @@ export function ApprovalList() {
                       // Show profile photo for person group
                       (() => {
                         const firstTs = group.items[0];
-                        const email = getFullEmail(firstTs?.resourceEmail);
-                        const photo = email ? photosCache[email] : null;
+                        const photo = firstTs ? photosCache[photoKey(firstTs)] : null;
                         return photo ? (
                           <img
                             src={photo}

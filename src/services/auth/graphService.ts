@@ -9,6 +9,7 @@ const GRAPH_API_BASE = 'https://graph.microsoft.com/v1.0';
 let cachedPhotoUrl: string | null | undefined = undefined;
 let cacheTimestamp: number = 0;
 const CACHE_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+const GRAPH_LOOKUP_TIMEOUT_MS = 15_000; // so a stalled request can't block a lookup forever
 
 /**
  * Fetches the current user's profile photo from Microsoft Graph API.
@@ -77,15 +78,72 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
+export interface GraphUserSummary {
+  id: string;
+  displayName: string;
+  userPrincipalName: string;
+}
+
+/**
+ * Looks up a directory user by UPN. Returns null when the user doesn't exist (404).
+ * Throws when Graph can't be reached (no token or a transient error) so callers can avoid
+ * caching a result that may be wrong.
+ */
+export async function getGraphUser(userPrincipalName: string): Promise<GraphUserSummary | null> {
+  const accessToken = await getGraphAccessToken();
+  if (!accessToken) throw new Error('No Graph access token');
+
+  const response = await fetch(
+    `${GRAPH_API_BASE}/users/${encodeURIComponent(userPrincipalName)}?$select=id,displayName,userPrincipalName`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(GRAPH_LOOKUP_TIMEOUT_MS),
+    }
+  );
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`Graph user lookup failed (${response.status})`);
+  return (await response.json()) as GraphUserSummary;
+}
+
+/**
+ * Finds directory users whose display name equals the given name (Graph compares
+ * case-insensitively). Needs only User.ReadBasic.All, which Thyme already requests.
+ * Throws when Graph can't be reached.
+ */
+export async function findGraphUsersByDisplayName(
+  displayName: string
+): Promise<GraphUserSummary[]> {
+  const accessToken = await getGraphAccessToken();
+  if (!accessToken) throw new Error('No Graph access token');
+
+  const escaped = displayName.replace(/'/g, "''");
+  const filter = encodeURIComponent(`displayName eq '${escaped}'`);
+  const response = await fetch(
+    `${GRAPH_API_BASE}/users?$filter=${filter}&$select=id,displayName,userPrincipalName`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(GRAPH_LOOKUP_TIMEOUT_MS),
+    }
+  );
+  if (!response.ok) throw new Error(`Graph user search failed (${response.status})`);
+  const body = (await response.json()) as { value?: GraphUserSummary[] };
+  return body.value ?? [];
+}
+
 // Cache for user photos by UPN
 const userPhotoCache = new Map<string, { url: string | null; timestamp: number }>();
 
 /**
  * Fetches a user's profile photo by their User Principal Name (UPN).
  * Returns a data URL that can be used directly in img src.
- * Returns null if no photo is available or on error.
+ * Returns null if no photo is available or on error. With `throwOnError`, a transient failure
+ * (no token, a non-404 error, a network error) throws instead and isn't cached, so callers
+ * can tell "no photo" from "couldn't check".
  */
-export async function getUserProfilePhoto(userPrincipalName: string): Promise<string | null> {
+export async function getUserProfilePhoto(
+  userPrincipalName: string,
+  options: { throwOnError?: boolean } = {}
+): Promise<string | null> {
   const cacheKey = userPrincipalName.toLowerCase();
   const cached = userPhotoCache.get(cacheKey);
 
@@ -97,6 +155,7 @@ export async function getUserProfilePhoto(userPrincipalName: string): Promise<st
   try {
     const accessToken = await getGraphAccessToken();
     if (!accessToken) {
+      if (options.throwOnError) throw new Error('No Graph access token');
       return null;
     }
 
@@ -110,6 +169,9 @@ export async function getUserProfilePhoto(userPrincipalName: string): Promise<st
     );
 
     if (!response.ok) {
+      if (options.throwOnError && response.status !== 404) {
+        throw new Error(`Graph photo lookup failed (${response.status})`);
+      }
       // Cache null for users without photos
       userPhotoCache.set(cacheKey, { url: null, timestamp: Date.now() });
       return null;
@@ -123,6 +185,7 @@ export async function getUserProfilePhoto(userPrincipalName: string): Promise<st
 
     return dataUrl;
   } catch (error) {
+    if (options.throwOnError) throw error;
     // Log errors in development for debugging, but don't fail the app
     if (process.env.NODE_ENV === 'development') {
       console.error('Failed to fetch profile photo for', userPrincipalName, error);

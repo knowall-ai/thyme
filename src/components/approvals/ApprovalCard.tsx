@@ -14,7 +14,7 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline';
 import { Card, Button } from '@/components/ui';
-import { getUserProfilePhoto } from '@/services/auth/graphService';
+import { resolveResourceIdentity } from '@/services/auth/resourceIdentity';
 import type {
   BCTimeSheet,
   BCTimeSheetLine,
@@ -94,10 +94,19 @@ export function ApprovalCard({
 
   // Fetch profile photo
   useEffect(() => {
-    if (resourceEmail) {
-      getUserProfilePhoto(resourceEmail).then(setPhotoUrl);
-    }
-  }, [resourceEmail]);
+    // resourceEmail is the time sheet owner's, who may own several resources' time sheets,
+    // so the photo is resolved for the resource itself
+    if (!resourceEmail && !timeSheet.resourceName) return;
+    let cancelled = false;
+    resolveResourceIdentity({ name: timeSheet.resourceName, ownerUserId: resourceEmail }, '').then(
+      ({ photoUrl }) => {
+        if (!cancelled) setPhotoUrl(photoUrl);
+      }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [resourceEmail, timeSheet.resourceName]);
 
   const formatDate = (dateString: string) => {
     try {

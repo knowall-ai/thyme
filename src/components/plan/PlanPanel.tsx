@@ -20,7 +20,7 @@ import { PlanResourceModal } from './PlanResourceModal';
 import { PlanEditModal } from './PlanEditModal';
 import { usePlanStore } from '@/hooks';
 import { useCompanyStore } from '@/hooks';
-import { useAuth, getUserProfilePhoto } from '@/services/auth';
+import { useAuth, resolveResourceIdentity } from '@/services/auth';
 import { ExtensionNotInstalledError } from '@/services/bc';
 import {
   cn,
@@ -1578,18 +1578,23 @@ export function PlanPanel({
     if (projectCode || teamMembers.length === 0) return;
 
     const fetchPhotos = async () => {
-      for (const member of teamMembers) {
-        if (member.userPrincipalName && !member.photoUrl) {
-          try {
-            const photoUrl = await getUserProfilePhoto(member.userPrincipalName);
-            if (photoUrl) {
-              updateMemberPhoto(member.id, photoUrl);
+      await Promise.all(
+        teamMembers
+          .filter((member) => !member.photoUrl)
+          .map(async (member) => {
+            try {
+              const { photoUrl } = await resolveResourceIdentity(
+                { name: member.name, ownerUserId: member.userPrincipalName },
+                emailDomain ?? ''
+              );
+              if (photoUrl) {
+                updateMemberPhoto(member.id, photoUrl);
+              }
+            } catch {
+              // Ignore photo errors
             }
-          } catch {
-            // Ignore photo errors
-          }
-        }
-      }
+          })
+      );
     };
 
     void fetchPhotos();
