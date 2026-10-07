@@ -11,6 +11,8 @@ import {
   isInternalProject,
   getAbsenceTaskNos,
   withoutAbsenceLines,
+  planningLineCostLCY,
+  timeEntryPriceProjectCurrency,
 } from '@/utils';
 
 // Color palette for projects (same as projectService)
@@ -197,6 +199,7 @@ export const projectDetailsService = {
       tasks: [],
       startDate,
       endDate,
+      currencyCode: bcProject.currencyCode,
     };
 
     // Fetch tasks
@@ -218,9 +221,17 @@ export const projectDetailsService = {
 
   /**
    * Fetch and aggregate analytics data for a project
-   * This fetches timesheet data from all resources who have worked on the project
+   * This fetches timesheet data from all resources who have worked on the project.
+   *
+   * Prices (billablePrice, invoicedPrice, unpostedBillable, unit prices) are in the project's
+   * currency; costs (budgetCost, actualCost, unpostedCost) are in the company's local currency.
+   * foreignCurrency: the project is priced in a currency other than the company's
    */
-  async getProjectAnalytics(projectNumber: string, isInternal = false): Promise<ProjectAnalytics> {
+  async getProjectAnalytics(
+    projectNumber: string,
+    isInternal = false,
+    { foreignCurrency = false }: { foreignCurrency?: boolean } = {}
+  ): Promise<ProjectAnalytics> {
     // Helper to create empty cost breakdown
     const emptyBreakdown = (): CostBreakdown => ({
       resource: 0,
@@ -436,9 +447,10 @@ export const projectDetailsService = {
     });
 
     // Build unit price map from Resources (Resource Card's Unit Price field)
-    // This is the customer billing rate configured on each Resource
+    // This is the customer billing rate configured on each Resource. It's in the company
+    // currency, so a project priced in another currency uses its planning lines' prices only
     const unitPriceByResource = new Map<string, number>();
-    for (const resource of resources) {
+    for (const resource of foreignCurrency ? [] : resources) {
       if (resource.unitPrice !== undefined && resource.unitPrice > 0) {
         unitPriceByResource.set(resource.number, resource.unitPrice);
       }
@@ -524,28 +536,29 @@ export const projectDetailsService = {
         }
       }
 
-      // Budget Cost: sum totalCost from ALL Budget lines with breakdown by type
+      // Budget Cost: sum the LCY total cost from ALL Budget lines with breakdown by type
+      // (internal cost, so in the company currency like Actual Cost)
       const budgetLines = planningLines.filter((line: BCJobPlanningLine) =>
         isBudgetPlanningLine(line.lineType)
       );
       budgetCost = budgetLines.reduce(
-        (sum: number, line: BCJobPlanningLine) => sum + line.totalCost,
+        (sum: number, line: BCJobPlanningLine) => sum + planningLineCostLCY(line),
         0
       );
       budgetCostBreakdown = {
         resource: budgetLines
           .filter((line: BCJobPlanningLine) => line.type === 'Resource')
-          .reduce((sum: number, line: BCJobPlanningLine) => sum + line.totalCost, 0),
+          .reduce((sum: number, line: BCJobPlanningLine) => sum + planningLineCostLCY(line), 0),
         item: budgetLines
           .filter((line: BCJobPlanningLine) => line.type === 'Item')
-          .reduce((sum: number, line: BCJobPlanningLine) => sum + line.totalCost, 0),
+          .reduce((sum: number, line: BCJobPlanningLine) => sum + planningLineCostLCY(line), 0),
         glAccount: budgetLines
           .filter((line: BCJobPlanningLine) => line.type === 'G/L Account')
-          .reduce((sum: number, line: BCJobPlanningLine) => sum + line.totalCost, 0),
+          .reduce((sum: number, line: BCJobPlanningLine) => sum + planningLineCostLCY(line), 0),
         total: budgetCost,
       };
 
-      // Billable Price: sum totalPrice from ALL Billable lines with breakdown by type
+      // Billable Price: sum totalPrice (project currency) from ALL Billable lines with breakdown by type
       const billableLines = planningLines.filter((line: BCJobPlanningLine) =>
         isBillableLine(line.lineType)
       );
@@ -657,7 +670,7 @@ export const projectDetailsService = {
     const estimateByResource = toResourceHours(estimateHoursByResource);
     const futurePlannedByResource = toResourceHours(futurePlannedHoursByResource);
 
-    // Fetch actual cost and invoiced price from Time Entries (Job Ledger Entry)
+    // Fetch actual cost (LCY) and invoiced price (project currency) from Time Entries (Job Ledger Entry)
     // Note: Time entries are all resource-type (labor), so actual/invoiced breakdown is resource-only
     let actualCost = 0;
     let invoicedPrice = 0;
@@ -674,8 +687,9 @@ export const projectDetailsService = {
         (sum: number, entry: BCTimeEntry) => sum + entry.totalCost,
         0
       );
+      // Invoiced Price in the project currency, like the Billable Price it's compared with
       invoicedPrice = postedEntries.reduce(
-        (sum: number, entry: BCTimeEntry) => sum + entry.totalPrice,
+        (sum: number, entry: BCTimeEntry) => sum + timeEntryPriceProjectCurrency(entry),
         0
       );
       // Build posted hours maps for breakdowns

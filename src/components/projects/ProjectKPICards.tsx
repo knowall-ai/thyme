@@ -10,6 +10,7 @@ import {
   getBCJobPlanningLinesUrl,
   getBCJobLedgerEntriesUrl,
   describeFinishVsEndDate,
+  formatCurrency,
 } from '@/utils';
 import type { ResourceHours } from '@/services/bc/projectDetailsService';
 import { ProjectPlanDialog } from './ProjectPlanDialog';
@@ -18,6 +19,10 @@ import {
   CalendarDaysIcon,
   BanknotesIcon,
   CurrencyPoundIcon,
+  CurrencyEuroIcon,
+  CurrencyDollarIcon,
+  CurrencyYenIcon,
+  CurrencyRupeeIcon,
   EyeIcon,
   EyeSlashIcon,
   InformationCircleIcon,
@@ -121,24 +126,16 @@ function formatHoursWithDays(hours: number, hoursPerDay: number): string {
   return `${hours.toFixed(1)}h (${days.toFixed(1)}d)`;
 }
 
-// Format currency using the company's currency code from BC
-function formatCurrency(amount: number, currencyCode: string): string {
-  // Map currency code to locale for proper formatting
-  const localeMap: Record<string, string> = {
-    GBP: 'en-GB',
-    USD: 'en-US',
-    EUR: 'de-DE',
-    CAD: 'en-CA',
-    AUD: 'en-AU',
-  };
-  const locale = localeMap[currencyCode] || 'en-GB';
-
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: currencyCode,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
+// Icon for a price card in the given currency; banknotes for currencies without one
+function currencyIcon(currencyCode: string): typeof BanknotesIcon {
+  if (currencyCode === 'GBP') return CurrencyPoundIcon;
+  if (currencyCode === 'EUR') return CurrencyEuroIcon;
+  if (['USD', 'CAD', 'AUD', 'NZD', 'SGD', 'HKD', 'MXN'].includes(currencyCode)) {
+    return CurrencyDollarIcon;
+  }
+  if (currencyCode === 'JPY' || currencyCode === 'CNY') return CurrencyYenIcon;
+  if (currencyCode === 'INR') return CurrencyRupeeIcon;
+  return BanknotesIcon;
 }
 
 export function ProjectKPICards() {
@@ -148,6 +145,7 @@ export function ProjectKPICards() {
     analytics,
     isLoadingAnalytics,
     currencyCode,
+    projectCurrencyCode,
     project,
     hiddenKpis,
     toggleKpiHidden,
@@ -242,30 +240,31 @@ export function ProjectKPICards() {
     'Budget Cost': {
       title: 'Budget Cost (Internal)',
       description:
-        'Internal cost budget from Job Planning Lines. This is what the project is expected to cost the company. Broken down by Resource (labour), Item (materials), and G/L Account (overhead).',
-      formula: 'quantity × unitCost',
-      source: 'BC API: /jobPlanningLines → totalCost',
+        "Internal cost budget from Job Planning Lines, in the company's currency. This is what the project is expected to cost the company. Broken down by Resource (labour), Item (materials), and G/L Account (overhead).",
+      formula: 'Σ totalCostLCY (quantity × unit cost, in company currency)',
+      source: 'BC API: /jobPlanningLines → totalCostLCY (totalCost on extensions before 1.14)',
     },
     'Actual Cost': {
       title: 'Actual Cost (Internal)',
       description:
-        "Internal cost incurred from posted Job Ledger Entries. Calculated when timesheets are posted using each Resource's Unit Cost. Shows £0 if timesheets are approved but not yet posted.",
+        "Internal cost incurred from posted Job Ledger Entries, in the company's currency. Calculated when timesheets are posted using each Resource's Unit Cost. Shows 0 if timesheets are approved but not yet posted.",
       formula: 'posted hours × Resource Unit Cost',
-      source: 'BC API: /timeEntries → totalCost',
+      source: 'BC API: /timeEntries → totalCost (LCY)',
     },
     'Billable Price': {
       title: 'Billable Price (Customer)',
       description:
-        'Customer quote/expected revenue from Job Planning Lines. This is what the customer is expected to pay. Only includes lines where lineType is "Billable" or "Both Budget and Billable".',
+        'Customer quote/expected revenue from Job Planning Lines, in the project\'s currency. This is what the customer is expected to pay. Only includes lines where lineType is "Billable" or "Both Budget and Billable".',
       formula: 'quantity × unitPrice',
       source: 'BC API: /jobPlanningLines → totalPrice',
     },
     'Invoiced Price': {
       title: 'Invoiced Price (Customer)',
       description:
-        "Amount actually invoiced to the customer from Job Ledger Entry. Calculated when timesheets are posted using each Resource's Unit Price.",
-      formula: 'posted hours × Resource Unit Price',
-      source: 'BC API: /timeEntries → totalPrice',
+        "Amount actually invoiced to the customer from Job Ledger Entry, in the project's currency. Calculated when time is posted, using the unit price on the posted line converted to the project's currency.",
+      formula: 'Σ totalPriceProjectCurrency (posted quantity × unit price, in project currency)',
+      source:
+        'BC API: /timeEntries → totalPriceProjectCurrency (totalPrice on extensions before 1.14)',
     },
   };
 
@@ -418,6 +417,7 @@ export function ProjectKPICards() {
     value: string;
     subLabel: ReactNode;
     breakdown: typeof budgetBreakdown | null;
+    currency: string; // Costs are in the company currency, prices in the project's
     icon: typeof BanknotesIcon;
     color: string;
     isInternal?: boolean;
@@ -427,6 +427,7 @@ export function ProjectKPICards() {
       value: formatCurrency(budgetCost, currencyCode),
       subLabel: jobPlanningLinesLink,
       breakdown: budgetBreakdown,
+      currency: currencyCode,
       icon: BanknotesIcon,
       color: 'text-amber-400',
       isInternal: true,
@@ -436,6 +437,7 @@ export function ProjectKPICards() {
       value: formatCurrency(actualCost, currencyCode),
       subLabel: jobLedgerEntryLink,
       breakdown: actualBreakdown,
+      currency: currencyCode,
       icon: BanknotesIcon,
       color:
         !isInternal && actualCost > budgetCost && budgetCost > 0
@@ -445,18 +447,20 @@ export function ProjectKPICards() {
     },
     {
       label: 'Billable Price',
-      value: formatCurrency(billablePrice, currencyCode),
+      value: formatCurrency(billablePrice, projectCurrencyCode),
       subLabel: jobPlanningLinesLink,
       breakdown: billableBreakdown,
-      icon: CurrencyPoundIcon,
+      currency: projectCurrencyCode,
+      icon: currencyIcon(projectCurrencyCode),
       color: 'text-blue-400',
     },
     {
       label: 'Invoiced Price',
-      value: formatCurrency(invoicedPrice, currencyCode),
+      value: formatCurrency(invoicedPrice, projectCurrencyCode),
       subLabel: jobLedgerEntryLink,
       breakdown: invoicedBreakdown,
-      icon: CurrencyPoundIcon,
+      currency: projectCurrencyCode,
+      icon: currencyIcon(projectCurrencyCode),
       color: 'text-green-400',
     },
   ];
@@ -601,15 +605,15 @@ export function ProjectKPICards() {
                     <div className="mt-1 space-y-0.5 text-xs text-gray-500">
                       <div className="flex justify-between">
                         <span>Resource:</span>
-                        <span>{formatCurrency(breakdown.resource, currencyCode)}</span>
+                        <span>{formatCurrency(breakdown.resource, kpi.currency)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Item:</span>
-                        <span>{formatCurrency(breakdown.item, currencyCode)}</span>
+                        <span>{formatCurrency(breakdown.item, kpi.currency)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>G/L Account:</span>
-                        <span>{formatCurrency(breakdown.glAccount, currencyCode)}</span>
+                        <span>{formatCurrency(breakdown.glAccount, kpi.currency)}</span>
                       </div>
                     </div>
                   )}

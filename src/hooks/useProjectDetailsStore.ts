@@ -5,6 +5,7 @@ import { bcClient } from '@/services/bc/bcClient';
 import { useProjectsStore } from './useProjectsStore';
 import { usePlanStore } from './usePlanStore';
 import { activeCompanyKey } from './companyScope';
+import { getProjectCurrencyCode, isForeignCurrency } from '@/utils/currency';
 
 // BC Job Description is Text[100]
 export const PROJECT_NAME_MAX_LENGTH = 100;
@@ -31,7 +32,8 @@ interface ProjectDetailsStore {
   project: Project | null;
   tasks: Task[];
   analytics: ProjectAnalytics | null;
-  currencyCode: string; // From BC companyInformation
+  currencyCode: string; // Company (local) currency, from BC companyInformation: internal costs
+  projectCurrencyCode: string; // The project's prices: its BC Currency Code, else the company currency
   isLoading: boolean;
   isLoadingAnalytics: boolean;
   error: string | null;
@@ -63,6 +65,7 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
   tasks: [],
   analytics: null,
   currencyCode: 'GBP', // Default, will be overwritten from BC
+  projectCurrencyCode: 'GBP',
   isLoading: false,
   isLoadingAnalytics: false,
   error: null,
@@ -103,14 +106,16 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
         if (isStale()) return;
         const { project, tasks } = projectData;
         const currencyCode = companyInfo?.currencyCode || 'GBP';
-        set({ project, tasks, currencyCode, isLoading: false });
+        const projectCurrencyCode = getProjectCurrencyCode(project.currencyCode, currencyCode);
+        set({ project, tasks, currencyCode, projectCurrencyCode, isLoading: false });
 
         // Fetch analytics (this can take longer)
         set({ isLoadingAnalytics: true });
         try {
           const analytics = await projectDetailsService.getProjectAnalytics(
             projectNumber,
-            project.isInternal
+            project.isInternal,
+            { foreignCurrency: isForeignCurrency(project.currencyCode, currencyCode) }
           );
           if (isStale()) return;
           set({ analytics, isLoadingAnalytics: false });
@@ -196,6 +201,7 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
       tasks: [],
       analytics: null,
       currencyCode: 'GBP',
+      projectCurrencyCode: 'GBP',
       isLoading: false,
       isLoadingAnalytics: false,
       error: null,
