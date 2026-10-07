@@ -130,6 +130,31 @@ export async function findGraphUsersByDisplayName(
   return body.value ?? [];
 }
 
+/**
+ * Finds directory users whose display name starts with the given text (Graph compares
+ * case-insensitively). Needs only User.ReadBasic.All, which Thyme already requests.
+ * Throws when Graph can't be reached.
+ */
+export async function findGraphUsersByDisplayNamePrefix(
+  prefix: string
+): Promise<GraphUserSummary[]> {
+  const accessToken = await getGraphAccessToken();
+  if (!accessToken) throw new Error('No Graph access token');
+
+  const escaped = prefix.replace(/'/g, "''");
+  const filter = encodeURIComponent(`startswith(displayName,'${escaped}')`);
+  const response = await fetch(
+    `${GRAPH_API_BASE}/users?$filter=${filter}&$select=id,displayName,userPrincipalName`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(GRAPH_LOOKUP_TIMEOUT_MS),
+    }
+  );
+  if (!response.ok) throw new Error(`Graph user search failed (${response.status})`);
+  const body = (await response.json()) as { value?: GraphUserSummary[] };
+  return body.value ?? [];
+}
+
 // Cache for user photos by UPN
 const userPhotoCache = new Map<string, { url: string | null; timestamp: number }>();
 

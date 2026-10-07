@@ -8,6 +8,7 @@ import {
 import type { BCTimesheetReviewLine, TimesheetReviewSeverity } from '@/types';
 import { cn, type VerdictTone } from '@/utils';
 import type { TimesheetReviewResult } from '@/hooks';
+import { useReviewerPhoto } from '@/services/auth/reviewerIdentity';
 
 export const VERDICT_TONE_CLASSES: Record<VerdictTone, string> = {
   green: 'bg-thyme-500/20 text-thyme-400',
@@ -28,17 +29,36 @@ export function getSeverityStyle(severity: string) {
   return SEVERITY_STYLES[severity as TimesheetReviewSeverity] ?? SEVERITY_STYLES.Info;
 }
 
-/** Poppie's initial in a circle - she has no profile photo */
-export function PoppieAvatar({ className }: { className?: string }) {
+/**
+ * The AI reviewer's avatar: their Microsoft 365 profile photo when the reviewer name resolves to
+ * exactly one directory user, otherwise their initial in a circle.
+ */
+export function PoppieAvatar({
+  reviewer,
+  className,
+}: {
+  reviewer?: string | null;
+  className?: string;
+}) {
+  const name = reviewer?.trim() || 'Poppie';
+  const photoUrl = useReviewerPhoto(reviewer);
+  const shape = 'inline-flex h-7 w-7 shrink-0 rounded-full';
+
+  if (photoUrl) {
+    return (
+      <img src={photoUrl} alt={`${name} (AI)`} className={cn(shape, 'object-cover', className)} />
+    );
+  }
   return (
     <span
       aria-hidden="true"
       className={cn(
-        'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 text-xs font-semibold text-white',
+        shape,
+        'items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-500 text-xs font-semibold text-white',
         className
       )}
     >
-      P
+      {name.charAt(0).toUpperCase()}
     </span>
   );
 }
@@ -97,7 +117,7 @@ export function PoppieVerdictChip({ result }: { result: TimesheetReviewResult })
           : `Poppie: ${verdict.label}`
       }
     >
-      <PoppieAvatar className="h-4 w-4 text-[9px]" />
+      <PoppieAvatar reviewer={result.review?.reviewer} className="h-4 w-4 text-[9px]" />
       {verdict.label}
     </span>
   );

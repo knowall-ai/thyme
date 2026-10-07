@@ -13,3 +13,9 @@ export {
   resolveResourceUpn,
   clearResourceIdentityCache,
 } from './resourceIdentity';
+export {
+  resolveReviewerPhoto,
+  resolveReviewerUpn,
+  clearReviewerPhotoCache,
+  useReviewerPhoto,
+} from './reviewerIdentity';

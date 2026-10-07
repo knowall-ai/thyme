@@ -14,6 +14,7 @@ import { loginRequest } from './msalConfig';
 import { msalInstance, initializeMsal } from './msalInstance';
 import { clearProfilePhotoCache } from './graphService';
 import { clearResourceIdentityCache } from './resourceIdentity';
+import { clearReviewerPhotoCache } from './reviewerIdentity';
 import { resetGraphConsentState } from './tokenService';
 
 interface AuthProviderProps {
@@ -61,6 +62,7 @@ export function useAuth() {
     try {
       clearProfilePhotoCache();
       clearResourceIdentityCache();
+      clearReviewerPhotoCache();
       resetGraphConsentState();
       const account = instance.getActiveAccount();
       await instance.logoutRedirect({

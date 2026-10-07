@@ -112,7 +112,7 @@ export function PoppieReviewPanel({
     <>
       {/* Header: who, verdict, and the collapse toggle */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <PoppieAvatar />
+        <PoppieAvatar reviewer={review.reviewer} />
         <h3 className="text-sm font-semibold text-white">Poppie&apos;s recommendation</h3>
         <span
           className={cn(
