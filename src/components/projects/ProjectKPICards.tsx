@@ -174,8 +174,9 @@ export function ProjectKPICards() {
   // Calculate percentages and status
   const hoursSpent = analytics?.hoursSpent ?? 0;
   const hoursPosted = analytics?.hoursPosted ?? 0;
-  // Time Spent by stage, each counted once: Pending → Approved (not yet posted) → Posted
-  const pendingHours = analytics?.pendingHours ?? 0;
+  // Time Spent by stage, each counted once: Unsubmitted → Submitted → Approved (not yet posted) → Posted
+  const submittedHours = analytics?.submittedHours ?? 0;
+  const unsubmittedHours = analytics?.unsubmittedHours ?? 0;
   const postedHours = Math.min(hoursPosted, analytics?.approvedHours ?? 0);
   const approvedUnpostedHours = Math.max(0, (analytics?.approvedHours ?? 0) - postedHours);
   const hoursPerDay = analytics?.hoursPerDay ?? 8; // From BC Resource Unit of Measure
@@ -203,8 +204,8 @@ export function ProjectKPICards() {
     },
     'Time Spent': {
       title: 'Time Spent',
-      description: `Total hours logged in timesheets for this project, shown against the Estimate and split by stage: Pending (Open or Submitted), Approved (awaiting "Post Time Sheets" in BC) and Posted (in the Job Ledger Entry). Days = hours ÷ ${hoursPerDayLabel}.`,
-      formula: 'Posted + Approved + Pending = Time Spent',
+      description: `Total hours logged in timesheets for this project, shown against the Estimate and split by stage: Unsubmitted (Open timesheets), Submitted (awaiting approval), Approved (awaiting "Post Time Sheets" in BC) and Posted (in the Job Ledger Entry). Days = hours ÷ ${hoursPerDayLabel}.`,
+      formula: 'Posted + Approved + Submitted + Unsubmitted = Time Spent',
       source: 'BC API: /timeSheetDetails → quantity',
     },
     Planned: {
@@ -285,7 +286,8 @@ export function ProjectKPICards() {
       segments: [
         { label: 'Posted', hours: postedHours, color: 'bg-thyme-700' },
         { label: 'Approved', hours: approvedUnpostedHours, color: 'bg-thyme-500' },
-        { label: 'Pending', hours: pendingHours, color: 'bg-amber-500' },
+        { label: 'Submitted', hours: submittedHours, color: 'bg-amber-500' },
+        { label: 'Unsubmitted', hours: unsubmittedHours, color: 'bg-gray-500' },
       ],
     },
     {

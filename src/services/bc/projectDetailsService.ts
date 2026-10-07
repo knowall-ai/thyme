@@ -60,6 +60,8 @@ export interface ProjectAnalytics {
   hoursUnposted: number; // hoursSpent - hoursPosted (in timesheets but not posted)
   approvedHours: number; // Hours on Approved timesheet lines (posted time stays Approved)
   pendingHours: number; // Hours on Open or Submitted timesheet lines
+  submittedHours: number; // Hours on Submitted lines, awaiting approval
+  unsubmittedHours: number; // Hours on Open lines, not yet submitted
 
   // Costs (internal - hideable) with breakdown by type
   budgetCost: number; // Total from Job Planning Lines totalCost (Budget lineType)
@@ -236,6 +238,8 @@ export const projectDetailsService = {
       hoursUnposted: 0,
       approvedHours: 0,
       pendingHours: 0,
+      submittedHours: 0,
+      unsubmittedHours: 0,
       budgetCost: 0,
       budgetCostBreakdown: emptyBreakdown(),
       actualCost: 0,
@@ -262,25 +266,15 @@ export const projectDetailsService = {
       return emptyAnalytics();
     }
 
-    // Get the date 6 months ago for filtering timesheets
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    const filterDate = sixMonthsAgo.toISOString().split('T')[0];
-    // Details are pre-filtered a week early so a timesheet starting on/after filterDate
-    // keeps all its days; the join to the date-filtered lines applies the exact rule
-    const detailsFromDate = new Date(sixMonthsAgo);
-    detailsFromDate.setDate(detailsFromDate.getDate() - 7);
-
+    // No date window: the project's totals cover all its time, however old (a 6-month
+    // window used to drop earlier time, so Time Spent shrank as a project aged)
     // Start every independent BC request at once (they used to run one after another);
     // each is awaited, with its own error handling, where its result is used. The no-op
     // catches only stop a rejection being reported as unhandled before it's awaited.
     const resourcesPromise = bcClient.getResources();
-    const timesheetsPromise = bcClient.getTimeSheetsFrom(filterDate);
-    const jobLinesPromise = bcClient.getTimeSheetLinesForJob(projectNumber, filterDate);
-    const jobDetailsPromise = bcClient.getTimeSheetDetailsForJob(
-      projectNumber,
-      detailsFromDate.toISOString().split('T')[0]
-    );
+    const timesheetsPromise = bcClient.getTimeSheetsFrom();
+    const jobLinesPromise = bcClient.getTimeSheetLinesForJob(projectNumber);
+    const jobDetailsPromise = bcClient.getTimeSheetDetailsForJob(projectNumber);
     const planningPromise = Promise.all([
       bcClient.getJobPlanningLines(projectNumber),
       bcClient.getResourceUnitsOfMeasure(),
@@ -339,7 +333,6 @@ export const projectDetailsService = {
     for (const line of jobLines) {
       if (line.type !== 'Job' || line.jobNo !== projectNumber || !(line.totalQuantity > 0))
         continue;
-      if (line.timeSheetStartingDate && line.timeSheetStartingDate < filterDate) continue;
       linesByKey.set(`${line.timeSheetNo}|${line.lineNo}`, line);
     }
 
@@ -371,9 +364,13 @@ export const projectDetailsService = {
     const approvedHours = timeEntries
       .filter((e) => e.status === 'Approved')
       .reduce((sum, e) => sum + e.hours, 0);
-    const pendingHours = timeEntries
-      .filter((e) => e.status === 'Open' || e.status === 'Submitted')
+    const submittedHours = timeEntries
+      .filter((e) => e.status === 'Submitted')
       .reduce((sum, e) => sum + e.hours, 0);
+    const unsubmittedHours = timeEntries
+      .filter((e) => e.status === 'Open')
+      .reduce((sum, e) => sum + e.hours, 0);
+    const pendingHours = submittedHours + unsubmittedHours;
 
     // For now, assume all hours are billable (BC doesn't expose this easily)
     const billableHours = totalHours;
@@ -880,6 +877,8 @@ export const projectDetailsService = {
       hoursUnposted,
       approvedHours,
       pendingHours,
+      submittedHours,
+      unsubmittedHours,
       budgetCost,
       budgetCostBreakdown,
       actualCost,

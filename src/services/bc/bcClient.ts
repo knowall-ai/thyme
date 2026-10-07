@@ -1214,14 +1214,16 @@ class BusinessCentralClient {
   }
 
   /**
-   * Get every resource's timesheets starting on or after a date (YYYY-MM-DD) in one query.
+   * Get every resource's timesheets in one query, optionally only those starting on or
+   * after a date (YYYY-MM-DD).
    */
-  async getTimeSheetsFrom(fromDate: string): Promise<BCTimeSheet[]> {
+  async getTimeSheetsFrom(fromDate?: string): Promise<BCTimeSheet[]> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
       throw new Error('Thyme BC Extension is not installed.');
     }
 
+    if (!fromDate) return this.customApiFetchAll<BCTimeSheet>('/timeSheets');
     const filter = `startingDate ge ${this.sanitizeDateInput(fromDate)}`;
     return this.customApiFetchAll<BCTimeSheet>(`/timeSheets?$filter=${encodeURIComponent(filter)}`);
   }
