@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { BCEmployee, BCResource, Teammate } from '@/types';
 import { bcClient } from '@/services/bc/bcClient';
+import { isTeamMember } from '@/utils/teamMember';
 
 interface TeammateStore {
   teammates: Teammate[];
@@ -52,13 +53,15 @@ export const useTeammateStore = create<TeammateStore>((set, get) => ({
       // and a company can have resources set up for time tracking with no employee
       // records at all. Only resources flagged for time sheets can have one, so
       // anything else would just be a dead entry in the list; blocked resources
-      // (typically leavers) are left out too.
-      const [resources, employees] = await Promise.all([
+      // (typically leavers) are left out too. The query narrows what BC sends; the
+      // shared isTeamMember rule (which also needs a Time Sheet Owner) decides.
+      const [allResources, employees] = await Promise.all([
         bcClient.getResources(
           'useTimeSheet eq true and blocked eq false and privacyBlocked eq false'
         ),
         bcClient.getEmployees("status eq 'Active'").catch(() => [] as BCEmployee[]),
       ]);
+      const resources = allResources.filter(isTeamMember);
 
       let currentUserResourceNo: string | undefined;
       if (currentUserEmail) {

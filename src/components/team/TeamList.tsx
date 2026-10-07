@@ -11,11 +11,27 @@ import {
   ArrowTopRightOnSquareIcon,
   UserGroupIcon,
 } from '@heroicons/react/24/outline';
-import { Card, WeekNavigation, ExtensionPreviewWrapper } from '@/components/ui';
+import {
+  Card,
+  WeekNavigation,
+  ExtensionPreviewWrapper,
+  StageBar,
+  StageLegend,
+  getStageSegments,
+} from '@/components/ui';
 import { bcClient, ExtensionNotInstalledError } from '@/services/bc';
 import { useCompanyStore } from '@/hooks';
 import { useAuth, getUserProfilePhoto } from '@/services/auth';
-import { getWeekStart, getBCResourcesListUrl } from '@/utils';
+import {
+  getWeekStart,
+  getBCResourcesListUrl,
+  formatDate,
+  getStageHours,
+  emptyStageHours,
+  addStageHours,
+  isTeamMember,
+} from '@/utils';
+import type { StageHours } from '@/utils';
 import { cn } from '@/utils';
 import type { BCResource } from '@/types';
 import { teamConfig, getUtilizationColor, getBillableColor } from '@/config';
@@ -30,6 +46,7 @@ interface TeamMember {
   email: string;
   role: string;
   totalHours: number;
+  stages: StageHours; // totalHours split by timesheet stage
   billableHours: number;
   nonBillableHours: number;
   capacity: number;
@@ -108,10 +125,11 @@ export function TeamList() {
       setError(null);
       setExtensionNotInstalled(false);
       try {
-        // Get all person resources. Note: bcClient.getResources always applies
-        // a hardcoded "type eq 'Person'" filter internally, and any additional
-        // filters passed to it are AND-ed with that condition (they cannot override it).
-        const resources = await bcClient.getResources();
+        // Team members are the people who can log time (isTeamMember). Placeholder role
+        // resources used for estimates and blocked leavers are Person resources too, but
+        // they can never log hours and would only inflate Team Capacity.
+        // Note: bcClient.getResources always applies a hardcoded "type eq 'Person'" filter.
+        const resources = (await bcClient.getResources()).filter(isTeamMember);
 
         // Also check if current user has a resource record
         let currentUserResource: BCResource | null = null;
@@ -126,16 +144,18 @@ export function TeamList() {
         // Extract domain from current user's email for deriving UPNs
         const emailDomain = userEmail ? userEmail.split('@')[1] : null;
 
+        // Local calendar date: toISOString() would give the previous day in timezones
+        // ahead of UTC (e.g. BST), and BC matches startingDate exactly
+        const weekStartStr = formatDate(currentWeekStart);
+
         // Fetch hours for each resource for the selected week
         const membersWithHours = await Promise.all(
           resources.map(async (resource) => {
             const capacity = teamConfig.defaultCapacity;
-            let totalHours = 0;
-            let billableHours = 0;
+            let stages = emptyStageHours();
 
             try {
               // Get timesheet for this resource
-              const weekStartStr = currentWeekStart.toISOString().split('T')[0];
               const timesheets = await bcClient.getTimeSheets(resource.number, weekStartStr);
 
               if (timesheets.length > 0) {
@@ -145,17 +165,8 @@ export function TeamList() {
                   bcClient.getAllTimeSheetDetails(timesheet.number),
                 ]);
 
-                // Calculate hours from timesheet details
-                for (const detail of details) {
-                  if (detail.quantity > 0) {
-                    const line = lines.find((l) => l.lineNo === detail.timeSheetLineNo);
-                    if (line && line.type === 'Job') {
-                      totalHours += detail.quantity;
-                      // TODO: Currently all job entries are considered billable; update when BC exposes billable vs non-billable job types
-                      billableHours += detail.quantity;
-                    }
-                  }
-                }
+                // Project (Job) hours from timesheet details, split by stage
+                stages = getStageHours(lines, details);
               }
             } catch (error) {
               // Resource might not have a timesheet for this week - that's OK.
@@ -165,12 +176,15 @@ export function TeamList() {
                   'Failed to fetch timesheet data for resource',
                   resource.number,
                   'for week starting',
-                  currentWeekStart.toISOString().split('T')[0],
+                  weekStartStr,
                   error
                 );
               }
             }
 
+            const totalHours = stages.total;
+            // TODO: Currently all job entries are considered billable; update when BC exposes billable vs non-billable job types
+            const billableHours = totalHours;
             const nonBillableHours = totalHours - billableHours;
             const utilization = capacity > 0 ? (totalHours / capacity) * 100 : 0;
             const billablePercent = totalHours > 0 ? (billableHours / totalHours) * 100 : 0;
@@ -188,6 +202,7 @@ export function TeamList() {
               email: '', // Resources don't have email in standard API
               role: resource.number, // Show resource code in role column
               totalHours,
+              stages,
               billableHours,
               nonBillableHours,
               capacity,
@@ -252,13 +267,16 @@ export function TeamList() {
   // Calculate totals
   const totals = useMemo(() => {
     const totalHours = members.reduce((sum, m) => sum + m.totalHours, 0);
+    const stages = members.reduce((sum, m) => addStageHours(sum, m.stages), emptyStageHours());
     const billableHours = members.reduce((sum, m) => sum + m.billableHours, 0);
     const nonBillableHours = members.reduce((sum, m) => sum + m.nonBillableHours, 0);
     const totalCapacity = members.reduce((sum, m) => sum + m.capacity, 0);
     const utilization = totalCapacity > 0 ? (totalHours / totalCapacity) * 100 : 0;
 
-    return { totalHours, billableHours, nonBillableHours, totalCapacity, utilization };
+    return { totalHours, stages, billableHours, nonBillableHours, totalCapacity, utilization };
   }, [members]);
+
+  const totalSegments = getStageSegments(totals.stages);
 
   // Pie chart data
   const pieData = {
@@ -377,6 +395,12 @@ export function TeamList() {
     return 'low - needs attention';
   };
 
+  // Stage breakdown for a member's Hours cell (tooltip and screen readers)
+  const getStageSummary = (stages: StageHours): string =>
+    getStageSegments(stages)
+      .map((seg) => `${seg.label} ${seg.hours.toFixed(1)}h`)
+      .join(' · ');
+
   // Get billable status text for accessibility
   const getBillableStatus = (billablePercent: number): string => {
     if (billablePercent >= teamConfig.billable.thresholds.high) {
@@ -458,6 +482,13 @@ export function TeamList() {
                 <p className="text-dark-100 mt-1 text-2xl font-bold">
                   {totals.totalHours.toFixed(1)}
                 </p>
+                {/* Same stage split as the project page's Time Spent card */}
+                <StageBar segments={totalSegments} max={totals.totalHours} className="mt-2" />
+                <StageLegend
+                  segments={totalSegments}
+                  formatHours={(hours) => `${hours.toFixed(1)}h`}
+                  className="mt-1.5"
+                />
               </Card>
 
               {/* Team Capacity */}
@@ -681,8 +712,26 @@ export function TeamList() {
                             )}
                           </div>
                         </td>
-                        <td className="text-dark-100 px-4 py-3 text-right">
-                          {member.totalHours.toFixed(1)}
+                        <td className="px-4 py-3">
+                          <div
+                            className="flex flex-col items-end gap-1"
+                            title={
+                              member.totalHours > 0 ? getStageSummary(member.stages) : undefined
+                            }
+                          >
+                            <span className="text-dark-100">{member.totalHours.toFixed(1)}</span>
+                            {/* The member's hours by stage; full width = their total */}
+                            {member.totalHours > 0 && (
+                              <>
+                                <StageBar
+                                  segments={getStageSegments(member.stages)}
+                                  max={member.totalHours}
+                                  className="h-1 w-16"
+                                />
+                                <span className="sr-only">{getStageSummary(member.stages)}</span>
+                              </>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           <div

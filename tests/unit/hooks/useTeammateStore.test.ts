@@ -21,6 +21,7 @@ const resource = (id: string, number: string, name: string) => ({
   displayName: name,
   type: 'Person',
   useTimeSheet: true,
+  timeSheetOwnerUserId: name.toUpperCase().replace(' ', '.'),
 });
 
 describe('useTeammateStore.fetchTeammates', () => {
@@ -96,6 +97,15 @@ describe('useTeammateStore employee enrichment', () => {
       useTeammateStore.getState().teammates.map((t) => [t.resourceNo, t.jobTitle])
     );
     expect(byNo).toEqual({ RES01: undefined, RES02: undefined, RES03: undefined });
+  });
+
+  it('leaves out placeholder resources with no time sheet owner', async () => {
+    getResources.mockResolvedValue([
+      resource('r1', 'RES01', 'Jane Doe'),
+      { ...resource('r2', 'DESIGN', 'Design Resource'), timeSheetOwnerUserId: '' },
+    ]);
+    await useTeammateStore.getState().fetchTeammates();
+    expect(useTeammateStore.getState().teammates.map((t) => t.resourceNo)).toEqual(['RES01']);
   });
 });
 

@@ -17,8 +17,11 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Projects dropdown is empty
 | Verify `NEXT_PUBLIC_BC_COMPANY_ID` and `NEXT_PUBLIC_BC_ENVIRONMENT` are set (must have `NEXT_PUBLIC_` prefix for client-side access); check that `/projects` endpoint returns data (not `/jobs`)
 
-| Team page shows no employees
-| Ensure employees exist in BC with status 'Active'; check `/employees` endpoint
+| Team page shows no employees, or a person is missing from Team/Reports
+| Thyme lists resources that are a Person, not blocked, use time sheets and have a Time Sheet Owner User ID set on the Resource Card in BC. Open the person's Resource Card and check *Type* = Person, *Blocked* is off, *Use Time Sheet* is on and *Time Sheet Owner User ID* is filled in. Placeholder role resources used only for estimates (no Time Sheet Owner) are deliberately left out.
+
+| Team tab shows 0 hours for everyone during summer time
+| Upgrade to the latest Thyme version. Earlier versions looked up each person's timesheet with the week start converted to UTC, which in timezones ahead of UTC (e.g. UK summer time, BST) is the previous day (Sunday), so no timesheet matched and every person showed 0 hours. The same fix stops a custom date range on the Approvals page being stored one day early.
 
 | Timer state lost on refresh
 | Check browser allows localStorage; timer state persists in localStorage
