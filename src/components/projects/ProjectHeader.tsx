@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeftIcon,
@@ -62,7 +62,7 @@ function getBillingModeStyles(mode: BillingMode): string {
 const billingModeExplanations: Record<BillingMode, string> = {
   'T&M': 'Time & Materials - Billing based on hours worked (Resource lines in BC)',
   'Fixed Price': 'Fixed Price - Billing based on deliverables (Item/G/L Account lines in BC)',
-  Mixed: 'Mixed - Combination of hourly and fixed price billing',
+  Mixed: 'Mixed - More than one kind of billable line (Resource, Item, G/L Account) in BC',
   'Not Set': 'No billable lines configured in Business Central',
 };
 
@@ -81,6 +81,7 @@ interface BillingModeBadgeProps {
 
 function BillingModeBadge({ mode, showTooltip = true }: BillingModeBadgeProps) {
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
+  const tooltipId = useId();
 
   return (
     <span className="relative inline-flex items-center gap-1">
@@ -96,14 +97,16 @@ function BillingModeBadge({ mode, showTooltip = true }: BillingModeBadgeProps) {
           onFocus={() => setIsTooltipVisible(true)}
           onBlur={() => setIsTooltipVisible(false)}
           aria-label="Billing mode info"
+          aria-describedby={isTooltipVisible ? tooltipId : undefined}
         >
           <InformationCircleIcon className="h-4 w-4" />
         </button>
       )}
       {isTooltipVisible && (
         <div
+          id={tooltipId}
           role="tooltip"
-          className="border-dark-600 bg-dark-800 absolute top-full left-0 z-50 mt-2 w-80 rounded-lg border p-3 text-xs shadow-lg"
+          className="border-dark-600 bg-dark-800 absolute top-full left-0 z-50 mt-2 w-80 rounded-lg border p-3 text-xs shadow-lg print:hidden"
         >
           <p className="font-medium text-white">{mode}</p>
           <p className="mt-1 text-gray-400">{billingModeExplanations[mode]}</p>
