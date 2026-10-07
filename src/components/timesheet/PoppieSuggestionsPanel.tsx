@@ -367,13 +367,15 @@ export function PoppieSuggestionsPanel({
                           <p className="text-dark-500 flex items-center gap-1.5 text-xs">
                             <span
                               className={cn(
-                                'h-1.5 w-1.5 rounded-full',
+                                'h-1.5 w-1.5 shrink-0 rounded-full',
                                 confidenceDots[s.confidence]
                               )}
                               aria-hidden="true"
                             />
-                            <span>{s.confidence} confidence</span>
-                            {s.evidence && <span className="truncate">· {s.evidence}</span>}
+                            <span className="shrink-0 whitespace-nowrap">
+                              {s.confidence} confidence
+                            </span>
+                            {s.evidence && <span className="min-w-0 truncate">· {s.evidence}</span>}
                           </p>
                         </div>
                         <span className="text-dark-200 shrink-0 text-sm font-medium">
