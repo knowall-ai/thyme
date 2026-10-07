@@ -8,6 +8,11 @@ interface TeammateStore {
   selectedTeammate: Teammate | null;
   isLoading: boolean;
   error: string | null;
+  /**
+   * Bumped each time the latest fetch finishes (with a list or an error), so a
+   * `resource=` link can wait for a list loaded after it was opened, not a stale one
+   */
+  loadCount: number;
 
   fetchTeammates: (currentUserEmail?: string) => Promise<void>;
   selectTeammate: (teammate: Teammate | null) => void;
@@ -44,6 +49,7 @@ export const useTeammateStore = create<TeammateStore>((set, get) => ({
   selectedTeammate: null,
   isLoading: false,
   error: null,
+  loadCount: 0,
 
   fetchTeammates: async (currentUserEmail?: string) => {
     const seq = ++teammatesFetchSeq;
@@ -101,6 +107,7 @@ export const useTeammateStore = create<TeammateStore>((set, get) => ({
       set((state) => ({
         teammates,
         isLoading: false,
+        loadCount: state.loadCount + 1,
         // Drop a selection that isn't in the refreshed list (e.g. after a company switch),
         // so one company's resource is never used against another — which, with the
         // Create timesheet button, could create a timesheet for the wrong person
@@ -112,7 +119,13 @@ export const useTeammateStore = create<TeammateStore>((set, get) => ({
     } catch (error) {
       if (seq !== teammatesFetchSeq) return;
       const message = error instanceof Error ? error.message : 'Failed to fetch teammates';
-      set({ error: message, isLoading: false, teammates: [], selectedTeammate: null });
+      set((state) => ({
+        error: message,
+        isLoading: false,
+        teammates: [],
+        selectedTeammate: null,
+        loadCount: state.loadCount + 1,
+      }));
     }
   },
 
