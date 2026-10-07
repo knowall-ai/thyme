@@ -41,9 +41,14 @@ export function shouldOfferRequest(params: {
 /** The line shown next to the spinner while a request is open. */
 export function requestProgressText(
   request: Pick<BCSuggestionRequest, 'status' | 'progress' | 'requestedAt'>,
-  now: number = Date.now()
+  now: number = Date.now(),
+  // From Poppie's heartbeat; undefined when the extension doesn't have one
+  agentOnline?: boolean
 ): string {
   if (request.status === 'Running') return request.progress || 'Starting…';
+  if (agentOnline === false) {
+    return "Queued: Poppie will pick this up when she's back online.";
+  }
   const requestedAt = request.requestedAt ? Date.parse(request.requestedAt) : NaN;
   if (Number.isFinite(requestedAt) && now - requestedAt > QUEUED_SLOW_AFTER_MS) {
     return "Still queued: Poppie seems to be offline. She'll start as soon as she's back.";

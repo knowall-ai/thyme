@@ -95,6 +95,9 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | There's no *Request suggestions* button in Poppie's suggestions panel
 | The button needs Thyme BC Extension 1.16 or later (the `suggestionRequests` API); on older versions it's hidden. It also only shows for weeks that have started: always for past weeks, and for the current week while it has fewer than three suggestions (Poppie's midday and evening runs usually cover it). On someone else's timesheet you need to be their *Time Sheet Approver* on the Resource card, or a Thyme administrator (*Time Sheet Admin.* in User Setup, or the `THYME ADMIN` permission set).
 
+| *Request suggestions* is greyed out and the panel says "Poppie offline"
+| Thyme reads Poppie's heartbeat (Thyme BC Extension 1.18+). She refreshes it every minute from her `suggestion-requests` job, and after 5 minutes without one Thyme treats her as offline. Hover the button to see when she was last seen. Her VM is probably stopped, or the job isn't running. Ask an administrator to check the VM and `hermes cron list`. The button comes back by itself within a minute of her returning.
+
 | A suggestion request stays on "Queued" or says "Poppie seems to be offline"
 | Poppie checks for requests every minute, so a request waiting longer than a few minutes means her VM or its `suggestion-requests` job isn't running. The request stays queued and runs when she's back; you don't need to ask again. If it never starts, ask an administrator to check Poppie's `suggestion-requests` cron job. A request that started but stopped updating is marked failed after 30 minutes, so you can ask again.
 

@@ -120,6 +120,16 @@ describe('useSuggestionRequest', () => {
     expect(result.current.finishedHere).toBe(false);
   });
 
+  it('still resumes an open request when the permission read fails', async () => {
+    getLatestSuggestionRequest.mockResolvedValue(
+      req({ status: 'Running', progress: 'Checking GitHub' })
+    );
+    canRequestSuggestions.mockRejectedValue(new Error('BC API Error (503): busy'));
+    const { result } = renderHook(() => useSuggestionRequest('R0001', weekOf28Sep));
+    await waitFor(() => expect(result.current.request?.progress).toBe('Checking GitHub'));
+    expect(result.current.canRequest).toBe(false);
+  });
+
   it('follows the open request when someone already asked for this week', async () => {
     createSuggestionRequest.mockRejectedValue(
       new Error('BC API Error (400): already been requested')

@@ -20,6 +20,7 @@ import type {
   BCTimeSuggestion,
   BCTimeSuggestionUpdate,
   BCSuggestionRequest,
+  BCAgentHeartbeat,
   BCTimesheetReview,
   BCTimesheetReviewLine,
   TimeSheetStatus,
@@ -1483,6 +1484,23 @@ class BusinessCentralClient {
         `/suggestionRequests?$filter=${encodeURIComponent(filter)}&$orderby=${encodeURIComponent('requestedAt desc')}&$top=1`
       );
       return response.value[0] ?? null;
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('BC API Error (404)')) {
+        return undefined;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Every AI agent's heartbeat (when it was last seen). Returns undefined when the extension
+   * has no agentHeartbeats endpoint (older than 1.18), so callers can leave the feature out.
+   */
+  async getAgentHeartbeats(): Promise<BCAgentHeartbeat[] | undefined> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) return undefined;
+    try {
+      return await this.customApiFetchAll<BCAgentHeartbeat>('/agentHeartbeats');
     } catch (error) {
       if (error instanceof Error && error.message.startsWith('BC API Error (404)')) {
         return undefined;

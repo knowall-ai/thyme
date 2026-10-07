@@ -81,6 +81,19 @@ describe('requestProgressText', () => {
     expect(requestProgressText({ status: 'Running', progress: '' }, now)).toBe('Starting…');
   });
 
+  it("says a queued request waits for Poppie when her heartbeat says she's offline", () => {
+    expect(
+      requestProgressText(
+        { status: 'Requested', progress: '', requestedAt: new Date(now).toISOString() },
+        now,
+        false
+      )
+    ).toBe("Queued: Poppie will pick this up when she's back online.");
+    expect(
+      requestProgressText({ status: 'Running', progress: 'Checking GitHub' }, now, false)
+    ).toBe('Checking GitHub');
+  });
+
   it('says she will start within a minute, or that she seems offline after a while', () => {
     const justNow = new Date(now - 10_000).toISOString();
     const longAgo = new Date(now - QUEUED_SLOW_AFTER_MS - 1).toISOString();

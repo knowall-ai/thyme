@@ -60,11 +60,14 @@ export function useSuggestionRequest(
 
     (async () => {
       try {
-        const [latest, allowed] = await Promise.all([
+        // Settled separately: a failed permission read mustn't stop an open request resuming
+        const [latestResult, allowedResult] = await Promise.allSettled([
           bcClient.getLatestSuggestionRequest(resourceNo, fromDate, toDate),
           bcClient.canRequestSuggestions(resourceNo),
         ]);
         if (scope !== scopeRef.current) return;
+        const latest = latestResult.status === 'fulfilled' ? latestResult.value : undefined;
+        const allowed = allowedResult.status === 'fulfilled' ? allowedResult.value : undefined;
         // undefined = the extension has no suggestionRequests API yet: keep the feature hidden
         setCanRequest(latest !== undefined && allowed === true);
         setRequest(latest ?? null);

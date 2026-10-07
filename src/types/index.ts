@@ -345,6 +345,16 @@ export interface BCSuggestionRequest {
   lastModifiedDateTime?: string;
 }
 
+// When an AI agent (Poppie) was last seen (Thyme BC Extension 1.18+ agentHeartbeats API).
+// lastSeenAt is stamped by BC on every poll the agent makes.
+export interface BCAgentHeartbeat {
+  id: string;
+  agentName: string;
+  lastSeenAt: string; // ISO date-time
+  status?: string; // e.g. "Idle", "Working on 1 request", "Paused"
+  version?: string;
+}
+
 // Poppie's timesheet reviews - requires the Thyme BC Extension review tables.
 // Poppie (an AI agent) reviews submitted timesheets and writes one review per version.
 export type TimesheetReviewVerdict = 'Approve' | 'Check' | 'Query';

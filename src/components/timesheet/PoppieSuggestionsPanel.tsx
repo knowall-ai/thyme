@@ -16,6 +16,7 @@ import {
 import { useTimeEntriesStore, useSettingsStore } from '@/hooks';
 import { useTimeSuggestions } from '@/hooks/useTimeSuggestions';
 import { useSuggestionRequest } from '@/hooks/useSuggestionRequest';
+import { useAgentPresence } from '@/hooks/useAgentPresence';
 import { useAuth } from '@/services/auth';
 import { timeEntryService } from '@/services/bc';
 import { Button, Card } from '@/components/ui';
@@ -44,6 +45,7 @@ import {
   shouldOfferRequest,
   weekTiming,
 } from '@/utils/suggestionRequests';
+import { offlineText } from '@/utils/agentPresence';
 
 function GitHubIcon({ className }: { className?: string }) {
   return (
@@ -134,6 +136,9 @@ export function PoppieSuggestionsPanel({
     error: requestError,
     requestSuggestions,
   } = useSuggestionRequest(resourceNo, weekStart, handleRequestFinished);
+  // Poppie's heartbeat: only worth reading where requesting is possible at all
+  const presence = useAgentPresence(canRequest);
+  const agentOffline = presence.isAvailable && presence.state === 'offline';
 
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const [isAddingAll, setIsAddingAll] = useState(false);
@@ -323,21 +328,49 @@ export function PoppieSuggestionsPanel({
                 {visible.length}
               </span>
             )}
+            {presence.isAvailable && (
+              <span
+                className="text-dark-400 ml-1 flex items-center gap-1.5 text-xs"
+                title={
+                  agentOffline
+                    ? offlineText(presence.lastSeenAt)
+                    : 'Poppie checks for requests every minute'
+                }
+              >
+                <span
+                  className={cn(
+                    'h-2 w-2 rounded-full',
+                    agentOffline ? 'bg-dark-500' : 'bg-green-400'
+                  )}
+                  aria-hidden="true"
+                />
+                {agentOffline ? 'Poppie offline' : 'Poppie online'}
+              </span>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {offerRequest && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={requestSuggestions}
-                disabled={isSubmitting}
-                title="Ask Poppie to check calendars, GitHub and Azure DevOps for this week now"
-              >
-                <ArrowPathIcon className={cn('h-4 w-4 sm:mr-2', isSubmitting && 'animate-spin')} />
-                <span className="hidden sm:inline">
-                  {isSubmitting ? 'Asking Poppie...' : 'Request suggestions'}
-                </span>
-              </Button>
+              // The title sits on a wrapper too: a disabled button gets no hover in some browsers
+              <span title={agentOffline ? offlineText(presence.lastSeenAt) : undefined}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={requestSuggestions}
+                  disabled={isSubmitting || agentOffline}
+                  title={
+                    agentOffline
+                      ? offlineText(presence.lastSeenAt)
+                      : 'Ask Poppie to check calendars, GitHub and Azure DevOps for this week now'
+                  }
+                >
+                  <ArrowPathIcon
+                    className={cn('h-4 w-4 sm:mr-2', isSubmitting && 'animate-spin')}
+                  />
+                  <span className="hidden sm:inline">
+                    {isSubmitting ? 'Asking Poppie...' : 'Request suggestions'}
+                  </span>
+                </Button>
+              </span>
             )}
             {canEdit
               ? highConfidence.length > 0 && (
@@ -371,7 +404,13 @@ export function PoppieSuggestionsPanel({
               className="border-thyme-400 h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-t-transparent"
               aria-hidden="true"
             />
-            <span className="text-dark-200">{requestProgressText(request)}</span>
+            <span className="text-dark-200">
+              {requestProgressText(
+                request,
+                Date.now(),
+                presence.isAvailable ? !agentOffline : undefined
+              )}
+            </span>
           </div>
         )}
         {request && finishedHere && request.status === 'Done' && (
