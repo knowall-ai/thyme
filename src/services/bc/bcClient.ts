@@ -16,6 +16,8 @@ import type {
   BCTimeSheetLine,
   BCTimeSheetDetail,
   BCTimeEntry,
+  BCTimeSuggestion,
+  BCTimeSuggestionUpdate,
   TimeSheetStatus,
   TimesheetDisplayStatus,
   PaginatedResponse,
@@ -1151,6 +1153,65 @@ class BusinessCentralClient {
       console.error('[BC API] Failed to parse JSON response:', text);
       throw new Error(`BC API: Invalid JSON response: ${text.substring(0, 100)}`);
     }
+  }
+
+  // ============================================
+  // Time Suggestions (Poppie)
+  // ============================================
+
+  /**
+   * Get Poppie's pending time suggestions for a resource within a date range.
+   * Returns null when the extension doesn't have the timeSuggestions endpoint yet
+   * (or isn't installed), so callers can hide the feature rather than show an error.
+   * @param resourceNo - The resource number (employee)
+   * @param fromDate - First date, inclusive (YYYY-MM-DD)
+   * @param toDate - Last date, inclusive (YYYY-MM-DD)
+   */
+  async getTimeSuggestions(
+    resourceNo: string,
+    fromDate: string,
+    toDate: string
+  ): Promise<BCTimeSuggestion[] | null> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) return null;
+
+    const escapedResourceNo = this.sanitizeODataString(resourceNo);
+    const from = this.sanitizeDateInput(fromDate);
+    const to = this.sanitizeDateInput(toDate);
+    const filter = `resourceNo eq '${escapedResourceNo}' and date ge ${from} and date le ${to} and status eq 'Pending'`;
+
+    try {
+      return await this.customApiFetchAll<BCTimeSuggestion>(
+        `/timeSuggestions?$filter=${encodeURIComponent(filter)}`
+      );
+    } catch (error) {
+      // 404 on the collection means the endpoint doesn't exist (extension too old)
+      if (error instanceof Error && error.message.startsWith('BC API Error (404)')) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Update a time suggestion's status (accept, dismiss or restore).
+   * @param id - The SystemId (GUID) of the suggestion
+   * @param updates - Status plus, when accepting, the timesheet line it became
+   * @param etag - The @odata.etag value for optimistic concurrency (required by BC)
+   * @returns The updated suggestion, including its new ETag
+   */
+  async updateTimeSuggestion(
+    id: string,
+    updates: BCTimeSuggestionUpdate,
+    etag?: string
+  ): Promise<BCTimeSuggestion> {
+    return this.customApiFetch<BCTimeSuggestion>(`/timeSuggestions(${id})`, {
+      method: 'PATCH',
+      headers: {
+        'If-Match': etag || '*',
+      },
+      body: JSON.stringify(updates),
+    });
   }
 
   /**

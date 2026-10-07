@@ -248,6 +248,43 @@ export interface BCTimeSheetDetail {
   '@odata.etag'?: string;
 }
 
+// Time Suggestion - a time entry Poppie (the AI agent) proposes from calendars,
+// GitHub and Azure DevOps activity. Requires the Thyme BC Extension timeSuggestions API.
+export type TimeSuggestionSource = 'Calendar' | 'GitHub' | 'DevOps' | 'Other';
+export type TimeSuggestionConfidence = 'High' | 'Medium' | 'Low';
+export type TimeSuggestionStatus = 'Pending' | 'Accepted' | 'Dismissed';
+
+export interface BCTimeSuggestion {
+  id: string;
+  entryNo: number;
+  resourceNo: string;
+  date: string; // ISO date format YYYY-MM-DD
+  quantity: number; // hours
+  jobNo: string; // empty when Poppie couldn't work out the project
+  jobTaskNo: string;
+  description: string;
+  source: TimeSuggestionSource;
+  sourceRef?: string;
+  sourceUrl?: string;
+  evidence?: string; // short reasoning, e.g. "attended 11:31–12:02"
+  confidence: TimeSuggestionConfidence;
+  status: TimeSuggestionStatus;
+  timeSheetNo?: string;
+  timeSheetLineNo?: number;
+  createdBy?: string;
+  createdAt?: string;
+  actionedAt?: string;
+  '@odata.etag'?: string;
+}
+
+// Fields Thyme writes back when a suggestion is accepted, dismissed or restored
+export interface BCTimeSuggestionUpdate {
+  status: TimeSuggestionStatus;
+  timeSheetNo?: string;
+  timeSheetLineNo?: number;
+  actionedAt?: string;
+}
+
 // Approval workflow types
 export interface PendingApproval {
   id: string;
