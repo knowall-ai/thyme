@@ -188,9 +188,10 @@ class BusinessCentralClient {
     });
 
     if (!response.ok) {
-      // Don't throw for 404 - environment might not exist - or for 401/403, where
-      // the user has no access to the environment: either way it has no companies for them
-      if (response.status === 404 || response.status === 401 || response.status === 403) {
+      // Don't throw for 404 - environment might not exist - or for 403, where the user
+      // has no access to the environment: either way it has no companies for them.
+      // 401 (expired or invalid token) is a load failure, so it throws and can be retried
+      if (response.status === 404 || response.status === 403) {
         return [];
       }
       const errorText = await response.text();
