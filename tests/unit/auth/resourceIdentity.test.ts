@@ -122,7 +122,19 @@ describe('resolveResourceIdentity', () => {
     expect(b).toBe(a);
     await resolveResourceIdentity(input, domain);
     expect(getUserProfilePhoto).toHaveBeenCalledTimes(1);
-    expect(getUserProfilePhoto).toHaveBeenCalledWith('alex.contoso@contoso.com');
+    expect(getUserProfilePhoto).toHaveBeenCalledWith('alex.contoso@contoso.com', {
+      throwOnError: true,
+    });
+  });
+
+  it('does not cache a transient photo failure', async () => {
+    vi.mocked(getUserProfilePhoto).mockRejectedValueOnce(new Error('503'));
+    const input = { name: 'Alex Contoso', ownerUserId: 'ALEX.CONTOSO' };
+    expect(await resolveResourceIdentity(input, domain)).toEqual({ upn: null, photoUrl: null });
+    vi.mocked(getUserProfilePhoto).mockResolvedValueOnce('data:image/png;base64,abc');
+    expect((await resolveResourceIdentity(input, domain)).photoUrl).toBe(
+      'data:image/png;base64,abc'
+    );
   });
 
   it('gives no photo and does not cache when Graph fails', async () => {

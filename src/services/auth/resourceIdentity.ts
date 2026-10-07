@@ -87,7 +87,7 @@ export function resolveResourceIdentity(
 
   const promise = (async (): Promise<ResourceIdentity> => {
     const upn = await resolveResourceUpn(resource, emailDomain);
-    const photoUrl = upn ? await getUserProfilePhoto(upn) : null;
+    const photoUrl = upn ? await getUserProfilePhoto(upn, { throwOnError: true }) : null;
     return { upn, photoUrl };
   })().catch(() => {
     identityCache.delete(key);

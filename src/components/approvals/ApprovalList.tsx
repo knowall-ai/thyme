@@ -24,6 +24,9 @@ import type { BCTimeSheet, BCTimeSheetLine, BCProject, BCJobTask } from '@/types
 
 type GroupBy = 'none' | 'week' | 'person';
 
+const photoKey = (ts: BCTimeSheet) =>
+  `${ts.resourceName ?? ts.resourceNo}|${ts.resourceEmail ?? ''}`.toLowerCase();
+
 export function ApprovalList() {
   const { selectedCompany, companyVersion } = useCompanyStore();
   const { account } = useAuth();
@@ -213,19 +216,21 @@ export function ApprovalList() {
   // Pre-fetch profile photos for all unique resources
   useEffect(() => {
     async function prefetchPhotos() {
-      // Keyed by resource: one person can own several resources' time sheets
+      // Keyed by resource name and owner, not number: one person can own several resources'
+      // time sheets, and numbers can repeat across companies
       const toFetch = new Map<string, BCTimeSheet>();
       pendingApprovals.forEach((ts) => {
-        if (!(ts.resourceNo in photosCache)) toFetch.set(ts.resourceNo, ts);
+        const key = photoKey(ts);
+        if (!(key in photosCache)) toFetch.set(key, ts);
       });
 
       await Promise.all(
-        Array.from(toFetch, async ([resourceNo, ts]) => {
+        Array.from(toFetch, async ([key, ts]) => {
           const { photoUrl } = await resolveResourceIdentity(
             { name: ts.resourceName, ownerUserId: getFullEmail(ts.resourceEmail) },
             emailDomain
           );
-          setPhotosCache((prev) => ({ ...prev, [resourceNo]: photoUrl }));
+          setPhotosCache((prev) => ({ ...prev, [key]: photoUrl }));
         })
       );
     }
@@ -504,7 +509,7 @@ export function ApprovalList() {
                       // Show profile photo for person group
                       (() => {
                         const firstTs = group.items[0];
-                        const photo = firstTs ? photosCache[firstTs.resourceNo] : null;
+                        const photo = firstTs ? photosCache[photoKey(firstTs)] : null;
                         return photo ? (
                           <img
                             src={photo}
