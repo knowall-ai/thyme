@@ -49,7 +49,7 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
       const projectsWithTasks = await Promise.all(
         projects.map(async (project) => {
           try {
-            const tasks = await projectService.getProjectTasks(project.code);
+            const tasks = await projectService.getProjectTasks(project.code, project.isInternal);
             return { ...project, tasks };
           } catch {
             // If task fetch fails, just use empty tasks array

@@ -7,6 +7,8 @@ import {
   getHoursPerDay,
   isBudgetPlanningLine,
   sumPlannedHours,
+  isBillableEntry,
+  isInternalProject,
 } from '@/utils';
 
 // Color palette for projects (same as projectService)
@@ -186,6 +188,7 @@ export const projectDetailsService = {
       code: bcProject.number,
       name: bcProject.displayName || bcProject.number,
       customerName,
+      isInternal: isInternalProject(bcProject),
       color: PROJECT_COLORS[bcProject.number.charCodeAt(0) % PROJECT_COLORS.length],
       status,
       isFavorite: favorites.includes(bcProject.id),
@@ -203,7 +206,7 @@ export const projectDetailsService = {
       projectId: project.id,
       code: task.jobTaskNo,
       name: task.description,
-      isBillable: true, // Posting tasks are billable
+      isBillable: !project.isInternal, // Internal projects' time is never billable
     }));
 
     project.tasks = tasks;
@@ -215,7 +218,7 @@ export const projectDetailsService = {
    * Fetch and aggregate analytics data for a project
    * This fetches timesheet data from all resources who have worked on the project
    */
-  async getProjectAnalytics(projectNumber: string): Promise<ProjectAnalytics> {
+  async getProjectAnalytics(projectNumber: string, isInternal = false): Promise<ProjectAnalytics> {
     // Helper to create empty cost breakdown
     const emptyBreakdown = (): CostBreakdown => ({
       resource: 0,
@@ -312,6 +315,7 @@ export const projectDetailsService = {
       date: string;
       weekStart: string;
       status: 'Open' | 'Submitted' | 'Rejected' | 'Approved';
+      isBillable: boolean;
     }
 
     const timeEntries: TimeEntryData[] = [];
@@ -356,6 +360,8 @@ export const projectDetailsService = {
         date: detail.date,
         weekStart: getISOWeek(new Date(detail.date)),
         status: line.status,
+        // Internal projects' time is never billable, nor is a line marked not chargeable
+        isBillable: !isInternal && isBillableEntry(line, undefined),
       });
     }
 
@@ -374,9 +380,10 @@ export const projectDetailsService = {
       .reduce((sum, e) => sum + e.hours, 0);
     const pendingHours = submittedHours + unsubmittedHours;
 
-    // For now, assume all hours are billable (BC doesn't expose this easily)
-    const billableHours = totalHours;
-    const nonBillableHours = 0;
+    const billableHours = timeEntries
+      .filter((e) => e.isBillable)
+      .reduce((sum, e) => sum + e.hours, 0);
+    const nonBillableHours = totalHours - billableHours;
 
     // Hours this week
     const currentWeekStart = getWeekStart(new Date());

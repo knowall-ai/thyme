@@ -13,6 +13,7 @@ import {
   UsersIcon,
   ChevronDownIcon,
   UserIcon,
+  InformationCircleIcon,
 } from '@heroicons/react/24/outline';
 import {
   format,
@@ -38,6 +39,7 @@ import {
   DATE_FORMAT_SHORT,
   DATE_FORMAT_DAY_SHORT,
   isTeamMember,
+  BILLABLE_RULE_DESCRIPTION,
 } from '@/utils';
 import type { TimeEntry, BCResource } from '@/types';
 
@@ -56,6 +58,36 @@ interface DayBreakdown {
   label: string;
   hours: number;
   billableHours: number;
+}
+
+// Explains which time counts as billable, next to the billable figures
+function BillableInfo({ label }: { label: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <span className="relative inline-flex print:hidden">
+      <button
+        type="button"
+        className="focus:ring-thyme-500 focus:ring-offset-dark-800 flex cursor-help rounded text-gray-600 hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none"
+        onMouseEnter={() => setIsOpen(true)}
+        onMouseLeave={() => setIsOpen(false)}
+        onFocus={() => setIsOpen(true)}
+        onBlur={() => setIsOpen(false)}
+        aria-label={`Info: ${label}`}
+        aria-expanded={isOpen}
+      >
+        <InformationCircleIcon className="h-4 w-4" />
+      </button>
+      {isOpen && (
+        <span
+          role="tooltip"
+          className="bg-dark-700 absolute top-6 left-0 z-20 w-64 rounded px-3 py-2 text-xs text-gray-300 shadow-lg"
+        >
+          {BILLABLE_RULE_DESCRIPTION}
+        </span>
+      )}
+    </span>
+  );
 }
 
 export function ReportsPanel() {
@@ -460,7 +492,10 @@ export function ReportsPanel() {
                 <ChartBarIcon className="h-5 w-5 text-blue-500" />
               </div>
               <div>
-                <p className="text-dark-400 text-sm">Billable Hours</p>
+                <p className="text-dark-400 flex items-center gap-1 text-sm">
+                  Billable Hours
+                  <BillableInfo label="Billable Hours" />
+                </p>
                 <p className="text-dark-100 text-xl font-bold">
                   {isLoading ? '...' : formatTime(stats.billableHours)}
                 </p>
@@ -486,7 +521,10 @@ export function ReportsPanel() {
                 <ChartBarIcon className="h-5 w-5 text-amber-500" />
               </div>
               <div>
-                <p className="text-dark-400 text-sm">Billable %</p>
+                <p className="text-dark-400 flex items-center gap-1 text-sm">
+                  Billable %
+                  <BillableInfo label="Billable %" />
+                </p>
                 <p className="text-dark-100 text-xl font-bold">
                   {isLoading ? '...' : `${stats.billablePercentage}%`}
                 </p>

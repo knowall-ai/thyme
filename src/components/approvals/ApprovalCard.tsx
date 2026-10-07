@@ -30,6 +30,8 @@ import {
   // Aliased: this component has its own display formatDate
   formatDate as toDateKey,
   formatHours,
+  isBillableEntry,
+  BILLABLE_RULE_DESCRIPTION,
   DAILY_CAPACITY_HOURS,
   DATE_FORMAT_FULL,
   DATE_FORMAT_DAY_SHORT,
@@ -114,8 +116,12 @@ export function ApprovalCard({
 
   // Calculate totals from lines (more reliable than timeSheet.totalQuantity)
   const totalHours = lines.reduce((sum, line) => sum + (line.totalQuantity || 0), 0);
+  // Projects not in the cache yet are judged on the line's chargeable flag alone
   const billableHours = lines
-    .filter((line) => line.type === 'Job')
+    .filter(
+      (line) =>
+        line.type === 'Job' && isBillableEntry(line, line.jobNo ? jobsCache[line.jobNo] : undefined)
+    )
     .reduce((sum, line) => sum + (line.totalQuantity || 0), 0);
   const billablePercent = totalHours > 0 ? Math.round((billableHours / totalHours) * 100) : 0;
 
@@ -208,7 +214,9 @@ export function ApprovalCard({
               <ClockIcon className="h-4 w-4" />
               {displayHours} hours
               {lines.length > 0 && (
-                <span className="text-dark-500">({billablePercent}% billable)</span>
+                <span className="text-dark-500" title={BILLABLE_RULE_DESCRIPTION}>
+                  ({billablePercent}% billable)
+                </span>
               )}
             </span>
           </div>

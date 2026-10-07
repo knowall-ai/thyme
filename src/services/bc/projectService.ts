@@ -1,6 +1,6 @@
 import { bcClient } from './bcClient';
 import type { Project, Task, BCProject, BCJobTask, BCTimeSheet, BCTimeSheetLine } from '@/types';
-import { buildUOMConversionMap, sumPlannedHours } from '@/utils';
+import { buildUOMConversionMap, isInternalProject, sumPlannedHours } from '@/utils';
 
 // Color palette for projects
 const PROJECT_COLORS = [
@@ -57,6 +57,7 @@ function mapBCProjectToProject(bcProject: BCProject, index: number, favorites: s
     code: bcProject.number,
     name: bcProject.displayName || bcProject.number,
     customerName: bcProject.billToCustomerName || 'Unknown',
+    isInternal: isInternalProject(bcProject),
     color: getProjectColor(index),
     status,
     isFavorite: favorites.includes(bcProject.id),
@@ -64,14 +65,46 @@ function mapBCProjectToProject(bcProject: BCProject, index: number, favorites: s
   };
 }
 
-function mapBCJobTaskToTask(jobTask: BCJobTask, projectId: string): Task {
+function mapBCJobTaskToTask(jobTask: BCJobTask, projectId: string, isInternal: boolean): Task {
   return {
     id: jobTask.id,
     projectId,
     code: jobTask.jobTaskNo,
     name: jobTask.description,
-    isBillable: jobTask.jobTaskType === 'Posting',
+    // Internal projects' time is never billable
+    isBillable: jobTask.jobTaskType === 'Posting' && !isInternal,
   };
+}
+
+// How long the shared projects list is reused for billable lookups before refetching
+const PROJECTS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+// One in-flight/recent /projects request per company, shared by every billable lookup
+// so mapping time entries doesn't refetch projects per user or per timesheet
+let projectsCache: { key: string; fetchedAt: number; promise: Promise<BCProject[]> } | null = null;
+
+function projectsCacheKey(): string {
+  return `${bcClient.environment}|${bcClient.companyId}`;
+}
+
+async function loadBCProjects(forceRefresh = false): Promise<BCProject[]> {
+  const key = projectsCacheKey();
+  if (
+    !forceRefresh &&
+    projectsCache?.key === key &&
+    Date.now() - projectsCache.fetchedAt < PROJECTS_CACHE_TTL_MS
+  ) {
+    return projectsCache.promise;
+  }
+
+  const promise = bcClient.getProjects();
+  const entry = { key, fetchedAt: Date.now(), promise };
+  projectsCache = entry;
+  // Don't keep a failed request around - the next lookup should retry
+  promise.catch(() => {
+    if (projectsCache === entry) projectsCache = null;
+  });
+  return promise;
 }
 
 // Local storage key for favorites
@@ -90,7 +123,8 @@ function saveFavorites(favorites: string[]): void {
 
 export const projectService = {
   async getProjects(_includeCompleted = false): Promise<Project[]> {
-    const bcProjects = await bcClient.getProjects();
+    // Always fetch fresh here; the result also refreshes the billable lookup cache
+    const bcProjects = await loadBCProjects(true);
     warnIfBlockedFieldMissing(bcProjects);
     const favorites = getFavorites();
 
@@ -104,7 +138,7 @@ export const projectService = {
       const project = mapBCProjectToProject(bcProject, 0, favorites);
 
       // Also fetch tasks
-      const tasks = await this.getProjectTasks(project.code);
+      const tasks = await this.getProjectTasks(project.code, project.isInternal);
       project.tasks = tasks;
 
       return project;
@@ -113,13 +147,23 @@ export const projectService = {
     }
   },
 
-  async getProjectTasks(projectCode: string): Promise<Task[]> {
+  async getProjectTasks(projectCode: string, isInternal = false): Promise<Task[]> {
     const jobTasks = await bcClient.getJobTasks(projectCode);
 
-    // Filter to only posting tasks (billable tasks)
+    // Filter to only posting tasks (the ones time can be booked against)
     const postingTasks = jobTasks.filter((task) => task.jobTaskType === 'Posting');
 
-    return postingTasks.map((task) => mapBCJobTaskToTask(task, projectCode));
+    return postingTasks.map((task) => mapBCJobTaskToTask(task, projectCode, isInternal));
+  },
+
+  /**
+   * BC projects keyed by project number, for working out whether time is billable
+   * (see isBillableEntry). Reuses one recent /projects response per company rather
+   * than fetching per user or timesheet.
+   */
+  async getProjectsByNumber(): Promise<Map<string, BCProject>> {
+    const bcProjects = await loadBCProjects();
+    return new Map(bcProjects.map((p) => [p.number, p]));
   },
 
   async searchProjects(query: string): Promise<Project[]> {

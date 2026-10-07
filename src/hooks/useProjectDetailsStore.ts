@@ -92,7 +92,10 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
         // Fetch analytics (this can take longer)
         set({ isLoadingAnalytics: true });
         try {
-          const analytics = await projectDetailsService.getProjectAnalytics(projectNumber);
+          const analytics = await projectDetailsService.getProjectAnalytics(
+            projectNumber,
+            project.isInternal
+          );
           set({ analytics, isLoadingAnalytics: false });
         } catch (analyticsError) {
           // Surface the failure rather than showing zero hours/costs that look real
