@@ -82,6 +82,7 @@ describe('isCompanyName', () => {
     expect(isCompanyName('CRONUS UK Ltd.', ['CRONUS UK Ltd.'])).toBe(true);
     expect(isCompanyName('cronus uk ltd', ['CRONUS UK Ltd.'])).toBe(true);
     expect(isCompanyName('  CRONUS   UK Ltd ', ['CRONUS UK Ltd.'])).toBe(true);
+    expect(isCompanyName('CRONUS-UK Ltd', ['CRONUS - UK Ltd'])).toBe(true);
   });
 
   it('matches any of the company names', () => {

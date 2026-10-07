@@ -105,4 +105,61 @@ describe('bcClient project bill-to company flag', () => {
     expect(loaded).toHaveLength(2);
     expect(loaded.every((p) => !p.billToIsCompany)).toBe(true);
   });
+
+  it('looks again next time when a name lookup failed or found nothing', async () => {
+    const fetchMock = stubFetch((url) => {
+      if (url.includes('/projects')) return { status: 200, body: { value: projects } };
+      if (url.includes('/companyInformation')) return { status: 200, body: { value: [] } };
+      return { status: 500 };
+    });
+
+    await bcClient.getProjects();
+    await bcClient.getProjects();
+
+    const nameLookups = fetchMock.mock.calls.filter(([url]) => !String(url).includes('/projects'));
+    expect(nameLookups).toHaveLength(4);
+  });
+
+  it('reads the projects and the names from the company selected when the load started', async () => {
+    const fetchMock = stubFetch(bcResponses());
+
+    const loading = bcClient.getProjects();
+    bcClient.setCompany('00000000-0000-0000-0000-0000000000c2', 'sandbox');
+    await loading;
+
+    const urls = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(urls).toHaveLength(3);
+    expect(urls.every((url) => url.includes(COMPANY_ID))).toBe(true);
+  });
+
+  it("doesn't let a hung name lookup hold up the projects", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string, init?: RequestInit) => {
+          if (url.includes('/projects')) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: async () => ({ value: projects }),
+            });
+          }
+          // Never answers, until aborted
+          return new Promise((_, reject) => {
+            init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+          });
+        })
+      );
+
+      const loading = bcClient.getProjects();
+      await vi.advanceTimersByTimeAsync(10_000);
+      const loaded = await loading;
+
+      expect(loaded).toHaveLength(2);
+      expect(loaded.every((p) => !p.billToIsCompany)).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

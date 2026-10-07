@@ -165,7 +165,7 @@ Reports (Billable Hours, Billable %, per-project and per-day splits, CSV export)
 * the timesheet line isn't marked not chargeable (`chargeable` on `/timeSheetLines` is not `false`), and
 * its project isn't *internal*.
 
-A project is internal when it has no bill-to customer (`billToCustomerNo` is empty), its bill-to customer's name contains "Internal" as a whole word (case-insensitive, e.g. "Contoso - Internal"; "Contoso International" doesn't count), or the bill-to customer is the company itself: its name matches the company's display name or its Company Information name, ignoring case, punctuation and extra spaces (e.g. a project in CRONUS UK Ltd. billed to the customer "CRONUS UK Ltd"). So an internal customer can carry the company's own name instead of "Internal".
+A project is internal when it has no bill-to customer (`billToCustomerNo` is empty), its bill-to customer's name contains "Internal" as a whole word (case-insensitive, e.g. "Contoso - Internal"; "Contoso International" doesn't count), or the bill-to customer is the company itself: its name matches the company's display name or its Company Information name, ignoring case, punctuation and spacing (e.g. a project in CRONUS UK Ltd. billed to the customer "CRONUS UK Ltd"). So an internal customer can carry the company's own name instead of "Internal".
 
 NOTE: BC defaults `chargeable` to true on every timesheet line, internal projects included, so the line flag alone can't separate internal time. If a project's details can't be loaded, its time is judged on the line's `chargeable` flag alone.
 

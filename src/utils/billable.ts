@@ -39,15 +39,11 @@ export interface ChargeableLine {
 const INTERNAL_CUSTOMER_NAME = /(^|[^a-z])internal([^a-z]|$)/i;
 
 /**
- * A name reduced to what makes it that name: case, punctuation (e.g. a trailing ".")
- * and extra whitespace ignored, so "CRONUS UK Ltd." and "cronus  uk ltd" match.
+ * A name reduced to its letters and digits: case, punctuation (e.g. a trailing ".")
+ * and spacing ignored, so "CRONUS UK Ltd.", "cronus  uk ltd" and "CRONUS-UK Ltd" match.
  */
 function comparableName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return name.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
 }
 
 /**
