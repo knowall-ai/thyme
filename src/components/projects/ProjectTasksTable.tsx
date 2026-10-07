@@ -23,9 +23,8 @@ type GroupBy = 'task' | 'team';
 type StatusKey = 'hours' | 'postedHours' | 'approvedHours' | 'submittedHours' | 'unsubmittedHours';
 type StatusRow = Record<StatusKey, number>;
 
-// Hour columns, in stage order (same colours as the Time Spent card and weekly chart)
+// Hour columns, in stage order then the total (same colours as the Time Spent card and weekly chart)
 const STATUS_COLUMNS: { key: StatusKey; label: string; text: string; subText: string }[] = [
-  { key: 'hours', label: 'Hours', text: 'text-white', subText: 'text-gray-400' },
   { key: 'postedHours', label: 'Posted', text: 'text-thyme-600', subText: 'text-thyme-600/70' },
   { key: 'approvedHours', label: 'Approved', text: 'text-green-400', subText: 'text-green-400/70' },
   {
@@ -40,6 +39,8 @@ const STATUS_COLUMNS: { key: StatusKey; label: string; text: string; subText: st
     text: 'text-amber-400/60',
     subText: 'text-amber-400/40',
   },
+  // The stages add up to this, so it comes last
+  { key: 'hours', label: 'Total Hours', text: 'text-white', subText: 'text-gray-400' },
 ];
 
 // null = BC's own order (Job Task No. / Resource No.); otherwise a column, highest or lowest first
@@ -91,7 +92,10 @@ function SortableHeaders({
       {STATUS_COLUMNS.map((col) => (
         <th
           key={col.key}
-          className={cn('w-24 px-3 py-3 text-right text-sm font-medium', col.text)}
+          className={cn(
+            'w-24 px-3 py-3 text-right text-sm font-medium whitespace-nowrap',
+            col.text
+          )}
           aria-sort={ariaSort(col.key)}
         >
           <button
