@@ -110,3 +110,36 @@ export function getElapsedSeconds(startTime: string | Date): number {
 export function secondsToHours(seconds: number): number {
   return seconds / 3600;
 }
+
+// Days since the epoch for a YYYY-MM-DD date; null for missing, invalid or BC's
+// "0001-01-01" empty date. Counted in UTC so a clock change can't skew a difference.
+function ymdToUTCDays(ymd: string | undefined): number | null {
+  const match = ymd ? /^(\d{4})-(\d{2})-(\d{2})/.exec(ymd) : null;
+  if (!match || match[1] === '0001') return null;
+  const [year, month, day] = [match[1], match[2], match[3]].map((part) =>
+    Number.parseInt(part, 10)
+  );
+  if (![year, month, day].every(Number.isInteger)) return null;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  // Reject dates Date would roll over (e.g. 2027-02-30 -> 2 March)
+  const isRealDate = date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  return isRealDate ? date.getTime() / 86_400_000 : null;
+}
+
+// How a finish date sits against an end date, e.g. "3 weeks before the end date".
+// Under a week is shown in days, otherwise in whole weeks. Null if either date is missing.
+export function describeFinishVsEndDate(
+  finishDate: string | undefined,
+  endDate: string | undefined
+): { text: string; isLate: boolean } | null {
+  const finish = ymdToUTCDays(finishDate);
+  const end = ymdToUTCDays(endDate);
+  if (finish === null || end === null) return null;
+  const diff = finish - end;
+  if (diff === 0) return { text: 'on the end date', isLate: false };
+  const days = Math.abs(diff);
+  const weeks = Math.round(days / 7);
+  const amount =
+    days < 7 ? `${days} day${days === 1 ? '' : 's'}` : `${weeks} week${weeks === 1 ? '' : 's'}`;
+  return { text: `${amount} ${diff > 0 ? 'after' : 'before'} the end date`, isLate: diff > 0 };
+}

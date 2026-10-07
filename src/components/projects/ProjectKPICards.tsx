@@ -4,7 +4,11 @@ import { useState, ReactNode } from 'react';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { useCompanyStore } from '@/hooks';
 import { Card, Modal } from '@/components/ui';
-import { getBCJobPlanningLinesUrl, getBCJobLedgerEntriesUrl } from '@/utils';
+import {
+  getBCJobPlanningLinesUrl,
+  getBCJobLedgerEntriesUrl,
+  describeFinishVsEndDate,
+} from '@/utils';
 import type { ResourceHours } from '@/services/bc/projectDetailsService';
 import {
   ClockIcon,
@@ -187,6 +191,9 @@ export function ProjectKPICards() {
   const forecastHours = hoursSpent + futurePlannedHours;
   const forecastVsEstimate = forecastHours - estimateHours;
   const percentOfEstimate = hasEstimate ? Math.round((hoursSpent / estimateHours) * 100) : 0;
+  // When the planned work finishes, and how that sits against the project's end date
+  const forecastEndDate = futurePlannedHours > 0 ? analytics?.forecastEndDate : undefined;
+  const finishVsEnd = describeFinishVsEndDate(forecastEndDate, project?.endDate);
 
   // Time KPIs (4 cards): Estimate, Spent, Planned (future), Forecast
   // What each KPI means, shown in its (i) tooltip next to the Eye toggle
@@ -216,7 +223,7 @@ export function ProjectKPICards() {
     },
     Forecast: {
       title: 'Forecast',
-      description: `Where the project is heading: time spent so far plus the work still planned, compared with the Estimate. Days = hours ÷ ${hoursPerDayLabel}.`,
+      description: `Where the project is heading: time spent so far plus the work still planned, compared with the Estimate. Finishes on the last planned date (the latest Resource line with hours and lineType "Budget" or "Both Budget and Billable" after this week), compared with the project's end date. Days = hours ÷ ${hoursPerDayLabel}.`,
       formula: 'Time Spent + Planned (from next week)',
       source: 'Calculated',
     },
@@ -257,6 +264,7 @@ export function ProjectKPICards() {
     value: string;
     subLabel: string;
     detail?: string;
+    detailColor?: string;
     icon: typeof ClockIcon;
     color: string;
     subLabelColor?: string;
@@ -318,6 +326,10 @@ export function ProjectKPICards() {
           : forecastVsEstimate > 0
             ? 'text-red-400'
             : 'text-green-400',
+      detail: forecastEndDate
+        ? `Finishes ${formatPlanDate(forecastEndDate)}${finishVsEnd ? ` · ${finishVsEnd.text}` : ''}`
+        : undefined,
+      detailColor: finishVsEnd?.isLate ? 'text-amber-400' : undefined,
     },
   ];
 
@@ -523,7 +535,9 @@ export function ProjectKPICards() {
                     </div>
                   )}
                   {kpi.detail && !isHidden && (
-                    <p className="mt-1.5 text-xs text-gray-500">{kpi.detail}</p>
+                    <p className={`mt-1.5 text-xs ${kpi.detailColor ?? 'text-gray-500'}`}>
+                      {kpi.detail}
+                    </p>
                   )}
                 </div>
               </div>
