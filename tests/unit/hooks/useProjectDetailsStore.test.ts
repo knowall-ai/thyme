@@ -203,3 +203,42 @@ describe('useProjectDetailsStore internal cost visibility', () => {
     expect(useProjectDetailsStore.getState().hiddenKpis).toEqual(DEFAULT_HIDDEN_KPIS);
   });
 });
+
+describe('useProjectDetailsStore currencies', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getProjectAnalytics.mockResolvedValue({ futurePlannedHours: 8 });
+    useProjectDetailsStore.getState().clearProject();
+  });
+
+  it("shows prices in the project's currency and costs in the company's", async () => {
+    getProjectDetails.mockResolvedValue({
+      project: { code: 'PR001', isInternal: false, currencyCode: 'EUR' },
+      tasks: [],
+    });
+
+    await useProjectDetailsStore.getState().fetchProjectDetails('PR001');
+
+    const state = useProjectDetailsStore.getState();
+    expect(state.currencyCode).toBe('GBP');
+    expect(state.projectCurrencyCode).toBe('EUR');
+    expect(getProjectAnalytics).toHaveBeenCalledWith('PR001', false, { foreignCurrency: true });
+  });
+
+  it('uses the company currency for a project in local currency or an older extension', async () => {
+    for (const currencyCode of ['', undefined]) {
+      useProjectDetailsStore.getState().clearProject();
+      getProjectDetails.mockResolvedValue({
+        project: { code: 'PR001', isInternal: false, currencyCode },
+        tasks: [],
+      });
+
+      await useProjectDetailsStore.getState().fetchProjectDetails('PR001');
+
+      expect(useProjectDetailsStore.getState().projectCurrencyCode).toBe('GBP');
+      expect(getProjectAnalytics).toHaveBeenLastCalledWith('PR001', false, {
+        foreignCurrency: false,
+      });
+    }
+  });
+});
