@@ -3,8 +3,9 @@
 import { useState, ReactNode } from 'react';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { useCompanyStore } from '@/hooks';
-import { Card } from '@/components/ui';
+import { Card, Modal } from '@/components/ui';
 import { getBCJobPlanningLinesUrl, getBCJobLedgerEntriesUrl } from '@/utils';
+import type { ResourceHours } from '@/services/bc/projectDetailsService';
 import {
   ClockIcon,
   CalendarDaysIcon,
@@ -14,6 +15,9 @@ import {
   EyeSlashIcon,
   InformationCircleIcon,
 } from '@heroicons/react/24/outline';
+
+// Resources listed on the Estimate and Planned cards before "+N more"
+const MAX_RESOURCE_ROWS = 3;
 
 // Per-widget visibility toggle: an Eye / Eye-slash button that masks just this
 // widget's amount. Hidden from print; the PDF shows masked amounts as on screen.
@@ -30,7 +34,7 @@ function VisibilityToggle({
     <button
       type="button"
       onClick={onToggle}
-      className="focus:ring-thyme-500 focus:ring-offset-dark-800 rounded text-gray-600 transition-colors hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none print:hidden"
+      className="focus:ring-thyme-500 focus:ring-offset-dark-800 flex rounded text-gray-600 transition-colors hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none print:hidden"
       aria-label={hidden ? `Show ${label} amount` : `Hide ${label} amount`}
       aria-pressed={hidden}
       title={hidden ? 'Show amount' : 'Hide amount'}
@@ -55,10 +59,10 @@ function InfoTooltip({
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="relative print:hidden">
+    <div className="relative flex print:hidden">
       <button
         type="button"
-        className="focus:ring-thyme-500 focus:ring-offset-dark-800 cursor-help rounded text-gray-600 hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none"
+        className="focus:ring-thyme-500 focus:ring-offset-dark-800 flex cursor-help rounded text-gray-600 hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none"
         onMouseEnter={() => setIsOpen(true)}
         onMouseLeave={() => setIsOpen(false)}
         onFocus={() => setIsOpen(true)}
@@ -94,6 +98,16 @@ function InfoTooltip({
 }
 
 // Format hours with days equivalent
+// YYYY-MM-DD as a local date (avoids the UTC shift of new Date('YYYY-MM-DD'))
+function formatPlanDate(ymd: string): string {
+  const [y, m, d] = ymd.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
 function formatHoursWithDays(hours: number, hoursPerDay: number): string {
   const days = hours / hoursPerDay;
   if (hours === 0) return '0h (0d)';
@@ -121,6 +135,8 @@ function formatCurrency(amount: number, currencyCode: string): string {
 }
 
 export function ProjectKPICards() {
+  // Which card's full resource list is open ('Estimate' or 'Planned'), if any
+  const [resourceDialog, setResourceDialog] = useState<string | null>(null);
   const { analytics, isLoadingAnalytics, currencyCode, project, hiddenKpis, toggleKpiHidden } =
     useProjectDetailsStore();
   const selectedCompany = useCompanyStore((state) => state.selectedCompany);
@@ -157,40 +173,52 @@ export function ProjectKPICards() {
 
   // Calculate percentages and status
   const hoursSpent = analytics?.hoursSpent ?? 0;
-  const hoursPlanned = analytics?.hoursPlanned ?? 0;
   const hoursPosted = analytics?.hoursPosted ?? 0;
-  const hoursUnposted = analytics?.hoursUnposted ?? 0;
+  // Time Spent by stage, each counted once: Unsubmitted → Submitted → Approved (not yet posted) → Posted
+  const submittedHours = analytics?.submittedHours ?? 0;
+  const unsubmittedHours = analytics?.unsubmittedHours ?? 0;
+  const postedHours = Math.min(hoursPosted, analytics?.approvedHours ?? 0);
+  const approvedUnpostedHours = Math.max(0, (analytics?.approvedHours ?? 0) - postedHours);
   const hoursPerDay = analytics?.hoursPerDay ?? 8; // From BC Resource Unit of Measure
-  const hoursRemaining = hoursPlanned - hoursSpent;
-  const hasPlannedHours = hoursPlanned > 0;
-  const percentUsed = hasPlannedHours ? Math.round((hoursSpent / hoursPlanned) * 100) : 0;
+  // Estimate (quoted, Billable lines) is the budget; Spent + future Planned = Forecast
+  const estimateHours = analytics?.estimateHours ?? 0;
+  const hasEstimate = estimateHours > 0;
+  const futurePlannedHours = analytics?.futurePlannedHours ?? 0;
+  const forecastHours = hoursSpent + futurePlannedHours;
+  const forecastVsEstimate = forecastHours - estimateHours;
+  const percentOfEstimate = hasEstimate ? Math.round((hoursSpent / estimateHours) * 100) : 0;
 
-  // Time KPIs (4 cards - always visible) - Reordered: Budgeted, Spent, Unposted, Posted
+  // Time KPIs (4 cards): Estimate, Spent, Planned (future), Forecast
   // What each KPI means, shown in its (i) tooltip next to the Eye toggle
+  // Hours per day can be a derived average, so round it for display
+  const hoursPerDayLabel = Number(hoursPerDay.toFixed(2));
   const kpiInfo: Record<
     string,
     { title: string; description: string; formula?: string; source: string }
   > = {
-    'Time Budgeted': {
-      title: 'Time Budgeted',
-      description: `Budgeted hours from Job Planning Lines. Only includes Resource lines where lineType is "Budget" or "Both Budget and Billable". Days = hours ÷ ${hoursPerDay}.`,
+    Estimate: {
+      title: 'Estimate',
+      description: `The quoted time: Resource lines on Job Planning Lines where lineType is "Billable" or "Both Budget and Billable" (the same lines as Billable Price). This is the budget the project is tracked against. Days = hours ÷ ${hoursPerDayLabel}.`,
+      formula: 'Σ quantity (Billable Resource lines)',
       source: 'BC API: /jobPlanningLines → quantity',
     },
     'Time Spent': {
       title: 'Time Spent',
-      description: `Total hours logged in timesheets for this project. Includes all timesheet statuses: Open, Submitted, and Approved. Days = hours ÷ ${hoursPerDay}.`,
+      description: `Total hours logged in timesheets for this project, shown against the Estimate and split by stage: Unsubmitted (Open timesheets), Submitted (awaiting approval), Approved (awaiting "Post Time Sheets" in BC) and Posted (in the Job Ledger Entry). Days = hours ÷ ${hoursPerDayLabel}.`,
+      formula: 'Posted + Approved + Submitted + Unsubmitted = Time Spent',
       source: 'BC API: /timeSheetDetails → quantity',
     },
-    'Time Unposted': {
-      title: 'Time Unposted',
-      description: `Hours in timesheets that have not yet been posted to the Job Ledger Entry. These hours are approved but awaiting the "Post Time Sheets" action in BC. Days = hours ÷ ${hoursPerDay}.`,
-      formula: 'Time Spent − Time Posted',
-      source: 'Calculated',
+    Planned: {
+      title: 'Planned',
+      description: `Work still planned from next week on: Resource lines with lineType "Budget" on Job Planning Lines (the Plan screen's weekly allocations), in weeks after the current one. Days = hours ÷ ${hoursPerDayLabel}.`,
+      formula: 'Σ quantity (Budget Resource lines, after this week)',
+      source: 'BC API: /jobPlanningLines → quantity (by planningDate)',
     },
-    'Time Posted': {
-      title: 'Time Posted',
-      description: `Hours that have been posted to the Job Ledger Entry. Posting creates cost and price entries based on the Resource's Unit Cost and Unit Price. Days = hours ÷ ${hoursPerDay}.`,
-      source: 'BC API: /timeEntries → quantity',
+    Forecast: {
+      title: 'Forecast',
+      description: `Where the project is heading: time spent so far plus the work still planned, compared with the Estimate. Days = hours ÷ ${hoursPerDayLabel}.`,
+      formula: 'Time Spent + Planned (from next week)',
+      source: 'Calculated',
     },
     'Budget Cost': {
       title: 'Budget Cost (Internal)',
@@ -222,41 +250,74 @@ export function ProjectKPICards() {
     },
   };
 
-  const hoursKpis = [
+  // Within rounding (0.0h shown) counts as on the estimate, not over or under it
+  const onEstimate = Math.abs(forecastVsEstimate) < 0.05;
+  const hoursKpis: {
+    label: string;
+    value: string;
+    subLabel: string;
+    detail?: string;
+    icon: typeof ClockIcon;
+    color: string;
+    subLabelColor?: string;
+    progress?: number;
+    progressColor?: string;
+    segments?: { label: string; hours: number; color: string }[];
+    resources?: ResourceHours[];
+  }[] = [
     {
-      label: 'Time Budgeted',
-      value: hasPlannedHours ? formatHoursWithDays(hoursPlanned, hoursPerDay) : 'N/A',
-      subLabel: hasPlannedHours
-        ? `${formatHoursWithDays(hoursRemaining, hoursPerDay)} remaining`
-        : 'No budget set in BC',
+      label: 'Estimate',
+      value: hasEstimate ? formatHoursWithDays(estimateHours, hoursPerDay) : 'N/A',
+      subLabel: hasEstimate ? 'Quoted on Billable lines' : 'No estimate on Billable lines',
+      resources: analytics?.estimateByResource,
       icon: CalendarDaysIcon,
-      color: hoursRemaining < 0 ? 'text-red-400' : 'text-blue-400',
+      color: 'text-blue-400',
     },
     {
       label: 'Time Spent',
       value: formatHoursWithDays(hoursSpent, hoursPerDay),
-      subLabel: hasPlannedHours
-        ? `${percentUsed}% of ${formatHoursWithDays(hoursPlanned, hoursPerDay)} budgeted`
+      subLabel: hasEstimate
+        ? `${percentOfEstimate}% of ${formatHoursWithDays(estimateHours, hoursPerDay)} estimate`
         : 'From timesheets',
+      subLabelColor: percentOfEstimate > 100 ? 'text-red-400' : undefined,
       icon: ClockIcon,
       color: 'text-thyme-400',
-      progress: hasPlannedHours ? Math.min(percentUsed, 100) : undefined,
-      progressColor:
-        percentUsed > 100 ? 'bg-red-500' : percentUsed > 80 ? 'bg-amber-500' : 'bg-thyme-500',
+      // Same colours as the Hours per Week bars; posted is the darker, settled green
+      segments: [
+        { label: 'Posted', hours: postedHours, color: 'bg-thyme-700' },
+        { label: 'Approved', hours: approvedUnpostedHours, color: 'bg-thyme-500' },
+        { label: 'Submitted', hours: submittedHours, color: 'bg-amber-500' },
+        { label: 'Unsubmitted', hours: unsubmittedHours, color: 'bg-amber-500/40' },
+      ],
     },
     {
-      label: 'Time Unposted',
-      value: formatHoursWithDays(hoursUnposted, hoursPerDay),
-      subLabel: hoursUnposted > 0 ? 'In timesheets, not posted' : 'All time posted',
-      icon: ClockIcon,
-      color: hoursUnposted > 0 ? 'text-amber-400' : 'text-gray-500',
+      label: 'Planned',
+      value: formatHoursWithDays(futurePlannedHours, hoursPerDay),
+      subLabel: 'Still to do, from next week',
+      resources: analytics?.futurePlannedByResource,
+      icon: CalendarDaysIcon,
+      color: 'text-gray-400',
     },
     {
-      label: 'Time Posted',
-      value: formatHoursWithDays(hoursPosted, hoursPerDay),
-      subLabel: 'In Job Ledger Entry',
+      label: 'Forecast',
+      value: formatHoursWithDays(forecastHours, hoursPerDay),
+      subLabel: !hasEstimate
+        ? 'Spent + planned'
+        : onEstimate
+          ? 'On estimate'
+          : forecastVsEstimate > 0
+            ? `▲ ${formatHoursWithDays(forecastVsEstimate, hoursPerDay)} over estimate`
+            : `▼ ${formatHoursWithDays(-forecastVsEstimate, hoursPerDay)} under estimate`,
       icon: ClockIcon,
-      color: 'text-green-400',
+      color:
+        hasEstimate && forecastVsEstimate > 0 && !onEstimate ? 'text-red-400' : 'text-green-400',
+      subLabelColor: !hasEstimate
+        ? undefined
+        : onEstimate
+          ? 'text-gray-400'
+          : forecastVsEstimate > 0
+            ? 'text-red-400'
+            : 'text-green-400',
     },
   ];
 
@@ -401,7 +462,58 @@ export function ProjectKPICards() {
                   <p className={`text-2xl font-bold ${isHidden ? 'text-gray-600' : 'text-white'}`}>
                     {isHidden ? maskedValue : kpi.value}
                   </p>
-                  <p className="mt-1 text-xs text-gray-500">{kpi.subLabel}</p>
+                  {/* Sub-lines carry figures too, so they're masked with the value */}
+                  <p className={`mt-1 text-xs ${kpi.subLabelColor ?? 'text-gray-500'}`}>
+                    {isHidden ? 'Hidden' : kpi.subLabel}
+                  </p>
+                  {/* Who the hours belong to: top few by hours, then a count of the rest */}
+                  {kpi.resources && kpi.resources.length > 0 && !isHidden && (
+                    <div className="mt-1.5 space-y-0.5 text-xs text-gray-500">
+                      {kpi.resources.slice(0, MAX_RESOURCE_ROWS).map((res) => (
+                        <div key={res.resourceNo} className="flex justify-between gap-2">
+                          <span className="truncate">{res.name}</span>
+                          <span className="shrink-0">
+                            {formatHoursWithDays(res.hours, hoursPerDay)}
+                          </span>
+                        </div>
+                      ))}
+                      {
+                        <button
+                          type="button"
+                          onClick={() => setResourceDialog(kpi.label)}
+                          className="text-thyme-400 hover:text-thyme-300 focus-visible:ring-thyme-500 rounded hover:underline focus:outline-none focus-visible:ring-1"
+                        >
+                          {kpi.resources.length > MAX_RESOURCE_ROWS
+                            ? `+${kpi.resources.length - MAX_RESOURCE_ROWS} more`
+                            : 'Details'}
+                        </button>
+                      }
+                    </div>
+                  )}
+                  {kpi.segments && !isHidden && (
+                    <>
+                      {/* Stacked bar against the estimate (or total spent, if over or no estimate) */}
+                      <div className="bg-dark-600 mt-2 flex h-1.5 w-full overflow-hidden rounded-full">
+                        {kpi.segments.map((seg) => (
+                          <div
+                            key={seg.label}
+                            className={`h-full transition-all ${seg.color}`}
+                            style={{
+                              width: `${(seg.hours / Math.max(estimateHours, hoursSpent, 1)) * 100}%`,
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-500">
+                        {kpi.segments.map((seg) => (
+                          <span key={seg.label} className="flex items-center gap-1">
+                            <span className={`inline-block h-2 w-2 rounded-sm ${seg.color}`} />
+                            {seg.label} {formatHoursWithDays(seg.hours, hoursPerDay)}
+                          </span>
+                        ))}
+                      </div>
+                    </>
+                  )}
                   {kpi.progress !== undefined && !isHidden && (
                     <div className="bg-dark-600 mt-2 h-1.5 w-full overflow-hidden rounded-full">
                       <div
@@ -409,6 +521,9 @@ export function ProjectKPICards() {
                         style={{ width: `${kpi.progress}%` }}
                       />
                     </div>
+                  )}
+                  {kpi.detail && !isHidden && (
+                    <p className="mt-1.5 text-xs text-gray-500">{kpi.detail}</p>
                   )}
                 </div>
               </div>
@@ -476,6 +591,65 @@ export function ProjectKPICards() {
           );
         })}
       </div>
+
+      {/* Full resource list behind a card's "+N more" */}
+      {(() => {
+        const kpi = hoursKpis.find((k) => k.label === resourceDialog);
+        if (!kpi?.resources) return null;
+        const total = kpi.resources.reduce((sum, res) => sum + res.hours, 0);
+        const isPlanned = kpi.label === 'Planned';
+        return (
+          <Modal
+            isOpen
+            onClose={() => setResourceDialog(null)}
+            title={isPlanned ? 'Planned: people (from next week)' : 'Estimate: resources'}
+            size="lg"
+          >
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-dark-600 border-b text-left text-xs text-gray-500">
+                  <th className="py-2 font-medium">{isPlanned ? 'Person' : 'Resource'}</th>
+                  <th className="py-2 text-right font-medium">Hours</th>
+                  <th className="py-2 text-right font-medium">Days</th>
+                  <th className="py-2 text-right font-medium">Share</th>
+                  {isPlanned && <th className="py-2 text-right font-medium">Planned until</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {kpi.resources.map((res) => (
+                  <tr key={res.resourceNo} className="border-dark-700 border-b text-gray-300">
+                    <td className="py-2">
+                      {res.name}
+                      {res.name !== res.resourceNo && (
+                        <span className="ml-2 text-xs text-gray-500">{res.resourceNo}</span>
+                      )}
+                    </td>
+                    <td className="py-2 text-right">{res.hours.toFixed(1)}h</td>
+                    <td className="py-2 text-right">{(res.hours / hoursPerDay).toFixed(1)}d</td>
+                    <td className="py-2 text-right text-gray-500">
+                      {total > 0 ? Math.round((res.hours / total) * 100) : 0}%
+                    </td>
+                    {isPlanned && (
+                      <td className="py-2 text-right text-gray-500">
+                        {res.lastDate ? formatPlanDate(res.lastDate) : '–'}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="font-medium text-white">
+                  <td className="py-2">Total</td>
+                  <td className="py-2 text-right">{total.toFixed(1)}h</td>
+                  <td className="py-2 text-right">{(total / hoursPerDay).toFixed(1)}d</td>
+                  <td />
+                  {isPlanned && <td />}
+                </tr>
+              </tfoot>
+            </table>
+          </Modal>
+        );
+      })()}
     </div>
   );
 }

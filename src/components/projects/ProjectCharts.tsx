@@ -5,7 +5,6 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { Card } from '@/components/ui';
 import { cn } from '@/utils';
-import type { CostBreakdown } from '@/services/bc/projectDetailsService';
 
 // Interval for auto-repeat when holding navigation buttons (ms)
 const HOLD_INITIAL_DELAY = 400; // Delay before repeat starts
@@ -17,9 +16,17 @@ type ChartView = 'weekly' | 'progress';
 // can go in a PDF for a customer without exposing internal costs.
 type SpendUnit = 'hours' | 'days' | 'cost';
 const SPEND_UNITS: { value: SpendUnit; label: string; title: string }[] = [
-  { value: 'hours', label: 'Hours', title: 'Effort in hours against Time Budgeted' },
-  { value: 'days', label: 'Days', title: 'Effort in days against Time Budgeted' },
-  { value: 'cost', label: '£', title: 'Internal cost against Budget Cost' }, // label replaced by the company currency symbol
+  {
+    value: 'hours',
+    label: 'Hours',
+    title: 'Effort in hours against the quoted estimate (or the Plan if there is no estimate)',
+  },
+  {
+    value: 'days',
+    label: 'Days',
+    title: 'Effort in days against the quoted estimate (or the Plan if there is no estimate)',
+  },
+  { value: 'cost', label: '£', title: 'Time at selling rates against the quoted Billable Price' }, // label replaced by the company currency symbol
 ];
 
 const WEEKS_TO_SHOW = 24;
@@ -69,10 +76,11 @@ export function ProjectCharts() {
   const { analytics, isLoadingAnalytics, hiddenKpis, currencyCode, project } =
     useProjectDetailsStore();
   // Follow the Budget Cost / Actual Cost KPI card Eye toggles
-  const showBudgetCost = !hiddenKpis.includes('Budget Cost');
-  const showActualCost = !hiddenKpis.includes('Actual Cost');
+  // £ mode is customer-facing (selling rates vs Billable Price), so it follows that card's eye
+  const showBillablePrice = !hiddenKpis.includes('Billable Price');
   // ...and the Time Budgeted / Time Spent eyes in effort (hours/days) mode
-  const showTimeBudgeted = !hiddenKpis.includes('Time Budgeted');
+  // The effort budget is the Estimate card's figure, so it follows that card's eye
+  const showTimeBudgeted = !hiddenKpis.includes('Estimate');
   const showTimeSpent = !hiddenKpis.includes('Time Spent');
   const [chartView, setChartView] = useState<ChartView>('weekly');
   // Days by default: effort is the safe view to share, and matches how projects are planned
@@ -298,16 +306,13 @@ export function ProjectCharts() {
         <ProgressLineChart
           data={weeklyData}
           offsetWeeks={offsetWeeks}
-          budgetCost={analytics?.budgetCost ?? 0}
-          budgetCostBreakdown={
-            analytics?.budgetCostBreakdown ?? { resource: 0, item: 0, glAccount: 0, total: 0 }
-          }
           hoursSpent={analytics?.hoursSpent ?? 0}
           hoursPlanned={analytics?.hoursPlanned ?? 0}
-          actualCost={analytics?.actualCost ?? 0}
-          unpostedCost={analytics?.unpostedCost ?? 0}
-          showBudgetCost={showBudgetCost}
-          showActualCost={showActualCost}
+          estimateHours={analytics?.estimateHours ?? 0}
+          billableResourcePrice={analytics?.billablePriceBreakdown?.resource ?? 0}
+          invoicedPrice={analytics?.invoicedPrice ?? 0}
+          unpostedBillable={analytics?.unpostedBillable ?? 0}
+          showBillablePrice={showBillablePrice}
           showTimeBudgeted={showTimeBudgeted}
           showTimeSpent={showTimeSpent}
           unit={spendUnit}
@@ -326,6 +331,7 @@ interface WeeklyDataPoint {
   hours: number;
   approvedHours: number;
   pendingHours: number;
+  unsubmittedHours?: number; // The Open (not yet submitted) part of pendingHours
   plannedHours: number; // Budgeted hours from Job Planning Lines
   cumulative: number;
 }
@@ -335,6 +341,7 @@ interface WeekDisplayData {
   hours: number;
   approvedHours: number; // Hours from Approved timesheets
   pendingHours: number; // Hours from Open/Submitted timesheets
+  unsubmittedHours: number; // The Open (not yet submitted) part of pendingHours
   plannedHours: number; // Budgeted hours from Job Planning Lines
   date: Date;
   isCurrentWeek: boolean;
@@ -443,13 +450,20 @@ function generateWeeklyDisplayData(
   // Create a map of existing data
   const dataMap = new Map<
     string,
-    { hours: number; approvedHours: number; pendingHours: number; plannedHours: number }
+    {
+      hours: number;
+      approvedHours: number;
+      pendingHours: number;
+      unsubmittedHours: number;
+      plannedHours: number;
+    }
   >();
   for (const d of data) {
     dataMap.set(d.week, {
       hours: d.hours,
       approvedHours: d.approvedHours || 0,
       pendingHours: d.pendingHours || 0,
+      unsubmittedHours: d.unsubmittedHours || 0,
       plannedHours: d.plannedHours || 0,
     });
   }
@@ -470,6 +484,7 @@ function generateWeeklyDisplayData(
       hours: 0,
       approvedHours: 0,
       pendingHours: 0,
+      unsubmittedHours: 0,
       plannedHours: 0,
     };
 
@@ -486,6 +501,7 @@ function generateWeeklyDisplayData(
       hours: weekData.hours,
       approvedHours: weekData.approvedHours,
       pendingHours: weekData.pendingHours,
+      unsubmittedHours: weekData.unsubmittedHours,
       plannedHours: weekData.plannedHours,
       date: weekDate,
       isCurrentWeek: weekStr === currentWeekStr,
@@ -521,9 +537,10 @@ function WeeklyBarChart({ data, offsetWeeks, unit, hoursPerDay }: WeeklyBarChart
         (acc, d) => ({
           planned: acc.planned + d.plannedHours,
           approved: acc.approved + d.approvedHours,
-          pending: acc.pending + d.pendingHours,
+          submitted: acc.submitted + d.pendingHours - d.unsubmittedHours,
+          unsubmitted: acc.unsubmitted + d.unsubmittedHours,
         }),
-        { planned: 0, approved: 0, pending: 0 }
+        { planned: 0, approved: 0, submitted: 0, unsubmitted: 0 }
       ),
     [displayData]
   );
@@ -574,10 +591,13 @@ function WeeklyBarChart({ data, offsetWeeks, unit, hoursPerDay }: WeeklyBarChart
           {/* Bars */}
           <div className="relative flex h-full items-end">
             {displayData.map((point) => {
-              // Stacked bar heights: approved at bottom, pending on top
+              // Stacked bar heights: approved at the bottom, then submitted, unsubmitted on top
+              const submittedHours = point.pendingHours - point.unsubmittedHours;
               const approvedHeightPercent =
                 maxHours > 0 ? (point.approvedHours / maxHours) * 100 : 0;
-              const pendingHeightPercent = maxHours > 0 ? (point.pendingHours / maxHours) * 100 : 0;
+              const submittedHeightPercent = maxHours > 0 ? (submittedHours / maxHours) * 100 : 0;
+              const unsubmittedHeightPercent =
+                maxHours > 0 ? (point.unsubmittedHours / maxHours) * 100 : 0;
               const plannedHeightPercent = maxHours > 0 ? (point.plannedHours / maxHours) * 100 : 0;
               const isHovered = hoveredWeek === point.week;
 
@@ -619,8 +639,8 @@ function WeeklyBarChart({ data, offsetWeeks, unit, hoursPerDay }: WeeklyBarChart
                           }}
                         />
                       )}
-                      {/* Pending hours (top of stack - amber/orange) */}
-                      {pendingHeightPercent > 0 && (
+                      {/* Submitted hours (middle of stack - amber), awaiting approval */}
+                      {submittedHeightPercent > 0 && (
                         <div
                           className={cn(
                             'w-full transition-all',
@@ -630,7 +650,25 @@ function WeeklyBarChart({ data, offsetWeeks, unit, hoursPerDay }: WeeklyBarChart
                             approvedHeightPercent === 0 && 'rounded-t'
                           )}
                           style={{
-                            height: `${pendingHeightPercent}%`,
+                            height: `${submittedHeightPercent}%`,
+                            minHeight: '2px',
+                          }}
+                        />
+                      )}
+                      {/* Unsubmitted hours (top of stack - faded amber), still on Open timesheets */}
+                      {unsubmittedHeightPercent > 0 && (
+                        <div
+                          className={cn(
+                            'w-full transition-all',
+                            point.isCurrentWeek
+                              ? 'bg-amber-400/50'
+                              : 'bg-amber-500/40 group-hover:bg-amber-400/50',
+                            approvedHeightPercent === 0 &&
+                              submittedHeightPercent === 0 &&
+                              'rounded-t'
+                          )}
+                          style={{
+                            height: `${unsubmittedHeightPercent}%`,
                             minHeight: '2px',
                           }}
                         />
@@ -660,10 +698,16 @@ function WeeklyBarChart({ data, offsetWeeks, unit, hoursPerDay }: WeeklyBarChart
                           Approved: {formatEffort(point.approvedHours)}
                         </div>
                       )}
-                      {point.pendingHours > 0 && (
+                      {point.pendingHours - point.unsubmittedHours > 0 && (
                         <div className="flex items-center gap-2 text-gray-400">
                           <span className="inline-block h-2 w-2 rounded-sm bg-amber-500" />
-                          Pending: {formatEffort(point.pendingHours)}
+                          Submitted: {formatEffort(point.pendingHours - point.unsubmittedHours)}
+                        </div>
+                      )}
+                      {point.unsubmittedHours > 0 && (
+                        <div className="flex items-center gap-2 text-gray-400">
+                          <span className="inline-block h-2 w-2 rounded-sm bg-amber-500/40" />
+                          Unsubmitted: {formatEffort(point.unsubmittedHours)}
                         </div>
                       )}
                       {point.hours === 0 && point.plannedHours === 0 && (
@@ -700,7 +744,11 @@ function WeeklyBarChart({ data, offsetWeeks, unit, hoursPerDay }: WeeklyBarChart
         </div>
         <div className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-500" />
-          <span>Pending ({formatEffort(legendTotals.pending)})</span>
+          <span>Submitted ({formatEffort(legendTotals.submitted)})</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-500/40" />
+          <span>Unsubmitted ({formatEffort(legendTotals.unsubmitted)})</span>
         </div>
       </div>
     </div>
@@ -786,14 +834,13 @@ function generateProgressDisplayData(
 function ProgressLineChart({
   data,
   offsetWeeks,
-  budgetCost,
-  budgetCostBreakdown,
   hoursSpent,
   hoursPlanned,
-  actualCost,
-  unpostedCost,
-  showBudgetCost,
-  showActualCost,
+  estimateHours,
+  billableResourcePrice,
+  invoicedPrice,
+  unpostedBillable,
+  showBillablePrice,
   showTimeBudgeted,
   showTimeSpent,
   unit,
@@ -804,14 +851,13 @@ function ProgressLineChart({
 }: {
   data: WeeklyDataPoint[];
   offsetWeeks: number;
-  budgetCost: number;
-  budgetCostBreakdown: CostBreakdown;
   hoursSpent: number;
   hoursPlanned: number;
-  actualCost: number;
-  unpostedCost: number;
-  showBudgetCost: boolean;
-  showActualCost: boolean;
+  estimateHours: number;
+  billableResourcePrice: number;
+  invoicedPrice: number;
+  unpostedBillable: number;
+  showBillablePrice: boolean;
   showTimeBudgeted: boolean;
   showTimeSpent: boolean;
   unit: SpendUnit;
@@ -822,13 +868,13 @@ function ProgressLineChart({
 }) {
   const isCost = unit === 'cost';
   // Which KPI card eyes govern the chart: cost cards for £, time cards for effort
-  const showBudget = isCost ? showBudgetCost : showTimeBudgeted;
-  const showActual = isCost ? showActualCost : showTimeSpent;
+  const showBudget = isCost ? showBillablePrice : showTimeBudgeted;
+  const showActual = isCost ? showBillablePrice : showTimeSpent;
   // Y-axis labels plus the spent line would reveal both figures, so only label it when both are visible
   const showValueAxis = showBudget && showActual;
   const formatValue = (value: number) => {
     if (unit === 'cost') return formatCurrencyShort(value, currencyCode);
-    const rounded = value >= 100 ? Math.round(value) : Math.round(value * 10) / 10;
+    const rounded = Math.round(value * 10) / 10;
     return `${rounded.toLocaleString('en-GB')}${unit === 'hours' ? 'h' : 'd'}`;
   };
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -838,23 +884,23 @@ function ProgressLineChart({
     [data, offsetWeeks]
   );
 
-  // Average cost per hour. Spent = posted cost + the service's estimate for unposted
-  // hours (at posted rates, or budget rates when nothing is posted yet), so the line
-  // rises as timesheets are entered rather than only once they're posted to BC.
-  // Before any time is spent, fall back to the budget resource rate for the forecast.
-  const costRate = useMemo(() => {
-    const spentCost = actualCost + unpostedCost;
-    if (spentCost > 0 && hoursSpent > 0) return spentCost / hoursSpent;
-    if (budgetCostBreakdown.resource > 0 && hoursPlanned > 0) {
-      return budgetCostBreakdown.resource / hoursPlanned;
-    }
+  // The budget is the quoted estimate (Billable Resource lines), not the Plan's Budget lines.
+  // Falls back to the Plan's hours for projects without an estimate (e.g. internal work).
+  const budgetHours = estimateHours > 0 ? estimateHours : hoursPlanned;
+  // Selling rate per hour, so £ compares like with like against the Billable Price:
+  // posted invoiced price + the service's estimate for unposted hours, over hours spent;
+  // before any time is spent, the estimate's own rate.
+  const priceRate = useMemo(() => {
+    const spentPrice = invoicedPrice + unpostedBillable;
+    if (spentPrice > 0 && hoursSpent > 0) return spentPrice / hoursSpent;
+    if (billableResourcePrice > 0 && budgetHours > 0) return billableResourcePrice / budgetHours;
     return null;
-  }, [actualCost, unpostedCost, hoursSpent, budgetCostBreakdown.resource, hoursPlanned]);
+  }, [invoicedPrice, unpostedBillable, hoursSpent, billableResourcePrice, budgetHours]);
   // Value per hour in the chosen unit; the rest of the chart works in that unit
   const effortRate = unit === 'hours' ? 1 : 1 / (hoursPerDay || 8);
-  const avgCostRate = isCost ? costRate : effortRate;
-  // Budget in the chosen unit: Budget Cost (£) or Time Budgeted (hours/days)
-  const budgetValue = isCost ? budgetCost : hoursPlanned * effortRate;
+  const avgCostRate = isCost ? priceRate : effortRate;
+  // Budget in the chosen unit: Billable Price of the estimate (£) or its time (hours/days)
+  const budgetValue = isCost ? billableResourcePrice : budgetHours * effortRate;
 
   // Forecast cumulative hours for future weeks: hours spent to date plus the planned
   // hours (from Job Planning Lines, i.e. the Plan page) of each week after this one
@@ -956,13 +1002,28 @@ function ProgressLineChart({
 
   const currentWeekIndex = displayDataWithCost.findIndex((d) => d.isCurrentWeek);
 
-  // Budget breakdown line Y positions
-  const resourceBudgetY = maxCost > 0 ? (1 - budgetCostBreakdown.resource / maxCost) * 100 : 100;
-  const resourceItemBudgetY =
-    maxCost > 0
-      ? (1 - (budgetCostBreakdown.resource + budgetCostBreakdown.item) / maxCost) * 100
-      : 100;
+  // Budget line Y position
   const totalBudgetY = maxCost > 0 ? (1 - budgetValue / maxCost) * 100 : 0;
+
+  // Label the forecast where it reaches its final value, if that's in view (not part-way off the edge)
+  const completionIndex = hasForecast
+    ? displayDataWithCost.findIndex(
+        (d) => d.isFuture && d.forecastHours === forecastHoursAtCompletion
+      )
+    : -1;
+  const forecastEnd =
+    completionIndex >= 0
+      ? {
+          x: xFor(completionIndex),
+          y: yFor(forecastAtCompletion),
+          value: forecastAtCompletion,
+        }
+      : null;
+  // When the forecast ends close to the budget line, both labels share one row on the side
+  // of the line away from the forecast's end point, so neither sits on a line or the other
+  const forecastNearBudget =
+    !!forecastEnd && showBudget && Math.abs(forecastEnd.y - totalBudgetY) < 8;
+  const sharedLabelBelowLine = forecastNearBudget && forecastEnd!.y < totalBudgetY;
 
   return (
     <div>
@@ -983,51 +1044,32 @@ function ProgressLineChart({
             ))}
           </div>
 
-          {/* Budget breakdown bands (£ only) and total budget line */}
+          {/* Estimate band and budget line */}
           {showBudget && budgetValue > 0 && (
             <>
-              {/* Effort: budgeted time is all resource time, so one band up to the budget */}
-              {!isCost && (
-                <div
-                  className="absolute right-0 bottom-0 left-0 bg-blue-500/10"
-                  style={{ height: `${100 - totalBudgetY}%` }}
-                />
-              )}
-              {/* Resource budget band (bottom) */}
-              {isCost && budgetCostBreakdown.resource > 0 && (
-                <div
-                  className="absolute right-0 bottom-0 left-0 bg-blue-500/10"
-                  style={{ height: `${100 - resourceBudgetY}%` }}
-                />
-              )}
-              {/* Item budget band (middle) */}
-              {isCost && budgetCostBreakdown.item > 0 && (
-                <div
-                  className="absolute right-0 left-0 bg-purple-500/10"
-                  style={{
-                    top: `${resourceItemBudgetY}%`,
-                    height: `${resourceBudgetY - resourceItemBudgetY}%`,
-                  }}
-                />
-              )}
-              {/* G/L Account budget band (top) */}
-              {isCost && budgetCostBreakdown.glAccount > 0 && (
-                <div
-                  className="absolute right-0 left-0 bg-amber-500/10"
-                  style={{
-                    top: `${totalBudgetY}%`,
-                    height: `${resourceItemBudgetY - totalBudgetY}%`,
-                  }}
-                />
-              )}
+              <div
+                className="absolute right-0 bottom-0 left-0 bg-blue-500/10"
+                style={{ height: `${100 - totalBudgetY}%` }}
+              />
 
               {/* Total budget line */}
               <div
                 className="absolute right-0 left-0 border-t-2 border-dashed border-amber-500/50"
                 style={{ top: `${totalBudgetY}%` }}
               >
-                <span className="absolute -top-5 right-0 text-xs text-amber-400">
+                <span
+                  className={cn(
+                    'absolute right-0 text-xs text-amber-400',
+                    sharedLabelBelowLine ? 'top-1' : '-top-5'
+                  )}
+                >
                   Budget: {formatValue(budgetValue)}
+                  {forecastNearBudget && forecastEnd && (
+                    <span className="text-sky-400">
+                      {' '}
+                      · Forecast: {formatValue(forecastEnd.value)}
+                    </span>
+                  )}
                 </span>
               </div>
             </>
@@ -1121,6 +1163,19 @@ function ProgressLineChart({
             />
           </svg>
 
+          {/* Forecast label at the end of the forecast line, like the budget line's */}
+          {forecastEnd && !forecastNearBudget && (
+            <span
+              className={cn(
+                'absolute -translate-y-full pb-1 text-xs whitespace-nowrap text-sky-400',
+                forecastEnd.x > 20 ? '-translate-x-full pr-1' : 'pl-1'
+              )}
+              style={{ left: `${forecastEnd.x}%`, top: `${forecastEnd.y}%` }}
+            >
+              Forecast: {formatValue(forecastEnd.value)}
+            </span>
+          )}
+
           {/* Points - separate layer to avoid stretching */}
           <div className="absolute inset-0">
             {displayDataWithCost.map((point, i) => {
@@ -1206,36 +1261,9 @@ function ProgressLineChart({
                   {formatValue(onTrack.valueAt(displayDataWithCost[hoveredIndex].date.getTime()))}
                 </div>
               )}
-              {showBudget && budgetValue > 0 && !isCost && (
+              {showBudget && budgetValue > 0 && (
                 <div className="border-dark-500 mt-1 border-t pt-1 text-amber-400">
                   Budget: {formatValue(budgetValue)}
-                </div>
-              )}
-              {showBudget && isCost && budgetCost > 0 && (
-                <div className="border-dark-500 mt-1 border-t pt-1">
-                  <div className="mb-1 text-gray-500">Budget breakdown:</div>
-                  {budgetCostBreakdown.resource > 0 && (
-                    <div className="flex items-center gap-2 text-blue-400">
-                      <span className="inline-block h-2 w-2 rounded-sm bg-blue-500/50" />
-                      Resource: {formatCurrencyShort(budgetCostBreakdown.resource, currencyCode)}
-                    </div>
-                  )}
-                  {budgetCostBreakdown.item > 0 && (
-                    <div className="flex items-center gap-2 text-purple-400">
-                      <span className="inline-block h-2 w-2 rounded-sm bg-purple-500/50" />
-                      Item: {formatCurrencyShort(budgetCostBreakdown.item, currencyCode)}
-                    </div>
-                  )}
-                  {budgetCostBreakdown.glAccount > 0 && (
-                    <div className="flex items-center gap-2 text-amber-400">
-                      <span className="inline-block h-2 w-2 rounded-sm bg-amber-500/50" />
-                      G/L Account:{' '}
-                      {formatCurrencyShort(budgetCostBreakdown.glAccount, currencyCode)}
-                    </div>
-                  )}
-                  <div className="mt-1 font-medium text-amber-400">
-                    Total: {formatCurrencyShort(budgetCost, currencyCode)}
-                  </div>
                 </div>
               )}
               {displayDataWithCost[hoveredIndex].isCurrentWeek && (
@@ -1302,30 +1330,10 @@ function ProgressLineChart({
               <span>Forecast ({formatValue(forecastAtCompletion)} at completion)</span>
             </div>
           )}
-          {!isCost && (
-            <div className="flex items-center gap-1">
-              <span className="inline-block h-2 w-4 rounded bg-blue-500/30" />
-              <span>Budgeted time</span>
-            </div>
-          )}
-          {isCost && budgetCostBreakdown.resource > 0 && (
-            <div className="flex items-center gap-1">
-              <span className="inline-block h-2 w-4 rounded bg-blue-500/30" />
-              <span>Resource</span>
-            </div>
-          )}
-          {isCost && budgetCostBreakdown.item > 0 && (
-            <div className="flex items-center gap-1">
-              <span className="inline-block h-2 w-4 rounded bg-purple-500/30" />
-              <span>Item</span>
-            </div>
-          )}
-          {isCost && budgetCostBreakdown.glAccount > 0 && (
-            <div className="flex items-center gap-1">
-              <span className="inline-block h-2 w-4 rounded bg-amber-500/30" />
-              <span>G/L Acct</span>
-            </div>
-          )}
+          <div className="flex items-center gap-1">
+            <span className="inline-block h-2 w-4 rounded bg-blue-500/30" />
+            <span>Estimate</span>
+          </div>
         </div>
       )}
     </div>

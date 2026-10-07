@@ -34,6 +34,13 @@ export interface CostBreakdown {
 // Billing mode derived from Job Planning Line configuration
 export type BillingMode = 'T&M' | 'Fixed Price' | 'Mixed' | 'Not Set';
 
+export interface ResourceHours {
+  resourceNo: string;
+  name: string;
+  hours: number;
+  lastDate?: string; // Planned only: the latest planning date (YYYY-MM-DD)
+}
+
 export interface ProjectAnalytics {
   // Billing mode - derived from billablePriceBreakdown
   billingMode: BillingMode;
@@ -44,9 +51,17 @@ export interface ProjectAnalytics {
   // Hours
   hoursSpent: number; // From timesheets (totalQuantity)
   hoursPlanned: number; // From Job Planning Lines (Budget lineType)
+  estimateHours: number; // Quoted estimate: Resource Billable lines (incl. Both Budget and Billable)
+  futurePlannedHours: number; // Planned (Budget lines) in weeks after the current one - the work still to do
+  estimateByResource: ResourceHours[]; // Estimate split by resource, most hours first
+  futurePlannedByResource: ResourceHours[]; // Future planned work split by person, most hours first
   hoursThisWeek: number;
   hoursPosted: number; // From timeEntries (Job Ledger Entry) - posted to ledger
   hoursUnposted: number; // hoursSpent - hoursPosted (in timesheets but not posted)
+  approvedHours: number; // Hours on Approved timesheet lines (posted time stays Approved)
+  pendingHours: number; // Hours on Open or Submitted timesheet lines
+  submittedHours: number; // Hours on Submitted lines, awaiting approval
+  unsubmittedHours: number; // Hours on Open lines, not yet submitted
 
   // Costs (internal - hideable) with breakdown by type
   budgetCost: number; // Total from Job Planning Lines totalCost (Budget lineType)
@@ -80,6 +95,7 @@ interface WeeklyDataPoint {
   hours: number; // Total hours
   approvedHours: number; // Hours from Approved timesheets
   pendingHours: number; // Hours from Open + Submitted timesheets
+  unsubmittedHours: number; // The Open (not yet submitted) part of pendingHours
   plannedHours: number; // Budgeted hours from Job Planning Lines (by planningDate)
   cumulative: number;
 }
@@ -214,9 +230,17 @@ export const projectDetailsService = {
       hoursPerDay: 8,
       hoursSpent: 0,
       hoursPlanned: 0,
+      estimateHours: 0,
+      futurePlannedHours: 0,
+      estimateByResource: [],
+      futurePlannedByResource: [],
       hoursThisWeek: 0,
       hoursPosted: 0,
       hoursUnposted: 0,
+      approvedHours: 0,
+      pendingHours: 0,
+      submittedHours: 0,
+      unsubmittedHours: 0,
       budgetCost: 0,
       budgetCostBreakdown: emptyBreakdown(),
       actualCost: 0,
@@ -243,25 +267,15 @@ export const projectDetailsService = {
       return emptyAnalytics();
     }
 
-    // Get the date 6 months ago for filtering timesheets
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    const filterDate = sixMonthsAgo.toISOString().split('T')[0];
-    // Details are pre-filtered a week early so a timesheet starting on/after filterDate
-    // keeps all its days; the join to the date-filtered lines applies the exact rule
-    const detailsFromDate = new Date(sixMonthsAgo);
-    detailsFromDate.setDate(detailsFromDate.getDate() - 7);
-
+    // No date window: the project's totals cover all its time, however old (a 6-month
+    // window used to drop earlier time, so Time Spent shrank as a project aged)
     // Start every independent BC request at once (they used to run one after another);
     // each is awaited, with its own error handling, where its result is used. The no-op
     // catches only stop a rejection being reported as unhandled before it's awaited.
     const resourcesPromise = bcClient.getResources();
-    const timesheetsPromise = bcClient.getTimeSheetsFrom(filterDate);
-    const jobLinesPromise = bcClient.getTimeSheetLinesForJob(projectNumber, filterDate);
-    const jobDetailsPromise = bcClient.getTimeSheetDetailsForJob(
-      projectNumber,
-      detailsFromDate.toISOString().split('T')[0]
-    );
+    const timesheetsPromise = bcClient.getTimeSheetsFrom();
+    const jobLinesPromise = bcClient.getTimeSheetLinesForJob(projectNumber);
+    const jobDetailsPromise = bcClient.getTimeSheetDetailsForJob(projectNumber);
     const planningPromise = Promise.all([
       bcClient.getJobPlanningLines(projectNumber),
       bcClient.getResourceUnitsOfMeasure(),
@@ -320,7 +334,6 @@ export const projectDetailsService = {
     for (const line of jobLines) {
       if (line.type !== 'Job' || line.jobNo !== projectNumber || !(line.totalQuantity > 0))
         continue;
-      if (line.timeSheetStartingDate && line.timeSheetStartingDate < filterDate) continue;
       linesByKey.set(`${line.timeSheetNo}|${line.lineNo}`, line);
     }
 
@@ -348,6 +361,18 @@ export const projectDetailsService = {
     // Calculate analytics from collected data
     const totalHours = timeEntries.reduce((sum, e) => sum + e.hours, 0);
 
+    // Status totals: posting needs approval first, so posted time is a subset of approved
+    const approvedHours = timeEntries
+      .filter((e) => e.status === 'Approved')
+      .reduce((sum, e) => sum + e.hours, 0);
+    const submittedHours = timeEntries
+      .filter((e) => e.status === 'Submitted')
+      .reduce((sum, e) => sum + e.hours, 0);
+    const unsubmittedHours = timeEntries
+      .filter((e) => e.status === 'Open')
+      .reduce((sum, e) => sum + e.hours, 0);
+    const pendingHours = submittedHours + unsubmittedHours;
+
     // For now, assume all hours are billable (BC doesn't expose this easily)
     const billableHours = totalHours;
     const nonBillableHours = 0;
@@ -360,15 +385,24 @@ export const projectDetailsService = {
       .reduce((sum, e) => sum + e.hours, 0);
 
     // Weekly data aggregation - track approved vs pending hours
-    const weeklyMap = new Map<string, { total: number; approved: number; pending: number }>();
+    const weeklyMap = new Map<
+      string,
+      { total: number; approved: number; pending: number; unsubmitted: number }
+    >();
     for (const entry of timeEntries) {
-      const current = weeklyMap.get(entry.weekStart) || { total: 0, approved: 0, pending: 0 };
+      const current = weeklyMap.get(entry.weekStart) || {
+        total: 0,
+        approved: 0,
+        pending: 0,
+        unsubmitted: 0,
+      };
       current.total += entry.hours;
       // Approved status = approved hours, everything else (Open, Submitted) = pending
       if (entry.status === 'Approved') {
         current.approved += entry.hours;
       } else if (entry.status === 'Open' || entry.status === 'Submitted') {
         current.pending += entry.hours;
+        if (entry.status === 'Open') current.unsubmitted += entry.hours;
       }
       // Note: Rejected hours are excluded from pending/approved but included in total
       weeklyMap.set(entry.weekStart, current);
@@ -378,13 +412,14 @@ export const projectDetailsService = {
     const sortedWeeks = Array.from(weeklyMap.keys()).sort();
     let cumulative = 0;
     let weeklyData: WeeklyDataPoint[] = sortedWeeks.map((week) => {
-      const data = weeklyMap.get(week) || { total: 0, approved: 0, pending: 0 };
+      const data = weeklyMap.get(week) || { total: 0, approved: 0, pending: 0, unsubmitted: 0 };
       cumulative += data.total;
       return {
         week,
         hours: data.total,
         approvedHours: data.approved,
         pendingHours: data.pending,
+        unsubmittedHours: data.unsubmitted,
         plannedHours: 0, // Will be populated from planning lines
         cumulative,
       };
@@ -403,6 +438,13 @@ export const projectDetailsService = {
     // BC has 3 line types: Resource (labor), Item (products), G/L Account (overhead/services)
     // We include ALL types for totals, but only Resource for hours
     let hoursPlanned = 0;
+    let estimateHours = 0;
+    // Hours by resource number, for the Estimate and Planned cards' lists
+    const estimateHoursByResource = new Map<string, number>();
+    const futurePlannedHoursByResource = new Map<string, number>();
+    const lastPlannedDateByResource = new Map<string, string>();
+    const addHours = (map: Map<string, number>, resourceNo: string, hours: number) =>
+      map.set(resourceNo, (map.get(resourceNo) ?? 0) + hours);
     let hoursPerDay = 8; // Default, will be updated from BC if DAY unit is configured
     let budgetCost = 0;
     let budgetCostBreakdown: CostBreakdown = { resource: 0, item: 0, glAccount: 0, total: 0 };
@@ -489,6 +531,14 @@ export const projectDetailsService = {
         (sum: number, line: BCJobPlanningLine) => sum + line.totalPrice,
         0
       );
+      // Estimate: the quoted time on Billable Resource lines (Budget lines are the Plan
+      // screen's weekly allocations), converted to hours via the UoM map
+      for (const line of billableLines) {
+        if (line.type !== 'Resource') continue;
+        const hours = convertToHours(line.number, line.quantity, uomConversionMap);
+        estimateHours += hours;
+        addHours(estimateHoursByResource, line.number, hours);
+      }
       billablePriceBreakdown = {
         resource: billableLines
           .filter((line: BCJobPlanningLine) => line.type === 'Resource')
@@ -519,6 +569,14 @@ export const projectDetailsService = {
         const hours = convertToHours(line.number, line.quantity, uomConversionMap);
         const current = plannedHoursMap.get(weekStr) || 0;
         plannedHoursMap.set(weekStr, current + hours);
+        // Same "after this week" rule as futurePlannedHours below
+        if (weekStr > currentWeekStr) {
+          addHours(futurePlannedHoursByResource, line.number, hours);
+          // YYYY-MM-DD strings compare correctly as text
+          if (line.planningDate > (lastPlannedDateByResource.get(line.number) ?? '')) {
+            lastPlannedDateByResource.set(line.number, line.planningDate);
+          }
+        }
       }
 
       // Merge planned hours into weeklyData
@@ -534,6 +592,7 @@ export const projectDetailsService = {
             hours: 0,
             approvedHours: 0,
             pendingHours: 0,
+            unsubmittedHours: 0,
             plannedHours,
             cumulative: 0, // Will be recalculated below
           });
@@ -551,6 +610,26 @@ export const projectDetailsService = {
     } catch {
       // If planning lines can't be fetched, leave values as 0
     }
+
+    // Planned work still to do: weeks after this one (matches where the chart's forecast
+    // starts adding planned hours), so Time Spent + this = the forecast at completion
+    const futurePlannedHours = weeklyData
+      .filter((d) => d.week > currentWeekStr)
+      .reduce((sum, d) => sum + (d.plannedHours || 0), 0);
+
+    // Resource names from the Resource list (falling back to the number), most hours first
+    const toResourceHours = (map: Map<string, number>): ResourceHours[] =>
+      [...map]
+        .filter(([, hours]) => hours > 0)
+        .map(([resourceNo, hours]) => ({
+          resourceNo,
+          name: resourcesByNumber.get(resourceNo)?.name || resourceNo,
+          hours,
+          lastDate: lastPlannedDateByResource.get(resourceNo),
+        }))
+        .sort((a, b) => b.hours - a.hours);
+    const estimateByResource = toResourceHours(estimateHoursByResource);
+    const futurePlannedByResource = toResourceHours(futurePlannedHoursByResource);
 
     // Fetch actual cost and invoiced price from Time Entries (Job Ledger Entry)
     // Note: Time entries are all resource-type (labor), so actual/invoiced breakdown is resource-only
@@ -750,14 +829,17 @@ export const projectDetailsService = {
         const avgBillableRate = invoicedPrice / hoursPosted;
         unpostedCost = hoursUnposted * avgCostRate;
         unpostedBillable = hoursUnposted * avgBillableRate;
-      } else if (hoursPlanned > 0) {
-        // Fallback: use resource-only budget rates from planning lines
-        // (hoursPlanned only includes resources, so use resource breakdown for accurate rate)
-        // Note: if resource breakdown is 0, avgRate = 0 which is correct (no budget defined)
-        const avgBudgetCostRate = budgetCostBreakdown.resource / hoursPlanned;
-        const avgBillableRate = billablePriceBreakdown.resource / hoursPlanned;
-        unpostedCost = hoursUnposted * avgBudgetCostRate;
-        unpostedBillable = hoursUnposted * avgBillableRate;
+      } else if (hoursPlanned > 0 || estimateHours > 0) {
+        // Fallback: use resource-only rates from planning lines (resource hours only, so
+        // the resource breakdown gives an accurate rate). If a breakdown is 0, the rate is 0,
+        // which is correct (nothing defined). Either hours source enables it, so
+        // estimate-only projects (no Plan yet) still value unposted time at selling rates.
+        if (hoursPlanned > 0) {
+          unpostedCost = hoursUnposted * (budgetCostBreakdown.resource / hoursPlanned);
+        }
+        // Billable price belongs to the estimate's hours, not the Plan's
+        const billableHours = estimateHours > 0 ? estimateHours : hoursPlanned;
+        unpostedBillable = hoursUnposted * (billablePriceBreakdown.resource / billableHours);
       }
     }
 
@@ -798,9 +880,17 @@ export const projectDetailsService = {
       // New BC-aligned terminology
       hoursSpent: totalHours,
       hoursPlanned,
+      estimateHours,
+      futurePlannedHours,
       hoursThisWeek,
+      estimateByResource,
+      futurePlannedByResource,
       hoursPosted,
       hoursUnposted,
+      approvedHours,
+      pendingHours,
+      submittedHours,
+      unsubmittedHours,
       budgetCost,
       budgetCostBreakdown,
       actualCost,
