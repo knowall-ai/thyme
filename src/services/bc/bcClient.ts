@@ -12,6 +12,7 @@ import type {
   BCJobJournalLine,
   BCResource,
   BCResourceUnitOfMeasure,
+  BCThymeSetup,
   BCTimeSheet,
   BCTimeSheetLine,
   BCTimeSheetDetail,
@@ -79,6 +80,37 @@ function normalizeBCProject(project: BCProject): BCProject {
     return { ...project, blocked: ' ' };
   }
   return project;
+}
+
+/**
+ * The ETag to send as If-Match, so a PATCH never overwrites someone else's newer
+ * change. Throws rather than falling back to '*' when BC didn't return one.
+ */
+function requireETag(etag: string | undefined, recordName: string): string {
+  if (!etag) {
+    throw new Error(
+      `BC API: no ETag returned for the ${recordName}, so it can't be updated safely`
+    );
+  }
+  return etag;
+}
+
+// A BC SystemId (GUID), so an id can't change which URL a request goes to
+const SYSTEM_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function requireSystemId(id: string, recordName: string): string {
+  if (!SYSTEM_ID.test(id)) {
+    throw new Error(`BC API: invalid ${recordName} id`);
+  }
+  return id;
+}
+
+/** A billable target must be a finite percentage from 0 to 100 */
+function requireTargetPercent(percent: number): number {
+  if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+    throw new Error('BC API: a billable target must be from 0 to 100');
+  }
+  return percent;
 }
 
 class BusinessCentralClient {
@@ -984,6 +1016,80 @@ class BusinessCentralClient {
   }
 
   /**
+   * Set a resource's own billable target, or clear it (null) so they fall back to the
+   * company default. Reads the resource first for a fresh ETag, as BC requires If-Match.
+   * Needs a Thyme BC Extension with billable targets; BC decides who may change them.
+   */
+  async updateResourceBillableTarget(
+    resourceId: string,
+    targetPercent: number | null
+  ): Promise<BCResource> {
+    const id = requireSystemId(resourceId, 'resource');
+    const body =
+      targetPercent === null
+        ? { billableTargetSet: false }
+        : { billableTargetPercent: requireTargetPercent(targetPercent), billableTargetSet: true };
+    // Read and write the same company even if the user switches company meanwhile
+    const baseUrl = this.customApiBaseUrl;
+    const current = await this.customApiFetch<BCResource>(`/resources(${id})`, {}, baseUrl);
+    const etag = requireETag(current['@odata.etag'], 'resource');
+    return this.customApiFetch<BCResource>(
+      `/resources(${id})`,
+      { method: 'PATCH', headers: { 'If-Match': etag }, body: JSON.stringify(body) },
+      baseUrl
+    );
+  }
+
+  /**
+   * Thyme's company-wide settings (a single record), or null when the installed
+   * Thyme BC Extension predates them (404) or isn't installed.
+   */
+  async getThymeSetup(): Promise<BCThymeSetup | null> {
+    const baseUrl = this.customApiBaseUrl;
+    if (!(await this.isExtensionInstalled())) return null;
+    return this.fetchThymeSetup(baseUrl);
+  }
+
+  /** The thymeSetup record for the company at `baseUrl`, or null on a 404 */
+  private async fetchThymeSetup(baseUrl: string): Promise<BCThymeSetup | null> {
+    try {
+      const response = await this.customApiFetch<PaginatedResponse<BCThymeSetup> | BCThymeSetup>(
+        '/thymeSetup',
+        {},
+        baseUrl
+      );
+      const setup = 'value' in response ? response.value[0] : response;
+      return setup?.id ? setup : null;
+    } catch (error) {
+      // An extension without Thyme Setup; any other failure is a real error
+      if (isEndpointMissing(error)) return null;
+      throw error;
+    }
+  }
+
+  /** Change the company default billable target (0-100) on the thymeSetup record */
+  async updateDefaultBillableTarget(targetPercent: number): Promise<BCThymeSetup> {
+    const percent = requireTargetPercent(targetPercent);
+    // Read and write the same company even if the user switches company meanwhile
+    const baseUrl = this.customApiBaseUrl;
+    const current = await this.fetchThymeSetup(baseUrl);
+    if (!current) {
+      throw new Error('BC API Error (404): Billable targets need a newer Thyme BC Extension');
+    }
+    const etag = requireETag(current['@odata.etag'], 'Thyme Setup');
+    const id = requireSystemId(current.id, 'Thyme Setup');
+    return this.customApiFetch<BCThymeSetup>(
+      `/thymeSetup(${id})`,
+      {
+        method: 'PATCH',
+        headers: { 'If-Match': etag },
+        body: JSON.stringify({ defaultBillableTargetPercent: percent }),
+      },
+      baseUrl
+    );
+  }
+
+  /**
    * Derive the BC User ID from an Azure AD username (UPN).
    * Azure AD UPN is typically "ben.weeks@domain.com"
    * BC User ID is typically "BEN.WEEKS" (uppercase, before @)
@@ -1117,14 +1223,22 @@ class BusinessCentralClient {
     return items;
   }
 
-  private async customApiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  /**
+   * @param baseUrl - The company's custom API URL; pass one captured earlier to keep a
+   * read-then-write pair on the same company even if the selection changes in between
+   */
+  private async customApiFetch<T>(
+    endpoint: string,
+    options: RequestInit = {},
+    baseUrl: string = this.customApiBaseUrl
+  ): Promise<T> {
     const token = await getBCAccessToken();
 
     if (!token) {
       throw new Error('Failed to get Business Central access token');
     }
 
-    const url = `${this.customApiBaseUrl}${endpoint}`;
+    const url = `${baseUrl}${endpoint}`;
 
     // Debug logging (development only)
     if (process.env.NODE_ENV === 'development' && options.body) {

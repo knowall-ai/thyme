@@ -27,9 +27,9 @@ const screenshots: Screenshot[] = [
   },
   {
     src: '/screenshots/team.png',
-    alt: 'Team overview with hours by timesheet stage and utilization',
+    alt: 'Team overview with hours by timesheet stage and timesheet completion',
     title: 'Team',
-    description: "See your team's hours, utilization and timesheet progress at a glance.",
+    description: "See your team's hours, timesheet completion and billable % at a glance.",
   },
   {
     src: '/screenshots/plan.png',

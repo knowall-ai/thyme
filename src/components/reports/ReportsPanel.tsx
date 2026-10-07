@@ -29,7 +29,7 @@ import {
   isSameMonth,
 } from 'date-fns';
 import { useAuth } from '@/services/auth';
-import { useProjectsStore, useCompanyStore } from '@/hooks';
+import { useProjectsStore, useCompanyStore, useBillableTargetStore } from '@/hooks';
 import { timeEntryService, bcClient } from '@/services/bc';
 import {
   cn,
@@ -39,7 +39,14 @@ import {
   DATE_FORMAT_DAY_SHORT,
   isTeamMember,
   BILLABLE_RULE_DESCRIPTION,
+  hasBillableTargetFields,
+  resolveBillableTarget,
+  resolveCompanyDefault,
+  getWeightedBillableTarget,
+  getBillableTargetBand,
+  BILLABLE_TARGET_BAND_COLORS,
 } from '@/utils';
+import type { BillableTarget } from '@/utils';
 import type { TimeEntry, BCResource } from '@/types';
 import { ExportButton } from './ExportButton';
 
@@ -257,6 +264,33 @@ export function ReportsPanel() {
 
     return { totalHours, billableHours, uniqueProjects, billablePercentage };
   }, [entries]);
+
+  // Billable target for the selection: the person's own (or the company default), or for
+  // everyone the average of their targets (Reports gives everyone the same capacity, so
+  // that's the capacity-weighted target). Null on Thyme BC Extensions without targets.
+  const { companyDefaultPercent, setupAvailable, loadedForCompanyVersion, loadCompanyDefault } =
+    useBillableTargetStore();
+  const targetFieldsPresent = hasBillableTargetFields(resources);
+  useEffect(() => {
+    if (targetFieldsPresent) void loadCompanyDefault(companyVersion);
+  }, [targetFieldsPresent, companyVersion, loadCompanyDefault]);
+  // Only once this company's Thyme Setup has loaded (never another company's default)
+  const targetsEnabled =
+    targetFieldsPresent && setupAvailable === true && loadedForCompanyVersion === companyVersion;
+  const billableTarget = useMemo((): BillableTarget | null => {
+    if (!targetsEnabled || !selectedMember) return null;
+    const companyDefault = resolveCompanyDefault(companyDefaultPercent);
+    if (selectedMember !== 'everyone') {
+      return resolveBillableTarget(selectedMember, companyDefault);
+    }
+    const percent = getWeightedBillableTarget(
+      resources.map((r) => ({
+        capacity: 1,
+        targetPercent: resolveBillableTarget(r, companyDefault).percent,
+      }))
+    );
+    return percent === null ? null : { percent, isDefault: false };
+  }, [targetsEnabled, selectedMember, resources, companyDefaultPercent]);
 
   // Calculate hours by project
   const projectHours = useMemo((): ProjectHours[] => {
@@ -541,6 +575,27 @@ export function ReportsPanel() {
                 <p className="text-dark-100 text-xl font-bold">
                   {isLoading ? '...' : `${stats.billablePercentage}%`}
                 </p>
+                {billableTarget && !isLoading && (
+                  <p
+                    className={cn(
+                      'mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
+                      BILLABLE_TARGET_BAND_COLORS[
+                        getBillableTargetBand(
+                          stats.billablePercentage,
+                          billableTarget.percent,
+                          stats.totalHours > 0
+                        )
+                      ]
+                    )}
+                  >
+                    {billableTarget.percent.toFixed(0)}%{' '}
+                    {selectedMember === 'everyone'
+                      ? 'team target'
+                      : billableTarget.isDefault
+                        ? 'default target'
+                        : 'target'}
+                  </p>
+                )}
               </div>
             </div>
           </Card>

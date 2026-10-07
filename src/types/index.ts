@@ -43,6 +43,17 @@ export interface BCResource {
   indirectCostPercent?: number;
   unitCost?: number; // Internal cost per hour
   unitPrice?: number; // Customer billing rate per hour
+  // Billable target (Thyme BC Extension with billable targets; undefined on older versions)
+  billableTargetPercent?: number; // 0-100, only meaningful when billableTargetSet
+  billableTargetSet?: boolean; // false = use the company default (thymeSetup)
+  '@odata.etag'?: string;
+}
+
+/** Thyme company-wide settings (single record, Thyme BC Extension `thymeSetup` API) */
+export interface BCThymeSetup {
+  id: string;
+  defaultBillableTargetPercent: number; // 0-100, used for anyone without their own target
+  '@odata.etag'?: string;
 }
 
 export interface BCJob {

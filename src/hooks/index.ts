@@ -7,6 +7,7 @@ export { useSettingsStore } from './useSettingsStore';
 export { useTeammateStore } from './useTeammateStore';
 export { useApprovalStore } from './useApprovalStore';
 export { usePlanStore } from './usePlanStore';
+export { useBillableTargetStore } from './useBillableTargetStore';
 export { useTimer } from './useTimer';
 export { useTimesheetReviewStore } from './useTimesheetReviewStore';
 export { useTimesheetReview } from './useTimesheetReview';
