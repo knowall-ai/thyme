@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import toast from 'react-hot-toast';
 import {
   ArrowPathIcon,
@@ -142,6 +142,8 @@ export function PoppieSuggestionsPanel({
   const agentOffline = presence.isAvailable && presence.state === 'offline';
 
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+  // Suggestions being saved right now; a ref so two quick clicks can't both start a save
+  const savingRef = useRef<Set<string>>(new Set());
   const [isAddingAll, setIsAddingAll] = useState(false);
   const [editing, setEditing] = useState<BCTimeSuggestion | null>(null);
 
@@ -208,6 +210,8 @@ export function PoppieSuggestionsPanel({
       setEditing(s);
       return;
     }
+    if (savingRef.current.has(s.id)) return;
+    savingRef.current.add(s.id);
     setBusy(s.id, true);
     try {
       await addSuggestion(s);
@@ -215,6 +219,7 @@ export function PoppieSuggestionsPanel({
     } catch {
       toast.error('Failed to add time entry. Please try again.');
     } finally {
+      savingRef.current.delete(s.id);
       setBusy(s.id, false);
     }
   };
@@ -262,9 +267,11 @@ export function PoppieSuggestionsPanel({
   };
 
   const handleAddAll = async () => {
-    if (!canEdit || highConfidence.length === 0) return;
-    const total = highConfidence.reduce((sum, s) => sum + roundToQuarterHour(s.quantity), 0);
-    const count = highConfidence.length;
+    // Leave out any suggestion an individual Add is already saving
+    const toAdd = highConfidence.filter((s) => !savingRef.current.has(s.id));
+    if (!canEdit || toAdd.length === 0) return;
+    const total = toAdd.reduce((sum, s) => sum + roundToQuarterHour(s.quantity), 0);
+    const count = toAdd.length;
     if (
       !window.confirm(
         `Add ${count} high-confidence ${count === 1 ? 'suggestion' : 'suggestions'} (${formatTime(total)}) to this week?`
@@ -276,7 +283,9 @@ export function PoppieSuggestionsPanel({
     setIsAddingAll(true);
     let added = 0;
     // One at a time: each creates a timesheet line, and BC handles those best sequentially
-    for (const s of highConfidence) {
+    for (const s of toAdd) {
+      if (savingRef.current.has(s.id)) continue;
+      savingRef.current.add(s.id);
       setBusy(s.id, true);
       try {
         await addSuggestion(s);
@@ -284,6 +293,7 @@ export function PoppieSuggestionsPanel({
       } catch {
         // Carry on with the rest; the failures stay in the list to retry
       } finally {
+        savingRef.current.delete(s.id);
         setBusy(s.id, false);
       }
     }
@@ -392,7 +402,12 @@ export function PoppieSuggestionsPanel({
             )}
             {canEdit
               ? highConfidence.length > 0 && (
-                  <Button variant="outline" size="sm" onClick={handleAddAll} disabled={isAddingAll}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddAll}
+                    disabled={isAddingAll || busyIds.size > 0}
+                  >
                     <PlusIcon className="h-4 w-4 sm:mr-2" />
                     <span className="hidden sm:inline">
                       {isAddingAll

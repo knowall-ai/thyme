@@ -147,4 +147,23 @@ describe('PoppieSuggestionsPanel Add and Edit', () => {
     expect(within(suggestionRow).queryByTitle('Add to timesheet')).toBeNull();
     expect(within(suggestionRow).queryByRole('button', { name: 'Edit before adding' })).toBeNull();
   });
+
+  it('never saves a suggestion twice when Add and Add all overlap', async () => {
+    suggestions = [suggestion({})];
+    let finish: (v: unknown) => void = () => {};
+    addEntry.mockImplementation(() => new Promise((resolve) => (finish = resolve)));
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderPanel();
+
+    const add = within(row('Contoso stand-up')).getByTitle('Add to timesheet');
+    fireEvent.click(add);
+    fireEvent.click(add); // a second click while the first save is pending
+    const addAll = screen.getByRole('button', { name: /Add all high confidence/ });
+    expect(addAll).toBeDisabled();
+    fireEvent.click(addAll);
+
+    finish({ id: 'e1', bcTimeSheetNo: 'TS001', bcTimeSheetLineId: 'x' });
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Time entry added'));
+    expect(addEntry).toHaveBeenCalledTimes(1);
+  });
 });
