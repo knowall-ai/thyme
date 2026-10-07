@@ -4,12 +4,15 @@ import type { BCTimeSuggestion, BCTimeSuggestionUpdate, TimeEntry } from '@/type
 const MAX_DESCRIPTION_LENGTH = 100;
 
 /**
- * Round hours to the nearest quarter hour (minimum 15 minutes), matching the
- * 15-minute steps the time entry form allows. Calendar evidence is often to the
- * minute (e.g. 31 minutes), which the form would otherwise reject.
+ * Round hours up to the next quarter hour (minimum 15 minutes), matching the
+ * 15-minute steps the time entry form allows. Any part of a quarter counts, so
+ * 31 minutes becomes 45; exact quarters stay as they are. Calendar evidence is
+ * often to the minute, which the form would otherwise reject.
  */
 export function roundToQuarterHour(hours: number): number {
-  return Math.max(0.25, Math.round(hours * 4) / 4);
+  // Round to 6 places first so float noise (e.g. 0.5000000001) doesn't push an exact quarter up
+  const quarters = Math.ceil(Number((hours * 4).toFixed(6)));
+  return Math.max(0.25, quarters / 4);
 }
 
 /**

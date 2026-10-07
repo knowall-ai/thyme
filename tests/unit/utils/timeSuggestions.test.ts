@@ -43,14 +43,23 @@ const entry = (overrides: Partial<TimeEntry> = {}): TimeEntry => ({
 });
 
 describe('roundToQuarterHour', () => {
-  it('rounds minute-precise calendar durations to the nearest 15 minutes', () => {
-    expect(roundToQuarterHour(31 / 60)).toBe(0.5);
+  it('rounds minute-precise calendar durations up to the next 15 minutes', () => {
+    expect(roundToQuarterHour(31 / 60)).toBe(0.75);
+    expect(roundToQuarterHour(0.5001)).toBe(0.75);
+    expect(roundToQuarterHour(1.1)).toBe(1.25);
     expect(roundToQuarterHour(1.4)).toBe(1.5);
-    expect(roundToQuarterHour(1.1)).toBe(1);
   });
 
-  it('never rounds a short block down to nothing', () => {
-    expect(roundToQuarterHour(0.05)).toBe(0.25);
+  it('leaves exact quarters alone, including ones with float noise', () => {
+    expect(roundToQuarterHour(0.5)).toBe(0.5);
+    expect(roundToQuarterHour(1)).toBe(1);
+    expect(roundToQuarterHour(0.1 + 0.2 + 0.2)).toBe(0.5); // 0.5000000000000001
+    expect(roundToQuarterHour(45 / 60)).toBe(0.75);
+  });
+
+  it('rounds a short block up to at least 15 minutes', () => {
+    expect(roundToQuarterHour(0.01)).toBe(0.25);
+    expect(roundToQuarterHour(0)).toBe(0.25);
   });
 });
 
