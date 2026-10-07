@@ -197,7 +197,9 @@ export function TimeEntryModal({
       const project = prefill.projectCode
         ? projects.find((p) => p.code === prefill.projectCode)
         : undefined;
-      setCustomerId(findMatchingCustomerOption(project?.customerName));
+      // No project on the suggestion: leave the customer for the user to pick, rather than
+      // defaulting to the first one (which would book the time to an unrelated customer)
+      setCustomerId(project ? findMatchingCustomerOption(project.customerName) : '');
       setProjectId(project?.id || '');
       const task = project?.tasks.find((t) => t.code === prefill.taskCode);
       setTaskId(task?.id || '');
