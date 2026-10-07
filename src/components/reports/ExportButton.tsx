@@ -1,14 +1,17 @@
 'use client';
 
-import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
-import { Button } from '@/components/ui';
-import { useTimeEntriesStore, useProjectsStore } from '@/hooks';
-import { buildCsv, formatDate } from '@/utils';
+import { DocumentArrowDownIcon } from '@heroicons/react/24/outline';
+import type { Project, TimeEntry } from '@/types';
+import { buildCsv } from '@/utils';
 
-export function ExportButton() {
-  const { entries, currentWeekStart } = useTimeEntriesStore();
-  const { projects } = useProjectsStore();
+interface ExportButtonProps {
+  entries: TimeEntry[];
+  projects: Project[];
+  /** Used in the downloaded file name, e.g. the start of the report period */
+  fileSuffix: string;
+}
 
+export function ExportButton({ entries, projects, fileSuffix }: ExportButtonProps) {
   const handleExport = () => {
     if (entries.length === 0) return;
 
@@ -19,7 +22,7 @@ export function ExportButton() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `thyme-export-${formatDate(currentWeekStart)}.csv`;
+    link.download = `thyme-export-${fileSuffix}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -27,9 +30,13 @@ export function ExportButton() {
   };
 
   return (
-    <Button variant="outline" onClick={handleExport} disabled={entries.length === 0}>
-      <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
-      Export CSV
-    </Button>
+    <button
+      onClick={handleExport}
+      disabled={entries.length === 0}
+      className="bg-dark-700 text-dark-300 hover:bg-dark-600 flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <DocumentArrowDownIcon className="h-4 w-4" />
+      Export
+    </button>
   );
 }
