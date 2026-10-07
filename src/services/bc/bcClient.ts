@@ -1061,7 +1061,8 @@ class BusinessCentralClient {
       const setup = 'value' in response ? response.value[0] : response;
       return setup?.id ? setup : null;
     } catch (error) {
-      if (error instanceof Error && error.message.includes('(404)')) return null;
+      // An extension without Thyme Setup; any other failure is a real error
+      if (isEndpointMissing(error)) return null;
       throw error;
     }
   }
