@@ -95,6 +95,24 @@ function requireETag(etag: string | undefined, recordName: string): string {
   return etag;
 }
 
+// A BC SystemId (GUID), so an id can't change which URL a request goes to
+const SYSTEM_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function requireSystemId(id: string, recordName: string): string {
+  if (!SYSTEM_ID.test(id)) {
+    throw new Error(`BC API: invalid ${recordName} id`);
+  }
+  return id;
+}
+
+/** A billable target must be a finite percentage from 0 to 100 */
+function requireTargetPercent(percent: number): number {
+  if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+    throw new Error('BC API: a billable target must be from 0 to 100');
+  }
+  return percent;
+}
+
 class BusinessCentralClient {
   private _companyId: string;
   private _environment: BCEnvironmentType;
@@ -1006,16 +1024,17 @@ class BusinessCentralClient {
     resourceId: string,
     targetPercent: number | null
   ): Promise<BCResource> {
-    // Read and write the same company even if the user switches company meanwhile
-    const baseUrl = this.customApiBaseUrl;
-    const current = await this.customApiFetch<BCResource>(`/resources(${resourceId})`, {}, baseUrl);
-    const etag = requireETag(current['@odata.etag'], 'resource');
+    const id = requireSystemId(resourceId, 'resource');
     const body =
       targetPercent === null
         ? { billableTargetSet: false }
-        : { billableTargetPercent: targetPercent, billableTargetSet: true };
+        : { billableTargetPercent: requireTargetPercent(targetPercent), billableTargetSet: true };
+    // Read and write the same company even if the user switches company meanwhile
+    const baseUrl = this.customApiBaseUrl;
+    const current = await this.customApiFetch<BCResource>(`/resources(${id})`, {}, baseUrl);
+    const etag = requireETag(current['@odata.etag'], 'resource');
     return this.customApiFetch<BCResource>(
-      `/resources(${resourceId})`,
+      `/resources(${id})`,
       { method: 'PATCH', headers: { 'If-Match': etag }, body: JSON.stringify(body) },
       baseUrl
     );
@@ -1049,6 +1068,7 @@ class BusinessCentralClient {
 
   /** Change the company default billable target (0-100) on the thymeSetup record */
   async updateDefaultBillableTarget(targetPercent: number): Promise<BCThymeSetup> {
+    const percent = requireTargetPercent(targetPercent);
     // Read and write the same company even if the user switches company meanwhile
     const baseUrl = this.customApiBaseUrl;
     const current = await this.fetchThymeSetup(baseUrl);
@@ -1056,12 +1076,13 @@ class BusinessCentralClient {
       throw new Error('BC API Error (404): Billable targets need a newer Thyme BC Extension');
     }
     const etag = requireETag(current['@odata.etag'], 'Thyme Setup');
+    const id = requireSystemId(current.id, 'Thyme Setup');
     return this.customApiFetch<BCThymeSetup>(
-      `/thymeSetup(${current.id})`,
+      `/thymeSetup(${id})`,
       {
         method: 'PATCH',
         headers: { 'If-Match': etag },
-        body: JSON.stringify({ defaultBillableTargetPercent: targetPercent }),
+        body: JSON.stringify({ defaultBillableTargetPercent: percent }),
       },
       baseUrl
     );
