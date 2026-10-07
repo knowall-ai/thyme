@@ -10,6 +10,7 @@ import type { BCResource, BCTimeSheetDetail, BCTimeSheetLine, TimeEntry } from '
 import { isBillableEntry, type ProjectBillTo } from './billable';
 import { addStageHours, emptyStageHours, getStageHours, type StageHours } from './timesheetStatus';
 import { getWeightedBillableTarget } from './billableTarget';
+import type { WeeklyCapacity } from './weeklyCapacity';
 
 /** One time sheet's lines and details */
 export interface TimesheetData {
@@ -22,6 +23,8 @@ export interface PersonHours {
   resource: BCResource;
   /** Weekly capacity in hours */
   capacity: number;
+  /** Where the capacity comes from (set by loadTeamHours) */
+  weekly?: WeeklyCapacity;
   /** Project time by stage; `stages.total` is all their hours */
   stages: StageHours;
   billableHours: number;
@@ -84,6 +87,15 @@ export function getPersonHours(
   }
 
   return { resource, capacity, stages, billableHours, entries };
+}
+
+/**
+ * Whether a person counts towards team totals. Someone whose own weekly capacity is 0
+ * (e.g. an AI agent) is listed but not counted: leave them out of the team's hours,
+ * capacity, completion and billable target.
+ */
+export function isCounted(person: { weekly?: Pick<WeeklyCapacity, 'excluded'> }): boolean {
+  return !person.weekly?.excluded;
 }
 
 /** What summariseHours needs about each person */

@@ -40,6 +40,7 @@ import {
   resolveBillableTarget,
   resolveCompanyDefault,
   summariseHours,
+  isCounted,
   getBillableTargetBand,
   BILLABLE_TARGET_BAND_COLORS,
 } from '@/utils';
@@ -200,7 +201,8 @@ export function ReportsPanel() {
   // The people in the selection: everyone, or the one picked (by resource number, so
   // resources whose time sheets share an owner never pick up each other's time)
   const selectedPeople = useMemo(() => {
-    if (selectedMember === 'everyone') return people;
+    // Everyone means the people who count: not those on a weekly capacity of 0
+    if (selectedMember === 'everyone') return people.filter(isCounted);
     if (!selectedMember) return [];
     return people.filter((p) => p.resource.number === selectedMember.number);
   }, [people, selectedMember]);

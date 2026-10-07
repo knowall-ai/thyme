@@ -46,6 +46,10 @@ export interface BCResource {
   // Billable target (Thyme BC Extension with billable targets; undefined on older versions)
   billableTargetPercent?: number; // 0-100, only meaningful when billableTargetSet
   billableTargetSet?: boolean; // false = use the company default (thymeSetup)
+  // Weekly capacity (Thyme BC Extension 1.17+; undefined on older versions)
+  weeklyCapacityHours?: number; // only meaningful when weeklyCapacitySet; 0 = listed, not counted
+  weeklyCapacitySet?: boolean; // false = hours per day x 5
+  flexibleWorkingDays?: boolean; // works the weekly capacity on any days
   '@odata.etag'?: string;
 }
 

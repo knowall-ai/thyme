@@ -5,8 +5,8 @@ import { teamConfig } from '@/config';
 import {
   buildUOMConversionMap,
   getPersonHours,
-  getWeeklyCapacityHours,
   isTeamMember,
+  resolveWeeklyCapacity,
 } from '@/utils';
 import type { PersonHours, TimesheetData } from '@/utils';
 import type { BCProject, BCTimeSheet } from '@/types';
@@ -84,8 +84,9 @@ export async function loadTeamHours(from: Date, to: Date): Promise<TeamHours> {
     const data = (timesheetsByResource.get(resource.number) ?? []).flatMap(
       (ts) => sheetData.get(ts.number) ?? []
     );
-    const capacity = getWeeklyCapacityHours(resource.number, uomMap, teamConfig.defaultCapacity);
-    return getPersonHours(resource, capacity, data, projectsByNumber, range);
+    // Their own weekly capacity (Thyme BC Extension 1.17+), else hours per day x 5
+    const weekly = resolveWeeklyCapacity(resource, uomMap, teamConfig.defaultCapacity);
+    return { ...getPersonHours(resource, weekly.hours, data, projectsByNumber, range), weekly };
   });
 
   return { people: peopleHours };
