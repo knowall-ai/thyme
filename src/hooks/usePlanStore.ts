@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { BCResource, BCTimeSheet, BCJobPlanningLine, TimesheetDisplayStatus } from '@/types';
 import { bcClient, ExtensionNotInstalledError } from '@/services/bc';
+import { activeCompanyKey } from './companyScope';
 import {
   getTimesheetDisplayStatus,
   buildUOMConversionMap,
@@ -596,12 +597,16 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       .map((id) => teamMembers.find((m) => m.id === id)?.number)
       .filter((no): no is string => !!no);
 
+    const companyKey = activeCompanyKey();
     const results = await bcClient.createTimeSheetsForResources(resourceNos, weekStartStr);
 
     const successes = results.filter((r) => r.success);
     const failures = results.filter((r) => !r.success);
 
-    set({ isCreatingTimesheets: false, selectedMemberIds: [] });
+    // After a company switch the selection belongs to the new company; leave it alone
+    if (activeCompanyKey() === companyKey) {
+      set({ isCreatingTimesheets: false, selectedMemberIds: [] });
+    }
 
     return {
       success: successes.length,

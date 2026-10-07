@@ -1,5 +1,6 @@
 import type { BCCompany } from '@/types';
 import { isSameCompany } from '@/utils/companyPath';
+import { useApprovalStore } from './useApprovalStore';
 import { useCompanyStore } from './useCompanyStore';
 import { usePlanStore } from './usePlanStore';
 import { useProjectDetailsStore } from './useProjectDetailsStore';
@@ -36,6 +37,7 @@ export function switchCompany(company: BCCompany): void {
   useCompanyStore.getState().selectCompany(company);
   useTimeEntriesStore.getState().clearEntries();
   usePlanStore.getState().resetForCompanySwitch();
+  useApprovalStore.getState().resetForCompanySwitch();
   useProjectsStore.getState().clearProjects();
   useProjectDetailsStore.getState().clearProject();
   useTeammateStore.getState().clearSelection();

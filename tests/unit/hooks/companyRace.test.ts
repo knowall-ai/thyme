@@ -23,6 +23,8 @@ const client = vi.hoisted(() => ({
   },
   setCompanyId: vi.fn(),
   getCompanyInfo: vi.fn(),
+  getAllApproverTimesheets: vi.fn(),
+  getResources: vi.fn(),
 }));
 
 const getProjectDetails = vi.fn();
@@ -30,6 +32,8 @@ const getProjectAnalytics = vi.fn();
 const getBillingMode = vi.fn();
 const getProjects = vi.fn();
 const getWeekEntries = vi.fn();
+const copyFromPreviousWeek = vi.fn();
+const createEntry = vi.fn();
 
 vi.mock('@/services/bc/bcClient', () => ({ bcClient: client }));
 vi.mock('@/services/bc/projectDetailsService', () => ({
@@ -47,6 +51,8 @@ vi.mock('@/services/bc', () => ({
   TimesheetNotEditableError: class extends Error {},
   timeEntryService: {
     getWeekEntries: (...args: unknown[]) => getWeekEntries(...args),
+    copyFromPreviousWeek: (...args: unknown[]) => copyFromPreviousWeek(...args),
+    createEntry: (...args: unknown[]) => createEntry(...args),
     getCurrentTimesheet: () => null,
   },
   projectService: {
@@ -58,6 +64,7 @@ vi.mock('@/services/bc', () => ({
 }));
 
 import { switchCompany } from '@/hooks/companySwitch';
+import { useApprovalStore } from '@/hooks/useApprovalStore';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
 import { usePlanStore } from '@/hooks/usePlanStore';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
@@ -203,6 +210,59 @@ describe('time entries across a company switch', () => {
     await fetchA;
 
     expect(useTimeEntriesStore.getState().entries).toEqual([]);
+  });
+
+  it("doesn't add company A's copied week to B's entries when the copy finishes late", async () => {
+    const copyA = deferred<{ id: string }[]>();
+    copyFromPreviousWeek.mockReturnValueOnce(copyA.promise);
+
+    const copying = useTimeEntriesStore.getState().copyPreviousWeek('user@contoso.com');
+    switchCompany(companyB);
+    copyA.resolve([{ id: 'a-copied' }]);
+    await copying;
+
+    expect(useTimeEntriesStore.getState().entries).toEqual([]);
+    expect(useTimeEntriesStore.getState().isLoading).toBe(false);
+  });
+
+  it("doesn't add company A's saved entry to B's entries, but still returns it", async () => {
+    const saveA = deferred<{ id: string }>();
+    createEntry.mockReturnValueOnce(saveA.promise);
+
+    const saving = useTimeEntriesStore.getState().addEntry({} as never);
+    switchCompany(companyB);
+    saveA.resolve({ id: 'a-saved' });
+
+    await expect(saving).resolves.toEqual({ id: 'a-saved' });
+    expect(useTimeEntriesStore.getState().entries).toEqual([]);
+  });
+});
+
+describe('approvals across a company switch', () => {
+  it("clears A's approvals and resources on switch and drops A's late list", async () => {
+    useApprovalStore.setState({
+      allApprovals: [{ id: 'old' } as never],
+      resources: [{ id: 'old-resource' } as never],
+      isApprover: true,
+      permissionChecked: true,
+    });
+    const listA = deferred<{ id: string }[]>();
+    client.getAllApproverTimesheets.mockReturnValueOnce(listA.promise);
+
+    const loadA = useApprovalStore.getState().fetchApprovals();
+    switchCompany(companyB);
+
+    let approvals = useApprovalStore.getState();
+    expect(approvals.allApprovals).toEqual([]);
+    expect(approvals.resources).toEqual([]);
+    expect(approvals.permissionChecked).toBe(false);
+
+    listA.resolve([{ id: 'a-timesheet' }]);
+    await loadA;
+
+    approvals = useApprovalStore.getState();
+    expect(approvals.allApprovals).toEqual([]);
+    expect(approvals.pendingApprovals).toEqual([]);
   });
 });
 

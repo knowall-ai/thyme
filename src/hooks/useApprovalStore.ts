@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { BCTimeSheet, BCTimeSheetLine, ApprovalFilters, BCResource } from '@/types';
 import { bcClient, ExtensionNotInstalledError } from '@/services/bc';
 import { getTimesheetDisplayStatus } from '@/utils';
+import { setIfSameCompany } from './companyScope';
 
 interface ApprovalStore {
   // State
@@ -32,6 +33,8 @@ interface ApprovalStore {
   selectTimeSheet: (timeSheet: BCTimeSheet | null) => void;
   setFilters: (filters: Partial<ApprovalFilters>) => void;
   clearFilters: () => void;
+  /** Drop the previous company's timesheets, resources, filters and approver status */
+  resetForCompanySwitch: () => void;
 
   // Approval actions
   approveTimeSheet: (timeSheetId: string, comment?: string) => Promise<boolean>;
@@ -75,7 +78,8 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
   // The API's getPendingApprovals only returns submitted-not-approved timesheets,
   // which doesn't support filtering by other statuses like Approved.
   fetchApprovals: async () => {
-    set({ isLoading: true, error: null });
+    const commit = setIfSameCompany(set);
+    commit({ isLoading: true, error: null });
     try {
       // Fetch approvals and (if needed) resources in parallel.
       // Note: bcClient.getAllApproverTimesheets() already calls getResources()
@@ -120,7 +124,7 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
         0
       );
 
-      set({
+      commit({
         allApprovals: approvals,
         pendingApprovals: filtered,
         resources,
@@ -130,7 +134,7 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch pending approvals';
-      set({
+      commit({
         error: message,
         isLoading: false,
         allApprovals: [],
@@ -142,13 +146,14 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
 
   // Fetch time sheet lines
   fetchTimeSheetLines: async (timeSheetNumber: string) => {
-    set({ isLoading: true, error: null });
+    const commit = setIfSameCompany(set);
+    commit({ isLoading: true, error: null });
     try {
       const lines = await bcClient.getTimeSheetLines(timeSheetNumber);
-      set({ selectedLines: lines, isLoading: false });
+      commit({ selectedLines: lines, isLoading: false });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch time sheet lines';
-      set({ error: message, isLoading: false, selectedLines: [] });
+      commit({ error: message, isLoading: false, selectedLines: [] });
     }
   },
 
@@ -175,19 +180,46 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
     get().fetchApprovals();
   },
 
+  resetForCompanySwitch: () => {
+    set({
+      allApprovals: [],
+      pendingApprovals: [],
+      resources: [],
+      selectedTimeSheet: null,
+      selectedLines: [],
+      filters: {},
+      isLoading: false,
+      isProcessing: false,
+      processingId: null,
+      error: null,
+      isApprover: false,
+      approverResourceNumber: null,
+      permissionChecked: false,
+      extensionNotInstalled: false,
+      pendingCount: 0,
+      pendingHours: 0,
+    });
+  },
+
   // Approve a time sheet
   // Note: The BC API doesn't support comments on approval currently
   approveTimeSheet: async (timeSheetId: string, _comment?: string) => {
-    set({ isProcessing: true, processingId: timeSheetId, error: null });
+    const commit = setIfSameCompany(set);
+    commit({ isProcessing: true, processingId: timeSheetId, error: null });
     try {
       await bcClient.approveTimeSheet(timeSheetId);
       // Refresh the list
       await get().fetchApprovals();
-      set({ isProcessing: false, processingId: null, selectedTimeSheet: null, selectedLines: [] });
+      commit({
+        isProcessing: false,
+        processingId: null,
+        selectedTimeSheet: null,
+        selectedLines: [],
+      });
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to approve time sheet';
-      set({ error: message, isProcessing: false, processingId: null });
+      commit({ error: message, isProcessing: false, processingId: null });
       return false;
     }
   },
@@ -195,39 +227,52 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
   // Reject a time sheet
   // Note: The BC API doesn't support comments on rejection currently
   rejectTimeSheet: async (timeSheetId: string, _comment: string) => {
-    set({ isProcessing: true, processingId: timeSheetId, error: null });
+    const commit = setIfSameCompany(set);
+    commit({ isProcessing: true, processingId: timeSheetId, error: null });
     try {
       await bcClient.rejectTimeSheet(timeSheetId);
       // Refresh the list
       await get().fetchApprovals();
-      set({ isProcessing: false, processingId: null, selectedTimeSheet: null, selectedLines: [] });
+      commit({
+        isProcessing: false,
+        processingId: null,
+        selectedTimeSheet: null,
+        selectedLines: [],
+      });
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to reject time sheet';
-      set({ error: message, isProcessing: false, processingId: null });
+      commit({ error: message, isProcessing: false, processingId: null });
       return false;
     }
   },
 
   // Delete a time sheet (for cleaning up invalid/corrupt data)
   deleteTimeSheet: async (timeSheetId: string, etag: string) => {
-    set({ isProcessing: true, processingId: timeSheetId, error: null });
+    const commit = setIfSameCompany(set);
+    commit({ isProcessing: true, processingId: timeSheetId, error: null });
     try {
       await bcClient.deleteTimeSheet(timeSheetId, etag);
       // Refresh the list
       await get().fetchApprovals();
-      set({ isProcessing: false, processingId: null, selectedTimeSheet: null, selectedLines: [] });
+      commit({
+        isProcessing: false,
+        processingId: null,
+        selectedTimeSheet: null,
+        selectedLines: [],
+      });
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to delete time sheet';
-      set({ error: message, isProcessing: false, processingId: null });
+      commit({ error: message, isProcessing: false, processingId: null });
       return false;
     }
   },
 
   // Approve specific lines
   approveLines: async (lineIds: string[], comment?: string) => {
-    set({ isProcessing: true, error: null });
+    const commit = setIfSameCompany(set);
+    commit({ isProcessing: true, error: null });
     try {
       await bcClient.approveTimeSheetLines(lineIds, comment);
       // Refresh current time sheet lines
@@ -236,18 +281,19 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
         await get().fetchTimeSheetLines(selectedTimeSheet.number);
       }
       await get().fetchApprovals();
-      set({ isProcessing: false });
+      commit({ isProcessing: false });
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to approve lines';
-      set({ error: message, isProcessing: false });
+      commit({ error: message, isProcessing: false });
       return false;
     }
   },
 
   // Reject specific lines
   rejectLines: async (lineIds: string[], comment: string) => {
-    set({ isProcessing: true, error: null });
+    const commit = setIfSameCompany(set);
+    commit({ isProcessing: true, error: null });
     try {
       await bcClient.rejectTimeSheetLines(lineIds, comment);
       // Refresh current time sheet lines
@@ -256,11 +302,11 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
         await get().fetchTimeSheetLines(selectedTimeSheet.number);
       }
       await get().fetchApprovals();
-      set({ isProcessing: false });
+      commit({ isProcessing: false });
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to reject lines';
-      set({ error: message, isProcessing: false });
+      commit({ error: message, isProcessing: false });
       return false;
     }
   },
@@ -268,7 +314,8 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
   // Bulk approve with partial success handling
   // Note: The BC API doesn't support comments on approval currently
   bulkApprove: async (timeSheetIds: string[], _comment?: string) => {
-    set({ isProcessing: true, error: null });
+    const commit = setIfSameCompany(set);
+    commit({ isProcessing: true, error: null });
     const succeeded: string[] = [];
     const failed: string[] = [];
 
@@ -288,14 +335,14 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
     }
 
     await get().fetchApprovals();
-    set({ isProcessing: false });
+    commit({ isProcessing: false });
 
     if (failed.length > 0) {
       const errorMsg =
         succeeded.length > 0
           ? `Partially completed: ${succeeded.length} approved, ${failed.length} failed`
           : `Failed to approve ${failed.length} timesheet(s)`;
-      set({ error: errorMsg });
+      commit({ error: errorMsg });
       return false;
     }
     return true;
@@ -304,7 +351,8 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
   // Bulk reject with partial success handling
   // Note: The BC API doesn't support comments on rejection currently
   bulkReject: async (timeSheetIds: string[], _comment: string) => {
-    set({ isProcessing: true, error: null });
+    const commit = setIfSameCompany(set);
+    commit({ isProcessing: true, error: null });
     const succeeded: string[] = [];
     const failed: string[] = [];
 
@@ -324,14 +372,14 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
     }
 
     await get().fetchApprovals();
-    set({ isProcessing: false });
+    commit({ isProcessing: false });
 
     if (failed.length > 0) {
       const errorMsg =
         succeeded.length > 0
           ? `Partially completed: ${succeeded.length} rejected, ${failed.length} failed`
           : `Failed to reject ${failed.length} timesheet(s)`;
-      set({ error: errorMsg });
+      commit({ error: errorMsg });
       return false;
     }
     return true;
@@ -339,9 +387,10 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
 
   // Check approval permission
   checkApprovalPermission: async () => {
+    const commit = setIfSameCompany(set);
     try {
       const result = await bcClient.checkApprovalPermission();
-      set({
+      commit({
         isApprover: result.isApprover,
         approverResourceNumber: result.resourceNumber || null,
         permissionChecked: true,
@@ -349,7 +398,7 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
       });
     } catch (error) {
       const isExtensionError = error instanceof ExtensionNotInstalledError;
-      set({
+      commit({
         isApprover: false,
         approverResourceNumber: null,
         permissionChecked: true,
@@ -360,9 +409,10 @@ export const useApprovalStore = create<ApprovalStore>((set, get) => ({
 
   // Refresh stats
   refreshStats: async () => {
+    const commit = setIfSameCompany(set);
     try {
       const stats = await bcClient.getApprovalStats();
-      set({
+      commit({
         pendingCount: stats.pendingCount,
         pendingHours: stats.pendingHours,
       });
