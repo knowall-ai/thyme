@@ -20,6 +20,8 @@ import type {
   BCTimeSuggestion,
   BCTimeSuggestionUpdate,
   BCSuggestionRequest,
+  BCProjectSourceLink,
+  BCProjectSourceLinkInput,
   BCAgentHeartbeat,
   BCTimesheetReview,
   BCTimesheetReviewLine,
@@ -1507,6 +1509,72 @@ class BusinessCentralClient {
       }
       throw error;
     }
+  }
+
+  // ============================================
+  // Project Source Links (what Poppie maps to a project)
+  // ============================================
+
+  /**
+   * A project's linked sources, in line order. Returns undefined when the extension has no
+   * projectSourceLinks endpoint (older than 1.20), so callers can hide the feature.
+   */
+  async getProjectSourceLinks(jobNo: string): Promise<BCProjectSourceLink[] | undefined> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) return undefined;
+    const filter = `jobNo eq '${this.sanitizeODataString(jobNo)}'`;
+    try {
+      const links = await this.customApiFetchAll<BCProjectSourceLink>(
+        `/projectSourceLinks?$filter=${encodeURIComponent(filter)}`
+      );
+      return links.sort((a, b) => a.lineNo - b.lineNo);
+    } catch (error) {
+      if (isEndpointMissing(error)) return undefined;
+      throw error;
+    }
+  }
+
+  /**
+   * Whether the signed-in user may change a project's linked sources (a Thyme administrator
+   * or the project's manager). False when the extension is too old to say.
+   */
+  async canEditProjectSourceLinks(jobNo: string): Promise<boolean> {
+    const filter = `number eq '${this.sanitizeODataString(jobNo)}'`;
+    try {
+      const response = await this.customApiFetch<
+        PaginatedResponse<{ number: string; canEditSourceLinks?: boolean }>
+      >(`/projects?$filter=${encodeURIComponent(filter)}&$select=number,canEditSourceLinks`);
+      return response.value[0]?.canEditSourceLinks === true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Add a linked source; BC normalises the value and checks the caller may. */
+  async createProjectSourceLink(link: BCProjectSourceLinkInput): Promise<BCProjectSourceLink> {
+    return this.customApiFetch<BCProjectSourceLink>('/projectSourceLinks', {
+      method: 'POST',
+      body: JSON.stringify(link),
+    });
+  }
+
+  async updateProjectSourceLink(
+    id: string,
+    updates: Partial<Omit<BCProjectSourceLinkInput, 'jobNo'>>,
+    etag?: string
+  ): Promise<BCProjectSourceLink> {
+    return this.customApiFetch<BCProjectSourceLink>(`/projectSourceLinks(${id})`, {
+      method: 'PATCH',
+      headers: { 'If-Match': etag || '*' },
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async deleteProjectSourceLink(id: string, etag?: string): Promise<void> {
+    await this.customApiFetch<void>(`/projectSourceLinks(${id})`, {
+      method: 'DELETE',
+      headers: { 'If-Match': etag || '*' },
+    });
   }
 
   /** Re-read one suggestion request (progress polling). */

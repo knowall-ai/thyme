@@ -21,6 +21,7 @@ import { useAuth } from '@/services/auth';
 import { timeEntryService } from '@/services/bc';
 import { Button, Card } from '@/components/ui';
 import { TimeEntryModal, type TimeEntryPrefill } from './TimeEntryModal';
+import { sourceLinkCandidates } from '@/utils/projectSourceLinks';
 import type {
   BCSuggestionRequest,
   BCTimeSuggestion,
@@ -292,6 +293,8 @@ export function PoppieSuggestionsPanel({
             taskCode: editing.jobTaskNo || undefined,
             hours: roundToQuarterHour(editing.quantity),
             notes: suggestionNotes(editing),
+            // "Choose project": offer to map its repo / meeting / domain to the project picked
+            linkCandidates: editing.jobNo ? undefined : sourceLinkCandidates(editing),
           }
         : null,
     [editing]

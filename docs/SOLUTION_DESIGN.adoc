@@ -129,6 +129,22 @@ GET  /companies({id})/resources               # Fetch employees
 POST /companies({id})/jobJournalLines         # Create time entry
 ----
 
+=== Linked sources (Poppie's project mapping)
+
+Poppie, the AI agent, suggests time entries from people's calendars, GitHub and Azure DevOps.
+Which project that time belongs to comes from each project's *linked sources* in Business
+Central (Thyme BC Extension 1.20+ `projectSourceLinks`): GitHub repos, DevOps projects and
+repos, meeting keywords and attendee domains, each optionally with a task. They're per company,
+so every company maps its own projects.
+
+* The project page's *Linked sources* card lists them, with link-outs for repos and DevOps
+  projects. Administrators and the project's manager (`canEditSourceLinks` on `projects`) add,
+  edit and remove them inline; values are checked and normalised as BC will store them
+  (`src/utils/projectSourceLinks.ts`), and BC re-checks.
+* Adding a "Choose project" suggestion offers *Always map this to the chosen project and task*,
+  which creates the link (repo, DevOps repo or project, meeting subject or attendee domain).
+* Links Poppie learns from approved time appear as *Learned*.
+
 == Security Considerations
 
 === Authentication
