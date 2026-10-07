@@ -7,11 +7,12 @@ const DEFAULT_CONCURRENCY = 5;
  * Fetch lines for each timesheet with a small worker pool, reporting each result as it lands.
  * Timesheets awaiting approval are fetched first so they don't queue behind the history.
  * Failures are skipped (the card falls back to the header) and results stop once cancelled.
+ * `fetchLines` may return more than the lines (e.g. the timesheet's daily details too).
  */
-export async function prefetchTimeSheetLines(
+export async function prefetchTimeSheetLines<T = BCTimeSheetLine[]>(
   timeSheets: BCTimeSheet[],
-  fetchLines: (timeSheetNo: string) => Promise<BCTimeSheetLine[]>,
-  onLines: (timeSheetId: string, lines: BCTimeSheetLine[]) => void,
+  fetchLines: (timeSheetNo: string) => Promise<T>,
+  onLines: (timeSheetId: string, lines: T) => void,
   isCancelled: () => boolean = () => false,
   concurrency = DEFAULT_CONCURRENCY
 ): Promise<void> {
