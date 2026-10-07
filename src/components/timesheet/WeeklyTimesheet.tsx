@@ -783,6 +783,7 @@ Thank you!`)}`}
           projects={projects}
           canEdit={canEdit}
           readOnlyReason={suggestionsReadOnlyReason}
+          personName={selectedTeammate?.displayName ?? null}
         />
 
         {/* Time Entry Modal */}

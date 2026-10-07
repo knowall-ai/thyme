@@ -19,6 +19,7 @@ import type {
   BCTimeEntry,
   BCTimeSuggestion,
   BCTimeSuggestionUpdate,
+  BCSuggestionRequest,
   BCTimesheetReview,
   BCTimesheetReviewLine,
   TimeSheetStatus,
@@ -1457,6 +1458,76 @@ class BusinessCentralClient {
       },
       body: JSON.stringify(updates),
     });
+  }
+
+  // ============================================
+  // Suggestion Requests (ask Poppie for suggestions now)
+  // ============================================
+
+  /**
+   * The latest suggestion request for a resource and week, or null if there's none.
+   * Returns undefined when the extension has no suggestionRequests endpoint (older than
+   * 1.16), so callers can hide the feature.
+   */
+  async getLatestSuggestionRequest(
+    resourceNo: string,
+    fromDate: string,
+    toDate: string
+  ): Promise<BCSuggestionRequest | null | undefined> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) return undefined;
+
+    const filter = `resourceNo eq '${this.sanitizeODataString(resourceNo)}' and fromDate eq ${this.sanitizeDateInput(fromDate)} and toDate eq ${this.sanitizeDateInput(toDate)}`;
+    try {
+      const response = await this.customApiFetch<PaginatedResponse<BCSuggestionRequest>>(
+        `/suggestionRequests?$filter=${encodeURIComponent(filter)}&$orderby=${encodeURIComponent('requestedAt desc')}&$top=1`
+      );
+      return response.value[0] ?? null;
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('BC API Error (404)')) {
+        return undefined;
+      }
+      throw error;
+    }
+  }
+
+  /** Re-read one suggestion request (progress polling). */
+  async getSuggestionRequest(id: string): Promise<BCSuggestionRequest> {
+    return this.customApiFetch<BCSuggestionRequest>(`/suggestionRequests(${id})`);
+  }
+
+  /**
+   * Ask Poppie to generate suggestions for a resource's week. BC checks the caller may
+   * (the resource's owner or approver, or a Thyme administrator) and rejects a second
+   * open request for the same week.
+   */
+  async createSuggestionRequest(
+    resourceNo: string,
+    fromDate: string,
+    toDate: string
+  ): Promise<BCSuggestionRequest> {
+    return this.customApiFetch<BCSuggestionRequest>('/suggestionRequests', {
+      method: 'POST',
+      body: JSON.stringify({
+        resourceNo,
+        fromDate: this.sanitizeDateInput(fromDate),
+        toDate: this.sanitizeDateInput(toDate),
+      }),
+    });
+  }
+
+  /**
+   * Whether the signed-in user may request suggestions for a resource. Undefined when the
+   * extension doesn't say (older than 1.16) or the resource can't be read.
+   */
+  async canRequestSuggestions(resourceNo: string): Promise<boolean | undefined> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) return undefined;
+    const filter = `number eq '${this.sanitizeODataString(resourceNo)}'`;
+    const response = await this.customApiFetch<PaginatedResponse<BCResource>>(
+      `/resources?$filter=${encodeURIComponent(filter)}`
+    );
+    return response.value[0]?.canRequestSuggestions;
   }
 
   /**
