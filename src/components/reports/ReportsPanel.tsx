@@ -71,8 +71,12 @@ function BillableInfo({ label }: { label: string }) {
         className="focus:ring-thyme-500 focus:ring-offset-dark-800 flex cursor-help rounded text-gray-600 hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none"
         onMouseEnter={() => setIsOpen(true)}
         onMouseLeave={() => setIsOpen(false)}
-        onFocus={() => setIsOpen(true)}
+        // Keyboard focus opens it; a tap (which may also focus) is handled by onClick
+        onFocus={(e) => e.currentTarget.matches(':focus-visible') && setIsOpen(true)}
         onBlur={() => setIsOpen(false)}
+        // Tap to show or hide it on touch screens
+        onClick={() => setIsOpen((open) => !open)}
+        onKeyDown={(e) => e.key === 'Escape' && setIsOpen(false)}
         aria-label={`Info: ${label}`}
         aria-expanded={isOpen}
       >

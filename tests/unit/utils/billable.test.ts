@@ -32,6 +32,18 @@ describe('isInternalProject', () => {
     expect(
       isInternalProject({ billToCustomerNo: 'C1', billToCustomerName: 'Contoso International' })
     ).toBe(false);
+    expect(
+      isInternalProject({ billToCustomerNo: 'C1', billToCustomerName: 'Contoso Internally Ltd' })
+    ).toBe(false);
+  });
+
+  it('treats digits and underscores around "internal" as word breaks', () => {
+    expect(
+      isInternalProject({ billToCustomerNo: 'C1', billToCustomerName: 'Contoso_Internal' })
+    ).toBe(true);
+    expect(isInternalProject({ billToCustomerNo: 'C1', billToCustomerName: 'Internal2' })).toBe(
+      true
+    );
   });
 });
 

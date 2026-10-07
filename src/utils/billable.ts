@@ -28,8 +28,9 @@ export interface ChargeableLine {
   chargeable?: boolean;
 }
 
-// "Internal" as a whole word, so a customer like "International Ltd" isn't caught
-const INTERNAL_CUSTOMER_NAME = /\binternal\b/i;
+// "Internal" as a whole word (anything but a letter either side, so "Contoso_Internal"
+// counts), so a customer like "Contoso International" isn't treated as internal
+const INTERNAL_CUSTOMER_NAME = /(^|[^a-z])internal([^a-z]|$)/i;
 
 /**
  * Whether a project is internal (its time is never billable): it has no bill-to
