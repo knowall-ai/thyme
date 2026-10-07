@@ -7,9 +7,6 @@ import {
 } from '@/components/approvals/dailyHours';
 import type { BCTimeSheetDetail } from '@/types';
 
-// Run in UK time so summer time (BST, UTC+1) would expose any UTC-based date keys
-process.env.TZ = 'Europe/London';
-
 function detail(lineNo: number, date: string, quantity: number): BCTimeSheetDetail {
   return {
     id: `${lineNo}-${date}`,
@@ -86,6 +83,7 @@ describe('buildWeekDailyHours', () => {
   });
 });
 
+// vitest.config.ts runs tests in Europe/London, so July is summer time (BST, UTC+1)
 describe('toLocalDateKey in UK summer time', () => {
   afterEach(() => {
     vi.useRealTimers();
