@@ -82,7 +82,10 @@ export function ProjectCharts() {
   // The effort budget is the Estimate card's figure, so it follows that card's eye
   const showTimeBudgeted = !hiddenKpis.includes('Estimate');
   const showTimeSpent = !hiddenKpis.includes('Time Spent');
-  const [chartView, setChartView] = useState<ChartView>('weekly');
+  const [selectedChartView, setChartView] = useState<ChartView>('weekly');
+  // Internal projects have no budget, so there's no Spend vs Budget chart: only Hours per Week
+  const isInternal = !!project?.isInternal;
+  const chartView: ChartView = isInternal ? 'weekly' : selectedChartView;
   // Days by default: effort is the safe view to share, and matches how projects are planned
   const [spendUnit, setSpendUnit] = useState<SpendUnit>('days');
   // Hours per Week can show hours or days (no money there)
@@ -191,17 +194,19 @@ export function ProjectCharts() {
           >
             Hours per Week
           </button>
-          <button
-            onClick={() => setChartView('progress')}
-            className={cn(
-              'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
-              chartView === 'progress'
-                ? 'bg-thyme-600 text-white'
-                : 'bg-dark-600 text-gray-400 hover:text-white'
-            )}
-          >
-            Spend vs Budget
-          </button>
+          {!isInternal && (
+            <button
+              onClick={() => setChartView('progress')}
+              className={cn(
+                'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
+                chartView === 'progress'
+                  ? 'bg-thyme-600 text-white'
+                  : 'bg-dark-600 text-gray-400 hover:text-white'
+              )}
+            >
+              Spend vs Budget
+            </button>
+          )}
           {/* Unit toggle: Hours | Days for Hours per Week; Hours | Days | £ for Spend vs Budget
               (effort shows no money; £ is internal cost) */}
           <div
@@ -299,29 +304,31 @@ export function ProjectCharts() {
           hoursPerDay={analytics?.hoursPerDay ?? 8}
         />
       </div>
-      <div className={cn('print:mt-6', chartView !== 'progress' && 'hidden print:block')}>
-        <PrintChartTitle>
-          {spendUnit === 'cost' ? 'Spend vs Budget' : `Effort vs Budget (${spendUnit})`}
-        </PrintChartTitle>
-        <ProgressLineChart
-          data={weeklyData}
-          offsetWeeks={offsetWeeks}
-          hoursSpent={analytics?.hoursSpent ?? 0}
-          hoursPlanned={analytics?.hoursPlanned ?? 0}
-          estimateHours={analytics?.estimateHours ?? 0}
-          billableResourcePrice={analytics?.billablePriceBreakdown?.resource ?? 0}
-          invoicedPrice={analytics?.invoicedPrice ?? 0}
-          unpostedBillable={analytics?.unpostedBillable ?? 0}
-          showBillablePrice={showBillablePrice}
-          showTimeBudgeted={showTimeBudgeted}
-          showTimeSpent={showTimeSpent}
-          unit={spendUnit}
-          hoursPerDay={analytics?.hoursPerDay ?? 8}
-          projectStartDate={projectStartDate}
-          projectEndDate={projectEndDate}
-          currencyCode={currencyCode}
-        />
-      </div>
+      {!isInternal && (
+        <div className={cn('print:mt-6', chartView !== 'progress' && 'hidden print:block')}>
+          <PrintChartTitle>
+            {spendUnit === 'cost' ? 'Spend vs Budget' : `Effort vs Budget (${spendUnit})`}
+          </PrintChartTitle>
+          <ProgressLineChart
+            data={weeklyData}
+            offsetWeeks={offsetWeeks}
+            hoursSpent={analytics?.hoursSpent ?? 0}
+            hoursPlanned={analytics?.hoursPlanned ?? 0}
+            estimateHours={analytics?.estimateHours ?? 0}
+            billableResourcePrice={analytics?.billablePriceBreakdown?.resource ?? 0}
+            invoicedPrice={analytics?.invoicedPrice ?? 0}
+            unpostedBillable={analytics?.unpostedBillable ?? 0}
+            showBillablePrice={showBillablePrice}
+            showTimeBudgeted={showTimeBudgeted}
+            showTimeSpent={showTimeSpent}
+            unit={spendUnit}
+            hoursPerDay={analytics?.hoursPerDay ?? 8}
+            projectStartDate={projectStartDate}
+            projectEndDate={projectEndDate}
+            currencyCode={currencyCode}
+          />
+        </div>
+      )}
     </Card>
   );
 }

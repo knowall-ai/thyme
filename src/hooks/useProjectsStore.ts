@@ -85,7 +85,10 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
       // Fetch hours and budgets in parallel
       const [hoursMap, budgetsMap] = await Promise.all([
         projectService.getProjectHours(),
-        projectService.getProjectBudgets(projectCodes),
+        projectService.getProjectBudgets(
+          projectCodes,
+          new Set(projects.filter((p) => p.isInternal).map((p) => p.code))
+        ),
       ]);
 
       // Update projects with hours and budget data

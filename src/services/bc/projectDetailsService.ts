@@ -9,6 +9,8 @@ import {
   sumPlannedHours,
   isBillableEntry,
   isInternalProject,
+  getAbsenceTaskNos,
+  withoutAbsenceLines,
 } from '@/utils';
 
 // Color palette for projects (same as projectService)
@@ -463,7 +465,18 @@ export const projectDetailsService = {
     const unitPriceByTask = new Map<string, number>();
     try {
       // Planning lines and unit of measure conversion factors (started above)
-      const [planningLines, resourceUnitsOfMeasure] = await planningPromise;
+      const [allPlanningLines, resourceUnitsOfMeasure] = await planningPromise;
+      // Planned absence isn't budgeted work, so it's left out of budget maths on
+      // non-internal projects (internal ones have no budget; their plan is kept as is)
+      let planningLines = allPlanningLines;
+      if (!isInternal && allPlanningLines.length > 0) {
+        try {
+          const absenceTaskNos = getAbsenceTaskNos(await bcClient.getJobTasks(projectNumber));
+          planningLines = withoutAbsenceLines(allPlanningLines, absenceTaskNos, isInternal);
+        } catch {
+          // Without task names nothing can be told apart, so keep every line
+        }
+      }
 
       // Build a map for unit of measure conversion: (resourceNo, unitCode) → qtyPerUnitOfMeasure
       // This allows us to convert DAY to HOURS (e.g., 1 DAY = 7.5 HOURS)

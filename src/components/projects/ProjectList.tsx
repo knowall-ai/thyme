@@ -17,7 +17,14 @@ import { Button, Input, Select, ExtensionPreviewWrapper } from '@/components/ui'
 import { useProjectsStore } from '@/hooks';
 import type { Project } from '@/types';
 import type { BillingMode } from '@/services/bc/projectDetailsService';
-import { cn, getBCJobsListUrl, getBCCustomersListUrl, getBCJobUrl } from '@/utils';
+import {
+  cn,
+  compareByRemaining,
+  getRemainingHours,
+  getBCJobsListUrl,
+  getBCCustomersListUrl,
+  getBCJobUrl,
+} from '@/utils';
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import { useCompanyStore } from '@/hooks';
 
@@ -199,18 +206,10 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
         result.sort((a, b) => (b.totalHours ?? 0) - (a.totalHours ?? 0));
         break;
       case 'remaining-asc':
-        result.sort((a, b) => {
-          const remA = (a.budgetHours ?? 0) - (a.totalHours ?? 0);
-          const remB = (b.budgetHours ?? 0) - (b.totalHours ?? 0);
-          return remA - remB;
-        });
+        result.sort((a, b) => compareByRemaining(a, b, 1));
         break;
       case 'remaining-desc':
-        result.sort((a, b) => {
-          const remA = (a.budgetHours ?? 0) - (a.totalHours ?? 0);
-          const remB = (b.budgetHours ?? 0) - (b.totalHours ?? 0);
-          return remB - remA;
-        });
+        result.sort((a, b) => compareByRemaining(a, b, -1));
         break;
     }
 
@@ -464,9 +463,14 @@ function ProjectRow({
 }: ProjectRowProps) {
   const budget = project.budgetHours; // From Job Planning Lines
   const hours = project.totalHours; // From timesheets
-  const remaining = budget !== undefined && hours !== undefined ? budget - hours : undefined;
+  // Internal projects have no budget: their Plan is just planned time, so nothing is
+  // remaining, over budget or measured by a progress bar
+  const isInternal = !!project.isInternal;
+  const remaining = getRemainingHours(project);
   const percentUsed =
-    budget !== undefined && hours !== undefined ? Math.round((hours / budget) * 100) : undefined;
+    !isInternal && budget !== undefined && hours !== undefined && budget > 0
+      ? Math.round((hours / budget) * 100)
+      : undefined;
 
   return (
     <tr
@@ -522,14 +526,24 @@ function ProjectRow({
 
       {/* Budget column */}
       <td className="px-4 py-3 text-right text-gray-500">
-        {budget !== undefined ? `${budget.toFixed(0)}h` : '-'}
+        {budget !== undefined ? (
+          isInternal ? (
+            <span className="text-gray-600" title="Planned time (internal projects have no budget)">
+              {budget.toFixed(0)}h plan
+            </span>
+          ) : (
+            `${budget.toFixed(0)}h`
+          )
+        ) : (
+          '-'
+        )}
       </td>
 
       {/* Hours column with progress bar */}
       <td className="px-4 py-3">
         <div className="flex flex-col items-end gap-1">
           <span className="text-white">{hours !== undefined ? `${hours.toFixed(1)}h` : '-'}</span>
-          {budget !== undefined && hours !== undefined && percentUsed !== undefined && (
+          {percentUsed !== undefined && (
             <div className="bg-dark-600 h-1.5 w-20 overflow-hidden rounded-full">
               <div
                 className={cn(
@@ -549,7 +563,7 @@ function ProjectRow({
 
       {/* Remaining column */}
       <td className="px-4 py-3 text-right">
-        {remaining !== undefined && percentUsed !== undefined ? (
+        {remaining !== undefined && percentUsed !== undefined && !isInternal ? (
           <span className={cn(remaining < 0 ? 'text-red-400' : 'text-gray-400')}>
             {remaining.toFixed(0)}h ({percentUsed}%)
           </span>

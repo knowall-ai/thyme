@@ -6,6 +6,7 @@ import { useCompanyStore } from '@/hooks';
 import { Card, Modal, StageBar, StageLegend, getStageSegments } from '@/components/ui';
 import type { StageSegment } from '@/components/ui';
 import {
+  cn,
   getBCJobPlanningLinesUrl,
   getBCJobLedgerEntriesUrl,
   describeFinishVsEndDate,
@@ -194,7 +195,9 @@ export function ProjectKPICards() {
   const approvedUnpostedHours = Math.max(0, (analytics?.approvedHours ?? 0) - postedHours);
   const hoursPerDay = analytics?.hoursPerDay ?? 8; // From BC Resource Unit of Measure
   // Estimate (quoted, Billable lines) is the budget; Spent + future Planned = Forecast
-  const estimateHours = analytics?.estimateHours ?? 0;
+  // Internal projects have no budget: no estimate, so nothing is over or under it
+  const isInternal = !!project?.isInternal;
+  const estimateHours = isInternal ? 0 : (analytics?.estimateHours ?? 0);
   const hasEstimate = estimateHours > 0;
   const futurePlannedHours = analytics?.futurePlannedHours ?? 0;
   const forecastHours = hoursSpent + futurePlannedHours;
@@ -434,7 +437,10 @@ export function ProjectKPICards() {
       subLabel: jobLedgerEntryLink,
       breakdown: actualBreakdown,
       icon: BanknotesIcon,
-      color: actualCost > budgetCost && budgetCost > 0 ? 'text-red-400' : 'text-amber-400',
+      color:
+        !isInternal && actualCost > budgetCost && budgetCost > 0
+          ? 'text-red-400'
+          : 'text-amber-400',
       isInternal: true,
     },
     {
@@ -458,91 +464,101 @@ export function ProjectKPICards() {
   return (
     <div className="space-y-4">
       {/* Row 1: Hours (4 cards) */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 print:grid-cols-4">
-        {hoursKpis.map((kpi) => {
-          const isHidden = hiddenCards.has(kpi.label);
-          return (
-            <Card key={kpi.label} variant="bordered" className="relative p-4">
-              <div className="absolute top-3 right-3 flex items-center gap-1.5">
-                <VisibilityToggle
-                  hidden={isHidden}
-                  onToggle={() => toggleKpiHidden(kpi.label)}
-                  label={kpi.label}
-                />
-                {kpiInfo[kpi.label] && <InfoTooltip {...kpiInfo[kpi.label]} />}
-              </div>
-              <div className="flex items-start gap-3">
-                <div
-                  className={`bg-dark-600 rounded-lg p-2 ${kpi.color} ${isHidden ? 'opacity-50' : ''}`}
-                >
-                  <kpi.icon className="h-5 w-5" />
+      <div
+        className={cn(
+          'grid gap-4 sm:grid-cols-2',
+          isInternal ? 'lg:grid-cols-3 print:grid-cols-3' : 'lg:grid-cols-4 print:grid-cols-4'
+        )}
+      >
+        {/* Internal projects have no budget, so no Estimate card */}
+        {hoursKpis
+          .filter((kpi) => !(isInternal && kpi.label === 'Estimate'))
+          .map((kpi) => {
+            const isHidden = hiddenCards.has(kpi.label);
+            return (
+              <Card key={kpi.label} variant="bordered" className="relative p-4">
+                <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                  <VisibilityToggle
+                    hidden={isHidden}
+                    onToggle={() => toggleKpiHidden(kpi.label)}
+                    label={kpi.label}
+                  />
+                  {kpiInfo[kpi.label] && <InfoTooltip {...kpiInfo[kpi.label]} />}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-400">{kpi.label}</p>
-                  <p className={`text-2xl font-bold ${isHidden ? 'text-gray-600' : 'text-white'}`}>
-                    {isHidden ? maskedValue : kpi.value}
-                  </p>
-                  {/* Sub-lines carry figures too, so they're masked with the value */}
-                  <p className={`mt-1 text-xs ${kpi.subLabelColor ?? 'text-gray-500'}`}>
-                    {isHidden ? 'Hidden' : kpi.subLabel}
-                  </p>
-                  {/* Who the hours belong to: top few by hours, then a count of the rest */}
-                  {kpi.resources && kpi.resources.length > 0 && !isHidden && (
-                    <div className="mt-1.5 space-y-0.5 text-xs text-gray-500">
-                      {kpi.resources.slice(0, MAX_RESOURCE_ROWS).map((res) => (
-                        <div key={res.resourceNo} className="flex justify-between gap-2">
-                          <span className="truncate">{res.name}</span>
-                          <span className="shrink-0">
-                            {formatHoursWithDays(res.hours, hoursPerDay)}
-                          </span>
-                        </div>
-                      ))}
-                      {
-                        <button
-                          type="button"
-                          onClick={() => setResourceDialog(kpi.label)}
-                          className="text-thyme-400 hover:text-thyme-300 focus-visible:ring-thyme-500 rounded hover:underline focus:outline-none focus-visible:ring-1"
-                        >
-                          {kpi.resources.length > MAX_RESOURCE_ROWS
-                            ? `+${kpi.resources.length - MAX_RESOURCE_ROWS} more`
-                            : 'Details'}
-                        </button>
-                      }
-                    </div>
-                  )}
-                  {kpi.segments && !isHidden && (
-                    <>
-                      {/* Stacked bar against the estimate (or total spent, if over or no estimate) */}
-                      <StageBar
-                        segments={kpi.segments}
-                        max={Math.max(estimateHours, hoursSpent, 1)}
-                        className="mt-2"
-                      />
-                      <StageLegend
-                        segments={kpi.segments}
-                        formatHours={(hours) => formatHoursWithDays(hours, hoursPerDay)}
-                        className="mt-1.5"
-                      />
-                    </>
-                  )}
-                  {kpi.progress !== undefined && !isHidden && (
-                    <div className="bg-dark-600 mt-2 h-1.5 w-full overflow-hidden rounded-full">
-                      <div
-                        className={`h-full rounded-full transition-all ${kpi.progressColor}`}
-                        style={{ width: `${kpi.progress}%` }}
-                      />
-                    </div>
-                  )}
-                  {kpi.detail && !isHidden && (
-                    <p className={`mt-1.5 text-xs ${kpi.detailColor ?? 'text-gray-500'}`}>
-                      {kpi.detail}
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`bg-dark-600 rounded-lg p-2 ${kpi.color} ${isHidden ? 'opacity-50' : ''}`}
+                  >
+                    <kpi.icon className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-400">{kpi.label}</p>
+                    <p
+                      className={`text-2xl font-bold ${isHidden ? 'text-gray-600' : 'text-white'}`}
+                    >
+                      {isHidden ? maskedValue : kpi.value}
                     </p>
-                  )}
+                    {/* Sub-lines carry figures too, so they're masked with the value */}
+                    <p className={`mt-1 text-xs ${kpi.subLabelColor ?? 'text-gray-500'}`}>
+                      {isHidden ? 'Hidden' : kpi.subLabel}
+                    </p>
+                    {/* Who the hours belong to: top few by hours, then a count of the rest */}
+                    {kpi.resources && kpi.resources.length > 0 && !isHidden && (
+                      <div className="mt-1.5 space-y-0.5 text-xs text-gray-500">
+                        {kpi.resources.slice(0, MAX_RESOURCE_ROWS).map((res) => (
+                          <div key={res.resourceNo} className="flex justify-between gap-2">
+                            <span className="truncate">{res.name}</span>
+                            <span className="shrink-0">
+                              {formatHoursWithDays(res.hours, hoursPerDay)}
+                            </span>
+                          </div>
+                        ))}
+                        {
+                          <button
+                            type="button"
+                            onClick={() => setResourceDialog(kpi.label)}
+                            className="text-thyme-400 hover:text-thyme-300 focus-visible:ring-thyme-500 rounded hover:underline focus:outline-none focus-visible:ring-1"
+                          >
+                            {kpi.resources.length > MAX_RESOURCE_ROWS
+                              ? `+${kpi.resources.length - MAX_RESOURCE_ROWS} more`
+                              : 'Details'}
+                          </button>
+                        }
+                      </div>
+                    )}
+                    {kpi.segments && !isHidden && (
+                      <>
+                        {/* Stacked bar against the estimate (or total spent, if over or no estimate) */}
+                        <StageBar
+                          segments={kpi.segments}
+                          max={Math.max(estimateHours, hoursSpent, 1)}
+                          className="mt-2"
+                        />
+                        <StageLegend
+                          segments={kpi.segments}
+                          formatHours={(hours) => formatHoursWithDays(hours, hoursPerDay)}
+                          className="mt-1.5"
+                        />
+                      </>
+                    )}
+                    {kpi.progress !== undefined && !isHidden && (
+                      <div className="bg-dark-600 mt-2 h-1.5 w-full overflow-hidden rounded-full">
+                        <div
+                          className={`h-full rounded-full transition-all ${kpi.progressColor}`}
+                          style={{ width: `${kpi.progress}%` }}
+                        />
+                      </div>
+                    )}
+                    {kpi.detail && !isHidden && (
+                      <p className={`mt-1.5 text-xs ${kpi.detailColor ?? 'text-gray-500'}`}>
+                        {kpi.detail}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </Card>
-          );
-        })}
+              </Card>
+            );
+          })}
       </div>
 
       {/* Row 2: Financials (4 cards matching BC) - printed as shown, with hidden amounts masked */}
