@@ -16,6 +16,8 @@ describe('parseBCDate', () => {
     expect(parseBCDate('0001-01-01')).toBeNull();
     expect(parseBCDate('not-a-date')).toBeNull();
     expect(parseBCDate('2026-02-31')).toBeNull();
+    expect(parseBCDate('2026-06-15junk')).toBeNull();
+    expect(parseBCDate('2026-06-15T00:00:00Z')).toEqual(new Date(2026, 5, 15));
   });
 });
 

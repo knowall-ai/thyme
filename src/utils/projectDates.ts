@@ -7,7 +7,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
  */
 export function parseBCDate(value?: string | null): Date | null {
   if (!value || value.startsWith('0001-')) return null;
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/.exec(value);
   if (!match) return null;
   const [y, m, d] = [Number(match[1]), Number(match[2]), Number(match[3])];
   const date = new Date(y, m - 1, d);
