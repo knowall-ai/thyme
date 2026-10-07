@@ -20,9 +20,10 @@ const screenshots: Screenshot[] = [
   },
   {
     src: '/screenshots/projects.png',
-    alt: 'Projects list from Business Central with planned, spent and remaining hours',
+    alt: 'Project details with estimate, time spent by stage, plan, forecast and cost cards',
     title: 'Projects',
-    description: 'Browse your Business Central projects with planned, spent and remaining hours.',
+    description:
+      "Track every project's estimate, time spent, plan and costs from Business Central.",
   },
   {
     src: '/screenshots/team.png',
@@ -32,13 +33,13 @@ const screenshots: Screenshot[] = [
   },
   {
     src: '/screenshots/plan.png',
-    alt: 'Resource planning and scheduling',
+    alt: 'Resource plan with a person expanded to show daily allocations by project and task',
     title: 'Plan',
     description: 'Plan and schedule resources across projects with a visual timeline.',
   },
   {
     src: '/screenshots/approvals.png',
-    alt: 'Timesheet approval workflow',
+    alt: 'Submitted timesheet expanded with daily hours and lines by project',
     title: 'Approvals',
     description: 'Managers can review and approve team timesheets with one click.',
   },
