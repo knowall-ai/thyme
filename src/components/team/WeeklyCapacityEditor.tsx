@@ -136,8 +136,8 @@ export function WeeklyCapacityEditor({
           <span>
             Flexible working days
             <span className="text-dark-400 block text-xs">
-              They work their hours on any days, so their week is judged as a whole rather than day
-              by day.
+              They work their hours on any days, so timesheet checks look at their week as a whole.
+              A single day is still flagged when it&apos;s over a full day.
             </span>
           </span>
         </label>
