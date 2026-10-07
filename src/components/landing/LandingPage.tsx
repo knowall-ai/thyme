@@ -12,6 +12,7 @@ import {
   BoltIcon,
   BuildingOffice2Icon,
   DevicePhoneMobileIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 import { Header, PublicFooter } from '@/components/layout';
 import { QuoteDisplay } from '@/components/ui';
@@ -25,6 +26,12 @@ const features = [
       'Track your time with an intuitive weekly timesheet view or real-time timer. Log hours quickly and accurately.',
   },
   {
+    icon: SparklesIcon,
+    title: 'AI Timesheet Suggestions',
+    description:
+      'An AI assistant suggests entries from your calendar, GitHub and Azure DevOps activity, matched to the right project. Check each one and add it in a click.',
+  },
+  {
     icon: ArrowPathIcon,
     title: 'Business Central Sync',
     description:
@@ -35,6 +42,12 @@ const features = [
     title: 'Timesheet Approvals',
     description:
       'Managers can review and approve team timesheets with a single click. Track submission status across your team.',
+  },
+  {
+    icon: SparklesIcon,
+    title: 'AI Approval Recommendations',
+    description:
+      'Every submitted timesheet gets an AI review before approval, flagging missing comments, short days, the billable mix and budget overruns.',
   },
   {
     icon: ChartBarIcon,
