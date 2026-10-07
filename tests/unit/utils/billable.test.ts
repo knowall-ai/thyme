@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { getBillableHours, isBillableEntry, isInternalProject } from '@/utils/billable';
+import {
+  getBillableHours,
+  isBillableEntry,
+  isCompanyName,
+  isInternalProject,
+} from '@/utils/billable';
 import type { BCTimeSheetDetail, BCTimeSheetLine } from '@/types';
 
 const customerProject = { billToCustomerNo: 'C00010', billToCustomerName: 'Contoso Ltd' };
@@ -44,6 +49,56 @@ describe('isInternalProject', () => {
     expect(isInternalProject({ billToCustomerNo: 'C1', billToCustomerName: 'Internal2' })).toBe(
       true
     );
+  });
+});
+
+describe('isInternalProject - customer named after the company', () => {
+  const companyNames = ['CRONUS UK Ltd.'];
+
+  it('treats a project billed to the company itself as internal', () => {
+    expect(
+      isInternalProject(
+        { billToCustomerNo: 'C1', billToCustomerName: 'CRONUS UK Ltd.' },
+        companyNames
+      )
+    ).toBe(true);
+  });
+
+  it('keeps a project billed to another customer external', () => {
+    expect(isInternalProject(customerProject, companyNames)).toBe(false);
+  });
+
+  it('respects the billToIsCompany flag set when projects load', () => {
+    expect(isInternalProject({ ...customerProject, billToIsCompany: true })).toBe(true);
+  });
+
+  it('still treats a customer named "Internal" as internal alongside company names', () => {
+    expect(isInternalProject(internalProject, companyNames)).toBe(true);
+  });
+});
+
+describe('isCompanyName', () => {
+  it('matches ignoring case, punctuation and extra whitespace', () => {
+    expect(isCompanyName('CRONUS UK Ltd.', ['CRONUS UK Ltd.'])).toBe(true);
+    expect(isCompanyName('cronus uk ltd', ['CRONUS UK Ltd.'])).toBe(true);
+    expect(isCompanyName('  CRONUS   UK Ltd ', ['CRONUS UK Ltd.'])).toBe(true);
+    expect(isCompanyName('CRONUS-UK Ltd', ['CRONUS - UK Ltd'])).toBe(true);
+  });
+
+  it('matches any of the company names', () => {
+    expect(isCompanyName('CRONUS UK Ltd.', ['CRONUS', undefined, 'CRONUS UK Ltd.'])).toBe(true);
+  });
+
+  it("doesn't match a different or merely similar customer", () => {
+    expect(isCompanyName('Contoso Ltd', ['CRONUS UK Ltd.'])).toBe(false);
+    expect(isCompanyName('CRONUS UK Ltd. Holdings', ['CRONUS UK Ltd.'])).toBe(false);
+  });
+
+  it("doesn't match blank names", () => {
+    expect(isCompanyName('', ['CRONUS UK Ltd.'])).toBe(false);
+    expect(isCompanyName(undefined, ['CRONUS UK Ltd.'])).toBe(false);
+    expect(isCompanyName('...', ['--'])).toBe(false);
+    expect(isCompanyName('CRONUS UK Ltd.', [])).toBe(false);
   });
 });
 

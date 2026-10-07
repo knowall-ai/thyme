@@ -25,7 +25,7 @@ import type {
   TimesheetDisplayStatus,
   PaginatedResponse,
 } from '@/types';
-import { getTimesheetDisplayStatus, decodeBCEnum } from '@/utils';
+import { getTimesheetDisplayStatus, decodeBCEnum, isCompanyName } from '@/utils';
 
 const BC_BASE_URL =
   process.env.NEXT_PUBLIC_BC_BASE_URL || 'https://api.businesscentral.dynamics.com/v2.0';
@@ -82,6 +82,13 @@ function normalizeBCProject(project: BCProject): BCProject {
   return project;
 }
 
+/** Flag a project whose bill-to customer is the company itself (see isInternalProject) */
+function withBillToIsCompany(project: BCProject, companyNames: string[]): BCProject {
+  return isCompanyName(project.billToCustomerName, companyNames)
+    ? { ...project, billToIsCompany: true }
+    : project;
+}
+
 /**
  * The ETag to send as If-Match, so a PATCH never overwrites someone else's newer
  * change. Throws rather than falling back to '*' when BC didn't return one.
@@ -113,11 +120,16 @@ function requireTargetPercent(percent: number): number {
   return percent;
 }
 
+// How long the optional company-name lookups may hold up loading projects
+const COMPANY_NAMES_TIMEOUT_MS = 10_000;
+
 class BusinessCentralClient {
   private _companyId: string;
   private _environment: BCEnvironmentType;
   private _extensionInstalled: boolean | null = null;
   private _extensionCheckPromise: Promise<boolean> | null = null;
+  // The current company's names, fetched once per company (see getCompanyNames)
+  private _companyNames: { key: string; promise: Promise<string[]> } | null = null;
 
   constructor() {
     // Try to load from localStorage, fall back to env vars
@@ -195,6 +207,7 @@ class BusinessCentralClient {
       // Reset extension cache when company/environment changes
       this._extensionInstalled = null;
       this._extensionCheckPromise = null;
+      this._companyNames = null;
     }
   }
 
@@ -372,14 +385,22 @@ class BusinessCentralClient {
     return status as TimeSheetStatus;
   }
 
-  private async fetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  /**
+   * @param baseUrl - The company's API URL; pass one captured earlier to keep related
+   * requests on the same company even if the selection changes in between
+   */
+  private async fetch<T>(
+    endpoint: string,
+    options: RequestInit = {},
+    baseUrl: string = this.baseUrl
+  ): Promise<T> {
     const token = await getBCAccessToken();
 
     if (!token) {
       throw new Error('Failed to get Business Central access token');
     }
 
-    const url = `${this.baseUrl}${endpoint}`;
+    const url = `${baseUrl}${endpoint}`;
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -406,14 +427,19 @@ class BusinessCentralClient {
   /**
    * Fetch from custom Thyme BC Extension API
    */
-  private async fetchCustomApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  /** @param baseUrl - The company's custom API URL, captured earlier (see fetch) */
+  private async fetchCustomApi<T>(
+    endpoint: string,
+    options: RequestInit = {},
+    baseUrl: string = this.customApiBaseUrl
+  ): Promise<T> {
     const token = await getBCAccessToken();
 
     if (!token) {
       throw new Error('Failed to get Business Central access token');
     }
 
-    const url = `${this.customApiBaseUrl}${endpoint}`;
+    const url = `${baseUrl}${endpoint}`;
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -443,13 +469,62 @@ class BusinessCentralClient {
     if (filter) {
       endpoint += `?$filter=${encodeURIComponent(filter)}`;
     }
-    const response = await this.fetchCustomApi<PaginatedResponse<BCProject>>(endpoint);
-    return response.value.map(normalizeBCProject);
+    // One company for the projects and the names they're compared with
+    const customBase = this.customApiBaseUrl;
+    const [response, companyNames] = await Promise.all([
+      this.fetchCustomApi<PaginatedResponse<BCProject>>(endpoint, {}, customBase),
+      this.getCompanyNames(),
+    ]);
+    return response.value.map((project) =>
+      withBillToIsCompany(normalizeBCProject(project), companyNames)
+    );
   }
 
   async getProject(projectId: string): Promise<BCProject> {
-    const project = await this.fetchCustomApi<BCProject>(`/projects(${projectId})`);
-    return normalizeBCProject(project);
+    // One company for the project and the names it's compared with
+    const customBase = this.customApiBaseUrl;
+    const [project, companyNames] = await Promise.all([
+      this.fetchCustomApi<BCProject>(`/projects(${projectId})`, {}, customBase),
+      this.getCompanyNames(),
+    ]);
+    return withBillToIsCompany(normalizeBCProject(project), companyNames);
+  }
+
+  /**
+   * The current company's names - its display name and name from /companies, and the
+   * name on its Company Information - so a project billed to the company itself
+   * counts as internal. Fetched once per company, for the company selected when it's
+   * called (callers read the company's projects from that same selection). The
+   * lookups are optional: each has a deadline, and a failed, timed-out or empty
+   * lookup leaves its names out, so projects still load, and isn't cached, so the
+   * next project load tries again.
+   */
+  getCompanyNames(): Promise<string[]> {
+    const key = `${this._environment}|${this._companyId}`;
+    if (this._companyNames?.key === key) return this._companyNames.promise;
+
+    const base = this.baseUrl;
+    const controller = new AbortController();
+    const deadline = setTimeout(() => controller.abort(), COMPANY_NAMES_TIMEOUT_MS);
+    const options = { signal: controller.signal };
+    const promise = Promise.allSettled([
+      this.fetch<{ name?: string; displayName?: string }>('', options, base),
+      this.fetch<PaginatedResponse<{ displayName?: string }>>('/companyInformation', options, base),
+    ]).then(([company, info]) => {
+      clearTimeout(deadline);
+      const names = [
+        company.status === 'fulfilled' ? company.value.displayName : undefined,
+        company.status === 'fulfilled' ? company.value.name : undefined,
+        info.status === 'fulfilled' ? info.value.value?.[0]?.displayName : undefined,
+      ].filter((name): name is string => !!name?.trim());
+      // Partly or wholly unavailable: use what loaded, but look again next time
+      const incomplete =
+        company.status === 'rejected' || info.status === 'rejected' || names.length === 0;
+      if (incomplete && this._companyNames?.promise === promise) this._companyNames = null;
+      return [...new Set(names)];
+    });
+    this._companyNames = { key, promise };
+    return promise;
   }
 
   /**
