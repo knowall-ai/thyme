@@ -78,8 +78,9 @@ function BillableInfo({ label }: { label: string }) {
         // Keyboard focus opens it; a tap (which may also focus) is handled by onClick
         onFocus={(e) => e.currentTarget.matches(':focus-visible') && setIsOpen(true)}
         onBlur={() => setIsOpen(false)}
-        // Tap to show or hide it on touch screens
-        onClick={() => setIsOpen((open) => !open)}
+        // Tap to show or hide it on touch screens. Enter/Space clicks (detail 0) keep it
+        // open, since keyboard focus has already shown it
+        onClick={(e) => setIsOpen((open) => (e.detail === 0 ? true : !open))}
         onKeyDown={(e) => e.key === 'Escape' && setIsOpen(false)}
         aria-label={`Info: ${label}`}
         aria-describedby={tooltipId}
