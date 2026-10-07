@@ -66,6 +66,14 @@ const billingModeExplanations: Record<BillingMode, string> = {
   'Not Set': 'No billable lines configured in Business Central',
 };
 
+// How the badge is derived (see billingMode in projectDetailsService), shown in its tooltip
+const billingModeRules: { lines: string; mode: BillingMode }[] = [
+  { lines: 'Resource lines only', mode: 'T&M' },
+  { lines: 'Item or G/L Account lines only', mode: 'Fixed Price' },
+  { lines: 'More than one kind', mode: 'Mixed' },
+  { lines: 'None', mode: 'Not Set' },
+];
+
 interface BillingModeBadgeProps {
   mode: BillingMode;
   showTooltip?: boolean;
@@ -93,9 +101,39 @@ function BillingModeBadge({ mode, showTooltip = true }: BillingModeBadgeProps) {
         </button>
       )}
       {isTooltipVisible && (
-        <div className="border-dark-600 bg-dark-800 absolute top-full left-0 z-50 mt-2 w-64 rounded-lg border p-3 text-xs shadow-lg">
+        <div
+          role="tooltip"
+          className="border-dark-600 bg-dark-800 absolute top-full left-0 z-50 mt-2 w-80 rounded-lg border p-3 text-xs shadow-lg"
+        >
           <p className="font-medium text-white">{mode}</p>
           <p className="mt-1 text-gray-400">{billingModeExplanations[mode]}</p>
+          {/* BC has no billing-type field, so show how the badge is worked out */}
+          <p className="border-dark-600 mt-2 border-t pt-2 text-gray-400">
+            Worked out from the project&apos;s <span className="text-white">Billable</span> planning
+            lines:
+          </p>
+          <table className="mt-1 w-full">
+            <thead>
+              <tr className="text-left text-gray-500">
+                <th className="py-1 font-medium">Billable lines</th>
+                <th className="py-1 text-right font-medium">Badge</th>
+              </tr>
+            </thead>
+            <tbody>
+              {billingModeRules.map((rule) => (
+                <tr
+                  key={rule.mode}
+                  className={cn(
+                    'border-dark-600 border-t',
+                    rule.mode === mode ? 'text-white' : 'text-gray-400'
+                  )}
+                >
+                  <td className="py-1">{rule.lines}</td>
+                  <td className="py-1 text-right font-medium">{rule.mode}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </span>
