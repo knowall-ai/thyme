@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { parseISO } from 'date-fns';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Button, Select, DatePicker } from '@/components/ui';
 import type {
@@ -10,7 +11,7 @@ import type {
   SelectOption,
   TimesheetDisplayStatus,
 } from '@/types';
-import { getTimesheetDisplayStatus } from '@/utils';
+import { getTimesheetDisplayStatus, formatDate } from '@/utils';
 
 interface ApprovalFiltersProps {
   filters: FilterType;
@@ -108,10 +109,11 @@ export function ApprovalFilters({
       <div className="min-w-[140px]">
         <label className="text-dark-400 mb-1 block text-xs font-medium">From</label>
         <DatePicker
-          selectedDate={filters.startDate ? new Date(filters.startDate) : undefined}
+          selectedDate={filters.startDate ? parseISO(filters.startDate) : undefined}
           onDateSelect={(date: Date) =>
             onFilterChange({
-              startDate: date.toISOString().split('T')[0],
+              // Local calendar date (toISOString() is a day early ahead of UTC, e.g. in BST)
+              startDate: formatDate(date),
             })
           }
         />
@@ -121,10 +123,10 @@ export function ApprovalFilters({
       <div className="min-w-[140px]">
         <label className="text-dark-400 mb-1 block text-xs font-medium">To</label>
         <DatePicker
-          selectedDate={filters.endDate ? new Date(filters.endDate) : undefined}
+          selectedDate={filters.endDate ? parseISO(filters.endDate) : undefined}
           onDateSelect={(date: Date) =>
             onFilterChange({
-              endDate: date.toISOString().split('T')[0],
+              endDate: formatDate(date),
             })
           }
         />
