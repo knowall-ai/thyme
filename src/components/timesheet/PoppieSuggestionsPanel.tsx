@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import toast from 'react-hot-toast';
 import {
   ArrowPathIcon,
@@ -9,6 +9,7 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   LockClosedIcon,
+  PencilSquareIcon,
   PlusIcon,
   SparklesIcon,
   TrashIcon,
@@ -142,6 +143,8 @@ export function PoppieSuggestionsPanel({
   const agentOffline = presence.isAvailable && presence.state === 'offline';
 
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+  // Suggestions being saved right now; a ref so two quick clicks can't both start a save
+  const savingRef = useRef<Set<string>>(new Set());
   const [isAddingAll, setIsAddingAll] = useState(false);
   const [editing, setEditing] = useState<BCTimeSuggestion | null>(null);
 
@@ -158,10 +161,16 @@ export function PoppieSuggestionsPanel({
   };
 
   // One click only when Thyme knows the project and task; otherwise the modal fills the gaps
-  const isQuickAddable = (s: BCTimeSuggestion) => {
+  // Why Add has to open the entry form instead of saving straight away (null = it can save)
+  const quickAddBlocker = (s: BCTimeSuggestion): string | null => {
     const { project, task } = resolve(s);
-    return canQuickAdd(s, requireTimesheetComments) && !!project && !!task;
+    if (!s.jobNo || !s.jobTaskNo || !project || !task) return 'Choose a project and task, then add';
+    if (project.status !== 'active')
+      return 'This project is no longer active: choose another, then add';
+    if (!canQuickAdd(s, requireTimesheetComments)) return 'Add a comment, then add';
+    return null;
   };
+  const isQuickAddable = (s: BCTimeSuggestion) => quickAddBlocker(s) === null;
 
   const highConfidence = visible.filter((s) => s.confidence === 'High' && isQuickAddable(s));
 
@@ -201,8 +210,29 @@ export function PoppieSuggestionsPanel({
     await markAccepted(s, entry);
   };
 
-  // Always via the pre-filled modal, so the entry is checked before it's saved
-  const handleAdd = (s: BCTimeSuggestion) => {
+  // One click when the suggestion can be saved as it is (active project, task, any required
+  // comment); otherwise the pre-filled entry form fills the gaps
+  const handleAdd = async (s: BCTimeSuggestion) => {
+    if (!canEdit) return;
+    if (!isQuickAddable(s)) {
+      setEditing(s);
+      return;
+    }
+    if (savingRef.current.has(s.id)) return;
+    savingRef.current.add(s.id);
+    setBusy(s.id, true);
+    try {
+      await addSuggestion(s);
+      toast.success('Time entry added');
+    } catch {
+      toast.error('Failed to add time entry. Please try again.');
+    } finally {
+      savingRef.current.delete(s.id);
+      setBusy(s.id, false);
+    }
+  };
+
+  const handleEdit = (s: BCTimeSuggestion) => {
     if (!canEdit) return;
     setEditing(s);
   };
@@ -245,9 +275,11 @@ export function PoppieSuggestionsPanel({
   };
 
   const handleAddAll = async () => {
-    if (!canEdit || highConfidence.length === 0) return;
-    const total = highConfidence.reduce((sum, s) => sum + roundToQuarterHour(s.quantity), 0);
-    const count = highConfidence.length;
+    // Leave out any suggestion an individual Add is already saving
+    const toAdd = highConfidence.filter((s) => !savingRef.current.has(s.id));
+    if (!canEdit || toAdd.length === 0) return;
+    const total = toAdd.reduce((sum, s) => sum + roundToQuarterHour(s.quantity), 0);
+    const count = toAdd.length;
     if (
       !window.confirm(
         `Add ${count} high-confidence ${count === 1 ? 'suggestion' : 'suggestions'} (${formatTime(total)}) to this week?`
@@ -259,7 +291,9 @@ export function PoppieSuggestionsPanel({
     setIsAddingAll(true);
     let added = 0;
     // One at a time: each creates a timesheet line, and BC handles those best sequentially
-    for (const s of highConfidence) {
+    for (const s of toAdd) {
+      if (savingRef.current.has(s.id)) continue;
+      savingRef.current.add(s.id);
       setBusy(s.id, true);
       try {
         await addSuggestion(s);
@@ -267,6 +301,7 @@ export function PoppieSuggestionsPanel({
       } catch {
         // Carry on with the rest; the failures stay in the list to retry
       } finally {
+        savingRef.current.delete(s.id);
         setBusy(s.id, false);
       }
     }
@@ -377,7 +412,12 @@ export function PoppieSuggestionsPanel({
             )}
             {canEdit
               ? highConfidence.length > 0 && (
-                  <Button variant="outline" size="sm" onClick={handleAddAll} disabled={isAddingAll}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddAll}
+                    disabled={isAddingAll || busyIds.size > 0}
+                  >
                     <PlusIcon className="h-4 w-4 sm:mr-2" />
                     <span className="hidden sm:inline">
                       {isAddingAll
@@ -478,22 +518,9 @@ export function PoppieSuggestionsPanel({
                           <span className="sr-only">{sourceLabels[s.source] ?? s.source}</span>
                         </span>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-start gap-2">
-                            <p className="text-dark-100 min-w-0 flex-1 truncate text-sm">
-                              {s.description || 'Untitled activity'}
-                            </p>
-                            {s.sourceUrl && (
-                              <a
-                                href={s.sourceUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-dark-400 hover:text-thyme-400 shrink-0"
-                                title={`Open in ${sourceLabels[s.source] ?? s.source}`}
-                              >
-                                <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-                              </a>
-                            )}
-                          </div>
+                          <p className="text-dark-100 truncate text-sm">
+                            {s.description || 'Untitled activity'}
+                          </p>
                           <p className="text-dark-400 truncate text-xs">
                             {s.jobNo ? (
                               <>
@@ -520,38 +547,65 @@ export function PoppieSuggestionsPanel({
                             </p>
                           )}
                         </div>
-                        <span className="text-dark-200 shrink-0 text-sm font-medium">
-                          {formatTime(roundToQuarterHour(s.quantity))}
-                        </span>
-                        {canEdit && (
-                          <div className="flex shrink-0 items-center gap-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleAdd(s)}
-                              disabled={busy || isAddingAll}
-                              title={
-                                isQuickAddable(s)
-                                  ? 'Check and add to timesheet'
-                                  : 'Choose a project and task, then add'
-                              }
+                        {/* Open link, duration and buttons share one centre line, level with the
+                            title (the negative margin centres the 32px buttons on its 20px line) */}
+                        <div
+                          className={cn('flex shrink-0 items-center gap-2', canEdit && '-my-1.5')}
+                        >
+                          {s.sourceUrl && (
+                            <a
+                              href={s.sourceUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-dark-400 hover:text-thyme-400"
+                              title={`Open in ${sourceLabels[s.source] ?? s.source}`}
                             >
-                              <PlusIcon className="h-4 w-4 sm:mr-1" />
-                              <span className="hidden sm:inline">Add</span>
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDismiss(s)}
-                              disabled={busy || isAddingAll}
-                              title="Dismiss this suggestion"
-                              aria-label="Dismiss suggestion"
-                              className="hover:border-red-500/50 hover:text-red-400"
-                            >
-                              <TrashIcon className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        )}
+                              <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                              <span className="sr-only">
+                                Open in {sourceLabels[s.source] ?? s.source}
+                              </span>
+                            </a>
+                          )}
+                          <span className="text-dark-200 min-w-[3.5rem] text-right text-sm font-medium">
+                            {formatTime(roundToQuarterHour(s.quantity))}
+                          </span>
+                          {canEdit && (
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleAdd(s)}
+                                disabled={busy || isAddingAll}
+                                title={quickAddBlocker(s) ?? 'Add to timesheet'}
+                              >
+                                <PlusIcon className="h-4 w-4 sm:mr-1" />
+                                <span className="hidden sm:inline">Add</span>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEdit(s)}
+                                disabled={busy || isAddingAll}
+                                title="Edit before adding"
+                                aria-label="Edit before adding"
+                              >
+                                <PencilSquareIcon className="h-4 w-4 sm:mr-1" />
+                                <span className="hidden sm:inline">Edit</span>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDismiss(s)}
+                                disabled={busy || isAddingAll}
+                                title="Dismiss this suggestion"
+                                aria-label="Dismiss suggestion"
+                                className="hover:border-red-500/50 hover:text-red-400"
+                              >
+                                <TrashIcon className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </li>
                     );
                   })}
@@ -562,7 +616,7 @@ export function PoppieSuggestionsPanel({
         )}
       </Card>
 
-      {/* Edit (or Add without a project) - the same modal the grid uses, pre-filled */}
+      {/* Edit (or Add without a project/task) - the same modal the grid uses, pre-filled */}
       <TimeEntryModal
         isOpen={editing !== null}
         onClose={() => setEditing(null)}
