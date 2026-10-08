@@ -6,6 +6,7 @@ import { ProjectHeader } from './ProjectHeader';
 import { ProjectKPICards } from './ProjectKPICards';
 import { ProjectCharts } from './ProjectCharts';
 import { ProjectTasksTable } from './ProjectTasksTable';
+import { ProjectSourceLinksCard } from './ProjectSourceLinksCard';
 
 interface ProjectDetailsProps {
   params: { projectNumber: string };
@@ -49,6 +50,7 @@ export function ProjectDetails({ params }: ProjectDetailsProps) {
       <ProjectKPICards />
       <ProjectCharts />
       <ProjectTasksTable />
+      <ProjectSourceLinksCard />
     </div>
   );
 }

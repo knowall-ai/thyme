@@ -4,3 +4,4 @@ export { ProjectHeader } from './ProjectHeader';
 export { ProjectKPICards } from './ProjectKPICards';
 export { ProjectCharts } from './ProjectCharts';
 export { ProjectTasksTable } from './ProjectTasksTable';
+export { ProjectSourceLinksCard } from './ProjectSourceLinksCard';

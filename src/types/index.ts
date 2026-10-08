@@ -345,6 +345,39 @@ export interface BCSuggestionRequest {
   lastModifiedDateTime?: string;
 }
 
+// A project's linked source (Thyme BC Extension 1.20+ projectSourceLinks API): work in this
+// GitHub repo / DevOps project or repo, or a meeting with this keyword / attendee domain, is
+// time on the project. Poppie uses them to map her time suggestions.
+export type ProjectSourceLinkType =
+  | 'GitHubRepo'
+  | 'DevOpsProject'
+  | 'DevOpsRepo'
+  | 'MeetingKeyword'
+  | 'AttendeeDomain';
+
+export interface BCProjectSourceLink {
+  id: string;
+  jobNo: string;
+  lineNo: number;
+  type: ProjectSourceLinkType;
+  value: string; // normalised by BC: owner/repo, org/project, org/project/repo, keyword, domain
+  jobTaskNo: string; // '' = Poppie picks the task
+  useMonthlyBlock: boolean;
+  learned: boolean; // added by Poppie from approved time
+  createdBy?: string;
+  createdAt?: string;
+  lastModifiedDateTime?: string;
+  '@odata.etag'?: string;
+}
+
+export interface BCProjectSourceLinkInput {
+  jobNo: string;
+  type: ProjectSourceLinkType;
+  value: string;
+  jobTaskNo: string;
+  useMonthlyBlock: boolean;
+}
+
 // When an AI agent (Poppie) was last seen (Thyme BC Extension 1.18+ agentHeartbeats API).
 // lastSeenAt is stamped by BC on every poll the agent makes.
 export interface BCAgentHeartbeat {

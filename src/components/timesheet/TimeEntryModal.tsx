@@ -9,6 +9,7 @@ import { useAuth } from '@/services/auth';
 import { bcClient } from '@/services/bc/bcClient';
 import type { TimeEntry, SelectOption } from '@/types';
 import { formatDate, formatDateForDisplay, getWeekDays } from '@/utils';
+import { bcErrorText, type SourceLinkCandidate } from '@/utils/projectSourceLinks';
 
 // BC Time Sheet Line Description field has a 100-character limit
 const MAX_NOTES_LENGTH = 100;
@@ -21,6 +22,9 @@ export interface TimeEntryPrefill {
   taskCode?: string;
   hours?: number;
   notes?: string;
+  // What the suggestion could be linked by (its repo, DevOps project, meeting, attendee
+  // domain), offered as "Always map this to the chosen project" when it had no project
+  linkCandidates?: SourceLinkCandidate[];
 }
 
 interface TimeEntryModalProps {
@@ -75,6 +79,10 @@ export function TimeEntryModal({
   };
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // "Always map this": add a project source link for the suggestion's source on save
+  const [alwaysMap, setAlwaysMap] = useState(false);
+  const [linkChoice, setLinkChoice] = useState(0);
+  const [canLinkProject, setCanLinkProject] = useState(false);
   const [extensionInstalled, setExtensionInstalled] = useState<boolean | null>(null);
 
   // Check if BC extension is installed
@@ -214,6 +222,8 @@ export function TimeEntryModal({
         setMinutes('');
       }
       setNotes((prefill.notes || '').slice(0, MAX_NOTES_LENGTH));
+      setAlwaysMap(false);
+      setLinkChoice(0);
     } else {
       // New entry - use matching customer option value
       const matchedCustomer = findMatchingCustomerOption(selectedProject?.customerName);
@@ -236,6 +246,22 @@ export function TimeEntryModal({
     selectedTask,
   ]);
 
+  // Offer "Always map this" only for a new entry from a suggestion with something to link, and
+  // only when the user may change the chosen project's linked sources (admin or its manager)
+  const linkCandidates = useMemo(() => (!entry && prefill?.linkCandidates) || [], [entry, prefill]);
+  const chosenProjectCode = projects.find((p) => p.id === projectId)?.code ?? '';
+  useEffect(() => {
+    let cancelled = false;
+    setCanLinkProject(false);
+    if (!isOpen || !chosenProjectCode || linkCandidates.length === 0) return;
+    bcClient.canEditProjectSourceLinks(chosenProjectCode).then((ok) => {
+      if (!cancelled) setCanLinkProject(ok);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, chosenProjectCode, linkCandidates.length]);
+
   const projectOptions: SelectOption[] = filteredProjects.map((p) => ({
     value: p.id,
     label: `${p.code} - ${p.name}`,
@@ -253,6 +279,8 @@ export function TimeEntryModal({
     setCustomerId(value);
     setProjectId('');
     setTaskId('');
+    // A new project needs a new opt-in to "Always map this"
+    setAlwaysMap(false);
     selectProject(null);
     selectTask(null);
   };
@@ -260,6 +288,7 @@ export function TimeEntryModal({
   const handleProjectChange = (value: string) => {
     setProjectId(value);
     setTaskId('');
+    setAlwaysMap(false);
     const project = projects.find((p) => p.id === value);
     selectProject(project || null);
   };
@@ -366,6 +395,22 @@ export function TimeEntryModal({
         });
         // Reset selected project/task so next new entry starts fresh
         selectProject(null);
+        const link = linkCandidates[linkChoice];
+        if (alwaysMap && canLinkProject && link) {
+          // The entry is saved either way; a failed link is reported on its own
+          try {
+            await bcClient.createProjectSourceLink({
+              jobNo,
+              type: link.type,
+              value: link.value,
+              jobTaskNo,
+              useMonthlyBlock: false,
+            });
+            toast.success(`Poppie will map ${link.label} to ${jobNo} from now on`);
+          } catch (error) {
+            toast.error(`Entry saved, but the link wasn't: ${bcErrorText(error)}`);
+          }
+        }
       }
       toast.success(entry ? 'Time entry updated' : 'Time entry saved');
       onSaved?.(created);
@@ -476,6 +521,35 @@ export function TimeEntryModal({
           disabled={!projectId || taskOptions.length === 0}
           required
         />
+
+        {/* Always map this suggestion's source to the chosen project and task */}
+        {linkCandidates.length > 0 && canLinkProject && taskId && (
+          <div className="border-dark-600 space-y-2 rounded-lg border p-3">
+            <label className="text-dark-200 flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={alwaysMap}
+                onChange={(e) => setAlwaysMap(e.target.checked)}
+                className="accent-thyme-600 mt-0.5 h-4 w-4"
+              />
+              <span>
+                Always map this to the chosen project and task
+                {linkCandidates.length === 1 && (
+                  <span className="text-dark-400 block text-xs">{linkCandidates[0].label}</span>
+                )}
+              </span>
+            </label>
+            {alwaysMap && linkCandidates.length > 1 && (
+              <Select
+                label="Map by"
+                id="always-map-by"
+                options={linkCandidates.map((c, i) => ({ value: String(i), label: c.label }))}
+                value={String(linkChoice)}
+                onChange={(e) => setLinkChoice(Number(e.target.value))}
+              />
+            )}
+          </div>
+        )}
 
         {/* Duration */}
         <div className="grid grid-cols-2 gap-4">

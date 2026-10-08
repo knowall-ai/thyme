@@ -104,6 +104,21 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Poppie finished a request for a teammate but no suggestions appear
 | Suggestions are only visible to the person they're for and to Thyme administrators, because they can include meeting subjects and other activity the person hasn't logged yet. As their approver you can ask Poppie to check their week, and Thyme tells you how many she found. They see the suggestions on their own timesheet.
 
+| There's no *Linked sources* card on the project page
+| The card needs Thyme BC Extension 1.20 or later (the `projectSourceLinks` API); on older versions it's hidden. Upgrade the extension from https://github.com/knowall-ai/thyme-bc-extension.
+
+| *Linked sources* shows the links but no *Add link*, edit or remove buttons
+| Only a Thyme administrator (*Time Sheet Admin.* in User Setup, or the `THYME ADMIN` permission set) or the project's manager can change them. The manager is the project's *Project Manager* user, or the person whose resource is its *Person Responsible* (their *Time Sheet Owner User ID* on the Resource card). Ask one of them, or edit the links in Business Central on the Project Card (*Thyme Linked Sources*), where the same rule applies.
+
+| Poppie keeps suggesting time from a repo, DevOps project or meeting without a project ("Choose project")
+| Link it to the project: on the project page, *Linked sources* → *Add link* (GitHub repo, DevOps project or repo, meeting keyword or attendee domain), optionally with the task. Or, when you add the suggestion, pick the project and task and tick *Always map this to the chosen project and task* (shown to administrators and the project's manager). Poppie uses the link from her next run. A DevOps repo link wins over a link to its DevOps project.
+
+| Adding a linked source fails with "… is already linked to project …"
+| The same type and value can be linked to a project only once (case-insensitive). Edit the existing link instead. The same value on two projects is allowed, but then Poppie can't tell which project the time is for and asks you to choose.
+
+| A link marked *Learned* appeared on a project
+| Poppie adds these when people chose that project for her unmapped suggestions and the time was approved. Edit it to make it yours, or remove it; she won't add a link you removed again.
+
 | "No Approval Access" on Timesheet Approvals page
 | To approve timesheets, configure the approver in Business Central: (1) *Make user a Time Sheet Admin:* Search for "User Setup" → find your user (or create a new entry) → check the "Time Sheet Admin" checkbox. This allows the user to approve any timesheet. (2) *Or link approver to specific resources:* Search for "Resources" → open each Resource Card for employees you manage → set "Time Sheet Approver User ID" to your BC user ID. This allows you to approve only timesheets for those specific resources.
 
