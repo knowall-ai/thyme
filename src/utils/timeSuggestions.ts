@@ -80,6 +80,15 @@ export function canQuickAdd(suggestion: BCTimeSuggestion, requireComments: boole
   return true;
 }
 
+/**
+ * Whether Poppie guessed the suggestion's project (from a customer's domain or a name match)
+ * rather than taking it from a rule; her evidence says "Guessed project ..." in that case.
+ * A guess should be checked by the person, so it never saves in one click.
+ */
+export function isGuessedProject(suggestion: BCTimeSuggestion): boolean {
+  return /\bguessed project\b/i.test(suggestion.evidence ?? '');
+}
+
 /** Notes for the time entry a suggestion becomes, trimmed to BC's field length. */
 export function suggestionNotes(suggestion: BCTimeSuggestion): string {
   return (suggestion.description || '').trim().slice(0, MAX_DESCRIPTION_LENGTH);
