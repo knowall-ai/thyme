@@ -53,6 +53,10 @@ export interface BCResource {
   // Whether the signed-in user may ask Poppie for suggestions for this resource (Thyme BC
   // Extension 1.18+; undefined on older versions)
   canRequestSuggestions?: boolean;
+  // The person's GitHub login, '' when not set (Thyme BC Extension 1.21+; undefined on older
+  // versions), and whether the signed-in user may change it (an admin, or it's their own)
+  githubUsername?: string;
+  canEditConnectedAccounts?: boolean;
   '@odata.etag'?: string;
 }
 

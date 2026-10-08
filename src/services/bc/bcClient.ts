@@ -1158,6 +1158,28 @@ class BusinessCentralClient {
   }
 
   /**
+   * Set a resource's GitHub username ('' clears it) through the resources API's
+   * setGitHubUsername action, which works for people without permission to modify
+   * resources. BC normalises it (a profile URL or @login becomes the login) and decides who
+   * may: an administrator for anyone, a person for their own. Needs Thyme BC Extension 1.21+.
+   * Returns the resource as saved.
+   */
+  async updateResourceGitHubUsername(
+    resourceId: string,
+    githubUsername: string
+  ): Promise<BCResource> {
+    const id = requireSystemId(resourceId, 'resource');
+    // Write and re-read the same company even if the user switches company meanwhile
+    const baseUrl = this.customApiBaseUrl;
+    await this.customApiFetch<void>(
+      `/resources(${id})/Microsoft.NAV.setGitHubUsername`,
+      { method: 'POST', body: JSON.stringify({ githubUsername }) },
+      baseUrl
+    );
+    return this.customApiFetch<BCResource>(`/resources(${id})`, {}, baseUrl);
+  }
+
+  /**
    * Thyme's company-wide settings (a single record), or null when the installed
    * Thyme BC Extension predates them (404) or isn't installed.
    */

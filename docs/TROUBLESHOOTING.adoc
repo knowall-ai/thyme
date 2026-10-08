@@ -98,6 +98,12 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | *Request suggestions* is greyed out and the panel says "Poppie offline"
 | Thyme reads Poppie's heartbeat (Thyme BC Extension 1.18+). She refreshes it every minute from her `suggestion-requests` job, and after 5 minutes without one Thyme treats her as offline. Hover the button to see when she was last seen. Her VM is probably stopped, or the job isn't running. Ask an administrator to check the VM and `hermes cron list`. The button comes back by itself within a minute of her returning.
 
+| Poppie doesn't suggest time for someone's GitHub pull requests or issues
+| Poppie needs to know their GitHub username. Set it on the Team page (the GitHub line under their name; administrators can set anyone's) or, for yourself, in *Settings > Connected accounts*. A profile link or `@username` works too. It's saved on the person's resource in the selected company, so set it in each company they log time in. Needs Thyme BC Extension 1.21+; with older versions the GitHub line and the *Connected accounts* section are hidden. Azure DevOps doesn't need setting up: Poppie uses the person's Microsoft 365 sign-in.
+
+| "You are not allowed to change the GitHub username of resource ..."
+| You can change your own GitHub username (the resource whose *Time Sheet Owner User ID* on the BC Resource card is you) and, as a Thyme administrator (*Time Sheet Admin.* in User Setup, or the `THYME ADMIN` permission set), anyone's. If it's your own and you still see this, ask an administrator to set you as the time sheet owner of your resource.
+
 | A suggestion request stays on "Queued" or says "Poppie seems to be offline"
 | Poppie checks for requests every minute, so a request waiting longer than a few minutes means her VM or its `suggestion-requests` job isn't running. The request stays queued and runs when she's back; you don't need to ask again. If it never starts, ask an administrator to check Poppie's `suggestion-requests` cron job. A request that started but stopped updating is marked failed after 30 minutes, so you can ask again.
 

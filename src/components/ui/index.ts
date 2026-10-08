@@ -34,3 +34,5 @@ export type { QuoteDisplayProps } from './QuoteDisplay';
 
 export { StageBar, StageLegend, getStageSegments } from './StageBar';
 export type { StageBarProps, StageLegendProps, StageSegment } from './StageBar';
+
+export { GitHubIcon } from './GitHubIcon';
