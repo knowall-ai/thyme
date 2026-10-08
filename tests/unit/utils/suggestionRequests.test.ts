@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  FEW_SUGGESTIONS,
   QUEUED_SLOW_AFTER_MS,
   isOpenRequest,
   requestDoneText,
@@ -28,19 +27,14 @@ describe('weekTiming', () => {
 });
 
 describe('shouldOfferRequest', () => {
-  const base = { canRequest: true, request: null, suggestionCount: 0 };
+  const base = { canRequest: true, request: null };
 
-  it('always offers it for a past week, even with suggestions', () => {
-    expect(shouldOfferRequest({ ...base, timing: 'past', suggestionCount: 20 })).toBe(true);
+  it('offers it for a past week', () => {
+    expect(shouldOfferRequest({ ...base, timing: 'past' })).toBe(true);
   });
 
-  it('offers it for the current week only when it has few suggestions', () => {
-    expect(
-      shouldOfferRequest({ ...base, timing: 'current', suggestionCount: FEW_SUGGESTIONS - 1 })
-    ).toBe(true);
-    expect(
-      shouldOfferRequest({ ...base, timing: 'current', suggestionCount: FEW_SUGGESTIONS })
-    ).toBe(false);
+  it('offers it for the current week, however many suggestions it already has', () => {
+    expect(shouldOfferRequest({ ...base, timing: 'current' })).toBe(true);
   });
 
   it('never offers it for a future week, without permission, or while a request is open', () => {

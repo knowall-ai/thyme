@@ -123,16 +123,16 @@ describe('hideDuplicateSuggestions', () => {
 });
 
 describe('groupSuggestionsByDay', () => {
-  it('groups by date, earliest first, keeping order within a day', () => {
+  it('groups by date, most recent day first, keeping order within a day', () => {
     const groups = groupSuggestionsByDay([
       suggestion({ id: 'b', date: '2026-10-07' }),
       suggestion({ id: 'a1', date: '2026-10-05' }),
       suggestion({ id: 'c', date: '2026-10-07' }),
       suggestion({ id: 'a2', date: '2026-10-05' }),
     ]);
-    expect(groups.map((g) => g.date)).toEqual(['2026-10-05', '2026-10-07']);
-    expect(groups[0].suggestions.map((s) => s.id)).toEqual(['a1', 'a2']);
-    expect(groups[1].suggestions.map((s) => s.id)).toEqual(['b', 'c']);
+    expect(groups.map((g) => g.date)).toEqual(['2026-10-07', '2026-10-05']);
+    expect(groups[0].suggestions.map((s) => s.id)).toEqual(['b', 'c']);
+    expect(groups[1].suggestions.map((s) => s.id)).toEqual(['a1', 'a2']);
   });
 });
 
