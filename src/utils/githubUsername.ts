@@ -27,15 +27,18 @@ export function hasGitHubUsernameField(resources: Pick<BCResource, 'githubUserna
 }
 
 /**
- * A GitHub login from what was typed, the same way BC normalises it: trimmed, without a
- * leading @ or a github.com profile URL around it. '' when blank (clears it); null when it
- * isn't a valid login (letters, digits and single hyphens, not starting or ending with a
- * hyphen, at most 39 characters).
+ * A GitHub login from what was typed, as BC normalises it: trimmed, without a leading @ or a
+ * github.com profile URL around it (Thyme also drops a ?query or #fragment from the URL).
+ * '' when blank (clears it); null when it isn't a valid login (letters, digits and single
+ * hyphens, not starting or ending with a hyphen, at most 39 characters).
  */
 export function normaliseGitHubUsername(input: string): string | null {
   let value = input.trim();
   if (value === '') return '';
-  value = value.replace(GITHUB_PROFILE_PREFIX, '');
+  if (GITHUB_PROFILE_PREFIX.test(value)) {
+    // A copied profile link may carry ?tab=repositories or a #fragment
+    value = value.replace(GITHUB_PROFILE_PREFIX, '').replace(/[?#].*$/, '');
+  }
   value = value.replace(/\/+$/, '').replace(/^@+/, '');
   if (value.length === 0 || value.length > MAX_GITHUB_USERNAME_LENGTH) return null;
   return GITHUB_LOGIN.test(value) ? value : null;

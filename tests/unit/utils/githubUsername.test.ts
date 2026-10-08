@@ -28,6 +28,12 @@ describe('normaliseGitHubUsername', () => {
     expect(normaliseGitHubUsername('github.com/alex-contoso/')).toBe('alex-contoso');
     expect(normaliseGitHubUsername('HTTPS://GitHub.com/Alex-Contoso')).toBe('Alex-Contoso');
     expect(normaliseGitHubUsername('https://www.github.com/alex-contoso')).toBe('alex-contoso');
+    expect(normaliseGitHubUsername('https://github.com/alex-contoso?tab=repositories')).toBe(
+      'alex-contoso'
+    );
+    expect(normaliseGitHubUsername('https://github.com/alex-contoso/#top')).toBe('alex-contoso');
+    // Outside a profile URL, a query is just invalid input
+    expect(normaliseGitHubUsername('alex?tab=repositories')).toBeNull();
   });
 
   it('returns an empty string for blank input (clears it)', () => {
