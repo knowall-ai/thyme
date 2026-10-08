@@ -8,6 +8,7 @@ export * from './teamMember';
 export * from './billable';
 export * from './billableTarget';
 export * from './weeklyCapacity';
+export * from './githubUsername';
 export * from './projectBudget';
 export * from './projectDates';
 export * from './timesheetReview';

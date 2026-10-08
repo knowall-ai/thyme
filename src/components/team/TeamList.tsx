@@ -14,10 +14,12 @@ import {
 } from '@heroicons/react/24/outline';
 import { BillableTargetBadge, BillableTargetEditor } from '@/components/targets';
 import { WeeklyCapacityEditor } from './WeeklyCapacityEditor';
+import { GitHubUsernameEditor } from './GitHubUsernameEditor';
 import {
   Card,
   WeekNavigation,
   ExtensionPreviewWrapper,
+  GitHubIcon,
   StageBar,
   StageLegend,
   getStageSegments,
@@ -35,6 +37,8 @@ import {
   summariseHours,
   isCounted,
   hasWeeklyCapacityFields,
+  hasGitHubUsernameField,
+  getGitHubProfileUrl,
   withWeeklyCapacityFields,
   describeWeeklyCapacity,
   getBillableTargetGap,
@@ -79,6 +83,10 @@ interface TeamMember {
   weeklyCapacityHours?: number;
   weeklyCapacitySet?: boolean;
   flexibleWorkingDays?: boolean;
+  // Their GitHub username ('' = not set) and whether the signed-in user may change it
+  // (Thyme BC Extension 1.21+; undefined on older versions)
+  githubUsername?: string;
+  canEditConnectedAccounts?: boolean;
 }
 
 /**
@@ -145,6 +153,9 @@ export function TeamList() {
   // Whether the Thyme BC Extension returns weekly capacity on resources (1.19+)
   const [capacityFieldsPresent, setCapacityFieldsPresent] = useState(false);
   const [editingCapacityMemberId, setEditingCapacityMemberId] = useState<string | null>(null);
+  // Whether the Thyme BC Extension stores GitHub usernames on resources (1.21+)
+  const [githubFieldPresent, setGitHubFieldPresent] = useState(false);
+  const [editingGitHubMemberId, setEditingGitHubMemberId] = useState<string | null>(null);
 
   // Company default billable target, for anyone without their own
   const { companyDefaultPercent, setupAvailable, loadedForCompanyVersion, loadCompanyDefault } =
@@ -206,6 +217,7 @@ export function TeamList() {
         ]);
         setTargetFieldsPresent(hasBillableTargetFields(people.map((p) => p.resource)));
         setCapacityFieldsPresent(hasWeeklyCapacityFields(people.map((p) => p.resource)));
+        setGitHubFieldPresent(hasGitHubUsernameField(people.map((p) => p.resource)));
         if (userEmail) setCurrentUserInList(currentUserResource !== null);
 
         // Get the current user's resource ID to mark them in the list
@@ -246,6 +258,8 @@ export function TeamList() {
               weeklyCapacityHours: resource.weeklyCapacityHours,
               weeklyCapacitySet: resource.weeklyCapacitySet,
               flexibleWorkingDays: resource.flexibleWorkingDays,
+              githubUsername: resource.githubUsername,
+              canEditConnectedAccounts: resource.canEditConnectedAccounts,
             };
           }
         );
@@ -333,6 +347,23 @@ export function TeamList() {
 
   const editingMember = rows.find((m) => m.id === editingMemberId) ?? null;
   const editingCapacityMember = rows.find((m) => m.id === editingCapacityMemberId) ?? null;
+  const editingGitHubMember = rows.find((m) => m.id === editingGitHubMemberId) ?? null;
+
+  // Apply a GitHub username saved in the editor without reloading the week
+  const handleGitHubSaved = (memberId: string, resource: BCResource) => {
+    setMembers((prev) =>
+      prev.map((m) =>
+        m.id === memberId
+          ? {
+              ...m,
+              githubUsername: resource.githubUsername ?? '',
+              canEditConnectedAccounts:
+                resource.canEditConnectedAccounts ?? m.canEditConnectedAccounts,
+            }
+          : m
+      )
+    );
+  };
 
   // Apply a weekly capacity saved in the editor without reloading the week. The Plan caches
   // resources (for its weekly over-allocation flags), so drop that cache to pick it up.
@@ -857,7 +888,15 @@ export function TeamList() {
                                   <span className="text-knowall-green ml-2">(you)</span>
                                 )}
                               </p>
-                              <p className="text-dark-400 text-xs">{member.email}</p>
+                              {member.email && (
+                                <p className="text-dark-400 text-xs">{member.email}</p>
+                              )}
+                              {githubFieldPresent && (
+                                <MemberGitHub
+                                  member={member}
+                                  onEdit={() => setEditingGitHubMemberId(member.id)}
+                                />
+                              )}
                             </div>
                           </div>
                         </td>
@@ -1037,6 +1076,18 @@ export function TeamList() {
         />
       )}
 
+      {editingGitHubMember && (
+        <GitHubUsernameEditor
+          isOpen
+          onClose={() => setEditingGitHubMemberId(null)}
+          resourceId={editingGitHubMember.id}
+          personName={editingGitHubMember.name}
+          current={editingGitHubMember.githubUsername ?? ''}
+          isCurrentUser={editingGitHubMember.isCurrentUser}
+          onSaved={(resource) => handleGitHubSaved(editingGitHubMember.id, resource)}
+        />
+      )}
+
       {editingCapacityMember && (
         <WeeklyCapacityEditor
           isOpen
@@ -1048,5 +1099,54 @@ export function TeamList() {
         />
       )}
     </ExtensionPreviewWrapper>
+  );
+}
+
+/**
+ * A member's GitHub username under their name, linking to their profile, with a pencil when
+ * the signed-in user may change it (an administrator, or it's their own). Nothing for
+ * someone without one unless it can be set here.
+ */
+function MemberGitHub({
+  member,
+  onEdit,
+}: {
+  member: Pick<TeamMember, 'name' | 'githubUsername' | 'canEditConnectedAccounts'>;
+  onEdit: () => void;
+}) {
+  const username = member.githubUsername ?? '';
+  const profileUrl = getGitHubProfileUrl(username);
+  if (!profileUrl && !member.canEditConnectedAccounts) return null;
+  return (
+    <div className="mt-0.5 flex items-center gap-1 text-xs">
+      {profileUrl ? (
+        <a
+          href={profileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-dark-400 hover:text-knowall-green inline-flex items-center gap-1"
+          title={`${member.name} on GitHub`}
+        >
+          <GitHubIcon className="h-3.5 w-3.5" />
+          {username}
+        </a>
+      ) : (
+        <span className="text-dark-500 inline-flex items-center gap-1">
+          <GitHubIcon className="h-3.5 w-3.5" />
+          No GitHub username
+        </span>
+      )}
+      {member.canEditConnectedAccounts && (
+        <button
+          type="button"
+          onClick={onEdit}
+          className="text-dark-400 hover:text-knowall-green rounded p-0.5"
+          title={profileUrl ? 'Change GitHub username' : 'Add GitHub username'}
+          aria-label={`${profileUrl ? 'Change' : 'Add'} GitHub username for ${member.name}`}
+        >
+          <PencilSquareIcon className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
   );
 }

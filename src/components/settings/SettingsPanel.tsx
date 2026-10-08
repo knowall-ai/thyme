@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Card } from '@/components/ui';
 import { CompanyBillableTargetSettings } from '@/components/targets';
+import { ConnectedAccountsSettings } from './ConnectedAccountsSettings';
 import { bcClient } from '@/services/bc/bcClient';
 import { useAuth, useProfilePhoto } from '@/services/auth';
 import { useCompanyStore, useSettingsStore } from '@/hooks';
@@ -126,6 +127,9 @@ export function SettingsPanel() {
           </div>
         </div>
       </Card>
+
+      {/* The user's own GitHub username, for Poppie (Thyme BC Extension 1.21+) */}
+      <ConnectedAccountsSettings />
 
       {/* Company Information */}
       <Card variant="bordered" className="p-6">
