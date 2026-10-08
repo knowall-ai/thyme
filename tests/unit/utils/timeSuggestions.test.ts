@@ -4,10 +4,12 @@ import {
   buildAcceptUpdate,
   buildDismissUpdate,
   canQuickAdd,
+  evidenceLines,
   groupSuggestionsByDay,
   hideDuplicateSuggestions,
   isDuplicateOfEntry,
   isSimilarHours,
+  readableEvidence,
   roundToQuarterHour,
   suggestionNotes,
 } from '@/utils/timeSuggestions';
@@ -177,5 +179,39 @@ describe('status write-backs', () => {
       status: 'Dismissed',
       actionedAt: '2026-10-07T09:30:00.000Z',
     });
+  });
+});
+
+describe('readableEvidence / evidenceLines', () => {
+  const grouped =
+    'GitHub tools: 2 PRs; PR tools#5 "Add CSV export": committed 10:00, 10:40, merged 11:00; ' +
+    'Issue tools#9 "Login fails": opened 12:30; project PR00060 by repo/project; task 300 (default task)' +
+    ' | refs: github:contoso/tools@2026-10-13 github:contoso/tools#pr5 github:contoso/tools#issue9';
+
+  it('drops the machine refs Poppie keeps for herself', () => {
+    expect(readableEvidence(grouped)).not.toContain('refs:');
+    expect(readableEvidence(grouped)).toMatch(/task 300 \(default task\)$/);
+  });
+
+  it('splits the evidence into one line per item or reason', () => {
+    expect(evidenceLines(grouped)).toEqual([
+      'GitHub tools: 2 PRs',
+      'PR tools#5 "Add CSV export": committed 10:00, 10:40, merged 11:00',
+      'Issue tools#9 "Login fails": opened 12:30',
+      'project PR00060 by repo/project',
+      'task 300 (default task)',
+    ]);
+  });
+
+  it('leaves evidence without refs alone, and copes with none at all', () => {
+    expect(readableEvidence('attended 11:31–12:02 (Teams attendance report)')).toBe(
+      'attended 11:31–12:02 (Teams attendance report)'
+    );
+    expect(evidenceLines('attended 11:31–12:02; booked 11:30–12:00')).toEqual([
+      'attended 11:31–12:02',
+      'booked 11:30–12:00',
+    ]);
+    expect(readableEvidence(undefined)).toBe('');
+    expect(evidenceLines('')).toEqual([]);
   });
 });
