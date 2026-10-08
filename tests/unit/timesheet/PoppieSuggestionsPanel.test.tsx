@@ -195,4 +195,19 @@ describe('PoppieSuggestionsPanel Add and Edit', () => {
     expect(addEntry).not.toHaveBeenCalled();
     expect(screen.getByRole('dialog')).toHaveTextContent('Editing s3');
   });
+
+  it('opens the entry form for a guessed project instead of saving it', () => {
+    suggestions = [
+      suggestion({
+        id: 's4',
+        description: 'Contoso intro',
+        evidence: 'Guessed project PR00010 from customer domain contoso.com',
+      }),
+    ];
+    renderPanel();
+    const add = within(row('Contoso intro')).getByTitle('Check the guessed project, then add');
+    fireEvent.click(add);
+    expect(addEntry).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toHaveTextContent('Editing s4');
+  });
 });

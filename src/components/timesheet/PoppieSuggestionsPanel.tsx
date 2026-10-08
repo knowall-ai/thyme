@@ -36,6 +36,7 @@ import {
   canQuickAdd,
   groupSuggestionsByDay,
   hideDuplicateSuggestions,
+  isGuessedProject,
   roundToQuarterHour,
   suggestionNotes,
 } from '@/utils/timeSuggestions';
@@ -167,6 +168,7 @@ export function PoppieSuggestionsPanel({
     if (project.status !== 'active')
       return 'This project is no longer active: choose another, then add';
     if (!canQuickAdd(s, requireTimesheetComments)) return 'Add a comment, then add';
+    if (isGuessedProject(s)) return 'Check the guessed project, then add';
     return null;
   };
   const isQuickAddable = (s: BCTimeSuggestion) => quickAddBlocker(s) === null;
