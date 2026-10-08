@@ -90,6 +90,26 @@ export function isGuessedProject(suggestion: BCTimeSuggestion): boolean {
 }
 
 /** Notes for the time entry a suggestion becomes, trimmed to BC's field length. */
+// Poppie appends the item refs she needs to recognise a suggestion again ("… | refs: github:…").
+const REFS_MARKER = ' | refs: ';
+// Evidence segments (one item, or one reason) are separated by "; " and never contain it.
+const SEGMENT_SEPARATOR = '; ';
+
+/** The evidence people read: everything before Poppie's machine refs. */
+export function readableEvidence(evidence: string | undefined): string {
+  const text = evidence || '';
+  const at = text.indexOf(REFS_MARKER);
+  return (at >= 0 ? text.slice(0, at) : text).trim();
+}
+
+/** The readable evidence as lines, one segment (item or reason) per line. */
+export function evidenceLines(evidence: string | undefined): string[] {
+  return readableEvidence(evidence)
+    .split(SEGMENT_SEPARATOR)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
 export function suggestionNotes(suggestion: BCTimeSuggestion): string {
   return (suggestion.description || '').trim().slice(0, MAX_DESCRIPTION_LENGTH);
 }

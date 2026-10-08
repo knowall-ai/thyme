@@ -39,6 +39,8 @@ import {
   hideDuplicateSuggestions,
   isGuessedProject,
   roundToQuarterHour,
+  readableEvidence,
+  evidenceLines,
   suggestionNotes,
 } from '@/utils/timeSuggestions';
 import {
@@ -534,9 +536,12 @@ export function PoppieSuggestionsPanel({
                             />
                             <span className="whitespace-nowrap">{s.confidence} confidence</span>
                           </p>
-                          {s.evidence && (
-                            <p className="text-dark-500 truncate text-xs" title={s.evidence}>
-                              {s.evidence}
+                          {readableEvidence(s.evidence) && (
+                            <p
+                              className="text-dark-500 truncate text-xs"
+                              title={evidenceLines(s.evidence).join('\n')}
+                            >
+                              {readableEvidence(s.evidence)}
                             </p>
                           )}
                         </div>
