@@ -54,7 +54,7 @@ export function hideDuplicateSuggestions(
   return suggestions.filter((s) => !entries.some((e) => isDuplicateOfEntry(s, e)));
 }
 
-/** Group suggestions by date, earliest day first, keeping each day's order stable. */
+/** Group suggestions by date, most recent day first (today at the top), keeping each day's order stable. */
 export function groupSuggestionsByDay(
   suggestions: BCTimeSuggestion[]
 ): Array<{ date: string; suggestions: BCTimeSuggestion[] }> {
@@ -65,7 +65,7 @@ export function groupSuggestionsByDay(
     else byDate.set(suggestion.date, [suggestion]);
   }
   return Array.from(byDate.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([a], [b]) => b.localeCompare(a))
     .map(([date, items]) => ({ date, suggestions: items }));
 }
 
