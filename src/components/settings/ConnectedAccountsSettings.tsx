@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { LinkIcon } from '@heroicons/react/24/outline';
 import { Button, Card, GitHubIcon } from '@/components/ui';
@@ -29,11 +29,16 @@ export function ConnectedAccountsSettings() {
   const [value, setValue] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  // The company on screen, so a save that finishes after a switch doesn't touch the new one
+  const companyVersionRef = useRef(companyVersion);
+  companyVersionRef.current = companyVersion;
 
   // The signed-in user's resource in this company; a reply for an earlier company is ignored
   useEffect(() => {
     let cancelled = false;
     setResource(null);
+    setValue('');
+    setError(null);
     if (!userName) return;
     bcClient
       .getResourceForCurrentUser(userName)
@@ -62,15 +67,18 @@ export function ConnectedAccountsSettings() {
 
   const handleSave = async () => {
     if (normalised === null) return;
+    const savedForCompanyVersion = companyVersion;
+    const isStale = () => companyVersionRef.current !== savedForCompanyVersion;
     setIsSaving(true);
     setError(null);
     try {
       const saved = await bcClient.updateResourceGitHubUsername(resource.id, normalised);
+      if (isStale()) return;
       setResource(saved);
       setValue(saved.githubUsername ?? normalised);
       toast.success(normalised ? 'GitHub username saved' : 'GitHub username removed');
     } catch (err) {
-      setError(describeGitHubUsernameSaveError(err));
+      if (!isStale()) setError(describeGitHubUsernameSaveError(err));
     } finally {
       setIsSaving(false);
     }

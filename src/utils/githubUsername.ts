@@ -14,6 +14,10 @@ export const MAX_GITHUB_USERNAME_LENGTH = 39;
 
 const GITHUB_LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9]))*$/;
 
+// A GitHub profile URL: only when the value starts with the GitHub host (optionally with a
+// scheme and www.), so another host that merely contains "github.com/" doesn't count
+const GITHUB_PROFILE_PREFIX = /^(?:https?:\/\/)?(?:www\.)?github\.com\//i;
+
 /**
  * Whether the installed Thyme BC Extension stores GitHub usernames on resources. Older
  * versions don't return the field at all.
@@ -31,8 +35,7 @@ export function hasGitHubUsernameField(resources: Pick<BCResource, 'githubUserna
 export function normaliseGitHubUsername(input: string): string | null {
   let value = input.trim();
   if (value === '') return '';
-  const host = value.toLowerCase().indexOf('github.com/');
-  if (host >= 0) value = value.slice(host + 'github.com/'.length);
+  value = value.replace(GITHUB_PROFILE_PREFIX, '');
   value = value.replace(/\/+$/, '').replace(/^@+/, '');
   if (value.length === 0 || value.length > MAX_GITHUB_USERNAME_LENGTH) return null;
   return GITHUB_LOGIN.test(value) ? value : null;

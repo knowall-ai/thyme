@@ -27,6 +27,7 @@ describe('normaliseGitHubUsername', () => {
     expect(normaliseGitHubUsername('https://github.com/alex-contoso')).toBe('alex-contoso');
     expect(normaliseGitHubUsername('github.com/alex-contoso/')).toBe('alex-contoso');
     expect(normaliseGitHubUsername('HTTPS://GitHub.com/Alex-Contoso')).toBe('Alex-Contoso');
+    expect(normaliseGitHubUsername('https://www.github.com/alex-contoso')).toBe('alex-contoso');
   });
 
   it('returns an empty string for blank input (clears it)', () => {
@@ -42,6 +43,9 @@ describe('normaliseGitHubUsername', () => {
     expect(normaliseGitHubUsername('under_score')).toBeNull();
     expect(normaliseGitHubUsername('https://github.com/contoso/repo')).toBeNull();
     expect(normaliseGitHubUsername('@')).toBeNull();
+    // Another host that merely contains "github.com/" is not a GitHub profile
+    expect(normaliseGitHubUsername('https://notgithub.com/alex')).toBeNull();
+    expect(normaliseGitHubUsername('https://example.com/github.com/alex')).toBeNull();
     expect(normaliseGitHubUsername('a'.repeat(39))).toBe('a'.repeat(39));
     expect(normaliseGitHubUsername('a'.repeat(40))).toBeNull();
   });

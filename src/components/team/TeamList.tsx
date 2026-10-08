@@ -349,6 +349,11 @@ export function TeamList() {
   const editingCapacityMember = rows.find((m) => m.id === editingCapacityMemberId) ?? null;
   const editingGitHubMember = rows.find((m) => m.id === editingGitHubMemberId) ?? null;
 
+  // Another company's people: close the GitHub username editor
+  useEffect(() => {
+    setEditingGitHubMemberId(null);
+  }, [companyVersion]);
+
   // Apply a GitHub username saved in the editor without reloading the week
   const handleGitHubSaved = (memberId: string, resource: BCResource) => {
     setMembers((prev) =>

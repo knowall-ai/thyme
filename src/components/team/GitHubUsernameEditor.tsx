@@ -4,6 +4,7 @@ import { useEffect, useId, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Button, Modal } from '@/components/ui';
 import { bcClient } from '@/services/bc';
+import { useCompanyStore } from '@/hooks';
 import { describeGitHubUsernameSaveError, normaliseGitHubUsername } from '@/utils';
 import type { BCResource } from '@/types';
 import { GitHubUsernameInput } from './GitHubUsernameInput';
@@ -53,10 +54,14 @@ export function GitHubUsernameEditor({
 
   const handleSave = async () => {
     if (normalised === null) return;
+    // The company the save is for; if the user switches company meanwhile, the result is ignored
+    const savedForCompanyVersion = useCompanyStore.getState().companyVersion;
+    const isStale = () => useCompanyStore.getState().companyVersion !== savedForCompanyVersion;
     setIsSaving(true);
     setError(null);
     try {
       const updated = await bcClient.updateResourceGitHubUsername(resourceId, normalised);
+      if (isStale()) return;
       onSaved(updated);
       toast.success(
         normalised
@@ -65,7 +70,7 @@ export function GitHubUsernameEditor({
       );
       onClose();
     } catch (err) {
-      setError(describeGitHubUsernameSaveError(err));
+      if (!isStale()) setError(describeGitHubUsernameSaveError(err));
     } finally {
       setIsSaving(false);
     }
