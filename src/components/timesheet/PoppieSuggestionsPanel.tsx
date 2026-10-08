@@ -346,7 +346,6 @@ export function PoppieSuggestionsPanel({
     canRequest,
     timing,
     request,
-    suggestionCount: visible.length,
   });
 
   const emptyText = requestOpen

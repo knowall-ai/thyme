@@ -2,7 +2,6 @@ import type { BCSuggestionRequest } from '@/types';
 import { formatDate, getWeekEnd } from './dateUtils';
 
 // Fewer suggestions than this in the current week and the Request button is offered there too
-export const FEW_SUGGESTIONS = 3;
 // Queued for longer than this and Poppie is probably offline (she polls every minute)
 export const QUEUED_SLOW_AFTER_MS = 3 * 60 * 1000;
 
@@ -23,19 +22,18 @@ export function isOpenRequest(request: Pick<BCSuggestionRequest, 'status'>): boo
 
 /**
  * Whether to offer "Request suggestions": never for a future week or while a request is
- * open; always for a past week; for the current week only when it has few suggestions
- * (Poppie's midday and evening runs normally cover it).
+ * open; otherwise always, including the current week (so work done since Poppie's last
+ * scheduled run can be picked up straight away).
  */
 export function shouldOfferRequest(params: {
   canRequest: boolean;
   timing: WeekTiming;
   request: Pick<BCSuggestionRequest, 'status'> | null;
-  suggestionCount: number;
 }): boolean {
-  const { canRequest, timing, request, suggestionCount } = params;
+  const { canRequest, timing, request } = params;
   if (!canRequest || timing === 'future') return false;
   if (request && isOpenRequest(request)) return false;
-  return timing === 'past' || suggestionCount < FEW_SUGGESTIONS;
+  return true;
 }
 
 /** The line shown next to the spinner while a request is open. */
