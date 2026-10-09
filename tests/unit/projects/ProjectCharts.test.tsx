@@ -35,9 +35,9 @@ const weeklyData = [3, 2, 1, 0].map((weeksAgo, i) => ({
   cumulative: 8 * (i + 1),
 }));
 
-function setup(hiddenKpis: string[]) {
+function setup(hiddenKpis: string[], startDate?: string) {
   useProjectDetailsStore.setState({
-    project: { id: 'p1', number: 'PR001', name: 'Contoso Website', isInternal: false },
+    project: { id: 'p1', number: 'PR001', name: 'Contoso Website', isInternal: false, startDate },
     analytics: {
       weeklyData,
       hoursSpent: 32,
@@ -135,7 +135,8 @@ describe('Chart time range', () => {
   });
 
   it('disables the week navigation on All, and re-enables it on another range', () => {
-    setup([...DEFAULT_HIDDEN_KPIS]);
+    // Started a year ago, so 3M can scroll back
+    setup([...DEFAULT_HIDDEN_KPIS], format(subWeeks(new Date(), 52), 'yyyy-MM-dd'));
     fireEvent.click(screen.getByRole('button', { name: 'Whole project' }));
     expect(pressed()).toBe('All');
     expect(isDisabled(/^Previous/)).toBe(true);
@@ -145,6 +146,12 @@ describe('Chart time range', () => {
     fireEvent.click(screen.getByRole('button', { name: '3 months' }));
     expect(pressed()).toBe('3M');
     expect(isDisabled(/^Previous/)).toBe(false);
+  });
+
+  it('stops the back arrow at the start of the project', () => {
+    // Only 4 weeks of data and no dates: a 6-month window already shows it all
+    setup([...DEFAULT_HIDDEN_KPIS]);
+    expect(isDisabled(/^Previous/)).toBe(true);
   });
 
   it('keeps the range when switching chart views', () => {

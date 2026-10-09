@@ -15,6 +15,7 @@ import {
   DEFAULT_CHART_RANGE,
   getChartWindow,
   getMonthLabelStep,
+  getMaxBackOffset,
   getMonthLabels,
   getNavStep,
   getPointMarkerSize,
@@ -174,14 +175,18 @@ export function ProjectCharts() {
   const chartWindow = getChartWindow(range, offsetWeeks, wholeProjectWindow);
   // Wider windows scroll further per press, so the whole range is reachable quickly
   const navStep = getNavStep(chartWindow.weeks);
+  // Furthest back: the window starting at the project's first week
+  const maxBackOffset = getMaxBackOffset(wholeProjectWindow, chartWindow.weeks);
 
   // Read by the hold-to-repeat timers, which outlive a single render
   const minOffsetRef = useRef(0);
+  const maxOffsetRef = useRef(maxBackOffset);
   const navStepRef = useRef(navStep);
   useEffect(() => {
     minOffsetRef.current = -maxForwardWeeks;
+    maxOffsetRef.current = maxBackOffset;
     navStepRef.current = navStep;
-  }, [maxForwardWeeks, navStep]);
+  }, [maxForwardWeeks, maxBackOffset, navStep]);
 
   // Refs for hold-to-repeat functionality
   const holdTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -202,12 +207,12 @@ export function ProjectCharts() {
   // Start hold-to-repeat for going back (earlier weeks)
   const startHoldBack = useCallback(() => {
     // Execute immediately on click
-    setOffsetWeeks((o) => o + navStepRef.current);
+    setOffsetWeeks((o) => Math.min(maxOffsetRef.current, o + navStepRef.current));
 
     // Start repeating after initial delay
     holdTimeoutRef.current = setTimeout(() => {
       holdIntervalRef.current = setInterval(() => {
-        setOffsetWeeks((o) => o + navStepRef.current);
+        setOffsetWeeks((o) => Math.min(maxOffsetRef.current, o + navStepRef.current));
       }, HOLD_REPEAT_INTERVAL);
     }, HOLD_INITIAL_DELAY);
   }, []);
@@ -239,7 +244,7 @@ export function ProjectCharts() {
   }
 
   // Navigation has nothing to do on All: it already shows the whole project
-  const canGoBack = weeklyData.length > 0 && !isWholeProject;
+  const canGoBack = offsetWeeks < maxBackOffset && !isWholeProject;
   const canGoForward = offsetWeeks > -maxForwardWeeks && !isWholeProject;
   const navStepLabel = navStep === 1 ? 'week' : `${navStep} weeks`;
   // The arrows step on mouse/touch down (for hold-to-repeat), so keyboards get their own step
@@ -247,7 +252,9 @@ export function ProjectCharts() {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     event.preventDefault();
     setOffsetWeeks((o) =>
-      direction === 1 ? o + navStep : Math.max(-maxForwardWeeks, o - navStep)
+      direction === 1
+        ? Math.min(maxBackOffset, o + navStep)
+        : Math.max(-maxForwardWeeks, o - navStep)
     );
   };
 

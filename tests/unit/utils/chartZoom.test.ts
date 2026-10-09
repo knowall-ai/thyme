@@ -5,6 +5,7 @@ import {
   MIN_WHOLE_PROJECT_WEEKS,
   getChartWindow,
   getMonthLabelStep,
+  getMaxBackOffset,
   getMonthLabels,
   getNavStep,
   getPointMarkerSize,
@@ -140,6 +141,23 @@ describe('chart ranges', () => {
       expect(r.ariaLabel).toBeTruthy();
       expect(r.title).toMatch(/^Show /);
     }
+  });
+});
+
+describe('getMaxBackOffset', () => {
+  it("stops scrolling back when the window starts at the project's first week", () => {
+    // The 2-year project's first week is -40 + 105 - 1 = 64 weeks ago
+    expect(getMaxBackOffset(twoYears, 52)).toBe(64 - 51);
+    expect(getMaxBackOffset(twoYears, 13)).toBe(64 - 12);
+  });
+
+  it('always allows scrolling back to this week', () => {
+    // A project that started 4 weeks ago, viewed 26 weeks at a time
+    expect(getMaxBackOffset({ weeks: 13, offsetWeeks: -8 }, 26)).toBe(0);
+  });
+
+  it('has nowhere to go back to without a project to fit', () => {
+    expect(getMaxBackOffset(null, 26)).toBe(0);
   });
 });
 

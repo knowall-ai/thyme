@@ -119,6 +119,17 @@ export function getChartWindow(
 }
 
 /**
+ * Furthest back the arrows can scroll: until the window's left edge reaches the project's
+ * first week (never less than this week, so you can always scroll back to it).
+ * 0 when there's no project to fit.
+ */
+export function getMaxBackOffset(wholeProject: ChartWindow | null, weeks: number): number {
+  if (!wholeProject) return 0;
+  const firstWeekOffset = wholeProject.offsetWeeks + wholeProject.weeks - 1;
+  return Math.max(0, firstWeekOffset - (weeks - 1));
+}
+
+/**
  * Weeks moved per arrow press (and per tick while held). One week up to the default
  * 6-month window, as before; wider windows move about 1/13 of the window (1Y → 4).
  */
