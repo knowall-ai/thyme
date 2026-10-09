@@ -9,6 +9,7 @@ import { LandingPage } from '@/components/landing/LandingPage';
 import { Button, Card } from '@/components/ui';
 import { isValidCompanyId, legacyToCompanyUrl } from '@/utils/companyPath';
 import { Layout } from './Layout';
+import { SignInExpired } from './SignInExpired';
 
 /**
  * Page body for the pre-company URLs (`/time`, `/projects/PR00100`, …) so old links
@@ -38,6 +39,7 @@ function RedirectToCompany() {
     selectedCompany,
     isLoading,
     error,
+    reauthRequired,
     fetchCompanies,
   } = useCompanyStore();
 
@@ -69,6 +71,8 @@ function RedirectToCompany() {
       fetchCompanies();
     }
   }, [targetId, targetEnvironment, companiesLoaded, fetchCompanies, router]);
+
+  if (!target && error && reauthRequired) return <SignInExpired />;
 
   if (!target && (error || (companiesLoaded && companies.length === 0))) {
     return (

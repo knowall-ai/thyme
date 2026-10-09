@@ -1,10 +1,21 @@
 import { SilentRequest } from '@azure/msal-browser';
 import { bcTokenRequest, graphTokenRequest } from './msalConfig';
 import { msalInstance, initializeMsal } from './msalInstance';
+import { requestReauth } from './reauth';
+import { ReauthRequiredError, isInteractionRequiredError } from './reauthErrors';
 
 // Track if Graph token acquisition has failed to prevent repeated attempts
 let graphTokenFailed = false;
 
+/**
+ * Get an access token silently. Returns null when there's no signed-in account or
+ * the token couldn't be fetched for a transient reason.
+ *
+ * @throws ReauthRequiredError when Microsoft Entra needs the user to sign in again
+ * (expired session, MFA re-verification, …). Before throwing, it starts a single
+ * shared sign-in redirect back to the current page, or (if that could loop) flags
+ * the UI to show a "Sign in again" prompt.
+ */
 export async function getAccessToken(
   scopes: string[] = bcTokenRequest.scopes
 ): Promise<string | null> {
@@ -27,11 +38,13 @@ export async function getAccessToken(
 
     const response = await msalInstance.acquireTokenSilent(request);
     return response.accessToken;
-  } catch {
-    // Silent acquisition failed - don't automatically redirect
-    // This prevents redirect loops when background token refresh fails
-    // User can manually sign in via the login button if needed
-    console.warn('Silent token acquisition failed - user may need to re-authenticate');
+  } catch (error) {
+    if (isInteractionRequiredError(error)) {
+      console.warn('Sign-in expired - signing in again');
+      void requestReauth();
+      throw new ReauthRequiredError(error);
+    }
+    console.warn('Silent token acquisition failed', error);
     return null;
   }
 }
@@ -67,8 +80,12 @@ export async function getGraphAccessToken(): Promise<string | null> {
 
     const response = await msalInstance.acquireTokenSilent(request);
     return response.accessToken;
-  } catch {
-    // Silent acquisition failed - Graph scopes not consented
+  } catch (error) {
+    // Expired sign-in: start (or join) the shared sign-in redirect. Photos are
+    // optional, so callers still just get null and fall back to initials.
+    if (isInteractionRequiredError(error)) {
+      void requestReauth();
+    }
     // Don't log repeatedly - just mark as failed for this session
     graphTokenFailed = true;
     return null;

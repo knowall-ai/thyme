@@ -1,4 +1,5 @@
 import { getBCAccessToken } from '../auth';
+import { isReauthRequiredError } from '../auth/reauthErrors';
 import { ExtensionNotInstalledError } from './timeEntryService';
 import type {
   BCCompany,
@@ -275,6 +276,13 @@ class BusinessCentralClient {
       BC_ENVIRONMENTS.map((env) => this.getCompaniesFromEnvironment(env))
     );
 
+    // An expired sign-in isn't an environment failure: let callers say "sign in again"
+    const reauth = results.find(
+      (result): result is PromiseRejectedResult =>
+        result.status === 'rejected' && isReauthRequiredError(result.reason)
+    );
+    if (reauth) throw reauth.reason;
+
     const companies: BCCompany[] = [];
     const failedEnvironments: BCEnvironmentType[] = [];
     results.forEach((result, index) => {
@@ -343,7 +351,10 @@ class BusinessCentralClient {
       // If we get a 200, the extension is installed
       this._extensionInstalled = response.ok;
       return this._extensionInstalled;
-    } catch {
+    } catch (error) {
+      // An expired sign-in says nothing about the extension: don't cache an answer,
+      // and let callers see the sign-in failure rather than "not installed"
+      if (isReauthRequiredError(error)) throw error;
       this._extensionInstalled = false;
       return false;
     }
