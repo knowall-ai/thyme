@@ -1,7 +1,7 @@
 {
   "license": "MIT",
   "name": "thyme",
-  "version": "1.9.3",
+  "version": "1.9.4",
   "description": "Time tracking application for Microsoft Dynamics 365 Business Central",
   "private": true,
   "scripts": {
