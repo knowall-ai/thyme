@@ -35,9 +35,9 @@ const weeklyData = [3, 2, 1, 0].map((weeksAgo, i) => ({
   cumulative: 8 * (i + 1),
 }));
 
-function setup(hiddenKpis: string[]) {
+function setup(hiddenKpis: string[], startDate?: string) {
   useProjectDetailsStore.setState({
-    project: { id: 'p1', number: 'PR001', name: 'Contoso Website', isInternal: false },
+    project: { id: 'p1', number: 'PR001', name: 'Contoso Website', isInternal: false, startDate },
     analytics: {
       weeklyData,
       hoursSpent: 32,
@@ -110,5 +110,85 @@ describe('Spend vs Budget chart with hidden figures', () => {
     setup([...DEFAULT_HIDDEN_KPIS, 'Time Spent']);
     expect(screen.queryByText('Effort figures are hidden')).toBeNull();
     expect(screen.getAllByText(/Budget: 10d/).length).toBeGreaterThan(0);
+  });
+});
+
+describe('Chart time range', () => {
+  const pressed = () =>
+    screen.getByRole('group', { name: 'Chart time range' }).querySelector('[aria-pressed="true"]')
+      ?.textContent;
+  const isDisabled = (name: string | RegExp) =>
+    (screen.getByRole('button', { name }) as HTMLButtonElement).disabled;
+
+  beforeEach(() => {
+    useProjectDetailsStore.setState({ hiddenKpis: [...DEFAULT_HIDDEN_KPIS] });
+  });
+
+  it('defaults to 6M and scrolls further at 1Y', () => {
+    setup([...DEFAULT_HIDDEN_KPIS]);
+    expect(pressed()).toBe('6M');
+    expect(screen.getByRole('button', { name: 'Previous week' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '1 year' }));
+    expect(pressed()).toBe('1Y');
+    expect(screen.getByRole('button', { name: 'Previous 4 weeks' })).toBeTruthy();
+  });
+
+  it('disables the week navigation on All, and re-enables it on another range', () => {
+    // Started a year ago, so 3M can scroll back
+    setup([...DEFAULT_HIDDEN_KPIS], format(subWeeks(new Date(), 52), 'yyyy-MM-dd'));
+    fireEvent.click(screen.getByRole('button', { name: 'Whole project' }));
+    expect(pressed()).toBe('All');
+    expect(isDisabled(/^Previous/)).toBe(true);
+    expect(isDisabled(/^Next/)).toBe(true);
+    expect(isDisabled('This Week')).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: '3 months' }));
+    expect(pressed()).toBe('3M');
+    expect(isDisabled(/^Previous/)).toBe(false);
+  });
+
+  it('stops the back arrow at the start of the project', () => {
+    // Only 4 weeks of data and no dates: a 6-month window already shows it all
+    setup([...DEFAULT_HIDDEN_KPIS]);
+    expect(isDisabled(/^Previous/)).toBe(true);
+  });
+
+  it('drops the tooltip, rather than crashing, when the hovered week leaves the window', () => {
+    setup([...DEFAULT_HIDDEN_KPIS], format(subWeeks(new Date(), 52), 'yyyy-MM-dd'));
+    fireEvent.click(screen.getByRole('button', { name: '1 year' }));
+    // Hover the earliest week of the year, then narrow the range so it's out of view
+    const hoverColumns = document.querySelectorAll('.h-full.flex-1.cursor-pointer');
+    expect(hoverColumns).toHaveLength(52);
+    fireEvent.mouseEnter(hoverColumns[0]);
+    expect(screen.getAllByText(/^\d+\.\d hours/)).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: '3 months' }));
+    expect(screen.queryByText(/^\d+\.\d hours/)).toBeNull();
+  });
+
+  it("doesn't show weeks before the project after widening the range", () => {
+    // Started 20 weeks ago: 3M can scroll back a few weeks; 6M already shows it all
+    setup([...DEFAULT_HIDDEN_KPIS], format(subWeeks(new Date(), 20), 'yyyy-MM-dd'));
+    fireEvent.click(screen.getByRole('button', { name: '3 months' }));
+    const back = () => screen.getByRole('button', { name: 'Previous week' }) as HTMLButtonElement;
+    let presses = 0;
+    while (!back().disabled && presses < 30) {
+      fireEvent.keyDown(back(), { key: 'Enter' });
+      presses++;
+    }
+    expect(presses).toBeGreaterThan(0);
+    expect(presses).toBeLessThan(30);
+    fireEvent.click(screen.getByRole('button', { name: '6 months' }));
+    // Back at this week: the This Week button shows as current (disabled)
+    expect((screen.getByRole('button', { name: 'This Week' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
+  });
+
+  it('keeps the range when switching chart views', () => {
+    setup([...DEFAULT_HIDDEN_KPIS]);
+    fireEvent.click(screen.getByRole('button', { name: '3 months' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hours per Week' }));
+    expect(pressed()).toBe('3M');
   });
 });
