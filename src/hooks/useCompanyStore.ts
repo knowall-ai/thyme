@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { BCCompany, BCEnvironmentType } from '@/types';
 import { bcClient } from '@/services/bc/bcClient';
+import { isReauthRequiredError } from '@/services/auth/reauthErrors';
 import { bumpCompanyGeneration } from './companyScope';
 
 interface CompanyStore {
@@ -14,6 +15,8 @@ interface CompanyStore {
   failedEnvironments: BCEnvironmentType[];
   isLoading: boolean;
   error: string | null;
+  /** True when the last load failed because the user's sign-in expired, not because of BC */
+  reauthRequired: boolean;
 
   fetchCompanies: () => Promise<void>;
   selectCompany: (company: BCCompany) => void;
@@ -34,6 +37,7 @@ export const useCompanyStore = create<CompanyStore>((set, get) => ({
   failedEnvironments: [],
   isLoading: false,
   error: null,
+  reauthRequired: false,
 
   fetchCompanies: () => {
     if (!companiesRequest) {
@@ -44,7 +48,7 @@ export const useCompanyStore = create<CompanyStore>((set, get) => ({
     return companiesRequest;
 
     async function loadCompanies() {
-      set({ isLoading: true, error: null });
+      set({ isLoading: true, error: null, reauthRequired: false });
       try {
         // Fetch companies from all environments
         const { companies, failedEnvironments } = await bcClient.getAllCompanies();
@@ -104,7 +108,7 @@ export const useCompanyStore = create<CompanyStore>((set, get) => ({
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to fetch companies';
-        set({ error: message, isLoading: false });
+        set({ error: message, isLoading: false, reauthRequired: isReauthRequiredError(error) });
       }
     }
   },

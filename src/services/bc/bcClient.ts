@@ -1,4 +1,5 @@
 import { getBCAccessToken } from '../auth';
+import { isReauthRequiredError } from '../auth/reauthErrors';
 import { ExtensionNotInstalledError } from './timeEntryService';
 import type {
   BCCompany,
@@ -274,6 +275,13 @@ class BusinessCentralClient {
     const results = await Promise.allSettled(
       BC_ENVIRONMENTS.map((env) => this.getCompaniesFromEnvironment(env))
     );
+
+    // An expired sign-in isn't an environment failure: let callers say "sign in again"
+    const reauth = results.find(
+      (result): result is PromiseRejectedResult =>
+        result.status === 'rejected' && isReauthRequiredError(result.reason)
+    );
+    if (reauth) throw reauth.reason;
 
     const companies: BCCompany[] = [];
     const failedEnvironments: BCEnvironmentType[] = [];

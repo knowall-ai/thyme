@@ -3,14 +3,17 @@
 import { ReactNode } from 'react';
 import Image from 'next/image';
 import { Header } from './Header';
+import { SignInExpiredBanner } from './SignInExpiredBanner';
 
 interface LayoutProps {
   children: ReactNode;
+  /** Hide the app-wide "sign-in expired" banner (when the page itself is that prompt) */
+  hideSignInBanner?: boolean;
 }
 
 const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || '0.0.0';
 
-export function Layout({ children }: LayoutProps) {
+export function Layout({ children, hideSignInBanner = false }: LayoutProps) {
   return (
     <div className="bg-dark-950 flex min-h-screen flex-col">
       {/* Background effects */}
@@ -18,6 +21,7 @@ export function Layout({ children }: LayoutProps) {
 
       <div className="relative z-10 flex flex-1 flex-col">
         <Header />
+        {!hideSignInBanner && <SignInExpiredBanner />}
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
           {children}
         </main>

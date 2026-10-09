@@ -11,6 +11,9 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | BC API returns 401 Unauthorized
 | Check that BC API permissions are granted admin consent in Azure; verify token hasn't expired
 
+| Every page shows "Couldn't load your Business Central companies" (e.g. "Couldn't load companies from Business Central (sandbox, production)"), "Try again" doesn't help, the avatar shows initials, and the console says "Silent token acquisition failed"
+| Your Microsoft sign-in has expired or needs re-verification (Edge may show a "Verify it's you" badge); Business Central itself is fine. Upgrade to the latest Thyme version: it now detects this and sends you to Microsoft to sign in again, then brings you back to the same page. If that already happened in the last few minutes (to avoid a sign-in loop), or Thyme is open in a popup or frame, it shows "Your sign-in has expired" with a *Sign in again* button instead. On older versions, sign out and sign in again. If signing in keeps coming back to the same message, check Conditional Access / MFA requirements for the user in Entra ID.
+
 | BC API returns 403 Forbidden
 | User needs appropriate Business Central license and permissions assigned
 

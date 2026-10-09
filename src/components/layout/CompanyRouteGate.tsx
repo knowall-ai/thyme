@@ -22,6 +22,7 @@ import {
   stripCompanyPrefix,
 } from '@/utils/companyPath';
 import { Layout } from './Layout';
+import { SignInExpired } from './SignInExpired';
 
 interface CompanyRouteGateProps {
   environment: BCEnvironmentType;
@@ -63,6 +64,7 @@ function CompanySync({ environment, companyId, children }: CompanyRouteGateProps
     selectedCompany,
     isLoading,
     error,
+    reauthRequired,
     fetchCompanies,
   } = useCompanyStore();
 
@@ -118,6 +120,7 @@ function CompanySync({ environment, companyId, children }: CompanyRouteGateProps
   }
 
   if (routeState.status === 'error') {
+    if (reauthRequired) return <SignInExpired />;
     return (
       <Layout>
         <Card variant="bordered" className="mx-auto max-w-lg p-8">

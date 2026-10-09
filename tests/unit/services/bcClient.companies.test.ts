@@ -5,6 +5,8 @@ vi.mock('@/services/auth', () => ({
 }));
 
 import { bcClient } from '@/services/bc/bcClient';
+import { getBCAccessToken } from '@/services/auth';
+import { ReauthRequiredError } from '@/services/auth/reauthErrors';
 
 const contoso = { id: '00000000-0000-0000-0000-000000000001', name: 'Contoso', displayName: '' };
 
@@ -57,5 +59,12 @@ describe('bcClient.getAllCompanies', () => {
     const { failedEnvironments } = await bcClient.getAllCompanies();
 
     expect(failedEnvironments).toEqual(['sandbox', 'production']);
+  });
+
+  it('rethrows an expired sign-in instead of reporting failed environments', async () => {
+    respondByEnvironment({ sandbox: 200, production: 200 });
+    vi.mocked(getBCAccessToken).mockRejectedValueOnce(new ReauthRequiredError());
+
+    await expect(bcClient.getAllCompanies()).rejects.toBeInstanceOf(ReauthRequiredError);
   });
 });
