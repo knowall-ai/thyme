@@ -75,3 +75,19 @@ describe('TimeEntryModal from a suggestion', () => {
     expect(customerSelect().value).toBe('Contoso Ltd');
   });
 });
+
+describe('TimeEntryModal for a new manual entry', () => {
+  it('leaves the customer unselected instead of defaulting to the first customer', () => {
+    render(
+      <TimeEntryModal
+        isOpen
+        onClose={() => {}}
+        date="2026-10-09"
+        entry={null}
+        weekStart={new Date('2026-10-05')}
+      />
+    );
+    expect([...customerSelect().options].map((o) => o.value)).toContain('Adatum Corporation');
+    expect(customerSelect().value).toBe('');
+  });
+});

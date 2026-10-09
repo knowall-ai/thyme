@@ -148,21 +148,15 @@ export function TimeEntryModal({
   // This ensures the Select dropdown value matches exactly
   const findMatchingCustomerOption = useCallback(
     (customerName: string | undefined): string => {
-      // If no customer name provided, return first available option (if exists)
-      // This handles the case where user opens a new entry without a selected project
-      if (!customerName) {
-        // Return first customer option, or empty string to force user to select
-        return customerOptions.length > 0 ? customerOptions[0].value : '';
-      }
+      // No known customer (e.g. a new entry with no project chosen): leave it empty so the
+      // person picks one, rather than defaulting to the first customer in the list
+      if (!customerName) return '';
       const normalizedName = customerName.trim().toLowerCase();
       const matchingOption = customerOptions.find(
         (opt) => opt.value.trim().toLowerCase() === normalizedName
       );
-      // If no match found but we have options, return first option
-      if (!matchingOption && customerOptions.length > 0) {
-        return customerOptions[0].value;
-      }
-      return matchingOption?.value || customerName;
+      // Unknown customer name: leave it empty too, never guess another customer
+      return matchingOption?.value ?? '';
     },
     [customerOptions]
   );
