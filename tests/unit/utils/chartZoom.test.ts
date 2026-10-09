@@ -1,10 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
-  CHART_ZOOM_STEPS,
-  DEFAULT_CHART_ZOOM,
-  canZoomIn,
-  canZoomOut,
-  describeZoom,
+  CHART_RANGES,
+  DEFAULT_CHART_RANGE,
+  MIN_WHOLE_PROJECT_WEEKS,
   getChartWindow,
   getMonthLabelStep,
   getMonthLabels,
@@ -14,8 +12,6 @@ import {
   getWholeProjectWindow,
   isoWeekToDate,
   weeksBetween,
-  zoomIn,
-  zoomOut,
   type ChartWindow,
 } from '@/utils/chartZoom';
 
@@ -92,7 +88,7 @@ describe('getWholeProjectWindow', () => {
     ).toEqual({ weeks: 27, offsetWeeks: 9 });
   });
 
-  it('pads a short project out to the narrowest zoom', () => {
+  it('pads a short project out to 3 months', () => {
     const window = getWholeProjectWindow({
       startDate: date(2026, 9, 7),
       endDate: date(2026, 9, 21),
@@ -100,8 +96,8 @@ describe('getWholeProjectWindow', () => {
       lastDataWeek: null,
       currentWeekStart,
     });
-    // Starts 4 weeks ago; 8 columns end 3 weeks from now
-    expect(window).toEqual({ weeks: CHART_ZOOM_STEPS[0], offsetWeeks: -3 });
+    // Starts 4 weeks ago; 13 columns end 8 weeks from now
+    expect(window).toEqual({ weeks: MIN_WHOLE_PROJECT_WEEKS, offsetWeeks: -8 });
   });
 
   it('has nothing to fit without dates or data', () => {
@@ -118,75 +114,42 @@ describe('getWholeProjectWindow', () => {
 });
 
 describe('getChartWindow', () => {
-  it('uses the zoom step and scroll offset', () => {
-    expect(getChartWindow(DEFAULT_CHART_ZOOM, 3, twoYears)).toEqual({ weeks: 24, offsetWeeks: 3 });
+  it('shows 13, 26 or 52 weeks for 3M, 6M and 1Y, at the scroll offset', () => {
+    expect(getChartWindow('3M', 3, twoYears)).toEqual({ weeks: 13, offsetWeeks: 3 });
+    expect(getChartWindow('6M', 0, twoYears)).toEqual({ weeks: 26, offsetWeeks: 0 });
+    expect(getChartWindow('1Y', -2, twoYears)).toEqual({ weeks: 52, offsetWeeks: -2 });
   });
 
-  it('ignores the scroll offset in whole-project mode', () => {
-    expect(getChartWindow({ stepIndex: 2, wholeProject: true }, 3, twoYears)).toEqual(twoYears);
+  it('fits the whole project for All, ignoring the scroll offset', () => {
+    expect(getChartWindow('all', 3, twoYears)).toEqual(twoYears);
   });
 
-  it('falls back to the zoom step if there is no project to fit', () => {
-    expect(getChartWindow({ stepIndex: 1, wholeProject: true }, 0, null)).toEqual({
-      weeks: 12,
-      offsetWeeks: 0,
-    });
+  it('falls back to the default range for All if there is no project to fit', () => {
+    expect(getChartWindow('all', 0, null)).toEqual({ weeks: 26, offsetWeeks: 0 });
   });
 });
 
-describe('zooming', () => {
-  it('defaults to the long-standing 24-week window', () => {
-    expect(CHART_ZOOM_STEPS[DEFAULT_CHART_ZOOM.stepIndex]).toBe(24);
+describe('chart ranges', () => {
+  it('offers 3M | 6M | 1Y | All, defaulting to 6M (closest to the old 24-week window)', () => {
+    expect(CHART_RANGES.map((r) => r.label)).toEqual(['3M', '6M', '1Y', 'All']);
+    expect(DEFAULT_CHART_RANGE).toBe('6M');
   });
 
-  it('zooms out step by step to the whole project, then stops', () => {
-    let zoom = DEFAULT_CHART_ZOOM;
-    const seen: string[] = [describeZoom(zoom, twoYears)];
-    while (canZoomOut(zoom, twoYears)) {
-      zoom = zoomOut(zoom, twoYears);
-      seen.push(describeZoom(zoom, twoYears));
+  it('gives every range a spoken name and a tooltip', () => {
+    for (const r of CHART_RANGES) {
+      expect(r.ariaLabel).toBeTruthy();
+      expect(r.title).toMatch(/^Show /);
     }
-    // The last is the whole (105-week) project
-    expect(seen).toEqual(['24 wks', '52 wks', '104 wks', '105 wks']);
-    expect(zoomOut(zoom, twoYears)).toBe(zoom);
-  });
-
-  it('stops at the widest step when there is no project to fit', () => {
-    const widest = { stepIndex: CHART_ZOOM_STEPS.length - 1, wholeProject: false };
-    expect(canZoomOut(widest, null)).toBe(false);
-  });
-
-  it('zooms in to 8 weeks, then stops', () => {
-    let zoom = DEFAULT_CHART_ZOOM;
-    while (canZoomIn(zoom, twoYears)) zoom = zoomIn(zoom, twoYears);
-    expect(describeZoom(zoom, twoYears)).toBe('8 wks');
-    expect(zoomIn(zoom, twoYears)).toBe(zoom);
-  });
-
-  it('zooms in from the whole project back to the step it came from', () => {
-    expect(zoomIn({ stepIndex: 4, wholeProject: true }, twoYears)).toEqual({
-      stepIndex: 4,
-      wholeProject: false,
-    });
-  });
-
-  it('zooms in from the whole project to a step narrower than the project', () => {
-    // A 20-week project, whole-project chosen while at 104 weeks: 12 weeks, not 104 or 24
-    expect(zoomIn({ stepIndex: 4, wholeProject: true }, { weeks: 20, offsetWeeks: 0 })).toEqual({
-      stepIndex: 1,
-      wholeProject: false,
-    });
   });
 });
 
 describe('getNavStep', () => {
-  it('moves one week at a time up to the default window', () => {
-    expect([8, 12, 24].map(getNavStep)).toEqual([1, 1, 1]);
+  it('moves one week at a time for 3M and 6M', () => {
+    expect([13, 26].map(getNavStep)).toEqual([1, 1]);
   });
 
-  it('moves further when zoomed out', () => {
+  it('moves further for 1Y', () => {
     expect(getNavStep(52)).toBe(4);
-    expect(getNavStep(104)).toBe(8);
   });
 });
 
@@ -237,7 +200,7 @@ describe('month labels', () => {
 
 describe('getPointMarkerSize', () => {
   it('shrinks the markers, then hides them, as the window widens', () => {
-    expect(getPointMarkerSize(24)).toBe('normal');
+    expect(getPointMarkerSize(26)).toBe('normal');
     expect(getPointMarkerSize(52)).toBe('small');
     expect(getPointMarkerSize(104)).toBe('none');
   });

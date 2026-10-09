@@ -113,49 +113,44 @@ describe('Spend vs Budget chart with hidden figures', () => {
   });
 });
 
-describe('Chart zoom', () => {
-  const zoomLevel = () => screen.getByRole('group', { name: 'Chart zoom' }).textContent;
+describe('Chart time range', () => {
+  const pressed = () =>
+    screen.getByRole('group', { name: 'Chart time range' }).querySelector('[aria-pressed="true"]')
+      ?.textContent;
+  const isDisabled = (name: string | RegExp) =>
+    (screen.getByRole('button', { name }) as HTMLButtonElement).disabled;
 
   beforeEach(() => {
     useProjectDetailsStore.setState({ hiddenKpis: [...DEFAULT_HIDDEN_KPIS] });
   });
 
-  it('zooms out to the whole project and disables the arrows there', () => {
+  it('defaults to 6M and scrolls further at 1Y', () => {
     setup([...DEFAULT_HIDDEN_KPIS]);
-    expect(zoomLevel()).toContain('24 wks');
-    expect((screen.getByRole('button', { name: 'Zoom in' }) as HTMLButtonElement).disabled).toBe(
-      false
-    );
+    expect(pressed()).toBe('6M');
+    expect(screen.getByRole('button', { name: 'Previous week' })).toBeTruthy();
 
-    const zoomOutButton = screen.getByRole('button', { name: 'Zoom out' }) as HTMLButtonElement;
-    fireEvent.click(zoomOutButton);
-    expect(zoomLevel()).toContain('52 wks');
-    // Arrows step further at wider zooms
+    fireEvent.click(screen.getByRole('button', { name: '1 year' }));
+    expect(pressed()).toBe('1Y');
     expect(screen.getByRole('button', { name: 'Previous 4 weeks' })).toBeTruthy();
-    fireEvent.click(zoomOutButton);
-    fireEvent.click(zoomOutButton);
-
-    const whole = screen.getByRole('button', { name: 'Show whole project' });
-    expect(whole.getAttribute('aria-pressed')).toBe('true');
-    expect(zoomOutButton.disabled).toBe(true);
-    expect((screen.getByRole('button', { name: /^Previous/ }) as HTMLButtonElement).disabled).toBe(
-      true
-    );
-    expect((screen.getByRole('button', { name: /^Next/ }) as HTMLButtonElement).disabled).toBe(
-      true
-    );
-
-    // "This Week" leaves whole-project mode
-    fireEvent.click(screen.getByRole('button', { name: 'This Week' }));
-    expect(whole.getAttribute('aria-pressed')).toBe('false');
-    expect(zoomLevel()).toContain('104 wks');
   });
 
-  it('keeps the zoom when switching chart views', () => {
+  it('disables the week navigation on All, and re-enables it on another range', () => {
     setup([...DEFAULT_HIDDEN_KPIS]);
-    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
-    expect(zoomLevel()).toContain('12 wks');
+    fireEvent.click(screen.getByRole('button', { name: 'Whole project' }));
+    expect(pressed()).toBe('All');
+    expect(isDisabled(/^Previous/)).toBe(true);
+    expect(isDisabled(/^Next/)).toBe(true);
+    expect(isDisabled('This Week')).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: '3 months' }));
+    expect(pressed()).toBe('3M');
+    expect(isDisabled(/^Previous/)).toBe(false);
+  });
+
+  it('keeps the range when switching chart views', () => {
+    setup([...DEFAULT_HIDDEN_KPIS]);
+    fireEvent.click(screen.getByRole('button', { name: '3 months' }));
     fireEvent.click(screen.getByRole('button', { name: 'Hours per Week' }));
-    expect(zoomLevel()).toContain('12 wks');
+    expect(pressed()).toBe('3M');
   });
 });

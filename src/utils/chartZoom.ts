@@ -1,6 +1,7 @@
 /**
- * Time-axis (x-axis) zoom for the project page charts: how many weeks are shown, how far
- * the arrows scroll, the "Whole project" fit and how thinly the month labels are spread.
+ * Time-axis (x-axis) range for the project page charts: how many weeks are shown (3M, 6M,
+ * 1Y or All = the whole project), how far the arrows scroll and how thinly the month
+ * labels are spread.
  *
  * A chart window is described as { weeks, offsetWeeks }: `weeks` columns, ending at the
  * week `offsetWeeks` weeks before the current week (negative = in the future).
@@ -8,23 +9,35 @@
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** Zoom levels in weeks shown, narrowest first. "Whole project" sits beyond the last. */
-export const CHART_ZOOM_STEPS = [8, 12, 24, 52, 104] as const;
-/** 24 weeks: the charts' long-standing fixed window */
-export const DEFAULT_ZOOM_INDEX = 2;
-/** Narrowest window a "Whole project" fit is padded out to, so short projects aren't stretched */
-export const MIN_WHOLE_PROJECT_WEEKS = CHART_ZOOM_STEPS[0];
+export type ChartRange = '3M' | '6M' | '1Y' | 'all';
 
-export interface ChartZoom {
-  /** Index into CHART_ZOOM_STEPS; kept while in whole-project mode so zooming in can return */
-  stepIndex: number;
-  wholeProject: boolean;
+export interface ChartRangeOption {
+  value: ChartRange;
+  label: string;
+  /** Spoken name, since "3M" isn't self-explanatory to a screen reader */
+  ariaLabel: string;
+  title: string;
+  /** Weeks shown; null for All, which fits the whole project */
+  weeks: number | null;
 }
 
-export const DEFAULT_CHART_ZOOM: ChartZoom = {
-  stepIndex: DEFAULT_ZOOM_INDEX,
-  wholeProject: false,
-};
+export const CHART_RANGES: ChartRangeOption[] = [
+  { value: '3M', label: '3M', ariaLabel: '3 months', title: 'Show 3 months (13 weeks)', weeks: 13 },
+  { value: '6M', label: '6M', ariaLabel: '6 months', title: 'Show 6 months (26 weeks)', weeks: 26 },
+  { value: '1Y', label: '1Y', ariaLabel: '1 year', title: 'Show 1 year (52 weeks)', weeks: 52 },
+  {
+    value: 'all',
+    label: 'All',
+    ariaLabel: 'Whole project',
+    title: 'Show the whole project (start date to end date)',
+    weeks: null,
+  },
+];
+
+/** 6M (26 weeks): the closest to the charts' long-standing fixed 24-week window */
+export const DEFAULT_CHART_RANGE: ChartRange = '6M';
+/** Narrowest window an "All" fit is padded out to, so short projects aren't stretched */
+export const MIN_WHOLE_PROJECT_WEEKS = 13;
 
 export interface ChartWindow {
   weeks: number;
@@ -90,54 +103,27 @@ export function getWholeProjectWindow({
   return { weeks, offsetWeeks: firstOffset - endOffsetFromFirst };
 }
 
-/** The window actually drawn for a zoom setting */
+/**
+ * The window actually drawn for a range. All without anything to fit (no dates, no data)
+ * falls back to the default range.
+ */
 export function getChartWindow(
-  zoom: ChartZoom,
+  range: ChartRange,
   offsetWeeks: number,
   wholeProject: ChartWindow | null
 ): ChartWindow {
-  if (zoom.wholeProject && wholeProject) return wholeProject;
-  return { weeks: CHART_ZOOM_STEPS[zoom.stepIndex], offsetWeeks };
-}
-
-export function canZoomIn(zoom: ChartZoom, wholeProject: ChartWindow | null): boolean {
-  return (zoom.wholeProject && !!wholeProject) || zoom.stepIndex > 0;
-}
-
-export function canZoomOut(zoom: ChartZoom, wholeProject: ChartWindow | null): boolean {
-  if (zoom.wholeProject) return false;
-  return zoom.stepIndex < CHART_ZOOM_STEPS.length - 1 || !!wholeProject;
-}
-
-/** One step wider; past the widest step is "Whole project" (when there's a project to fit) */
-export function zoomOut(zoom: ChartZoom, wholeProject: ChartWindow | null): ChartZoom {
-  if (!canZoomOut(zoom, wholeProject)) return zoom;
-  if (zoom.stepIndex < CHART_ZOOM_STEPS.length - 1) {
-    return { ...zoom, stepIndex: zoom.stepIndex + 1 };
-  }
-  return { ...zoom, wholeProject: true };
-}
-
-/**
- * One step narrower. From "Whole project" it returns to the step it came from, but never
- * to one at least as wide as the project itself, which would look like zooming out.
- */
-export function zoomIn(zoom: ChartZoom, wholeProject: ChartWindow | null): ChartZoom {
-  if (!canZoomIn(zoom, wholeProject)) return zoom;
-  if (zoom.wholeProject && wholeProject) {
-    let stepIndex = zoom.stepIndex;
-    while (stepIndex > 0 && CHART_ZOOM_STEPS[stepIndex] >= wholeProject.weeks) stepIndex--;
-    return { stepIndex, wholeProject: false };
-  }
-  return { ...zoom, stepIndex: zoom.stepIndex - 1 };
+  if (range === 'all' && wholeProject) return wholeProject;
+  const option = CHART_RANGES.find((r) => r.value === range && r.weeks !== null);
+  const weeks = option?.weeks ?? CHART_RANGES.find((r) => r.value === DEFAULT_CHART_RANGE)!.weeks!;
+  return { weeks, offsetWeeks };
 }
 
 /**
  * Weeks moved per arrow press (and per tick while held). One week up to the default
- * 24-week window, as before; wider windows move about 1/13 of the window (52 → 4, 104 → 8).
+ * 6-month window, as before; wider windows move about 1/13 of the window (1Y → 4).
  */
 export function getNavStep(weeks: number): number {
-  return weeks <= 24 ? 1 : Math.round(weeks / 13);
+  return weeks <= 26 ? 1 : Math.round(weeks / 13);
 }
 
 /**
@@ -169,12 +155,7 @@ export function getMonthLabels(weekDates: Date[], monthStep: number): (string | 
 
 /** Point markers on the Spend vs Budget line: full size, small, or only on hover/this week */
 export function getPointMarkerSize(weeks: number): 'normal' | 'small' | 'none' {
-  if (weeks <= 24) return 'normal';
+  if (weeks <= 26) return 'normal';
   if (weeks <= 52) return 'small';
   return 'none';
-}
-
-/** Weeks currently shown, e.g. "24 wks" (or the project's length in whole-project mode) */
-export function describeZoom(zoom: ChartZoom, wholeProject: ChartWindow | null): string {
-  return `${getChartWindow(zoom, 0, wholeProject).weeks} wks`;
 }

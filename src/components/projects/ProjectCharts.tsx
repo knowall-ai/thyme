@@ -2,22 +2,17 @@
 
 import { useState, useMemo, useRef, useCallback, useEffect, type ReactNode } from 'react';
 import {
-  ArrowsPointingOutIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   EyeIcon,
   EyeSlashIcon,
-  MagnifyingGlassMinusIcon,
-  MagnifyingGlassPlusIcon,
 } from '@heroicons/react/24/outline';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { Card } from '@/components/ui';
 import { cn, formatCurrencyShort, getCurrencySymbol } from '@/utils';
 import {
-  DEFAULT_CHART_ZOOM,
-  canZoomIn,
-  canZoomOut,
-  describeZoom,
+  CHART_RANGES,
+  DEFAULT_CHART_RANGE,
   getChartWindow,
   getMonthLabelStep,
   getMonthLabels,
@@ -27,9 +22,7 @@ import {
   getWholeProjectWindow,
   isoWeekToDate,
   weeksBetween,
-  zoomIn,
-  zoomOut,
-  type ChartZoom,
+  type ChartRange,
 } from '@/utils/chartZoom';
 
 // Interval for auto-repeat when holding navigation buttons (ms)
@@ -160,8 +153,9 @@ export function ProjectCharts() {
     }
     return furthest;
   }, [weeklyData, projectEndDate]);
-  // X-axis zoom, shared by both chart views so it stays put when switching view or unit
-  const [zoom, setZoom] = useState<ChartZoom>(DEFAULT_CHART_ZOOM);
+  // X-axis range (3M / 6M / 1Y / All), shared by both chart views so it stays put when
+  // switching view or unit
+  const [range, setRange] = useState<ChartRange>(DEFAULT_CHART_RANGE);
   // The window that fits the whole project (null when it has no dates and no data)
   const wholeProjectWindow = useMemo(() => {
     const firstDataWeek = weeklyData.length ? isoWeekToDate(weeklyData[0].week) : null;
@@ -176,8 +170,8 @@ export function ProjectCharts() {
       currentWeekStart: getWeekStart(new Date()),
     });
   }, [weeklyData, projectStartDate, projectEndDate]);
-  const isWholeProject = zoom.wholeProject && !!wholeProjectWindow;
-  const chartWindow = getChartWindow(zoom, offsetWeeks, wholeProjectWindow);
+  const isWholeProject = range === 'all' && !!wholeProjectWindow;
+  const chartWindow = getChartWindow(range, offsetWeeks, wholeProjectWindow);
   // Wider windows scroll further per press, so the whole range is reachable quickly
   const navStep = getNavStep(chartWindow.weeks);
 
@@ -244,7 +238,7 @@ export function ProjectCharts() {
     );
   }
 
-  // The arrows have nothing to scroll in whole-project mode: it already shows everything
+  // Navigation has nothing to do on All: it already shows the whole project
   const canGoBack = weeklyData.length > 0 && !isWholeProject;
   const canGoForward = offsetWeeks > -maxForwardWeeks && !isWholeProject;
   const navStepLabel = navStep === 1 ? 'week' : `${navStep} weeks`;
@@ -256,15 +250,6 @@ export function ProjectCharts() {
       direction === 1 ? o + navStep : Math.max(-maxForwardWeeks, o - navStep)
     );
   };
-  const canZoomInNow = canZoomIn(zoom, wholeProjectWindow);
-  const canZoomOutNow = canZoomOut(zoom, wholeProjectWindow);
-  const zoomButtonClass = (enabled: boolean) =>
-    cn(
-      'p-1.5 transition-colors select-none',
-      enabled
-        ? 'bg-dark-600 hover:bg-dark-500 text-gray-300 hover:text-white'
-        : 'bg-dark-700 cursor-not-allowed text-gray-600'
-    );
 
   return (
     <Card variant="bordered" className="p-6">
@@ -330,61 +315,42 @@ export function ProjectCharts() {
             })}
           </div>
         </div>
-        {/* Zoom and navigation - hidden in print */}
+        {/* Time range and navigation - hidden in print */}
         <div className="flex items-center gap-3 print:hidden">
-          {/* X-axis zoom: weeks shown, up to the whole project; the y-axis is unaffected */}
-          <div className="flex items-center gap-1" role="group" aria-label="Chart zoom">
-            <div className="border-dark-600 flex items-center overflow-hidden rounded-lg border">
-              <button
-                type="button"
-                onClick={() => setZoom((z) => zoomOut(z, wholeProjectWindow))}
-                disabled={!canZoomOutNow}
-                className={zoomButtonClass(canZoomOutNow)}
-                aria-label="Zoom out"
-                title="Zoom out (show more weeks)"
-              >
-                <MagnifyingGlassMinusIcon className="h-4 w-4" aria-hidden="true" />
-              </button>
-              <span
-                className="bg-dark-700 min-w-[4.5rem] px-2 text-center text-xs text-gray-400 tabular-nums"
-                aria-live="polite"
-              >
-                {describeZoom(zoom, wholeProjectWindow)}
-              </span>
-              <button
-                type="button"
-                onClick={() => setZoom((z) => zoomIn(z, wholeProjectWindow))}
-                disabled={!canZoomInNow}
-                className={zoomButtonClass(canZoomInNow)}
-                aria-label="Zoom in"
-                title="Zoom in (show fewer weeks)"
-              >
-                <MagnifyingGlassPlusIcon className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={() => setZoom((z) => ({ ...z, wholeProject: !z.wholeProject }))}
-              disabled={!wholeProjectWindow}
-              aria-pressed={isWholeProject}
-              className={cn(
-                'flex items-center gap-1.5 rounded-lg px-3 py-1 text-sm font-medium transition-colors',
-                !wholeProjectWindow
-                  ? 'bg-dark-700 cursor-not-allowed text-gray-600'
-                  : isWholeProject
-                    ? 'bg-thyme-600 text-white'
-                    : 'bg-dark-600 hover:bg-dark-500 text-gray-300 hover:text-white'
-              )}
-              aria-label="Show whole project"
-              title={
-                wholeProjectWindow
-                  ? 'Show whole project (start date to end date)'
-                  : 'No project dates or hours to fit'
-              }
-            >
-              <ArrowsPointingOutIcon className="h-4 w-4" aria-hidden="true" />
-              Whole project
-            </button>
+          {/* X-axis range, styled like the unit toggle; the y-axis is unaffected */}
+          <div
+            className="border-dark-600 flex overflow-hidden rounded-lg border"
+            role="group"
+            aria-label="Chart time range"
+          >
+            {CHART_RANGES.map((r) => {
+              const selected =
+                (isWholeProject ? 'all' : range === 'all' ? DEFAULT_CHART_RANGE : range) ===
+                r.value;
+              // All needs project dates or hours to fit
+              const unavailable = r.value === 'all' && !wholeProjectWindow;
+              return (
+                <button
+                  key={r.value}
+                  type="button"
+                  onClick={() => setRange(r.value)}
+                  disabled={unavailable}
+                  aria-pressed={selected}
+                  aria-label={r.ariaLabel}
+                  title={unavailable ? 'No project dates or hours to fit' : r.title}
+                  className={cn(
+                    'px-3 py-2 text-sm font-medium transition-colors',
+                    unavailable
+                      ? 'bg-dark-700 cursor-not-allowed text-gray-600'
+                      : selected
+                        ? 'bg-dark-500 text-white'
+                        : 'bg-dark-700 text-gray-400 hover:text-white'
+                  )}
+                >
+                  {r.label}
+                </button>
+              );
+            })}
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -406,18 +372,16 @@ export function ProjectCharts() {
             >
               <ChevronLeftIcon className="h-4 w-4" />
             </button>
-            {/* Back to the current week (leaving whole-project mode for the previous zoom) */}
             <button
-              onClick={() => {
-                setOffsetWeeks(0);
-                setZoom((z) => ({ ...z, wholeProject: false }));
-              }}
-              disabled={offsetWeeks === 0 && !isWholeProject}
+              onClick={() => setOffsetWeeks(0)}
+              disabled={offsetWeeks === 0 || isWholeProject}
               className={cn(
                 'rounded-lg px-3 py-1 text-sm font-medium transition-colors',
-                offsetWeeks === 0 && !isWholeProject
-                  ? 'bg-thyme-600 text-white'
-                  : 'bg-dark-600 hover:bg-dark-500 text-gray-300 hover:text-white'
+                isWholeProject
+                  ? 'bg-dark-700 cursor-not-allowed text-gray-600'
+                  : offsetWeeks === 0
+                    ? 'bg-thyme-600 text-white'
+                    : 'bg-dark-600 hover:bg-dark-500 text-gray-300 hover:text-white'
               )}
             >
               This Week
@@ -630,7 +594,7 @@ function generateWeeklyDisplayData(
     });
   }
 
-  // Month labels, thinned out at wide zooms so they don't overlap
+  // Month labels, thinned out at wide ranges so they don't overlap
   const labels = getMonthLabels(
     weeks.map((w) => w.date),
     getMonthLabelStep(weeksToShow)
@@ -746,7 +710,7 @@ function WeeklyBarChart({
                   <div
                     className={cn(
                       'flex h-full w-full items-end justify-center',
-                      // Narrow columns at wide zooms: drop the padding so the bars stay visible
+                      // Narrow columns at wide ranges: drop the padding so the bars stay visible
                       weeksToShow > 52 ? 'gap-px' : 'gap-0.5 px-0.5'
                     )}
                   >
@@ -960,7 +924,7 @@ function generateProgressDisplayData(
     });
   }
 
-  // Month labels, thinned out at wide zooms so they don't overlap
+  // Month labels, thinned out at wide ranges so they don't overlap
   const labels = getMonthLabels(
     weeks.map((w) => w.date),
     getMonthLabelStep(weeksToShow)
@@ -1335,7 +1299,7 @@ function ProgressLineChart({
             </span>
           )}
 
-          {/* Points - separate layer to avoid stretching; smaller (or hover-only) when zoomed out */}
+          {/* Points - separate layer to avoid stretching; smaller (or hover-only) at wide ranges */}
           <div className="pointer-events-none absolute inset-0">
             {displayDataWithCost.map((point, i) => {
               const isHovered = hoveredIndex === i;
@@ -1365,7 +1329,7 @@ function ProgressLineChart({
             })}
           </div>
 
-          {/* Hover targets - one full-height column per week, so tooltips work at any zoom */}
+          {/* Hover targets - one full-height column per week, so tooltips work at any range */}
           <div className="absolute inset-0 flex" onMouseLeave={() => setHoveredIndex(null)}>
             {displayDataWithCost.map((point, i) => (
               <div
