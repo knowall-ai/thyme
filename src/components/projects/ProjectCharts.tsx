@@ -324,7 +324,7 @@ export function ProjectCharts() {
           </div>
         </div>
         {/* Time range and navigation - hidden in print */}
-        <div className="flex items-center gap-3 print:hidden">
+        <div className="flex flex-wrap items-center gap-3 print:hidden">
           {/* X-axis range, styled like the unit toggle; the y-axis is unaffected */}
           <div
             className="border-dark-600 flex overflow-hidden rounded-lg border"
