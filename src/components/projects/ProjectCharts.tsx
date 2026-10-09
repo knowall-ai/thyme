@@ -14,6 +14,7 @@ import {
   CHART_RANGES,
   DEFAULT_CHART_RANGE,
   getChartWindow,
+  getMaxMonthLabels,
   getMonthLabelStep,
   getMaxBackOffset,
   getMonthLabels,
@@ -261,7 +262,7 @@ export function ProjectCharts() {
   return (
     <Card variant="bordered" className="p-6">
       {/* Header with toggle and navigation - hidden in print */}
-      <div className="mb-6 flex items-center justify-between print:hidden">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
         {/* Chart view toggle - screen only; print shows both charts with their own titles */}
         <div className="flex gap-2 print:hidden">
           <button
@@ -462,6 +463,28 @@ export function ProjectCharts() {
   );
 }
 
+/**
+ * Month labels for the x-axis, thinned so they fit the axis's measured width (and at most
+ * ~13 whatever the range). Attach `axisRef` to the x-axis row.
+ */
+function useMonthLabels(dates: Date[], weeks: number) {
+  // A callback ref, so measuring starts whenever the axis appears (e.g. after unmasking)
+  const [axis, axisRef] = useState<HTMLDivElement | null>(null);
+  const [axisWidth, setAxisWidth] = useState<number | null>(null);
+  useEffect(() => {
+    if (!axis || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(([entry]) => setAxisWidth(entry.contentRect.width));
+    observer.observe(axis);
+    return () => observer.disconnect();
+  }, [axis]);
+  const maxLabels = getMaxMonthLabels(axisWidth);
+  const labels = useMemo(
+    () => getMonthLabels(dates, getMonthLabelStep(weeks, maxLabels)),
+    [dates, weeks, maxLabels]
+  );
+  return { axisRef, labels };
+}
+
 interface WeeklyDataPoint {
   week: string;
   hours: number;
@@ -481,7 +504,6 @@ interface WeekDisplayData {
   plannedHours: number; // Budgeted hours from Job Planning Lines
   date: Date;
   isCurrentWeek: boolean;
-  monthLabel?: string; // Only set for the first week of each labelled month
 }
 
 /**
@@ -601,12 +623,6 @@ function generateWeeklyDisplayData(
     });
   }
 
-  // Month labels, thinned out at wide ranges so they don't overlap
-  const labels = getMonthLabels(
-    weeks.map((w) => w.date),
-    getMonthLabelStep(weeksToShow)
-  );
-  weeks.forEach((w, i) => (w.monthLabel = labels[i]));
   return weeks;
 }
 
@@ -635,6 +651,8 @@ function WeeklyBarChart({
     () => generateWeeklyDisplayData(data, weeksToShow, offsetWeeks),
     [data, weeksToShow, offsetWeeks]
   );
+  const weekDates = useMemo(() => displayData.map((d) => d.date), [displayData]);
+  const { axisRef, labels: monthLabels } = useMonthLabels(weekDates, weeksToShow);
 
   const legendTotals = useMemo(
     () =>
@@ -835,11 +853,14 @@ function WeeklyBarChart({
       </div>
 
       {/* X-axis with month labels */}
-      <div className="mt-2 ml-10 flex">
-        {displayData.map((point) => (
-          <div key={point.week} className="flex-1 text-center">
-            {point.monthLabel && (
-              <span className="text-xs whitespace-nowrap text-gray-500">{point.monthLabel}</span>
+      <div ref={axisRef} className="mt-2 ml-10 flex">
+        {displayData.map((point, i) => (
+          <div key={point.week} className="relative h-4 min-w-0 flex-1">
+            {monthLabels[i] && (
+              // Centred on its week; equal-width columns, so labels can't push the weeks apart
+              <span className="absolute left-1/2 -translate-x-1/2 text-xs whitespace-nowrap text-gray-500">
+                {monthLabels[i]}
+              </span>
             )}
           </div>
         ))}
@@ -873,7 +894,6 @@ interface ProgressDisplayData {
   cumulative: number;
   date: Date;
   isCurrentWeek: boolean;
-  monthLabel?: string;
 }
 
 /**
@@ -931,12 +951,6 @@ function generateProgressDisplayData(
     });
   }
 
-  // Month labels, thinned out at wide ranges so they don't overlap
-  const labels = getMonthLabels(
-    weeks.map((w) => w.date),
-    getMonthLabelStep(weeksToShow)
-  );
-  weeks.forEach((w, i) => (w.monthLabel = labels[i]));
   return weeks;
 }
 
@@ -999,6 +1013,8 @@ function ProgressLineChart({
     () => generateProgressDisplayData(data, weeksToShow, offsetWeeks),
     [data, weeksToShow, offsetWeeks]
   );
+  const weekDates = useMemo(() => displayData.map((d) => d.date), [displayData]);
+  const { axisRef, labels: monthLabels } = useMonthLabels(weekDates, weeksToShow);
 
   // The budget is the quoted estimate (Billable Resource lines), not the Plan's Budget lines.
   // Falls back to the Plan's hours for projects without an estimate (e.g. internal work).
@@ -1415,11 +1431,14 @@ function ProgressLineChart({
       </div>
 
       {/* X-axis with month labels */}
-      <div className="mt-2 ml-12 flex">
-        {displayDataWithCost.map((point) => (
-          <div key={point.week} className="flex-1 text-center">
-            {point.monthLabel && (
-              <span className="text-xs whitespace-nowrap text-gray-500">{point.monthLabel}</span>
+      <div ref={axisRef} className="mt-2 ml-12 flex">
+        {displayDataWithCost.map((point, i) => (
+          <div key={point.week} className="relative h-4 min-w-0 flex-1">
+            {monthLabels[i] && (
+              // Centred on its week; equal-width columns, so labels can't push the weeks apart
+              <span className="absolute left-1/2 -translate-x-1/2 text-xs whitespace-nowrap text-gray-500">
+                {monthLabels[i]}
+              </span>
             )}
           </div>
         ))}

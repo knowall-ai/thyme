@@ -6,6 +6,7 @@ import {
   getChartWindow,
   getMonthLabelStep,
   getMaxBackOffset,
+  getMaxMonthLabels,
   getMonthLabels,
   getNavStep,
   getPointMarkerSize,
@@ -173,11 +174,21 @@ describe('getNavStep', () => {
 
 describe('month labels', () => {
   it('labels every month up to a year, then thins them out', () => {
-    expect([8, 24, 52, 56].map(getMonthLabelStep)).toEqual([1, 1, 1, 1]);
+    expect([8, 24, 52, 56].map((weeks) => getMonthLabelStep(weeks))).toEqual([1, 1, 1, 1]);
     expect(getMonthLabelStep(104)).toBe(2);
     expect(getMonthLabelStep(156)).toBe(3);
     expect(getMonthLabelStep(300)).toBe(6);
     expect(getMonthLabelStep(1000)).toBe(12);
+  });
+
+  it('fits fewer labels on a narrow axis', () => {
+    expect(getMaxMonthLabels(null)).toBe(13);
+    expect(getMaxMonthLabels(1100)).toBe(13);
+    expect(getMaxMonthLabels(560)).toBe(7);
+    expect(getMaxMonthLabels(50)).toBe(2);
+    // A year on a ~560px axis: every 2nd month rather than 12 overlapping labels
+    expect(getMonthLabelStep(52, getMaxMonthLabels(560))).toBe(2);
+    expect(getMonthLabelStep(13, getMaxMonthLabels(560))).toBe(1);
   });
 
   it('never gives more than ~13 labels', () => {

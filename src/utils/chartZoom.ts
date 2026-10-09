@@ -137,13 +137,22 @@ export function getNavStep(weeks: number): number {
   return weeks <= 26 ? 1 : Math.round(weeks / 13);
 }
 
+/** Room each month label needs on the x-axis ("Sep 2026" plus a gap), in pixels */
+export const MONTH_LABEL_SPACING_PX = 72;
+
+/** Most month labels that fit an x-axis this wide (13 if the width isn't known yet) */
+export function getMaxMonthLabels(axisWidthPx: number | null): number {
+  if (!axisWidthPx) return 13;
+  return Math.max(2, Math.min(13, Math.floor(axisWidthPx / MONTH_LABEL_SPACING_PX)));
+}
+
 /**
- * Months between x-axis labels, so there are at most ~13 labels whatever the zoom:
- * every month up to a year, then every 2nd, 3rd (quarters), 6th or 12th month.
+ * Months between x-axis labels, so no more than `maxLabels` fit the window: every month
+ * if they fit, otherwise every 2nd, 3rd (quarters), 6th or 12th month.
  */
-export function getMonthLabelStep(weeks: number): number {
+export function getMonthLabelStep(weeks: number, maxLabels = 13): number {
   const months = (weeks * 12) / 52;
-  return [1, 2, 3, 6].find((step) => months / step <= 13) ?? 12;
+  return [1, 2, 3, 6].find((step) => months / step <= maxLabels) ?? 12;
 }
 
 /**
