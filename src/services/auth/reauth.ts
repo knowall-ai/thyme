@@ -61,30 +61,56 @@ export function canAutoRedirect(now = Date.now()): boolean {
   }
 }
 
-// The one sign-in redirect in progress, shared by every caller that hits an expired sign-in
-let redirectPromise: Promise<void> | null = null;
+// The one sign-in in progress, shared by every caller that hits an expired sign-in
+let pending: Promise<void> | null = null;
+let backstop: ReturnType<typeof setTimeout> | null = null;
 
-function startRedirect(): Promise<void> {
-  if (redirectPromise) return redirectPromise;
+/** If a redirect hasn't navigated away by now, it isn't going to: let the user retry */
+export const REDIRECT_BACKSTOP_MS = 20_000;
+
+function fallBackToManual(attempt: Promise<void>): void {
+  // Ignore a stale attempt that has already been replaced
+  if (pending !== attempt) return;
+  pending = null;
+  if (backstop) clearTimeout(backstop);
+  backstop = null;
+  setStatus('manual');
+}
+
+function startSignIn(): Promise<void> {
+  if (pending) return pending;
   setStatus('redirecting');
   recordRedirect();
-  const account = msalInstance.getActiveAccount() ?? undefined;
-  redirectPromise = msalInstance
-    .acquireTokenRedirect({
-      scopes: loginRequest.scopes,
-      account,
-      // Come back to the exact page (company path, query and hash) after signing in
-      redirectStartPage: window.location.href,
-    })
-    .catch((error: unknown) => {
-      const code = (error as { errorCode?: unknown } | null)?.errorCode;
-      // Another redirect (e.g. the sign-in button) is already under way
-      if (code === 'interaction_in_progress') return;
-      console.warn('Could not start sign-in redirect', error);
-      redirectPromise = null;
-      setStatus('manual');
-    });
-  return redirectPromise;
+  const request = {
+    scopes: loginRequest.scopes,
+    account: msalInstance.getActiveAccount() ?? undefined,
+  };
+  const embedded = isEmbeddedWindow();
+  const attempt = embedded
+    ? // Redirects are blocked in iframes (and would replace a popup's page): use a popup,
+      // then reload so every page refetches with the new tokens
+      msalInstance.acquireTokenPopup(request).then(() => {
+        setStatus('idle');
+        window.location.reload();
+      })
+    : msalInstance
+        .acquireTokenRedirect({
+          ...request,
+          // Come back to the exact page (company path, query and hash) after signing in
+          redirectStartPage: window.location.href,
+        })
+        .then(() => undefined);
+  const tracked: Promise<void> = attempt.catch((error: unknown) => {
+    // Includes interaction_in_progress (another sign-in already running): show the
+    // prompt again so the user can retry rather than leaving the button stuck
+    console.warn('Could not start sign-in', error);
+    fallBackToManual(tracked);
+  });
+  pending = tracked;
+  if (!embedded) {
+    backstop = setTimeout(() => fallBackToManual(tracked), REDIRECT_BACKSTOP_MS);
+  }
+  return tracked;
 }
 
 /**
@@ -93,22 +119,27 @@ function startRedirect(): Promise<void> {
  * we're in a popup/iframe, in which case the UI shows a "Sign in again" prompt.
  */
 export function requestReauth(): Promise<void> {
-  if (redirectPromise) return redirectPromise;
+  if (pending) return pending;
   if (useReauthStore.getState().status === 'manual') return Promise.resolve();
   if (!canAutoRedirect()) {
     setStatus('manual');
     return Promise.resolve();
   }
-  return startRedirect();
+  return startSignIn();
 }
 
-/** User-initiated "Sign in again": always redirects (still single-flight). */
+/**
+ * User-initiated "Sign in again": always starts a sign-in (still single-flight):
+ * a redirect normally, or a popup when Thyme is in an iframe or popup.
+ */
 export function signInAgain(): Promise<void> {
-  return startRedirect();
+  return startSignIn();
 }
 
 /** Test helper: forget any in-flight redirect and return to `idle`. */
 export function resetReauthState(): void {
-  redirectPromise = null;
+  pending = null;
+  if (backstop) clearTimeout(backstop);
+  backstop = null;
   setStatus('idle');
 }

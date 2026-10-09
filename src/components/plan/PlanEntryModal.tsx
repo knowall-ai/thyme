@@ -73,7 +73,8 @@ export function PlanEntryModal({
   // Check if BC extension is installed
   useEffect(() => {
     if (isOpen) {
-      bcClient.isExtensionInstalled().then(setExtensionInstalled);
+      // An expired sign-in rejects here; the sign-in prompt handles it
+      bcClient.isExtensionInstalled().then(setExtensionInstalled, () => {});
     }
   }, [isOpen]);
 

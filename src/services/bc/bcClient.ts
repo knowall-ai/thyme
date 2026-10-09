@@ -352,8 +352,10 @@ class BusinessCentralClient {
       this._extensionInstalled = response.ok;
       return this._extensionInstalled;
     } catch (error) {
-      // An expired sign-in says nothing about the extension: check again once signed in
-      if (!isReauthRequiredError(error)) this._extensionInstalled = false;
+      // An expired sign-in says nothing about the extension: don't cache an answer,
+      // and let callers see the sign-in failure rather than "not installed"
+      if (isReauthRequiredError(error)) throw error;
+      this._extensionInstalled = false;
       return false;
     }
   }

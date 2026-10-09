@@ -67,4 +67,10 @@ describe('bcClient.getAllCompanies', () => {
 
     await expect(bcClient.getAllCompanies()).rejects.toBeInstanceOf(ReauthRequiredError);
   });
+
+  it('reports an expired sign-in from the extension check instead of "not installed"', async () => {
+    vi.mocked(getBCAccessToken).mockRejectedValueOnce(new ReauthRequiredError());
+
+    await expect(bcClient.isExtensionInstalled()).rejects.toBeInstanceOf(ReauthRequiredError);
+  });
 });

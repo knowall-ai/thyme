@@ -6,6 +6,7 @@ const { msalMock } = vi.hoisted(() => ({
     getActiveAccount: vi.fn(),
     acquireTokenSilent: vi.fn(),
     acquireTokenRedirect: vi.fn(),
+    acquireTokenPopup: vi.fn(),
   },
 }));
 
@@ -17,6 +18,7 @@ vi.mock('@/services/auth/msalInstance', () => ({
 import {
   AUTO_REDIRECT_COOLDOWN_MS,
   AUTO_REDIRECT_KEY,
+  REDIRECT_BACKSTOP_MS,
   ReauthRequiredError,
   canAutoRedirect,
   isInteractionRequiredError,
@@ -211,5 +213,41 @@ describe('loop guard', () => {
     await requestReauth();
 
     expect(useReauthStore.getState().status).toBe('manual');
+  });
+
+  it('lets the user retry when another sign-in is already in progress', async () => {
+    msalMock.acquireTokenRedirect.mockRejectedValueOnce(new AuthError('interaction_in_progress'));
+
+    await requestReauth();
+    expect(useReauthStore.getState().status).toBe('manual');
+
+    void signInAgain();
+    expect(msalMock.acquireTokenRedirect).toHaveBeenCalledTimes(2);
+    expect(useReauthStore.getState().status).toBe('redirecting');
+  });
+
+  it('shows the prompt again if a redirect never navigates away', () => {
+    vi.useFakeTimers();
+    void requestReauth();
+    expect(useReauthStore.getState().status).toBe('redirecting');
+
+    vi.advanceTimersByTime(REDIRECT_BACKSTOP_MS);
+
+    expect(useReauthStore.getState().status).toBe('manual');
+    void signInAgain();
+    expect(msalMock.acquireTokenRedirect).toHaveBeenCalledTimes(2);
+  });
+
+  it('signs in with a popup instead of a redirect from a popup or iframe', () => {
+    Object.defineProperty(window, 'opener', { value: {}, configurable: true, writable: true });
+    msalMock.acquireTokenPopup.mockReturnValue(new Promise(() => {}));
+
+    void signInAgain();
+
+    expect(msalMock.acquireTokenPopup).toHaveBeenCalledWith({
+      scopes: loginRequest.scopes,
+      account,
+    });
+    expect(msalMock.acquireTokenRedirect).not.toHaveBeenCalled();
   });
 });
