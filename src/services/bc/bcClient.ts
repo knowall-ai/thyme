@@ -351,8 +351,9 @@ class BusinessCentralClient {
       // If we get a 200, the extension is installed
       this._extensionInstalled = response.ok;
       return this._extensionInstalled;
-    } catch {
-      this._extensionInstalled = false;
+    } catch (error) {
+      // An expired sign-in says nothing about the extension: check again once signed in
+      if (!isReauthRequiredError(error)) this._extensionInstalled = false;
       return false;
     }
   }
