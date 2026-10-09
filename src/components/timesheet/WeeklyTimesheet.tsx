@@ -28,7 +28,16 @@ import { TimeEntryCell } from './TimeEntryCell';
 import { TimeEntryModal } from './TimeEntryModal';
 import { PoppieSuggestionsPanel } from './PoppieSuggestionsPanel';
 import type { TimeEntry, TimesheetDisplayStatus } from '@/types';
-import { getWeekDays, formatDate, isDayToday, formatTime, getWeekStart } from '@/utils';
+import {
+  getWeekDays,
+  formatDate,
+  isDayToday,
+  formatTime,
+  getWeekStart,
+  getBillableSplit,
+  formatBillablePercent,
+  describeBillableSplit,
+} from '@/utils';
 import { getBCResourcesListUrl } from '@/utils/bcUrls';
 import { RESOURCE_PARAM } from '@/utils/teammateParam';
 import { getRandomQuote } from '@/config/quotes';
@@ -344,6 +353,8 @@ export function WeeklyTimesheet() {
   };
 
   const totalHours = getTotalHours();
+  // The week's billable share, by the same rule as Team and Reports (see billable.ts)
+  const weekBillable = useMemo(() => getBillableSplit(entries), [entries]);
 
   // No resource record exists state
   if (noResourceExists && !isViewingTeammate) {
@@ -678,6 +689,13 @@ Thank you!`)}`}
         <div className="flex items-center gap-6">
           <div className="text-dark-400 text-sm">
             Week total: <span className="font-semibold text-white">{formatTime(totalHours)}</span>
+            {weekBillable.totalHours > 0 && (
+              <span className="whitespace-nowrap" title={describeBillableSplit(weekBillable)}>
+                {' '}
+                · <span className="text-dark-300">{formatBillablePercent(weekBillable)}</span>{' '}
+                billable
+              </span>
+            )}
           </div>
           {entries.length > 0 && (
             <div className="text-dark-400 text-sm">

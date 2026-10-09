@@ -13,6 +13,7 @@
  */
 
 import type { BCTimeSheetDetail, BCTimeSheetLine } from '@/types';
+import { formatTime } from './dateUtils';
 
 /** User-facing explanation of the rule, shown wherever billable figures appear */
 export const BILLABLE_RULE_DESCRIPTION =
@@ -142,4 +143,46 @@ export function withoutAbsenceLines<T extends { jobTaskNo: string }>(
 ): T[] {
   if (isInternal || absenceTaskNos.size === 0) return lines;
   return lines.filter((line) => !absenceTaskNos.has(line.jobTaskNo));
+}
+
+/** Total and billable hours for a set of time entries, e.g. one day or a week */
+export interface BillableSplit {
+  totalHours: number;
+  billableHours: number;
+  /** Billable hours as a percentage of all hours (0 with no hours) */
+  billablePercent: number;
+}
+
+/**
+ * Billable split of time entries: each entry's `isBillable` is already decided by
+ * isBillableEntry when it's loaded from BC, the same rule as Team and Reports.
+ * Pass `date` (YYYY-MM-DD) to count only that day's entries.
+ */
+export function getBillableSplit(
+  entries: readonly { date: string; hours: number; isBillable: boolean }[],
+  date?: string
+): BillableSplit {
+  let totalHours = 0;
+  let billableHours = 0;
+  for (const entry of entries) {
+    if (date !== undefined && entry.date !== date) continue;
+    if (!(entry.hours > 0)) continue;
+    totalHours += entry.hours;
+    if (entry.isBillable) billableHours += entry.hours;
+  }
+  return {
+    totalHours,
+    billableHours,
+    billablePercent: totalHours > 0 ? (billableHours / totalHours) * 100 : 0,
+  };
+}
+
+/** A billable % rounded to a whole number, e.g. "32%" */
+export function formatBillablePercent(split: Pick<BillableSplit, 'billablePercent'>): string {
+  return `${Math.round(split.billablePercent)}%`;
+}
+
+/** A billable split in words for tooltips, e.g. "32% billable (6h of 19h)" */
+export function describeBillableSplit(split: BillableSplit): string {
+  return `${formatBillablePercent(split)} billable (${formatTime(split.billableHours)} of ${formatTime(split.totalHours)})`;
 }
