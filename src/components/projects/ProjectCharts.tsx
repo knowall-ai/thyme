@@ -2,14 +2,35 @@
 
 import { useState, useMemo, useRef, useCallback, useEffect, type ReactNode } from 'react';
 import {
+  ArrowsPointingOutIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   EyeIcon,
   EyeSlashIcon,
+  MagnifyingGlassMinusIcon,
+  MagnifyingGlassPlusIcon,
 } from '@heroicons/react/24/outline';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
 import { Card } from '@/components/ui';
 import { cn, formatCurrencyShort, getCurrencySymbol } from '@/utils';
+import {
+  DEFAULT_CHART_ZOOM,
+  canZoomIn,
+  canZoomOut,
+  describeZoom,
+  getChartWindow,
+  getMonthLabelStep,
+  getMonthLabels,
+  getNavStep,
+  getPointMarkerSize,
+  getWeekStart,
+  getWholeProjectWindow,
+  isoWeekToDate,
+  weeksBetween,
+  zoomIn,
+  zoomOut,
+  type ChartZoom,
+} from '@/utils/chartZoom';
 
 // Interval for auto-repeat when holding navigation buttons (ms)
 const HOLD_INITIAL_DELAY = 400; // Delay before repeat starts
@@ -33,8 +54,6 @@ const SPEND_UNITS: { value: SpendUnit; label: string; title: string }[] = [
   },
   { value: 'cost', label: '£', title: 'Time at selling rates against the quoted Billable Price' }, // label replaced by the project currency symbol
 ];
-
-const WEEKS_TO_SHOW = 24;
 
 // Vertical dashed line marking today's date on a chart
 function TodayMarker({ leftPercent }: { leftPercent: number }) {
@@ -141,11 +160,34 @@ export function ProjectCharts() {
     }
     return furthest;
   }, [weeklyData, projectEndDate]);
+  // X-axis zoom, shared by both chart views so it stays put when switching view or unit
+  const [zoom, setZoom] = useState<ChartZoom>(DEFAULT_CHART_ZOOM);
+  // The window that fits the whole project (null when it has no dates and no data)
+  const wholeProjectWindow = useMemo(() => {
+    const firstDataWeek = weeklyData.length ? isoWeekToDate(weeklyData[0].week) : null;
+    const lastDataWeek = weeklyData.length
+      ? isoWeekToDate(weeklyData[weeklyData.length - 1].week)
+      : null;
+    return getWholeProjectWindow({
+      startDate: parseLocalDate(projectStartDate),
+      endDate: parseLocalDate(projectEndDate),
+      firstDataWeek,
+      lastDataWeek,
+      currentWeekStart: getWeekStart(new Date()),
+    });
+  }, [weeklyData, projectStartDate, projectEndDate]);
+  const isWholeProject = zoom.wholeProject && !!wholeProjectWindow;
+  const chartWindow = getChartWindow(zoom, offsetWeeks, wholeProjectWindow);
+  // Wider windows scroll further per press, so the whole range is reachable quickly
+  const navStep = getNavStep(chartWindow.weeks);
+
   // Read by the hold-to-repeat timers, which outlive a single render
   const minOffsetRef = useRef(0);
+  const navStepRef = useRef(navStep);
   useEffect(() => {
     minOffsetRef.current = -maxForwardWeeks;
-  }, [maxForwardWeeks]);
+    navStepRef.current = navStep;
+  }, [maxForwardWeeks, navStep]);
 
   // Refs for hold-to-repeat functionality
   const holdTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -166,12 +208,12 @@ export function ProjectCharts() {
   // Start hold-to-repeat for going back (earlier weeks)
   const startHoldBack = useCallback(() => {
     // Execute immediately on click
-    setOffsetWeeks((o) => o + 1);
+    setOffsetWeeks((o) => o + navStepRef.current);
 
     // Start repeating after initial delay
     holdTimeoutRef.current = setTimeout(() => {
       holdIntervalRef.current = setInterval(() => {
-        setOffsetWeeks((o) => o + 1);
+        setOffsetWeeks((o) => o + navStepRef.current);
       }, HOLD_REPEAT_INTERVAL);
     }, HOLD_INITIAL_DELAY);
   }, []);
@@ -179,12 +221,12 @@ export function ProjectCharts() {
   // Start hold-to-repeat for going forward (later weeks)
   const startHoldForward = useCallback(() => {
     // Execute immediately on click
-    setOffsetWeeks((o) => Math.max(minOffsetRef.current, o - 1));
+    setOffsetWeeks((o) => Math.max(minOffsetRef.current, o - navStepRef.current));
 
     // Start repeating after initial delay
     holdTimeoutRef.current = setTimeout(() => {
       holdIntervalRef.current = setInterval(() => {
-        setOffsetWeeks((o) => Math.max(minOffsetRef.current, o - 1));
+        setOffsetWeeks((o) => Math.max(minOffsetRef.current, o - navStepRef.current));
       }, HOLD_REPEAT_INTERVAL);
     }, HOLD_INITIAL_DELAY);
   }, []);
@@ -202,8 +244,27 @@ export function ProjectCharts() {
     );
   }
 
-  const canGoBack = weeklyData.length > 0;
-  const canGoForward = offsetWeeks > -maxForwardWeeks;
+  // The arrows have nothing to scroll in whole-project mode: it already shows everything
+  const canGoBack = weeklyData.length > 0 && !isWholeProject;
+  const canGoForward = offsetWeeks > -maxForwardWeeks && !isWholeProject;
+  const navStepLabel = navStep === 1 ? 'week' : `${navStep} weeks`;
+  // The arrows step on mouse/touch down (for hold-to-repeat), so keyboards get their own step
+  const stepOnKey = (event: React.KeyboardEvent, direction: 1 | -1) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    setOffsetWeeks((o) =>
+      direction === 1 ? o + navStep : Math.max(-maxForwardWeeks, o - navStep)
+    );
+  };
+  const canZoomInNow = canZoomIn(zoom, wholeProjectWindow);
+  const canZoomOutNow = canZoomOut(zoom, wholeProjectWindow);
+  const zoomButtonClass = (enabled: boolean) =>
+    cn(
+      'p-1.5 transition-colors select-none',
+      enabled
+        ? 'bg-dark-600 hover:bg-dark-500 text-gray-300 hover:text-white'
+        : 'bg-dark-700 cursor-not-allowed text-gray-600'
+    );
 
   return (
     <Card variant="bordered" className="p-6">
@@ -269,54 +330,118 @@ export function ProjectCharts() {
             })}
           </div>
         </div>
-        {/* Navigation - hidden in print */}
-        <div className="flex items-center gap-1 print:hidden">
-          <button
-            onMouseDown={canGoBack ? startHoldBack : undefined}
-            onMouseUp={clearHoldTimers}
-            onMouseLeave={clearHoldTimers}
-            onTouchStart={canGoBack ? startHoldBack : undefined}
-            onTouchEnd={clearHoldTimers}
-            disabled={!canGoBack}
-            className={cn(
-              'rounded-lg p-1.5 transition-colors select-none',
-              canGoBack
-                ? 'bg-dark-600 hover:bg-dark-500 text-gray-300 hover:text-white'
-                : 'bg-dark-700 cursor-not-allowed text-gray-600'
-            )}
-            title="Previous week (hold to scroll)"
-          >
-            <ChevronLeftIcon className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => setOffsetWeeks(0)}
-            disabled={offsetWeeks === 0}
-            className={cn(
-              'rounded-lg px-3 py-1 text-sm font-medium transition-colors',
-              offsetWeeks === 0
-                ? 'bg-thyme-600 text-white'
-                : 'bg-dark-600 hover:bg-dark-500 text-gray-300 hover:text-white'
-            )}
-          >
-            This Week
-          </button>
-          <button
-            onMouseDown={canGoForward ? startHoldForward : undefined}
-            onMouseUp={clearHoldTimers}
-            onMouseLeave={clearHoldTimers}
-            onTouchStart={canGoForward ? startHoldForward : undefined}
-            onTouchEnd={clearHoldTimers}
-            disabled={!canGoForward}
-            className={cn(
-              'rounded-lg p-1.5 transition-colors select-none',
-              canGoForward
-                ? 'bg-dark-600 hover:bg-dark-500 text-gray-300 hover:text-white'
-                : 'bg-dark-700 cursor-not-allowed text-gray-600'
-            )}
-            title="Next week (hold to scroll)"
-          >
-            <ChevronRightIcon className="h-4 w-4" />
-          </button>
+        {/* Zoom and navigation - hidden in print */}
+        <div className="flex items-center gap-3 print:hidden">
+          {/* X-axis zoom: weeks shown, up to the whole project; the y-axis is unaffected */}
+          <div className="flex items-center gap-1" role="group" aria-label="Chart zoom">
+            <div className="border-dark-600 flex items-center overflow-hidden rounded-lg border">
+              <button
+                type="button"
+                onClick={() => setZoom((z) => zoomOut(z, wholeProjectWindow))}
+                disabled={!canZoomOutNow}
+                className={zoomButtonClass(canZoomOutNow)}
+                aria-label="Zoom out"
+                title="Zoom out (show more weeks)"
+              >
+                <MagnifyingGlassMinusIcon className="h-4 w-4" aria-hidden="true" />
+              </button>
+              <span
+                className="bg-dark-700 min-w-[4.5rem] px-2 text-center text-xs text-gray-400 tabular-nums"
+                aria-live="polite"
+              >
+                {describeZoom(zoom, wholeProjectWindow)}
+              </span>
+              <button
+                type="button"
+                onClick={() => setZoom((z) => zoomIn(z, wholeProjectWindow))}
+                disabled={!canZoomInNow}
+                className={zoomButtonClass(canZoomInNow)}
+                aria-label="Zoom in"
+                title="Zoom in (show fewer weeks)"
+              >
+                <MagnifyingGlassPlusIcon className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setZoom((z) => ({ ...z, wholeProject: !z.wholeProject }))}
+              disabled={!wholeProjectWindow}
+              aria-pressed={isWholeProject}
+              className={cn(
+                'flex items-center gap-1.5 rounded-lg px-3 py-1 text-sm font-medium transition-colors',
+                !wholeProjectWindow
+                  ? 'bg-dark-700 cursor-not-allowed text-gray-600'
+                  : isWholeProject
+                    ? 'bg-thyme-600 text-white'
+                    : 'bg-dark-600 hover:bg-dark-500 text-gray-300 hover:text-white'
+              )}
+              aria-label="Show whole project"
+              title={
+                wholeProjectWindow
+                  ? 'Show whole project (start date to end date)'
+                  : 'No project dates or hours to fit'
+              }
+            >
+              <ArrowsPointingOutIcon className="h-4 w-4" aria-hidden="true" />
+              Whole project
+            </button>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onMouseDown={canGoBack ? startHoldBack : undefined}
+              onMouseUp={clearHoldTimers}
+              onMouseLeave={clearHoldTimers}
+              onTouchStart={canGoBack ? startHoldBack : undefined}
+              onTouchEnd={clearHoldTimers}
+              disabled={!canGoBack}
+              className={cn(
+                'rounded-lg p-1.5 transition-colors select-none',
+                canGoBack
+                  ? 'bg-dark-600 hover:bg-dark-500 text-gray-300 hover:text-white'
+                  : 'bg-dark-700 cursor-not-allowed text-gray-600'
+              )}
+              onKeyDown={canGoBack ? (e) => stepOnKey(e, 1) : undefined}
+              aria-label={`Previous ${navStepLabel}`}
+              title={`Previous ${navStepLabel} (hold to scroll)`}
+            >
+              <ChevronLeftIcon className="h-4 w-4" />
+            </button>
+            {/* Back to the current week (leaving whole-project mode for the previous zoom) */}
+            <button
+              onClick={() => {
+                setOffsetWeeks(0);
+                setZoom((z) => ({ ...z, wholeProject: false }));
+              }}
+              disabled={offsetWeeks === 0 && !isWholeProject}
+              className={cn(
+                'rounded-lg px-3 py-1 text-sm font-medium transition-colors',
+                offsetWeeks === 0 && !isWholeProject
+                  ? 'bg-thyme-600 text-white'
+                  : 'bg-dark-600 hover:bg-dark-500 text-gray-300 hover:text-white'
+              )}
+            >
+              This Week
+            </button>
+            <button
+              onMouseDown={canGoForward ? startHoldForward : undefined}
+              onMouseUp={clearHoldTimers}
+              onMouseLeave={clearHoldTimers}
+              onTouchStart={canGoForward ? startHoldForward : undefined}
+              onTouchEnd={clearHoldTimers}
+              disabled={!canGoForward}
+              className={cn(
+                'rounded-lg p-1.5 transition-colors select-none',
+                canGoForward
+                  ? 'bg-dark-600 hover:bg-dark-500 text-gray-300 hover:text-white'
+                  : 'bg-dark-700 cursor-not-allowed text-gray-600'
+              )}
+              onKeyDown={canGoForward ? (e) => stepOnKey(e, -1) : undefined}
+              aria-label={`Next ${navStepLabel}`}
+              title={`Next ${navStepLabel} (hold to scroll)`}
+            >
+              <ChevronRightIcon className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -327,7 +452,8 @@ export function ProjectCharts() {
         </PrintChartTitle>
         <WeeklyBarChart
           data={weeklyData}
-          offsetWeeks={offsetWeeks}
+          weeksToShow={chartWindow.weeks}
+          offsetWeeks={chartWindow.offsetWeeks}
           unit={weeklyUnit}
           hoursPerDay={analytics?.hoursPerDay ?? 8}
         />
@@ -339,7 +465,8 @@ export function ProjectCharts() {
           </PrintChartTitle>
           <ProgressLineChart
             data={weeklyData}
-            offsetWeeks={offsetWeeks}
+            weeksToShow={chartWindow.weeks}
+            offsetWeeks={chartWindow.offsetWeeks}
             hoursSpent={analytics?.hoursSpent ?? 0}
             hoursPlanned={analytics?.hoursPlanned ?? 0}
             estimateHours={analytics?.estimateHours ?? 0}
@@ -383,19 +510,7 @@ interface WeekDisplayData {
   plannedHours: number; // Budgeted hours from Job Planning Lines
   date: Date;
   isCurrentWeek: boolean;
-  monthLabel?: string; // Only set for first week of each month
-}
-
-/**
- * Get the Monday of the week for a given date
- */
-function getWeekStart(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  monthLabel?: string; // Only set for the first week of each labelled month
 }
 
 /**
@@ -408,21 +523,6 @@ function getISOWeek(date: Date): string {
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
   return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
-}
-
-/**
- * Monday of an ISO week string (e.g. "2026-W43")
- */
-function isoWeekToDate(isoWeek: string): Date | null {
-  const match = /^(\d{4})-W(\d{2})$/.exec(isoWeek);
-  if (!match) return null;
-  const year = Number(match[1]);
-  const week = Number(match[2]);
-  // Jan 4th is always in ISO week 1
-  const jan4 = new Date(year, 0, 4);
-  const monday = getWeekStart(jan4);
-  monday.setDate(monday.getDate() + (week - 1) * 7);
-  return monday;
 }
 
 /**
@@ -439,13 +539,6 @@ function parseLocalDate(value: string | undefined): Date | null {
   const isRealDate =
     date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
   return isRealDate ? date : null;
-}
-
-/**
- * Whole weeks from one Monday to another (negative if `to` is earlier)
- */
-function weeksBetween(from: Date, to: Date): number {
-  return Math.round((to.getTime() - from.getTime()) / (7 * 24 * 60 * 60 * 1000));
 }
 
 /**
@@ -512,7 +605,6 @@ function generateWeeklyDisplayData(
 
   // Generate weeks array
   const weeks: WeekDisplayData[] = [];
-  let lastMonth = -1;
 
   for (let i = weeksToShow - 1; i >= 0; i--) {
     const weekDate = new Date(endWeekDate);
@@ -526,14 +618,6 @@ function generateWeeklyDisplayData(
       plannedHours: 0,
     };
 
-    // Determine if we should show month label
-    const month = weekDate.getMonth();
-    let monthLabel: string | undefined;
-    if (month !== lastMonth) {
-      monthLabel = weekDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-      lastMonth = month;
-    }
-
     weeks.push({
       week: weekStr,
       hours: weekData.hours,
@@ -543,21 +627,33 @@ function generateWeeklyDisplayData(
       plannedHours: weekData.plannedHours,
       date: weekDate,
       isCurrentWeek: weekStr === currentWeekStr,
-      monthLabel,
     });
   }
 
+  // Month labels, thinned out at wide zooms so they don't overlap
+  const labels = getMonthLabels(
+    weeks.map((w) => w.date),
+    getMonthLabelStep(weeksToShow)
+  );
+  weeks.forEach((w, i) => (w.monthLabel = labels[i]));
   return weeks;
 }
 
 interface WeeklyBarChartProps {
   data: WeeklyDataPoint[];
+  weeksToShow: number;
   offsetWeeks: number;
   unit: 'hours' | 'days';
   hoursPerDay: number;
 }
 
-function WeeklyBarChart({ data, offsetWeeks, unit, hoursPerDay }: WeeklyBarChartProps) {
+function WeeklyBarChart({
+  data,
+  weeksToShow,
+  offsetWeeks,
+  unit,
+  hoursPerDay,
+}: WeeklyBarChartProps) {
   // Values are stored in hours; days = hours ÷ the project's hours per day
   const unitRate = unit === 'days' ? 1 / (hoursPerDay || 8) : 1;
   const formatEffort = (hours: number) =>
@@ -565,8 +661,8 @@ function WeeklyBarChart({ data, offsetWeeks, unit, hoursPerDay }: WeeklyBarChart
   const [hoveredWeek, setHoveredWeek] = useState<string | null>(null);
 
   const displayData = useMemo(
-    () => generateWeeklyDisplayData(data, WEEKS_TO_SHOW, offsetWeeks),
-    [data, offsetWeeks]
+    () => generateWeeklyDisplayData(data, weeksToShow, offsetWeeks),
+    [data, weeksToShow, offsetWeeks]
   );
 
   const legendTotals = useMemo(
@@ -647,7 +743,13 @@ function WeeklyBarChart({ data, offsetWeeks, unit, hoursPerDay }: WeeklyBarChart
                   onMouseLeave={() => setHoveredWeek(null)}
                 >
                   {/* Two bars side by side: Budgeted (grey, left) | Actual (stacked, right) */}
-                  <div className="flex h-full w-full items-end justify-center gap-0.5 px-0.5">
+                  <div
+                    className={cn(
+                      'flex h-full w-full items-end justify-center',
+                      // Narrow columns at wide zooms: drop the padding so the bars stay visible
+                      weeksToShow > 52 ? 'gap-px' : 'gap-0.5 px-0.5'
+                    )}
+                  >
                     {/* Budgeted hours bar (grey, left) */}
                     <div className="flex h-full w-full max-w-3 flex-col-reverse items-stretch">
                       {plannedHeightPercent > 0 && (
@@ -765,7 +867,9 @@ function WeeklyBarChart({ data, offsetWeeks, unit, hoursPerDay }: WeeklyBarChart
       <div className="mt-2 ml-10 flex">
         {displayData.map((point) => (
           <div key={point.week} className="flex-1 text-center">
-            {point.monthLabel && <span className="text-xs text-gray-500">{point.monthLabel}</span>}
+            {point.monthLabel && (
+              <span className="text-xs whitespace-nowrap text-gray-500">{point.monthLabel}</span>
+            )}
           </div>
         ))}
       </div>
@@ -826,7 +930,6 @@ function generateProgressDisplayData(
 
   // Generate weeks array
   const weeks: ProgressDisplayData[] = [];
-  let lastMonth = -1;
   let lastKnownCumulative = 0;
 
   // Sort all data weeks to find cumulative before our display range
@@ -849,28 +952,26 @@ function generateProgressDisplayData(
       }
     }
 
-    // Determine if we should show month label
-    const month = weekDate.getMonth();
-    let monthLabel: string | undefined;
-    if (month !== lastMonth) {
-      monthLabel = weekDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-      lastMonth = month;
-    }
-
     weeks.push({
       week: weekStr,
       cumulative: lastKnownCumulative,
       date: weekDate,
       isCurrentWeek: weekStr === currentWeekStr,
-      monthLabel,
     });
   }
 
+  // Month labels, thinned out at wide zooms so they don't overlap
+  const labels = getMonthLabels(
+    weeks.map((w) => w.date),
+    getMonthLabelStep(weeksToShow)
+  );
+  weeks.forEach((w, i) => (w.monthLabel = labels[i]));
   return weeks;
 }
 
 function ProgressLineChart({
   data,
+  weeksToShow,
   offsetWeeks,
   hoursSpent,
   hoursPlanned,
@@ -889,6 +990,7 @@ function ProgressLineChart({
   currencyCode,
 }: {
   data: WeeklyDataPoint[];
+  weeksToShow: number;
   offsetWeeks: number;
   hoursSpent: number;
   hoursPlanned: number;
@@ -919,10 +1021,11 @@ function ProgressLineChart({
     return `${rounded.toLocaleString('en-GB')}${unit === 'hours' ? 'h' : 'd'}`;
   };
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const markerSize = getPointMarkerSize(weeksToShow);
 
   const displayData = useMemo(
-    () => generateProgressDisplayData(data, WEEKS_TO_SHOW, offsetWeeks),
-    [data, offsetWeeks]
+    () => generateProgressDisplayData(data, weeksToShow, offsetWeeks),
+    [data, weeksToShow, offsetWeeks]
   );
 
   // The budget is the quoted estimate (Billable Resource lines), not the Plan's Budget lines.
@@ -1232,41 +1335,45 @@ function ProgressLineChart({
             </span>
           )}
 
-          {/* Points - separate layer to avoid stretching */}
-          <div className="absolute inset-0">
+          {/* Points - separate layer to avoid stretching; smaller (or hover-only) when zoomed out */}
+          <div className="pointer-events-none absolute inset-0">
             {displayDataWithCost.map((point, i) => {
-              const xPercent = xFor(i);
-              const yPercent = yFor(pointCost(point));
               const isHovered = hoveredIndex === i;
-
+              const emphasised = isHovered || point.isCurrentWeek;
+              if (markerSize === 'none' && !emphasised) return null;
               return (
                 <div
                   key={point.week}
-                  className="absolute -translate-x-1/2 -translate-y-1/2"
-                  style={{
-                    left: `${xPercent}%`,
-                    top: `${yPercent}%`,
-                  }}
-                  onMouseEnter={() => setHoveredIndex(i)}
-                  onMouseLeave={() => setHoveredIndex(null)}
-                >
-                  {/* Large invisible hover area */}
-                  <div className="absolute -inset-3 cursor-pointer" />
-                  {/* Visible dot */}
-                  <div
-                    className={cn(
-                      'relative rounded-full',
-                      point.isFuture
-                        ? 'bg-dark-800 border border-sky-400'
-                        : point.isCurrentWeek
-                          ? 'bg-thyme-400'
-                          : 'bg-thyme-500',
-                      isHovered || point.isCurrentWeek ? 'h-3 w-3' : 'h-2 w-2'
-                    )}
-                  />
-                </div>
+                  className={cn(
+                    'absolute -translate-x-1/2 -translate-y-1/2 rounded-full',
+                    point.isFuture
+                      ? 'bg-dark-800 border border-sky-400'
+                      : point.isCurrentWeek
+                        ? 'bg-thyme-400'
+                        : 'bg-thyme-500',
+                    emphasised
+                      ? markerSize === 'normal'
+                        ? 'h-3 w-3'
+                        : 'h-2 w-2'
+                      : markerSize === 'normal'
+                        ? 'h-2 w-2'
+                        : 'h-1.5 w-1.5'
+                  )}
+                  style={{ left: `${xFor(i)}%`, top: `${yFor(pointCost(point))}%` }}
+                />
               );
             })}
+          </div>
+
+          {/* Hover targets - one full-height column per week, so tooltips work at any zoom */}
+          <div className="absolute inset-0 flex" onMouseLeave={() => setHoveredIndex(null)}>
+            {displayDataWithCost.map((point, i) => (
+              <div
+                key={point.week}
+                className="h-full flex-1 cursor-pointer"
+                onMouseEnter={() => setHoveredIndex(i)}
+              />
+            ))}
           </div>
 
           {/* Tooltip with breakdown */}
@@ -1334,7 +1441,9 @@ function ProgressLineChart({
       <div className="mt-2 ml-12 flex">
         {displayDataWithCost.map((point) => (
           <div key={point.week} className="flex-1 text-center">
-            {point.monthLabel && <span className="text-xs text-gray-500">{point.monthLabel}</span>}
+            {point.monthLabel && (
+              <span className="text-xs whitespace-nowrap text-gray-500">{point.monthLabel}</span>
+            )}
           </div>
         ))}
       </div>

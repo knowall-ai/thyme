@@ -112,3 +112,50 @@ describe('Spend vs Budget chart with hidden figures', () => {
     expect(screen.getAllByText(/Budget: 10d/).length).toBeGreaterThan(0);
   });
 });
+
+describe('Chart zoom', () => {
+  const zoomLevel = () => screen.getByRole('group', { name: 'Chart zoom' }).textContent;
+
+  beforeEach(() => {
+    useProjectDetailsStore.setState({ hiddenKpis: [...DEFAULT_HIDDEN_KPIS] });
+  });
+
+  it('zooms out to the whole project and disables the arrows there', () => {
+    setup([...DEFAULT_HIDDEN_KPIS]);
+    expect(zoomLevel()).toContain('24 wks');
+    expect((screen.getByRole('button', { name: 'Zoom in' }) as HTMLButtonElement).disabled).toBe(
+      false
+    );
+
+    const zoomOutButton = screen.getByRole('button', { name: 'Zoom out' }) as HTMLButtonElement;
+    fireEvent.click(zoomOutButton);
+    expect(zoomLevel()).toContain('52 wks');
+    // Arrows step further at wider zooms
+    expect(screen.getByRole('button', { name: 'Previous 4 weeks' })).toBeTruthy();
+    fireEvent.click(zoomOutButton);
+    fireEvent.click(zoomOutButton);
+
+    const whole = screen.getByRole('button', { name: 'Show whole project' });
+    expect(whole.getAttribute('aria-pressed')).toBe('true');
+    expect(zoomOutButton.disabled).toBe(true);
+    expect((screen.getByRole('button', { name: /^Previous/ }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
+    expect((screen.getByRole('button', { name: /^Next/ }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
+
+    // "This Week" leaves whole-project mode
+    fireEvent.click(screen.getByRole('button', { name: 'This Week' }));
+    expect(whole.getAttribute('aria-pressed')).toBe('false');
+    expect(zoomLevel()).toContain('104 wks');
+  });
+
+  it('keeps the zoom when switching chart views', () => {
+    setup([...DEFAULT_HIDDEN_KPIS]);
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    expect(zoomLevel()).toContain('12 wks');
+    fireEvent.click(screen.getByRole('button', { name: 'Hours per Week' }));
+    expect(zoomLevel()).toContain('12 wks');
+  });
+});
