@@ -3,7 +3,14 @@
 import { useState, type DragEvent } from 'react';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import type { TimeEntry, Project, BCTimesheetReviewLine } from '@/types';
-import { cn, formatTime, worstSeverity } from '@/utils';
+import {
+  cn,
+  describeBillableSplit,
+  formatBillablePercent,
+  formatTime,
+  getBillableSplit,
+  worstSeverity,
+} from '@/utils';
 import { SeverityIcon } from '@/components/review';
 
 const DRAG_MIME_TYPE = 'application/x-thyme-entry-id';
@@ -36,6 +43,8 @@ export function TimeEntryCell({
   const [isDragOver, setIsDragOver] = useState(false);
 
   const totalHours = entries.reduce((sum, e) => sum + e.hours, 0);
+  // Same billable rule as Team and Reports: each entry's isBillable comes from isBillableEntry
+  const billable = getBillableSplit(entries);
 
   const getProjectColor = (projectId: string) => {
     // projectId is now a job code (e.g., "PR00030"), not a GUID
@@ -169,6 +178,16 @@ export function TimeEntryCell({
         <div className="mt-auto pt-2">
           <div className="border-dark-700 border-t pt-2">
             <p className="text-dark-300 text-right text-xs font-medium">{formatTime(totalHours)}</p>
+            {billable.totalHours > 0 && (
+              <p
+                className="text-dark-500 text-right text-[11px] leading-tight whitespace-nowrap"
+                title={describeBillableSplit(billable)}
+                aria-label={describeBillableSplit(billable)}
+              >
+                {formatBillablePercent(billable)}
+                <span className="hidden lg:inline"> billable</span>
+              </p>
+            )}
           </div>
         </div>
       )}

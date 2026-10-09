@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
+  describeBillableSplit,
+  formatBillablePercent,
+  getBillableSplit,
   getBillableHours,
   isBillableEntry,
   isCompanyName,
@@ -164,5 +167,62 @@ describe('getBillableHours', () => {
 
   it('ignores zero quantities and details without a line', () => {
     expect(getBillableHours([line(1, 'CUST')], [detail(1, 0), detail(9, 4)], projects)).toBe(0);
+  });
+});
+
+describe('getBillableSplit', () => {
+  const week = [
+    { date: '2026-10-05', hours: 6, isBillable: true },
+    { date: '2026-10-05', hours: 13, isBillable: false },
+    { date: '2026-10-06', hours: 7.5, isBillable: true },
+    { date: '2026-10-07', hours: 4, isBillable: false },
+  ];
+
+  it("splits one day's hours into billable and the billable %", () => {
+    const split = getBillableSplit(week, '2026-10-05');
+    expect(split.totalHours).toBe(19);
+    expect(split.billableHours).toBe(6);
+    expect(split.billablePercent).toBeCloseTo(31.58, 2);
+  });
+
+  it('is 100% for a day of only billable time and 0% for only internal time', () => {
+    expect(getBillableSplit(week, '2026-10-06').billablePercent).toBe(100);
+    expect(getBillableSplit(week, '2026-10-07').billablePercent).toBe(0);
+  });
+
+  it('is all zeros for a day with no time, so nothing is shown', () => {
+    expect(getBillableSplit(week, '2026-10-08')).toEqual({
+      totalHours: 0,
+      billableHours: 0,
+      billablePercent: 0,
+    });
+  });
+
+  it('covers every entry when no day is given (the week)', () => {
+    const split = getBillableSplit(week);
+    expect(split.totalHours).toBe(30.5);
+    expect(split.billableHours).toBe(13.5);
+  });
+
+  it('ignores zero and negative hours', () => {
+    const split = getBillableSplit([
+      { date: '2026-10-05', hours: 0, isBillable: true },
+      { date: '2026-10-05', hours: -2, isBillable: true },
+      { date: '2026-10-05', hours: 2, isBillable: false },
+    ]);
+    expect(split).toEqual({ totalHours: 2, billableHours: 0, billablePercent: 0 });
+  });
+});
+
+describe('formatBillablePercent / describeBillableSplit', () => {
+  it('rounds to a whole percent and describes the hours behind it', () => {
+    const split = { totalHours: 19, billableHours: 6, billablePercent: (6 / 19) * 100 };
+    expect(formatBillablePercent(split)).toBe('32%');
+    expect(describeBillableSplit(split)).toBe('32% billable (6h of 19h)');
+  });
+
+  it('shows minutes in the description', () => {
+    const split = { totalHours: 37.5, billableHours: 15.25, billablePercent: (15.25 / 37.5) * 100 };
+    expect(describeBillableSplit(split)).toBe('41% billable (15h 15m of 37h 30m)');
   });
 });
