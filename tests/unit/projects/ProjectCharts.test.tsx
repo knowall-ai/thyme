@@ -166,6 +166,25 @@ describe('Chart time range', () => {
     expect(screen.queryByText(/^\d+\.\d hours/)).toBeNull();
   });
 
+  it("doesn't show weeks before the project after widening the range", () => {
+    // Started 20 weeks ago: 3M can scroll back a few weeks; 6M already shows it all
+    setup([...DEFAULT_HIDDEN_KPIS], format(subWeeks(new Date(), 20), 'yyyy-MM-dd'));
+    fireEvent.click(screen.getByRole('button', { name: '3 months' }));
+    const back = () => screen.getByRole('button', { name: 'Previous week' }) as HTMLButtonElement;
+    let presses = 0;
+    while (!back().disabled && presses < 30) {
+      fireEvent.keyDown(back(), { key: 'Enter' });
+      presses++;
+    }
+    expect(presses).toBeGreaterThan(0);
+    expect(presses).toBeLessThan(30);
+    fireEvent.click(screen.getByRole('button', { name: '6 months' }));
+    // Back at this week: the This Week button shows as current (disabled)
+    expect((screen.getByRole('button', { name: 'This Week' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
+  });
+
   it('keeps the range when switching chart views', () => {
     setup([...DEFAULT_HIDDEN_KPIS]);
     fireEvent.click(screen.getByRole('button', { name: '3 months' }));

@@ -341,7 +341,14 @@ export function ProjectCharts() {
                 <button
                   key={r.value}
                   type="button"
-                  onClick={() => setRange(r.value)}
+                  onClick={() => {
+                    setRange(r.value);
+                    // A wider window mustn't start before the project: pull it back in
+                    if (r.weeks !== null) {
+                      const maxBack = getMaxBackOffset(wholeProjectWindow, r.weeks);
+                      setOffsetWeeks((o) => Math.min(o, maxBack));
+                    }
+                  }}
                   disabled={unavailable}
                   aria-pressed={selected}
                   aria-label={r.ariaLabel}
