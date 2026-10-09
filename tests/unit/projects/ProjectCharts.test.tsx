@@ -154,6 +154,18 @@ describe('Chart time range', () => {
     expect(isDisabled(/^Previous/)).toBe(true);
   });
 
+  it('drops the tooltip, rather than crashing, when the hovered week leaves the window', () => {
+    setup([...DEFAULT_HIDDEN_KPIS], format(subWeeks(new Date(), 52), 'yyyy-MM-dd'));
+    fireEvent.click(screen.getByRole('button', { name: '1 year' }));
+    // Hover the earliest week of the year, then narrow the range so it's out of view
+    const hoverColumns = document.querySelectorAll('.h-full.flex-1.cursor-pointer');
+    expect(hoverColumns).toHaveLength(52);
+    fireEvent.mouseEnter(hoverColumns[0]);
+    expect(screen.getAllByText(/^\d+\.\d hours/)).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: '3 months' }));
+    expect(screen.queryByText(/^\d+\.\d hours/)).toBeNull();
+  });
+
   it('keeps the range when switching chart views', () => {
     setup([...DEFAULT_HIDDEN_KPIS]);
     fireEvent.click(screen.getByRole('button', { name: '3 months' }));

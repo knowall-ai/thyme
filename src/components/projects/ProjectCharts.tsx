@@ -991,7 +991,8 @@ function ProgressLineChart({
     const rounded = Math.round(value * 10) / 10;
     return `${rounded.toLocaleString('en-GB')}${unit === 'hours' ? 'h' : 'd'}`;
   };
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  // Tracked by week, not index, so changing the range can't leave it pointing past the data
+  const [hoveredPointWeek, setHoveredPointWeek] = useState<string | null>(null);
   const markerSize = getPointMarkerSize(weeksToShow);
 
   const displayData = useMemo(
@@ -1068,6 +1069,11 @@ function ProgressLineChart({
     }
     return points;
   }, [displayData, avgCostRate, forecastHoursByWeek, showActual]);
+  // The hovered week's position in the visible window; null once it scrolls out of view
+  const hoveredPosition = hoveredPointWeek
+    ? displayDataWithCost.findIndex((d) => d.week === hoveredPointWeek)
+    : -1;
+  const hoveredIndex = hoveredPosition >= 0 ? hoveredPosition : null;
 
   // Height used for a point: forecast for future weeks, spent otherwise
   const pointCost = (d: (typeof displayDataWithCost)[number]) =>
@@ -1337,12 +1343,12 @@ function ProgressLineChart({
           </div>
 
           {/* Hover targets - one full-height column per week, so tooltips work at any range */}
-          <div className="absolute inset-0 flex" onMouseLeave={() => setHoveredIndex(null)}>
-            {displayDataWithCost.map((point, i) => (
+          <div className="absolute inset-0 flex" onMouseLeave={() => setHoveredPointWeek(null)}>
+            {displayDataWithCost.map((point) => (
               <div
                 key={point.week}
                 className="h-full flex-1 cursor-pointer"
-                onMouseEnter={() => setHoveredIndex(i)}
+                onMouseEnter={() => setHoveredPointWeek(point.week)}
               />
             ))}
           </div>
