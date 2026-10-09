@@ -47,7 +47,7 @@ export function Layout({ children }: LayoutProps) {
             <p className="text-dark-500 hidden text-center text-sm print:block">
               Want to get Thyme for Business Central? Go to{' '}
               <a href="https://getthyme.ai" className="text-knowall-green">
-                www.GetThyme.ai
+                GetThyme.ai
               </a>
               . Built by{' '}
               <a href="https://knowall.ai" className="text-knowall-green">
