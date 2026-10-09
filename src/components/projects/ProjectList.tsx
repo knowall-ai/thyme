@@ -34,10 +34,11 @@ import {
   isDefaultProjectStatuses,
   type ProjectStatus,
 } from '@/utils/projectStatusFilter';
+import { compareProjectsByName } from '@/utils/projectSort';
 
 type SortOption =
   | 'name-desc'
-  | 'code'
+  | 'name'
   | 'recent'
   | 'billing-asc'
   | 'billing-desc'
@@ -90,7 +91,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
   const toHref = useCompanyPath();
 
   const [statusFilter, setStatusFilter] = useState<ProjectStatus[]>(DEFAULT_PROJECT_STATUSES);
-  const [sortBy, setSortBy] = useState<SortOption>('code');
+  const [sortBy, setSortBy] = useState<SortOption>('name');
   const [customerFilter, setCustomerFilter] = useState<CustomerFilter>('all');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
@@ -166,8 +167,8 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
       case 'name-desc':
         result.sort((a, b) => (b.name ?? '').localeCompare(a.name ?? ''));
         break;
-      case 'code':
-        result.sort((a, b) => (a.code ?? '').localeCompare(b.code ?? ''));
+      case 'name':
+        result.sort(compareProjectsByName);
         break;
       case 'recent':
         // Favorites first, then by name

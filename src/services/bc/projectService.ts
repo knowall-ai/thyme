@@ -1,5 +1,6 @@
 import { bcClient } from './bcClient';
 import type { Project, Task, BCProject, BCJobTask, BCTimeSheet, BCTimeSheetLine } from '@/types';
+import { compareProjectsByName } from '@/utils/projectSort';
 import {
   buildUOMConversionMap,
   getAbsenceTaskNos,
@@ -136,7 +137,10 @@ export const projectService = {
     warnIfBlockedFieldMissing(bcProjects);
     const favorites = getFavorites();
 
-    return bcProjects.map((bcProject, index) => mapBCProjectToProject(bcProject, index, favorites));
+    // Map first so each project keeps its colour, then list them alphabetically
+    return bcProjects
+      .map((bcProject, index) => mapBCProjectToProject(bcProject, index, favorites))
+      .sort(compareProjectsByName);
   },
 
   async getProject(projectId: string): Promise<Project | null> {
