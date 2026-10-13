@@ -121,7 +121,8 @@ function TimeEntryCard({
     // Keyboard focus only: a click's focus is handled by onClick
     if (isDragging || !e.currentTarget.matches(':focus-visible')) return;
     clearTimer();
-    setOpenReason((reason) => reason ?? 'focus');
+    // Focus takes over from hover, so moving the mouse away doesn't close it while focused
+    setOpenReason((reason) => (reason === 'pinned' ? 'pinned' : 'focus'));
   };
   const handleBlur = (e: FocusEvent<HTMLElement>) => {
     const next = e.relatedTarget as Node | null;
