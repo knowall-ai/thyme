@@ -17,14 +17,15 @@ export interface BillableTargetBadgeProps {
   target: BillableTarget;
   /** false when no hours were logged, so the % means nothing yet */
   hasHours: boolean;
-  /** Hide the "target"/"default" word below lg, for narrow spots like a day column */
+  /** Hide the word "target" below lg, for narrow spots like a day column */
   compact?: boolean;
   className?: string;
 }
 
 /**
  * Billable % next to its target, e.g. "72% / 80% target", coloured by how close the
- * actual is. A company-default target reads "75% default" in muted text.
+ * actual is. A company-default target is in muted text, and the tooltip says it's the
+ * company default.
  */
 export function BillableTargetBadge({
   actualPercent,
@@ -57,10 +58,7 @@ export function BillableTargetBadge({
       <span aria-hidden="true">/</span>
       <span className={cn(target.isDefault && 'text-dark-400 font-normal')}>
         {targetText}
-        <span className={cn(compact && 'hidden lg:inline')}>
-          {' '}
-          {target.isDefault ? 'default' : 'target'}
-        </span>
+        <span className={cn(compact && 'hidden lg:inline')}> target</span>
       </span>
     </span>
   );
