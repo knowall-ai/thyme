@@ -1,7 +1,14 @@
 'use client';
 
 import { useState, useEffect, useMemo, useId } from 'react';
-import { Card, ExtensionPreviewWrapper } from '@/components/ui';
+import {
+  Card,
+  ExtensionPreviewWrapper,
+  StageBar,
+  StageLegend,
+  getStageSegments,
+  getStageSummary,
+} from '@/components/ui';
 import { TeamTable, ProjectsUnavailableWarning, DEFAULT_TEAM_TABLE_SORT } from '@/components/team';
 import type { TeamTableRow, TeamTableSort } from '@/components/team';
 import { ExtensionNotInstalledError, loadTeamHours } from '@/services/bc';
@@ -10,9 +17,11 @@ import {
   CalendarIcon,
   ClockIcon,
   UsersIcon,
-  ChevronDownIcon,
   UserIcon,
   InformationCircleIcon,
+  BuildingOfficeIcon,
+  BriefcaseIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import {
@@ -40,9 +49,29 @@ import {
   getPeriodCapacity,
   getBreakdownBuckets,
   getBreakdownGranularity,
+  NO_REPORT_FILTER,
+  INTERNAL_CLIENT,
+  UNKNOWN_CLIENT,
+  isReportFilterActive,
+  matchesReportFilter,
+  filterPersonHours,
+  getReportProject,
+  getReportProjects,
+  getReportFilterOptions,
+  selectReportClient,
+  getHoursByProject,
 } from '@/utils';
-import type { BillableTarget, PersonHours, ReportPeriod, WeeklyCapacity } from '@/utils';
+import type {
+  BillableTarget,
+  PersonHours,
+  ReportClient,
+  ReportFilter,
+  ReportPeriod,
+  WeeklyCapacity,
+} from '@/utils';
+import type { BCProject } from '@/types';
 import { ExportButton } from './ExportButton';
+import { FilterMenu } from './FilterMenu';
 import { ReportPeriodPicker } from './ReportPeriodPicker';
 
 const EVERYONE = 'everyone';
@@ -53,13 +82,7 @@ const BREAKDOWN_TITLES = {
   month: 'Monthly Breakdown',
 } as const;
 
-interface ProjectHours {
-  projectId: string;
-  projectName: string;
-  projectColor: string;
-  hours: number;
-  billableHours: number;
-}
+const NO_PROJECTS: ReadonlyMap<string, BCProject> = new Map();
 
 interface BreakdownRow {
   key: string;
@@ -125,13 +148,16 @@ export function ReportsPanel() {
   const [period, setPeriod] = useState<ReportPeriod>(() => getPresetPeriod('thisWeek'));
   const [people, setPeople] = useState<PersonHours[]>([]);
   const [projectsUnavailable, setProjectsUnavailable] = useState(false);
+  // The period's projects (bill-to customers and names), from the same load
+  const [projectsByNumber, setProjectsByNumber] = useState(NO_PROJECTS);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [extensionNotInstalled, setExtensionNotInstalled] = useState(false);
   // Everyone, or one person by resource number (their data always comes from the
   // latest load, so a changed target or capacity is never stale)
   const [selectedNo, setSelectedNo] = useState<string>(EVERYONE);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  // Client and project: kept across periods, so stepping through weeks keeps the filter
+  const [filter, setFilter] = useState<ReportFilter>(NO_REPORT_FILTER);
   // Kept here so it survives the people table unmounting while another period loads
   const [tableSort, setTableSort] = useState<TeamTableSort>(DEFAULT_TEAM_TABLE_SORT);
 
@@ -141,9 +167,10 @@ export function ReportsPanel() {
   const userEmail = account?.username || '';
   const { from: startDate, to: endDate } = period;
 
-  // Another company has other people: back to everyone
+  // Another company has other people, clients and projects: back to everything
   useEffect(() => {
     setSelectedNo(EVERYONE);
+    setFilter(NO_REPORT_FILTER);
   }, [companyVersion]);
 
   // The team and their hours for the period: the same calculation as the Team page
@@ -159,6 +186,7 @@ export function ReportsPanel() {
         if (cancelled) return;
         setPeople(loaded.people);
         setProjectsUnavailable(loaded.projectsUnavailable);
+        setProjectsByNumber(loaded.projectsByNumber);
       } catch (err) {
         if (cancelled) return;
         if (err instanceof ExtensionNotInstalledError) {
@@ -183,22 +211,78 @@ export function ReportsPanel() {
   const isLoadingResources = isLoading && resources.length === 0;
   const photos = useResourcePhotos(resources, userEmail);
 
+  // Fetch projects on mount
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
+
+  // Every project with time in the period, with its name and client (bill-to customer)
+  const projectsByCode = useMemo(() => new Map(projects.map((p) => [p.code, p])), [projects]);
+  const reportProjects = useMemo(
+    () =>
+      getReportProjects(
+        people.flatMap((p) => p.entries),
+        projectsByNumber,
+        new Map(projects.map((p) => [p.code, p.name]))
+      ),
+    [people, projectsByNumber, projects]
+  );
+  const filterOptions = useMemo(
+    () => getReportFilterOptions(reportProjects.values(), filter.clientId),
+    [reportProjects, filter.clientId]
+  );
+  const filterActive = isReportFilterActive(filter);
+
+  // The picked client and project by name, even in a period without their time
+  const filterClient: ReportClient | null = useMemo(() => {
+    if (filter.clientId === null) return null;
+    const known = filterOptions.clients.find((c) => c.id === filter.clientId);
+    if (known) return known;
+    for (const [number, project] of projectsByNumber) {
+      const { client } = getReportProject(number, project);
+      if (client.id === filter.clientId) return client;
+    }
+    return [INTERNAL_CLIENT, UNKNOWN_CLIENT].find((c) => c.id === filter.clientId) ?? null;
+  }, [filter.clientId, filterOptions.clients, projectsByNumber]);
+  const filterProjectName =
+    filter.projectNo === null
+      ? null
+      : (
+          reportProjects.get(filter.projectNo) ??
+          getReportProject(
+            filter.projectNo,
+            projectsByNumber.get(filter.projectNo),
+            projectsByCode.get(filter.projectNo)?.name
+          )
+        ).name;
+  // What the figures are restricted to, e.g. "Contoso Ltd." or a project's name
+  const filterDescription = filterProjectName ?? filterClient?.name ?? null;
+
+  // Everyone's hours restricted to the client and project: entries, stages and billable
+  // hours alike, so every figure below follows the filter
+  const filteredPeople = useMemo(
+    () =>
+      filterActive
+        ? people.map((p) =>
+            filterPersonHours(p, (entry) => matchesReportFilter(entry, filter, reportProjects))
+          )
+        : people,
+    [people, filter, filterActive, reportProjects]
+  );
+
   const selectedPerson =
-    selectedNo === EVERYONE ? null : (people.find((p) => p.resource.number === selectedNo) ?? null);
+    selectedNo === EVERYONE
+      ? null
+      : (filteredPeople.find((p) => p.resource.number === selectedNo) ?? null);
 
   // The people in the selection: everyone, or the one picked (by resource number, so
   // resources whose time sheets share an owner never pick up each other's time)
   const selectedPeople = useMemo(() => {
     // Everyone means the people who count: not those on a weekly capacity of 0
-    if (selectedNo === EVERYONE) return people.filter(isCounted);
-    return people.filter((p) => p.resource.number === selectedNo);
-  }, [people, selectedNo]);
+    if (selectedNo === EVERYONE) return filteredPeople.filter(isCounted);
+    return filteredPeople.filter((p) => p.resource.number === selectedNo);
+  }, [filteredPeople, selectedNo]);
   const entries = useMemo(() => selectedPeople.flatMap((p) => p.entries), [selectedPeople]);
-
-  // Fetch projects on mount
-  useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
 
   // Billable targets: each person's own (or the company default). Null on Thyme BC
   // Extensions without targets, and until this company's Thyme Setup has loaded.
@@ -234,78 +318,71 @@ export function ReportsPanel() {
   );
 
   // Billable target for the selection: the person's own (or the company default), or for
-  // everyone the team target, weighted by capacity exactly as on the Team page
-  const billableTarget: BillableTarget | null = selectedPerson
-    ? targetOf(selectedPerson)
-    : summary.billableTarget === null || !targetsEnabled
-      ? null
-      : { percent: summary.billableTarget, isDefault: false };
+  // everyone the team target, weighted by capacity exactly as on the Team page. None
+  // under a client or project filter: targets are for all of a person's time, and one
+  // client's work is nearly all billable (or, for Internal, none of it)
+  const billableTarget: BillableTarget | null = filterActive
+    ? null
+    : selectedPerson
+      ? targetOf(selectedPerson)
+      : summary.billableTarget === null || !targetsEnabled
+        ? null
+        : { percent: summary.billableTarget, isDefault: false };
 
   const uniqueProjects = useMemo(() => new Set(entries.map((e) => e.projectId)).size, [entries]);
 
   // Everyone in the Team page's table, for the period: capacity and completion scale
-  // with the period's working days (one week = their weekly capacity)
+  // with the period's working days (one week = their weekly capacity). Under a client or
+  // project filter, only the people with time on it, and no targets (see billableTarget)
   const tableRows = useMemo(
     (): TeamTableRow[] =>
-      people.map((p) => {
-        const weekly = weeklyOf(p);
-        const totalHours = p.stages.total;
-        const capacity = getPeriodCapacity(weekly.hours, startDate, endDate);
-        return {
-          id: p.resource.id,
-          number: p.resource.number,
-          name: p.resource.name || p.resource.displayName || p.resource.number,
-          email: '',
-          totalHours,
-          stages: p.stages,
-          billablePercent: totalHours > 0 ? (p.billableHours / totalHours) * 100 : 0,
-          isCurrentUser: false,
-          photoUrl: photos[p.resource.id] ?? null,
-          weekly,
-          capacity,
-          completion: weekly.excluded ? null : capacity > 0 ? (totalHours / capacity) * 100 : 0,
-          target:
-            companyDefault !== null && !weekly.excluded
-              ? resolveBillableTarget(p.resource, companyDefault)
-              : null,
-        };
-      }),
-    [people, photos, startDate, endDate, companyDefault]
+      (filterActive ? filteredPeople.filter((p) => p.stages.total > 0) : filteredPeople).map(
+        (p) => {
+          const weekly = weeklyOf(p);
+          const totalHours = p.stages.total;
+          const capacity = getPeriodCapacity(weekly.hours, startDate, endDate);
+          return {
+            id: p.resource.id,
+            number: p.resource.number,
+            name: p.resource.name || p.resource.displayName || p.resource.number,
+            email: '',
+            totalHours,
+            stages: p.stages,
+            billablePercent: totalHours > 0 ? (p.billableHours / totalHours) * 100 : 0,
+            isCurrentUser: false,
+            photoUrl: photos[p.resource.id] ?? null,
+            weekly,
+            capacity,
+            completion: weekly.excluded ? null : capacity > 0 ? (totalHours / capacity) * 100 : 0,
+            target:
+              companyDefault !== null && !weekly.excluded && !filterActive
+                ? resolveBillableTarget(p.resource, companyDefault)
+                : null,
+          };
+        }
+      ),
+    [filteredPeople, filterActive, photos, startDate, endDate, companyDefault]
   );
 
-  // Calculate hours by project
-  const projectHours = useMemo((): ProjectHours[] => {
-    const projectMap = new Map<string, { hours: number; billableHours: number }>();
-
-    entries.forEach((entry) => {
-      const existing = projectMap.get(entry.projectId) || { hours: 0, billableHours: 0 };
-      existing.hours += entry.hours;
-      if (entry.isBillable) {
-        existing.billableHours += entry.hours;
-      }
-      projectMap.set(entry.projectId, existing);
-    });
-
-    return Array.from(projectMap.entries())
-      .map(([projectId, data]) => {
-        const project = projects.find((p) => p.code === projectId);
-        return {
-          projectId,
-          projectName: project?.name || 'Unknown Project',
-          projectColor: project?.color || '#6B7280',
-          hours: data.hours,
-          billableHours: data.billableHours,
-        };
-      })
-      .sort((a, b) => b.hours - a.hours);
-  }, [entries, projects]);
+  // Hours by project, split by stage as on the project page's Time Spent card
+  const projectHours = useMemo(
+    () =>
+      getHoursByProject(entries).map((row) => ({
+        ...row,
+        projectName: reportProjects.get(row.projectNo)?.name || 'Unknown Project',
+        projectColor: projectsByCode.get(row.projectNo)?.color || '#6B7280',
+      })),
+    [entries, reportProjects, projectsByCode]
+  );
+  const projectStageSegments = getStageSegments(summary.stages);
 
   // Hours per day, week or month (by the period's length), billable and unbillable,
   // against the selection's capacity for each row
   const granularity = getBreakdownGranularity(period);
   const breakdown = useMemo((): BreakdownRow[] => {
-    // Daily capacity of the selected people: their weekly capacity over 5 working days
-    const dailyCapacity = summary.capacity / 5;
+    // Daily capacity of the selected people: their weekly capacity over 5 working days.
+    // None under a client or project filter: capacity is for all their time
+    const dailyCapacity = filterActive ? 0 : summary.capacity / 5;
     const rows = getBreakdownBuckets(period, granularity).map((bucket) => ({
       ...bucket,
       hours: 0,
@@ -319,7 +396,7 @@ export function ReportsPanel() {
       if (entry.isBillable) row.billableHours += entry.hours;
     }
     return rows;
-  }, [entries, period, granularity, summary.capacity]);
+  }, [entries, period, granularity, summary.capacity, filterActive]);
 
   // Find max hours for bar chart scaling
   const maxProjectHours = Math.max(...projectHours.map((p) => p.hours), 1);
@@ -334,81 +411,78 @@ export function ReportsPanel() {
   return (
     <ExtensionPreviewWrapper extensionNotInstalled={extensionNotInstalled} pageName="Reports">
       <div className="space-y-6">
-        {/* Period and resource selector */}
+        {/* Period, and the client, project and resource filters */}
         <ReportPeriodPicker period={period} onChange={setPeriod}>
-          {/* Team Member Filter */}
-          <div className="relative">
+          {(filterActive || selectedNo !== EVERYONE) && (
             <button
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className={cn(
-                'flex h-10 items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
-                'border-dark-600 bg-dark-700 hover:border-dark-500 hover:bg-dark-600 border',
-                isFilterOpen && 'border-thyme-500'
-              )}
+              type="button"
+              onClick={() => {
+                setFilter(NO_REPORT_FILTER);
+                setSelectedNo(EVERYONE);
+              }}
+              className="text-dark-300 hover:text-thyme-400 flex h-10 items-center gap-1 rounded-lg px-2 text-sm transition-colors"
             >
-              <UsersIcon className="text-dark-400 h-4 w-4" />
-              <span className="text-dark-200">
-                {selectedNo === EVERYONE
-                  ? 'All Resources'
-                  : selectedPerson?.resource.name?.trim() || selectedNo}
-              </span>
-              <ChevronDownIcon
-                className={cn(
-                  'text-dark-400 h-4 w-4 transition-transform',
-                  isFilterOpen && 'rotate-180'
-                )}
-              />
+              <XMarkIcon className="h-4 w-4" />
+              Clear filters
             </button>
-
-            {isFilterOpen && (
-              <div className="border-dark-600 bg-dark-800 absolute right-0 z-50 mt-2 w-64 rounded-lg border shadow-xl">
-                <div className="border-dark-600 border-b px-4 py-3">
-                  <h3 className="text-sm font-medium text-white">Filter by Resource</h3>
-                </div>
-                <div className="max-h-64 overflow-y-auto py-1">
-                  {/* All Resources option */}
-                  <button
-                    onClick={() => {
-                      setSelectedNo(EVERYONE);
-                      setIsFilterOpen(false);
-                    }}
-                    className={cn(
-                      'hover:bg-dark-700 flex w-full items-center gap-3 px-4 py-2 text-left text-sm',
-                      selectedNo === EVERYONE && 'bg-dark-700'
-                    )}
-                  >
-                    <UsersIcon className="text-thyme-500 h-5 w-5" />
-                    <span className="text-dark-200">All Resources</span>
-                  </button>
-
-                  {/* Individual resources */}
-                  {isLoadingResources ? (
-                    <div className="text-dark-400 px-4 py-3 text-center text-sm">Loading...</div>
-                  ) : (
-                    resources.map((resource) => (
-                      <button
-                        key={resource.id}
-                        onClick={() => {
-                          setSelectedNo(resource.number);
-                          setIsFilterOpen(false);
-                        }}
-                        className={cn(
-                          'hover:bg-dark-700 flex w-full items-center gap-3 px-4 py-2 text-left text-sm',
-                          selectedNo === resource.number && 'bg-dark-700'
-                        )}
-                      >
-                        <UserIcon className="text-dark-400 h-5 w-5" />
-                        <div className="flex-1 truncate">
-                          <div className="text-dark-200">{resource.name?.trim() || 'Unknown'}</div>
-                          <div className="text-dark-500 text-xs">{resource.number}</div>
-                        </div>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          )}
+          <FilterMenu
+            label="Client"
+            allLabel="All Clients"
+            icon={BuildingOfficeIcon}
+            optionIcon={BuildingOfficeIcon}
+            value={filter.clientId}
+            valueLabel={filterClient?.name}
+            options={filterOptions.clients.map((client) => {
+              const count = [...reportProjects.values()].filter(
+                (p) => p.client.id === client.id
+              ).length;
+              return {
+                value: client.id,
+                label: client.name,
+                description: `${count} project${count === 1 ? '' : 's'}`,
+              };
+            })}
+            onChange={(clientId) => setFilter(selectReportClient(filter, clientId, reportProjects))}
+            isLoading={isLoading && reportProjects.size === 0}
+            emptyMessage="No client time in this period"
+          />
+          <FilterMenu
+            label="Project"
+            allLabel={filterClient ? `All ${filterClient.name} Projects` : 'All Projects'}
+            icon={BriefcaseIcon}
+            optionIcon={BriefcaseIcon}
+            value={filter.projectNo}
+            valueLabel={filterProjectName ?? undefined}
+            options={filterOptions.projects.map((project) => ({
+              value: project.number,
+              label: project.name,
+              description:
+                filter.clientId === null
+                  ? `${project.number} · ${project.client.name}`
+                  : project.number,
+              color: projectsByCode.get(project.number)?.color,
+            }))}
+            onChange={(projectNo) => setFilter({ ...filter, projectNo })}
+            isLoading={isLoading && reportProjects.size === 0}
+            emptyMessage="No project time in this period"
+          />
+          <FilterMenu
+            label="Resource"
+            allLabel="All Resources"
+            icon={UsersIcon}
+            optionIcon={UserIcon}
+            value={selectedNo === EVERYONE ? null : selectedNo}
+            valueLabel={selectedPerson?.resource.name?.trim() || selectedNo}
+            options={resources.map((resource) => ({
+              value: resource.number,
+              label: resource.name?.trim() || 'Unknown',
+              description: resource.number,
+            }))}
+            onChange={(number) => setSelectedNo(number ?? EVERYONE)}
+            isLoading={isLoadingResources}
+            emptyMessage="No resources"
+          />
         </ReportPeriodPicker>
 
         {!isLoading && projectsUnavailable && <ProjectsUnavailableWarning />}
@@ -495,12 +569,22 @@ export function ReportsPanel() {
         {/* People: the Team page's table for the period */}
         {selectedNo === EVERYONE && !isLoading && !error && tableRows.length > 0 && (
           <section className="space-y-3" aria-labelledby="report-people">
-            <h2 id="report-people" className="text-lg font-semibold text-white">
-              People
-            </h2>
+            <div>
+              <h2 id="report-people" className="text-lg font-semibold text-white">
+                People
+              </h2>
+              {filterDescription && (
+                <p className="text-dark-400 mt-1 text-sm">
+                  Hours on {filterDescription} only. Timesheet completion, capacity and billable
+                  targets are hidden: they cover all of each person&apos;s time, not one
+                  client&apos;s or project&apos;s.
+                </p>
+              )}
+            </div>
             <TeamTable
               rows={tableRows}
-              targetsEnabled={targetsEnabled}
+              targetsEnabled={targetsEnabled && !filterActive}
+              showCapacity={!filterActive}
               companyName={selectedCompany?.name}
               describeCapacity={(row) =>
                 row.weekly.excluded
@@ -542,13 +626,25 @@ export function ReportsPanel() {
           ) : entries.length === 0 ? (
             <div className="text-dark-400 py-12 text-center">
               <ChartBarIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
-              <p>No time entries found for this period</p>
-              <p className="mt-1 text-sm">Start tracking time to see your reports here</p>
+              {filterDescription ? (
+                <p>No time on {filterDescription} for this period</p>
+              ) : (
+                <>
+                  <p>No time entries found for this period</p>
+                  <p className="mt-1 text-sm">Start tracking time to see your reports here</p>
+                </>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
+              {/* The stages' colours, as on the project page's Time Spent card */}
+              <StageLegend segments={projectStageSegments} formatHours={formatTime} />
               {projectHours.map((project) => (
-                <div key={project.projectId} className="space-y-2">
+                <div
+                  key={project.projectNo}
+                  className="space-y-2"
+                  title={getStageSummary(project.stages, formatTime)}
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div
@@ -561,15 +657,13 @@ export function ReportsPanel() {
                     </div>
                     <span className="text-dark-400 text-sm">{formatTime(project.hours)}</span>
                   </div>
-                  <div className="bg-dark-700 relative h-2 overflow-hidden rounded-full">
-                    <div
-                      className="absolute top-0 left-0 h-full rounded-full transition-all duration-500"
-                      style={{
-                        width: `${(project.hours / maxProjectHours) * 100}%`,
-                        backgroundColor: project.projectColor,
-                      }}
-                    />
-                  </div>
+                  {/* Hours by stage; the longest project fills the bar */}
+                  <StageBar
+                    segments={getStageSegments(project.stages)}
+                    max={maxProjectHours}
+                    className="bg-dark-700 h-2"
+                  />
+                  <span className="sr-only">{getStageSummary(project.stages, formatTime)}</span>
                   {project.billableHours > 0 && (
                     <p className="text-dark-500 text-xs">
                       {formatTime(project.billableHours)} billable
@@ -614,7 +708,11 @@ export function ReportsPanel() {
           ) : entries.length === 0 ? (
             <div className="text-dark-400 py-12 text-center">
               <CalendarIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
-              <p>No time entries found for this period</p>
+              <p>
+                {filterDescription
+                  ? `No time on ${filterDescription} for this period`
+                  : 'No time entries found for this period'}
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
