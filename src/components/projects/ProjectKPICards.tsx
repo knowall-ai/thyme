@@ -11,6 +11,8 @@ import {
   getBCJobLedgerEntriesUrl,
   describeFinishVsEndDate,
   formatCurrency,
+  getPercentOfEstimate,
+  toStageHours,
 } from '@/utils';
 import type { ResourceHours } from '@/services/bc/projectDetailsService';
 import { ProjectPlanDialog } from './ProjectPlanDialog';
@@ -186,11 +188,17 @@ export function ProjectKPICards() {
   // Calculate percentages and status
   const hoursSpent = analytics?.hoursSpent ?? 0;
   const hoursPosted = analytics?.hoursPosted ?? 0;
-  // Time Spent by stage, each counted once: Unsubmitted → Submitted → Approved (not yet posted) → Posted
-  const submittedHours = analytics?.submittedHours ?? 0;
-  const unsubmittedHours = analytics?.unsubmittedHours ?? 0;
-  const postedHours = Math.min(hoursPosted, analytics?.approvedHours ?? 0);
-  const approvedUnpostedHours = Math.max(0, (analytics?.approvedHours ?? 0) - postedHours);
+  // Time Spent by stage, each counted once: Unsubmitted → Submitted → Approved (not yet
+  // posted) → Posted. Same split as the Projects list's bar.
+  const timeByStage = toStageHours(
+    {
+      total: hoursSpent,
+      approved: analytics?.approvedHours ?? 0,
+      submitted: analytics?.submittedHours ?? 0,
+      unsubmitted: analytics?.unsubmittedHours ?? 0,
+    },
+    hoursPosted
+  );
   const hoursPerDay = analytics?.hoursPerDay ?? 8; // From BC Resource Unit of Measure
   // Estimate (quoted, Billable lines) is the budget; Spent + future Planned = Forecast
   // Internal projects have no budget: no estimate, so nothing is over or under it
@@ -200,7 +208,7 @@ export function ProjectKPICards() {
   const futurePlannedHours = analytics?.futurePlannedHours ?? 0;
   const forecastHours = hoursSpent + futurePlannedHours;
   const forecastVsEstimate = forecastHours - estimateHours;
-  const percentOfEstimate = hasEstimate ? Math.round((hoursSpent / estimateHours) * 100) : 0;
+  const percentOfEstimate = getPercentOfEstimate(hoursSpent, estimateHours) ?? 0;
   // When the planned work finishes, and how that sits against the project's end date
   const forecastEndDate = futurePlannedHours > 0 ? analytics?.forecastEndDate : undefined;
   const finishVsEnd = describeFinishVsEndDate(forecastEndDate, project?.endDate);
@@ -301,12 +309,7 @@ export function ProjectKPICards() {
       subLabelColor: percentOfEstimate > 100 ? 'text-red-400' : undefined,
       icon: ClockIcon,
       color: 'text-thyme-400',
-      segments: getStageSegments({
-        posted: postedHours,
-        approved: approvedUnpostedHours,
-        submitted: submittedHours,
-        unsubmitted: unsubmittedHours,
-      }),
+      segments: getStageSegments(timeByStage),
     },
     {
       label: 'Planned',

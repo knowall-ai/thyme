@@ -39,26 +39,26 @@ describe('absence planning lines', () => {
 
 describe('getRemainingHours', () => {
   it('is budget minus spent for a normal project', () => {
-    expect(getRemainingHours({ budgetHours: 100, totalHours: 40 })).toBe(60);
-    expect(getRemainingHours({ budgetHours: 10, totalHours: 40 })).toBe(-30);
+    expect(getRemainingHours({ estimateHours: 100, totalHours: 40 })).toBe(60);
+    expect(getRemainingHours({ estimateHours: 10, totalHours: 40 })).toBe(-30);
   });
 
   it('is undefined for an internal project, however large its plan', () => {
-    expect(getRemainingHours({ isInternal: true, budgetHours: 8, totalHours: 112 })).toBe(
+    expect(getRemainingHours({ isInternal: true, estimateHours: 8, totalHours: 112 })).toBe(
       undefined
     );
   });
 
   it('is undefined without a budget or hours', () => {
     expect(getRemainingHours({ totalHours: 5 })).toBe(undefined);
-    expect(getRemainingHours({ budgetHours: 5 })).toBe(undefined);
+    expect(getRemainingHours({ estimateHours: 5 })).toBe(undefined);
   });
 });
 
 describe('compareByRemaining', () => {
-  const a = { budgetHours: 100, totalHours: 90 }; // 10 left
-  const b = { budgetHours: 100, totalHours: 20 }; // 80 left
-  const internal = { isInternal: true, budgetHours: 8, totalHours: 112 };
+  const a = { estimateHours: 100, totalHours: 90 }; // 10 left
+  const b = { estimateHours: 100, totalHours: 20 }; // 80 left
+  const internal = { isInternal: true, estimateHours: 8, totalHours: 112 };
 
   it('sorts external projects by remaining hours', () => {
     expect([b, a].sort((x, y) => compareByRemaining(x, y, 1))).toEqual([a, b]);

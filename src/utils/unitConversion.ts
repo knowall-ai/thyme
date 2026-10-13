@@ -219,3 +219,29 @@ export function sumPlannedHours(
     .filter((line) => line.type === 'Resource' && isBudgetPlanningLine(line.lineType))
     .reduce((sum, line) => sum + convertToHours(line.number, line.quantity, uomConversionMap), 0);
 }
+
+/**
+ * Whether a planning line's `lineType` counts as a Billable line (what the customer
+ * was quoted). Handles BC's URL-encoded spaces, as isBudgetPlanningLine does.
+ */
+export function isBillablePlanningLine(lineType: string | undefined): boolean {
+  return (
+    lineType === 'Billable' ||
+    lineType === 'Both Budget and Billable' ||
+    lineType === 'Both_x0020_Budget_x0020_and_x0020_Billable'
+  );
+}
+
+/**
+ * Sum a project's Estimate: the quoted time on Resource lines tagged Billable (or Both
+ * Budget and Billable), converted to hours via the UoM map. This is the budget the
+ * project is tracked against, on the project page and the Projects list.
+ */
+export function sumEstimateHours(
+  planningLines: BCJobPlanningLine[],
+  uomConversionMap: UOMConversionMap
+): number {
+  return planningLines
+    .filter((line) => line.type === 'Resource' && isBillablePlanningLine(line.lineType))
+    .reduce((sum, line) => sum + convertToHours(line.number, line.quantity, uomConversionMap), 0);
+}

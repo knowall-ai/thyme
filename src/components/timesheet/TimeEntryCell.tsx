@@ -11,7 +11,9 @@ import {
   getBillableSplit,
   worstSeverity,
 } from '@/utils';
+import type { BillableTarget } from '@/utils';
 import { SeverityIcon } from '@/components/review';
+import { BillableTargetBadge } from '@/components/targets';
 
 const DRAG_MIME_TYPE = 'application/x-thyme-entry-id';
 
@@ -26,6 +28,8 @@ interface TimeEntryCellProps {
   readOnly?: boolean;
   /** Poppie's review notes by timesheet line number, to flag the entries they refer to */
   reviewNotesByLine?: Map<number, BCTimesheetReviewLine[]>;
+  /** The person's billable target; the day's billable % is coloured against it when set */
+  billableTarget?: BillableTarget | null;
 }
 
 export function TimeEntryCell({
@@ -38,6 +42,7 @@ export function TimeEntryCell({
   onMoveEntry,
   readOnly = false,
   reviewNotesByLine,
+  billableTarget,
 }: TimeEntryCellProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -178,7 +183,18 @@ export function TimeEntryCell({
         <div className="mt-auto pt-2">
           <div className="border-dark-700 border-t pt-2">
             <p className="text-dark-300 text-right text-xs font-medium">{formatTime(totalHours)}</p>
-            {billable.totalHours > 0 && (
+            {billable.totalHours > 0 && billableTarget && (
+              <div className="mt-1 flex justify-end">
+                <BillableTargetBadge
+                  actualPercent={billable.billablePercent}
+                  target={billableTarget}
+                  hasHours
+                  compact
+                  className="px-1.5 text-[11px] leading-tight"
+                />
+              </div>
+            )}
+            {billable.totalHours > 0 && !billableTarget && (
               <p
                 className="text-dark-500 text-right text-[11px] leading-tight whitespace-nowrap"
                 title={describeBillableSplit(billable)}

@@ -61,6 +61,24 @@ export function resolveBillableTarget(
   return { percent: companyDefaultPercent, isDefault: true };
 }
 
+/**
+ * A person's effective billable target when the company default may not be known
+ * (null: Thyme Setup not loaded yet, or its request failed): their own target never
+ * depends on it, so it's shown regardless; without one, the company default when known,
+ * else null.
+ */
+export function resolveBillableTargetIfKnown(
+  resource: Pick<BCResource, 'billableTargetPercent' | 'billableTargetSet'>,
+  companyDefaultPercent: number | null
+): BillableTarget | null {
+  if (resource.billableTargetSet && isValidPercent(resource.billableTargetPercent)) {
+    return { percent: resource.billableTargetPercent, isDefault: false };
+  }
+  return companyDefaultPercent === null
+    ? null
+    : { percent: companyDefaultPercent, isDefault: true };
+}
+
 /** The company default from Thyme Setup, or the config fallback when BC has none */
 export function resolveCompanyDefault(defaultPercent: number | null | undefined): number {
   return isValidPercent(defaultPercent)
