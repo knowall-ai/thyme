@@ -126,6 +126,7 @@ export function PoppieLineNotesPopover({
   // Hover or focus peeks at the notes and a click pins them open. Clicking a pinned popover or
   // pressing Escape dismisses it until the pointer leaves or focus moves on.
   const [isHovered, setIsHovered] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -134,7 +135,7 @@ export function PoppieLineNotesPopover({
   // Set when the popover is pinned from the keyboard, so focus moves into it to scroll long notes
   const focusOnPin = useRef(false);
   const popoverId = useId();
-  const isOpen = isPinned || (isHovered && !isDismissed);
+  const isOpen = isPinned || ((isHovered || isFocused) && !isDismissed);
 
   const clearLeaveTimer = () => {
     if (leaveTimer.current) clearTimeout(leaveTimer.current);
@@ -149,7 +150,8 @@ export function PoppieLineNotesPopover({
     clearLeaveTimer();
     leaveTimer.current = setTimeout(() => {
       setIsHovered(false);
-      setIsDismissed(false);
+      // A dismissal holds while the icon keeps focus; blurring it clears the dismissal
+      if (document.activeElement !== buttonRef.current) setIsDismissed(false);
     }, 150);
   };
   useEffect(() => clearLeaveTimer, []);
@@ -160,6 +162,7 @@ export function PoppieLineNotesPopover({
   }, []);
   const reset = () => {
     setIsHovered(false);
+    setIsFocused(false);
     setIsPinned(false);
     setIsDismissed(false);
   };
@@ -211,7 +214,7 @@ export function PoppieLineNotesPopover({
             setIsDismissed(false);
           }
         }}
-        onFocus={() => setIsHovered(true)}
+        onFocus={() => setIsFocused(true)}
         onBlur={handleBlur}
         aria-label={`${name}'s ${notes.length === 1 ? 'note' : `${notes.length} notes`} on this entry`}
         aria-expanded={isOpen}
