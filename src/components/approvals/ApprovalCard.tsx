@@ -15,7 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Card, Button } from '@/components/ui';
 import { BillableTargetBadge } from '@/components/targets';
-import { PoppieReviewPanel, PoppieVerdictChip, PoppieLineNotes } from '@/components/review';
+import { PoppieReviewPanel, PoppieVerdictChip, PoppieLineNotesPopover } from '@/components/review';
 import { useTimesheetReview } from '@/hooks';
 import { resolveResourceIdentity } from '@/services/auth/resourceIdentity';
 import { useCompanyPath } from '@/hooks/useCompanyPath';
@@ -504,8 +504,14 @@ export function ApprovalCard({
                         )}
                       </p>
                     )}
+                  </div>
+                  {/* Poppie's notes on the entry, marked by severity and opened in a popover */}
+                  <div className="flex w-8 shrink-0 justify-center">
                     {isFirstOfLine && (
-                      <PoppieLineNotes notes={poppieReview.notesByLine.get(line.lineNo)} />
+                      <PoppieLineNotesPopover
+                        notes={poppieReview.notesByLine.get(line.lineNo)}
+                        reviewer={poppieReview.review?.reviewer}
+                      />
                     )}
                   </div>
                   <p className="w-16 shrink-0 text-right text-sm font-medium text-white">

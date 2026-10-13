@@ -1,5 +1,6 @@
 'use client';
 
+import { useId, useState } from 'react';
 import {
   ExclamationCircleIcon,
   ExclamationTriangleIcon,
@@ -93,6 +94,82 @@ export function PoppieLineNotes({
         </li>
       ))}
     </ul>
+  );
+}
+
+const SEVERITY_RANK: Record<TimesheetReviewSeverity, number> = { Issue: 2, Warning: 1, Info: 0 };
+
+/**
+ * Poppie's notes for one timesheet line as a compact icon, marked with the most serious note's
+ * severity, that opens the notes in a popover on hover, focus or click (for touch).
+ */
+export function PoppieLineNotesPopover({
+  notes,
+  reviewer,
+  className,
+}: {
+  notes: BCTimesheetReviewLine[] | undefined;
+  reviewer?: string | null;
+  className?: string;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
+  const popoverId = useId();
+  if (!notes || notes.length === 0) return null;
+
+  const worst = notes.reduce((a, b) =>
+    (SEVERITY_RANK[b.severity] ?? 0) > (SEVERITY_RANK[a.severity] ?? 0) ? b : a
+  );
+  const isOpen = isHovered || isPinned;
+  const name = reviewer?.trim() || 'Poppie';
+
+  return (
+    <span
+      className={cn('relative inline-flex', className)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsPinned((pinned) => !pinned);
+        }}
+        onFocus={() => setIsHovered(true)}
+        onBlur={() => {
+          setIsHovered(false);
+          setIsPinned(false);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            setIsHovered(false);
+            setIsPinned(false);
+          }
+        }}
+        aria-label={`${name}'s ${notes.length === 1 ? 'note' : `${notes.length} notes`} on this entry`}
+        aria-expanded={isOpen}
+        aria-describedby={isOpen ? popoverId : undefined}
+        className="hover:bg-dark-700 inline-flex items-center gap-0.5 rounded-md p-1"
+      >
+        <SeverityIcon severity={worst.severity} />
+        {notes.length > 1 && (
+          <span className="text-dark-300 text-[10px] font-medium tabular-nums">{notes.length}</span>
+        )}
+      </button>
+      {isOpen && (
+        <div
+          id={popoverId}
+          role="tooltip"
+          className="border-dark-600 bg-dark-800 absolute top-full right-0 z-50 mt-1 w-80 rounded-lg border p-3 shadow-lg"
+        >
+          <p className="mb-2 flex items-center gap-2 text-xs font-medium text-white">
+            <PoppieAvatar reviewer={reviewer} className="h-5 w-5 text-[9px]" />
+            {name}&apos;s {notes.length === 1 ? 'note' : 'notes'}
+          </p>
+          <PoppieLineNotes notes={notes} className="mt-0 space-y-1.5" />
+        </div>
+      )}
+    </span>
   );
 }
 
