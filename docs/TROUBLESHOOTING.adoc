@@ -113,6 +113,9 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Poppie finished a request for a teammate but no suggestions appear
 | Suggestions are only visible to the person they're for and to Thyme administrators, because they can include meeting subjects and other activity the person hasn't logged yet. As their approver you can ask Poppie to check their week, and Thyme tells you how many she found. They see the suggestions on their own timesheet.
 
+| The Projects list's hours, budget or % used don't match the project page
+| Upgrade to the latest Thyme version. Earlier versions measured the list against the Plan (Budget lines) rather than the Estimate (the quoted time on Billable lines) and only counted timesheets from the last six months, so the figures differed. The list now works them out exactly as the project page does, and its bar shows the time by stage (Posted, Approved, Submitted, Unsubmitted). Hover over the bar to see the hours in each stage.
+
 | There's no *Linked sources* card on the project page
 | The card needs Thyme BC Extension 1.20 or later (the `projectSourceLinks` API); on older versions it's hidden. Upgrade the extension from https://github.com/knowall-ai/thyme-bc-extension.
 

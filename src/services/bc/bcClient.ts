@@ -1086,6 +1086,27 @@ class BusinessCentralClient {
     }
   }
 
+  /**
+   * Every project's posted time entries (Job Ledger Entry), in one query, for the Projects
+   * list (getTimeEntries is the one-project version). Throws on failure.
+   */
+  async getAllTimeEntries(): Promise<BCTimeEntry[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) return [];
+    return this.customApiFetchAll<BCTimeEntry>('/timeEntries');
+  }
+
+  /**
+   * Every project's Job Planning Lines, in one query, for the Projects list
+   * (getJobPlanningLines is the one-project version). Throws on failure.
+   */
+  async getAllJobPlanningLines(): Promise<BCJobPlanningLine[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) return [];
+    const lines = await this.customApiFetchAll<BCJobPlanningLine>('/jobPlanningLines');
+    return this.normalizePlanningLines(lines);
+  }
+
   // Resources (Users/Employees) - uses custom Thyme API
   async getResources(filter?: string): Promise<BCResource[]> {
     const extensionInstalled = await this.isExtensionInstalled();
@@ -1926,6 +1947,33 @@ class BusinessCentralClient {
     return this.customApiFetchAll<BCTimeSheetDetail>(
       `/timeSheetDetails?$filter=${encodeURIComponent(filter)}`
     );
+  }
+
+  /**
+   * Every project (Job) timesheet line, across all projects and timesheets, in one query:
+   * the Projects list works out each project's time spent from these in a single pass
+   * (getTimeSheetLinesForJob is the one-project version).
+   */
+  async getAllJobTimeSheetLines(): Promise<BCTimeSheetLine[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+    const filter = encodeURIComponent("type eq 'Job'");
+    return this.customApiFetchAll<BCTimeSheetLine>(`/timeSheetLines?$filter=${filter}`);
+  }
+
+  /**
+   * Every project (Job) timesheet detail (daily hours), across all projects, in one query
+   * (getTimeSheetDetailsForJob is the one-project version).
+   */
+  async getAllJobTimeSheetDetails(): Promise<BCTimeSheetDetail[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+    const filter = encodeURIComponent("type eq 'Job'");
+    return this.customApiFetchAll<BCTimeSheetDetail>(`/timeSheetDetails?$filter=${filter}`);
   }
 
   /**

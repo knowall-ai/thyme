@@ -12,7 +12,15 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
-import { Button, Input, Select, ExtensionPreviewWrapper } from '@/components/ui';
+import {
+  Button,
+  Input,
+  Select,
+  ExtensionPreviewWrapper,
+  StageBar,
+  getStageSegments,
+  getStageSummary,
+} from '@/components/ui';
 import { useProjectsStore } from '@/hooks';
 import type { Project } from '@/types';
 import type { BillingMode } from '@/services/bc/projectDetailsService';
@@ -21,6 +29,7 @@ import {
   compareByRemaining,
   describeProjectDates,
   getRemainingHours,
+  getPercentOfEstimate,
   getBCJobsListUrl,
   getBCCustomersListUrl,
   getBCJobUrl,
@@ -42,13 +51,21 @@ type SortOption =
   | 'recent'
   | 'billing-asc'
   | 'billing-desc'
-  | 'planned-asc'
-  | 'planned-desc'
+  | 'estimate-asc'
+  | 'estimate-desc'
   | 'spent-asc'
   | 'spent-desc'
   | 'remaining-asc'
   | 'remaining-desc';
 type CustomerFilter = 'all' | string;
+
+/**
+ * The hours in a project's Estimate column: its estimate, or for an internal project
+ * (which has no budget) its planned time
+ */
+function getEstimateColumnHours(project: Project): number | undefined {
+  return project.isInternal ? project.plannedHours : project.estimateHours;
+}
 
 /**
  * Get badge styling for billing mode (compact version for list)
@@ -96,7 +113,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   // Helper to toggle sort for a column
-  const handleColumnSort = (column: 'billing' | 'planned' | 'spent' | 'remaining') => {
+  const handleColumnSort = (column: 'billing' | 'estimate' | 'spent' | 'remaining') => {
     const ascKey = `${column}-asc` as SortOption;
     const descKey = `${column}-desc` as SortOption;
     if (sortBy === ascKey) {
@@ -107,7 +124,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
   };
 
   // Helper to get sort indicator for a column
-  const getSortIndicator = (column: 'billing' | 'planned' | 'spent' | 'remaining') => {
+  const getSortIndicator = (column: 'billing' | 'estimate' | 'spent' | 'remaining') => {
     const ascKey = `${column}-asc`;
     const descKey = `${column}-desc`;
     if (sortBy === ascKey) {
@@ -188,11 +205,11 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
         });
         break;
       }
-      case 'planned-asc':
-        result.sort((a, b) => (a.budgetHours ?? 0) - (b.budgetHours ?? 0));
+      case 'estimate-asc':
+        result.sort((a, b) => (getEstimateColumnHours(a) ?? 0) - (getEstimateColumnHours(b) ?? 0));
         break;
-      case 'planned-desc':
-        result.sort((a, b) => (b.budgetHours ?? 0) - (a.budgetHours ?? 0));
+      case 'estimate-desc':
+        result.sort((a, b) => (getEstimateColumnHours(b) ?? 0) - (getEstimateColumnHours(a) ?? 0));
         break;
       case 'spent-asc':
         result.sort((a, b) => (a.totalHours ?? 0) - (b.totalHours ?? 0));
@@ -356,11 +373,12 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
                 </th>
                 <th
                   className="w-28 cursor-pointer px-4 py-3 text-right text-sm font-medium text-gray-400 hover:text-white"
-                  onClick={() => handleColumnSort('planned')}
+                  onClick={() => handleColumnSort('estimate')}
+                  title="The quoted time on Billable lines, as on the project page"
                 >
                   <span className="inline-flex items-center whitespace-nowrap">
-                    Planned
-                    {getSortIndicator('planned')}
+                    Estimate
+                    {getSortIndicator('estimate')}
                   </span>
                 </th>
                 <th
@@ -450,16 +468,19 @@ function ProjectRow({
   onToggleFavorite,
   companyName,
 }: ProjectRowProps) {
-  const budget = project.budgetHours; // From Job Planning Lines
+  // Figures are worked out as on the project page: Time Spent against the Estimate
+  const budget = getEstimateColumnHours(project); // From Job Planning Lines
   const hours = project.totalHours; // From timesheets
+  const stages = project.timeByStage;
   // Internal projects have no budget: their Plan is just planned time, so nothing is
-  // remaining, over budget or measured by a progress bar
+  // remaining or over budget
   const isInternal = !!project.isInternal;
   const remaining = getRemainingHours(project);
   const percentUsed =
-    !isInternal && budget !== undefined && hours !== undefined && budget > 0
-      ? Math.round((hours / budget) * 100)
+    !isInternal && hours !== undefined
+      ? getPercentOfEstimate(hours, project.estimateHours ?? 0)
       : undefined;
+  const stageSummary = stages && stages.total > 0 ? getStageSummary(stages) : undefined;
 
   const dates = describeProjectDates(
     project.startDate,
@@ -550,24 +571,26 @@ function ProjectRow({
         )}
       </td>
 
-      {/* Hours column with progress bar */}
+      {/* Spent column: hours by stage, against the estimate as on the project page */}
       <td className="px-4 py-3">
-        <div className="flex flex-col items-end gap-1">
-          <span className="text-white">{hours !== undefined ? `${hours.toFixed(1)}h` : '-'}</span>
-          {percentUsed !== undefined && (
-            <div className="bg-dark-600 h-1.5 w-20 overflow-hidden rounded-full">
-              <div
-                className={cn(
-                  'h-full rounded-full transition-all',
-                  percentUsed > 100
-                    ? 'bg-red-500'
-                    : percentUsed > 80
-                      ? 'bg-amber-500'
-                      : 'bg-thyme-500'
-                )}
-                style={{ width: `${Math.min(percentUsed, 100)}%` }}
+        <div className="flex flex-col items-end gap-1" title={stageSummary}>
+          <span
+            className={cn(
+              percentUsed !== undefined && percentUsed > 100 ? 'text-red-400' : 'text-white'
+            )}
+          >
+            {hours !== undefined ? `${hours.toFixed(1)}h` : '-'}
+          </span>
+          {stages && stageSummary && (
+            <>
+              {/* Full width is the estimate, or the time spent if over it or there's no estimate */}
+              <StageBar
+                segments={getStageSegments(stages)}
+                max={Math.max(isInternal ? 0 : (project.estimateHours ?? 0), stages.total, 1)}
+                className="w-20"
               />
-            </div>
+              <span className="sr-only">{stageSummary}</span>
+            </>
           )}
         </div>
       </td>

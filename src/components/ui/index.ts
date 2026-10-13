@@ -32,7 +32,7 @@ export type { ExtensionInstallModalProps } from './ExtensionInstallModal';
 export { QuoteDisplay } from './QuoteDisplay';
 export type { QuoteDisplayProps } from './QuoteDisplay';
 
-export { StageBar, StageLegend, getStageSegments } from './StageBar';
+export { StageBar, StageLegend, getStageSegments, getStageSummary } from './StageBar';
 export type { StageBarProps, StageLegendProps, StageSegment } from './StageBar';
 
 export { GitHubIcon } from './GitHubIcon';

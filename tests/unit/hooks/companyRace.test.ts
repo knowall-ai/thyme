@@ -58,8 +58,7 @@ vi.mock('@/services/bc', () => ({
   projectService: {
     getProjects: (...args: unknown[]) => getProjects(...args),
     getProjectTasks: vi.fn().mockResolvedValue([]),
-    getProjectHours: vi.fn().mockResolvedValue(new Map()),
-    getProjectBudgets: vi.fn().mockResolvedValue(new Map()),
+    getProjectFigures: vi.fn().mockResolvedValue(new Map()),
   },
 }));
 

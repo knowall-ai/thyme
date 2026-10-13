@@ -1,13 +1,29 @@
 import { bcClient } from './bcClient';
-import type { Project, Task, BCProject, BCJobTask, BCTimeSheet, BCTimeSheetLine } from '@/types';
+import type { Project, Task, BCProject, BCJobTask, BCJobPlanningLine } from '@/types';
 import { compareProjectsByName } from '@/utils/projectSort';
 import {
   buildUOMConversionMap,
+  collectProjectTimeRows,
+  emptyStageHours,
   getAbsenceTaskNos,
+  getBillingModeFromLines,
+  getStageHoursByProject,
   isInternalProject,
+  sumEstimateHours,
   sumPlannedHours,
+  sumPostedHoursByProject,
   withoutAbsenceLines,
+  type BillingMode,
+  type StageHours,
 } from '@/utils';
+
+/** A project's figures for the Projects list, worked out as on the project page */
+export interface ProjectFigures {
+  timeByStage: StageHours; // Time Spent, split by timesheet stage
+  estimateHours: number; // Quoted on Billable Resource lines: the budget
+  plannedHours: number; // On Budget Resource lines (the Plan)
+  billingMode: BillingMode;
+}
 
 // Color palette for projects
 const PROJECT_COLORS = [
@@ -218,112 +234,73 @@ export const projectService = {
   },
 
   /**
-   * Fetch total hours for all projects by aggregating timesheet data.
-   * Returns a map of project code -> total hours.
-   * This is an expensive operation - call in the background.
-   */
-  async getProjectHours(): Promise<Map<string, number>> {
-    const projectHours = new Map<string, number>();
-
-    // Check if extension is installed
-    const extensionInstalled = await bcClient.isExtensionInstalled();
-    if (!extensionInstalled) {
-      return projectHours;
-    }
-
-    // Get all resources
-    let resources;
-    try {
-      resources = await bcClient.getResources();
-    } catch {
-      return projectHours;
-    }
-
-    // Get the date 6 months ago for filtering
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    const filterDate = sixMonthsAgo.toISOString().split('T')[0];
-
-    // Fetch timesheets for each resource and aggregate by project
-    const timesheetPromises = resources.map(async (resource) => {
-      try {
-        const timesheets = await bcClient.getTimeSheets(resource.number);
-        const recentTimesheets = timesheets.filter(
-          (ts: BCTimeSheet) => ts.startingDate >= filterDate
-        );
-
-        for (const timesheet of recentTimesheets) {
-          try {
-            const lines = await bcClient.getTimeSheetLines(timesheet.number);
-            const jobLines = lines.filter(
-              (line: BCTimeSheetLine) => line.type === 'Job' && line.jobNo
-            );
-
-            for (const line of jobLines) {
-              if (line.totalQuantity > 0 && line.jobNo) {
-                const current = projectHours.get(line.jobNo) || 0;
-                projectHours.set(line.jobNo, current + line.totalQuantity);
-              }
-            }
-          } catch {
-            // Skip timesheet if lines can't be fetched
-          }
-        }
-      } catch {
-        // Skip resource if timesheets can't be fetched
-      }
-    });
-
-    await Promise.all(timesheetPromises);
-    return projectHours;
-  },
-
-  /**
-   * Fetch budget hours for all projects from Job Planning Lines.
-   * Returns a map of project code -> budget hours.
+   * Time spent (split by stage), Estimate, Plan and billing mode for every project, worked
+   * out exactly as the project page does (see projectDetailsService.getProjectAnalytics)
+   * with the same shared helpers, so the list and the project page show the same figures.
    *
-   * Uses the same rule as the project details page: only Resource Budget
-   * lines count, and each line's quantity is converted to hours via the
-   * UoM map (so DAY-based resources are scaled by their hours-per-day
-   * factor). Without the conversion the list would show raw days against
-   * a column labelled "h", and the Remaining figure would go strongly
-   * negative (issue #192).
+   * Every project at once: a handful of company-wide queries (each paged), rather than
+   * walking every person's timesheets or loading each project separately. Projects need
+   * their tasks loaded (fetchProjects does), to leave planned absence out of the estimate.
+   * A timesheet query failing rejects the whole load, so the list never shows zero hours
+   * that look real; posted hours and planning lines fall back to none, as on the project page.
    */
-  async getProjectBudgets(
-    projectCodes: string[],
-    internalCodes: ReadonlySet<string> = new Set()
-  ): Promise<Map<string, number>> {
-    const projectBudgets = new Map<string, number>();
-    if (projectCodes.length === 0) return projectBudgets;
+  async getProjectFigures(
+    projects: Pick<Project, 'code' | 'isInternal' | 'tasks'>[]
+  ): Promise<Map<string, ProjectFigures>> {
+    const figures = new Map<string, ProjectFigures>();
+    if (projects.length === 0) return figures;
 
-    // Resource UoM map is per-tenant; fetch once and reuse for every project.
-    const resourceUOMs = await bcClient.getResourceUnitsOfMeasure();
-    const uomConversionMap = buildUOMConversionMap(resourceUOMs);
+    const [resources, timesheets, jobLines, jobDetails, postedEntries, planningLines, uoms] =
+      await Promise.all([
+        bcClient.getResources(),
+        bcClient.getTimeSheetsFrom(),
+        bcClient.getAllJobTimeSheetLines(),
+        bcClient.getAllJobTimeSheetDetails(),
+        bcClient.getAllTimeEntries().catch(() => []),
+        bcClient.getAllJobPlanningLines().catch(() => []),
+        bcClient.getResourceUnitsOfMeasure(),
+      ]);
 
-    const budgetPromises = projectCodes.map(async (projectCode) => {
-      try {
-        const allLines = await bcClient.getJobPlanningLines(projectCode);
-        const isInternal = internalCodes.has(projectCode);
-        // Planned absence isn't budgeted work (internal projects keep it as plain plan)
-        let planningLines = allLines;
-        if (!isInternal && allLines.length > 0) {
-          try {
-            const absenceTaskNos = getAbsenceTaskNos(await bcClient.getJobTasks(projectCode));
-            planningLines = withoutAbsenceLines(allLines, absenceTaskNos, isInternal);
-          } catch {
-            // Without task names nothing can be told apart, so keep every line
-          }
-        }
-        const budgetHours = sumPlannedHours(planningLines, uomConversionMap);
-        if (budgetHours > 0) {
-          projectBudgets.set(projectCode, budgetHours);
-        }
-      } catch {
-        // Skip project if budget can't be fetched
-      }
-    });
+    // Time Spent by stage, by the project page's rules
+    const resourceNoByTimesheet = new Map(timesheets.map((ts) => [ts.number, ts.resourceNo]));
+    const timeRows = collectProjectTimeRows(
+      jobLines,
+      jobDetails,
+      resourceNoByTimesheet,
+      new Set(resources.map((r) => r.number))
+    );
+    const stagesByProject = getStageHoursByProject(
+      timeRows,
+      sumPostedHoursByProject(postedEntries)
+    );
 
-    await Promise.all(budgetPromises);
-    return projectBudgets;
+    // Estimate and Plan from each project's planning lines, less planned absence on
+    // non-internal projects (internal ones have no budget; their plan is kept as is)
+    const uomConversionMap = buildUOMConversionMap(uoms);
+    const linesByProject = new Map<string, BCJobPlanningLine[]>();
+    for (const line of planningLines) {
+      const lines = linesByProject.get(line.jobNo) ?? [];
+      lines.push(line);
+      linesByProject.set(line.jobNo, lines);
+    }
+
+    for (const project of projects) {
+      const isInternal = !!project.isInternal;
+      const absenceTaskNos = getAbsenceTaskNos(
+        project.tasks.map((task) => ({ jobTaskNo: task.code, description: task.name }))
+      );
+      const lines = withoutAbsenceLines(
+        linesByProject.get(project.code) ?? [],
+        absenceTaskNos,
+        isInternal
+      );
+      figures.set(project.code, {
+        timeByStage: stagesByProject.get(project.code) ?? emptyStageHours(),
+        estimateHours: sumEstimateHours(lines, uomConversionMap),
+        plannedHours: sumPlannedHours(lines, uomConversionMap),
+        billingMode: getBillingModeFromLines(lines),
+      });
+    }
+    return figures;
   },
 };

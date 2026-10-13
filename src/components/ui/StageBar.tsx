@@ -17,6 +17,13 @@ export function getStageSegments(stages: Omit<StageHours, 'total'>): StageSegmen
   ];
 }
 
+/** Hours by stage as text, e.g. "Posted 4.0h · Approved 2.0h · …", for tooltips and screen readers */
+export function getStageSummary(stages: Omit<StageHours, 'total'>): string {
+  return getStageSegments(stages)
+    .map((seg) => `${seg.label} ${seg.hours.toFixed(1)}h`)
+    .join(' · ');
+}
+
 export interface StageBarProps {
   segments: StageSegment[];
   /** Hours that fill the whole bar; segments are drawn as a share of it */
