@@ -506,8 +506,10 @@ function ProjectRow({
                         dates.endUrgency === 'soon' && 'text-amber-400',
                         dates.endUrgency === 'overdue' && 'text-red-400'
                       )}
+                      title={dates.endHint}
                     >
                       {dates.end}
+                      {dates.endHint && <span className="sr-only"> ({dates.endHint})</span>}
                     </span>
                   </span>
                 </>

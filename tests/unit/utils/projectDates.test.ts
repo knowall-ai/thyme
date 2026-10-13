@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { describeProjectDates, parseBCDate } from '@/utils/projectDates';
+import { describeEndDatePassed, describeProjectDates, parseBCDate } from '@/utils/projectDates';
 
 const today = new Date(2026, 5, 15); // 15 Jun 2026, local
 
@@ -58,6 +58,13 @@ describe('describeProjectDates', () => {
     expect(describeProjectDates(undefined, '2026-06-14', true, today).endUrgency).toBe('overdue');
   });
 
+  it('says how long ago a passed end date was, so red is not the only cue', () => {
+    expect(describeProjectDates(undefined, '2026-06-14', true, today).endHint).toBe(
+      'Ended 1 day ago'
+    );
+    expect(describeProjectDates(undefined, '2026-06-15', true, today).endHint).toBeUndefined();
+  });
+
   it('does not flag inactive projects', () => {
     expect(describeProjectDates(undefined, '2026-06-14', false, today).endUrgency).toBe('none');
     expect(describeProjectDates(undefined, '2026-06-20', false, today).endUrgency).toBe('none');
@@ -66,5 +73,29 @@ describe('describeProjectDates', () => {
   it('is unaffected by the time of day', () => {
     const lateToday = new Date(2026, 5, 15, 23, 59);
     expect(describeProjectDates(undefined, '2026-06-15', true, lateToday).endUrgency).toBe('soon');
+  });
+});
+
+describe('describeEndDatePassed', () => {
+  it('describes an end date before today', () => {
+    expect(describeEndDatePassed('2026-06-14', true, today)).toBe('Ended 1 day ago');
+    expect(describeEndDatePassed('2026-06-05', true, today)).toBe('Ended 10 days ago');
+  });
+
+  it('does not count today, or a future date, as past', () => {
+    expect(describeEndDatePassed('2026-06-15', true, today)).toBeNull();
+    expect(describeEndDatePassed('2026-06-16', true, today)).toBeNull();
+    // Late in the day is still today
+    expect(describeEndDatePassed('2026-06-15', true, new Date(2026, 5, 15, 23, 59))).toBeNull();
+  });
+
+  it('skips empty and placeholder dates', () => {
+    expect(describeEndDatePassed(undefined, true, today)).toBeNull();
+    expect(describeEndDatePassed('', true, today)).toBeNull();
+    expect(describeEndDatePassed('0001-01-01', true, today)).toBeNull();
+  });
+
+  it('does not flag projects that are no longer active', () => {
+    expect(describeEndDatePassed('2026-06-14', false, today)).toBeNull();
   });
 });

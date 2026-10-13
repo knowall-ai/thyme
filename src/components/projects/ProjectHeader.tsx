@@ -18,7 +18,13 @@ import {
   ProjectRenamePermissionError,
 } from '@/hooks/useProjectDetailsStore';
 import { useCompanyPath, useCompanyStore } from '@/hooks';
-import { cn, DATE_FORMAT_FULL, formatDate as formatDateUtil, getBCJobUrl } from '@/utils';
+import {
+  cn,
+  DATE_FORMAT_FULL,
+  describeEndDatePassed,
+  formatDate as formatDateUtil,
+  getBCJobUrl,
+} from '@/utils';
 import type { BillingMode } from '@/services/bc/projectDetailsService';
 
 /**
@@ -302,6 +308,9 @@ export function ProjectHeader() {
 
   if (!project) return null;
 
+  // e.g. "Ended 3 days ago" once an active project's end date has passed, else null
+  const endDatePassed = describeEndDatePassed(project.endDate, project.status === 'active');
+
   // Prints the page exactly as shown - amounts hidden via their Eye toggles stay masked
   const handleExportPDF = () => {
     // Set document title for PDF filename: "Customer - Project Code - Project Report"
@@ -364,9 +373,14 @@ export function ProjectHeader() {
                 <CalendarIcon className="h-4 w-4" />
                 <span>Start: {formatDate(project.startDate)}</span>
               </div>
-              <div className="flex items-center gap-1.5">
+              {/* A passed end date on an active project is red, as on the Projects list */}
+              <div
+                className={cn('flex items-center gap-1.5', endDatePassed && 'text-red-400')}
+                title={endDatePassed ?? undefined}
+              >
                 <CalendarIcon className="h-4 w-4" />
                 <span>End: {formatDate(project.endDate)}</span>
+                {endDatePassed && <span className="sr-only"> ({endDatePassed})</span>}
               </div>
             </div>
           </div>

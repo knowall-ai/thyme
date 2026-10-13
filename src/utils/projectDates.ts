@@ -29,10 +29,36 @@ export interface ProjectDateRange {
   end: string | null;
   /** Only ever non-'none' for an active project with an end date */
   endUrgency: EndDateUrgency;
+  /** Says the end date has passed (e.g. "Ended 3 days ago"), so red isn't the only cue */
+  endHint?: string;
 }
 
 /** An upcoming end date within this many days is flagged as "soon". */
 export const END_DATE_SOON_DAYS = 30;
+
+/** Whole calendar days from today to a date: negative once it's passed (today is 0) */
+function daysFromToday(date: Date, today: Date): number {
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.round((date.getTime() - todayStart.getTime()) / 86_400_000);
+}
+
+/**
+ * How long ago an active project's end date passed, e.g. "Ended 3 days ago", or null
+ * while it hasn't (today itself isn't past), for an empty date, or for a project
+ * that isn't active (finished projects are expected to be past their end date).
+ * Shared by the Projects list and the project page, so both flag the same projects.
+ */
+export function describeEndDatePassed(
+  endDate: string | undefined,
+  isActive: boolean,
+  today: Date = new Date()
+): string | null {
+  const end = parseBCDate(endDate);
+  if (!end || !isActive) return null;
+  const daysAgo = -daysFromToday(end, today);
+  if (daysAgo <= 0) return null;
+  return `Ended ${daysAgo} ${daysAgo === 1 ? 'day' : 'days'} ago`;
+}
 
 /**
  * Describe a project's start/end dates for the Projects list.
@@ -50,14 +76,15 @@ export function describeProjectDates(
 
   let endUrgency: EndDateUrgency = 'none';
   if (end && isActive) {
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const days = Math.round((end.getTime() - todayStart.getTime()) / 86_400_000);
+    const days = daysFromToday(end, today);
     if (days < 0) endUrgency = 'overdue';
     else if (days <= END_DATE_SOON_DAYS) endUrgency = 'soon';
   }
+  const endHint = describeEndDatePassed(endDate, isActive, today) ?? undefined;
   return {
     start: start ? formatShort(start) : 'No start date',
     end: end ? formatShort(end) : 'No end date',
     endUrgency,
+    ...(endHint && { endHint }),
   };
 }
