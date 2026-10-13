@@ -1,7 +1,13 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import {
+  CalendarDaysIcon,
+  CalendarIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from '@heroicons/react/24/outline';
 import { Card, DatePicker } from '@/components/ui';
 import {
   PERIOD_PRESETS,
@@ -97,25 +103,31 @@ export function ReportPeriodPicker({
           <label className="sr-only" htmlFor="report-period">
             Period
           </label>
-          <select
-            id="report-period"
-            value={selectValue}
-            onChange={(e) => handleSelect(e.target.value)}
-            className="border-dark-600 bg-dark-700 hover:border-dark-500 focus:border-thyme-500 focus:ring-thyme-500 text-dark-200 h-10 rounded-lg border px-3 text-sm focus:ring-1 focus:outline-none"
-          >
-            {/* Stepped away from every preset: name the kind of period instead */}
-            {selectValue === '' && (
-              <option value="" disabled>
-                {UNIT_LABELS[period.unit]}
-              </option>
-            )}
-            {PERIOD_PRESETS.map(({ id, label }) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-            <option value={CUSTOM}>Custom range…</option>
-          </select>
+          <div className="relative">
+            <CalendarDaysIcon className="text-dark-400 pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+            <select
+              id="report-period"
+              value={selectValue}
+              onChange={(e) => handleSelect(e.target.value)}
+              // Styled like the filter buttons beside it: their icon and chevron, not the
+              // browser's own arrow (which sits hard against the edge)
+              className="border-dark-600 bg-dark-700 hover:border-dark-500 hover:bg-dark-600 focus:border-thyme-500 focus:ring-thyme-500 text-dark-200 h-10 cursor-pointer appearance-none rounded-lg border pr-9 pl-9 text-sm transition-colors focus:ring-1 focus:outline-none"
+            >
+              {/* Stepped away from every preset: name the kind of period instead */}
+              {selectValue === '' && (
+                <option value="" disabled>
+                  {UNIT_LABELS[period.unit]}
+                </option>
+              )}
+              {PERIOD_PRESETS.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+              <option value={CUSTOM}>Custom range…</option>
+            </select>
+            <ChevronDownIcon className="text-dark-400 pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2" />
+          </div>
           {actions}
         </div>
       </div>
