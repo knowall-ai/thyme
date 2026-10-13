@@ -47,6 +47,10 @@ import { ReportPeriodPicker } from './ReportPeriodPicker';
 
 const EVERYONE = 'everyone';
 
+// A bar segment narrower than this (% of the row) is left unlabelled: its hours are in
+// the totals beside the bar, and e.g. "200h 45m" wouldn't fit
+const MIN_LABELLED_SEGMENT = 7;
+
 const BREAKDOWN_TITLES = {
   day: 'Daily Breakdown',
   week: 'Weekly Breakdown',
@@ -480,11 +484,7 @@ export function ReportsPanel() {
                     title={BILLABLE_TARGET_BAND_LABELS[billableBand]}
                   >
                     {billableTarget.percent.toFixed(0)}%{' '}
-                    {selectedNo === EVERYONE
-                      ? 'team target'
-                      : billableTarget.isDefault
-                        ? 'default target'
-                        : 'target'}
+                    {selectedNo === EVERYONE ? 'team target' : 'target'}
                   </p>
                 )}
               </div>
@@ -628,33 +628,37 @@ export function ReportsPanel() {
                     <span className="text-dark-400 w-28 text-sm">{row.label}</span>
                     <div className="bg-dark-700 relative h-6 flex-1 overflow-hidden rounded">
                       {row.hours > 0 && (
-                        <div className="absolute top-0 left-0 flex h-full">
+                        <div className="absolute inset-0 flex">
                           {/* Billable segment */}
                           {row.billableHours > 0 && (
                             <div
-                              className="bg-thyme-600 flex h-full items-center px-2 transition-all duration-500"
+                              className="bg-thyme-600 flex h-full items-center overflow-hidden px-2 transition-all duration-500"
                               style={{
                                 width: `${billableWidth}%`,
                                 minWidth: '24px',
                               }}
                             >
-                              <span className="text-xs font-medium text-white">
-                                {formatTime(row.billableHours)}
-                              </span>
+                              {billableWidth >= MIN_LABELLED_SEGMENT && (
+                                <span className="text-xs font-medium whitespace-nowrap text-white">
+                                  {formatTime(row.billableHours)}
+                                </span>
+                              )}
                             </div>
                           )}
                           {/* Unbillable segment */}
                           {unbillableHours > 0 && (
                             <div
-                              className="flex h-full items-center bg-slate-500 px-2 transition-all duration-500"
+                              className="flex h-full items-center overflow-hidden bg-slate-500 px-2 transition-all duration-500"
                               style={{
                                 width: `${unbillableWidth}%`,
                                 minWidth: '24px',
                               }}
                             >
-                              <span className="text-xs font-medium text-white">
-                                {formatTime(unbillableHours)}
-                              </span>
+                              {unbillableWidth >= MIN_LABELLED_SEGMENT && (
+                                <span className="text-xs font-medium whitespace-nowrap text-white">
+                                  {formatTime(unbillableHours)}
+                                </span>
+                              )}
                             </div>
                           )}
                         </div>
