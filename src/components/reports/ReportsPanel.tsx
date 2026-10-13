@@ -558,7 +558,11 @@ export function ReportsPanel() {
                     title={BILLABLE_TARGET_BAND_LABELS[billableBand]}
                   >
                     {billableTarget.percent.toFixed(0)}%{' '}
-                    {selectedNo === EVERYONE ? 'team target' : 'target'}
+                    {selectedNo === EVERYONE
+                      ? 'team target'
+                      : billableTarget.isDefault
+                        ? 'default target'
+                        : 'target'}
                   </p>
                 )}
               </div>
