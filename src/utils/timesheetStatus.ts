@@ -5,6 +5,16 @@ import type {
   TimesheetDisplayStatus,
 } from '@/types';
 
+/** Badge colours for each timesheet (and timesheet line) status */
+export const TIMESHEET_STATUS_COLORS: Record<TimesheetDisplayStatus, string> = {
+  Open: 'bg-blue-500/20 text-blue-400',
+  'Partially Submitted': 'bg-yellow-500/20 text-yellow-400',
+  Submitted: 'bg-purple-500/20 text-purple-400',
+  Rejected: 'bg-amber-500/20 text-amber-400',
+  Approved: 'bg-green-500/20 text-green-400',
+  Mixed: 'bg-orange-500/20 text-orange-400',
+};
+
 /**
  * Derive a display-friendly status from timesheet FlowFields.
  *

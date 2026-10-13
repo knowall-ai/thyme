@@ -29,7 +29,7 @@ import { BillableTargetBadge } from '@/components/targets';
 import { TimeEntryCell } from './TimeEntryCell';
 import { TimeEntryModal } from './TimeEntryModal';
 import { PoppieSuggestionsPanel } from './PoppieSuggestionsPanel';
-import type { TimeEntry, TimesheetDisplayStatus } from '@/types';
+import type { TimeEntry } from '@/types';
 import {
   getWeekDays,
   formatDate,
@@ -39,20 +39,11 @@ import {
   getBillableSplit,
   formatBillablePercent,
   describeBillableSplit,
+  TIMESHEET_STATUS_COLORS,
 } from '@/utils';
 import { getBCResourcesListUrl } from '@/utils/bcUrls';
 import { RESOURCE_PARAM } from '@/utils/teammateParam';
 import { getRandomQuote } from '@/config/quotes';
-
-// Status badge colors
-const statusColors: Record<TimesheetDisplayStatus, string> = {
-  Open: 'bg-blue-500/20 text-blue-400',
-  'Partially Submitted': 'bg-yellow-500/20 text-yellow-400',
-  Submitted: 'bg-purple-500/20 text-purple-400',
-  Rejected: 'bg-amber-500/20 text-amber-400',
-  Approved: 'bg-green-500/20 text-green-400',
-  Mixed: 'bg-orange-500/20 text-orange-400',
-};
 
 export function WeeklyTimesheet() {
   const { account } = useAuth();
@@ -626,7 +617,7 @@ Thank you!`)}`}
                 Timesheet: <span className="font-medium text-white">{currentTimesheet.number}</span>
               </div>
               <span
-                className={`rounded px-2 py-1 text-xs font-medium ${statusColors[timesheetStatus]}`}
+                className={`rounded px-2 py-1 text-xs font-medium ${TIMESHEET_STATUS_COLORS[timesheetStatus]}`}
               >
                 {timesheetStatus}
               </span>
