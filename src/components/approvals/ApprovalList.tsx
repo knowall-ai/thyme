@@ -15,11 +15,17 @@ import { Card, ExtensionPreviewWrapper } from '@/components/ui';
 import { ApprovalCard } from './ApprovalCard';
 import { ApprovalFilters } from './ApprovalFilters';
 import { prefetchTimeSheetLines } from './prefetchTimeSheetLines';
-import { useApprovalStore, useCompanyStore } from '@/hooks';
+import { useApprovalStore, useCompanyBillableDefault, useCompanyStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
 import { resolveResourceIdentity } from '@/services/auth/resourceIdentity';
 import { bcClient } from '@/services/bc/bcClient';
-import { cn, DATE_FORMAT_FULL, DATE_FORMAT_SHORT } from '@/utils';
+import {
+  cn,
+  hasBillableTargetFields,
+  resolveBillableTarget,
+  DATE_FORMAT_FULL,
+  DATE_FORMAT_SHORT,
+} from '@/utils';
 import type {
   BCTimeSheet,
   BCTimeSheetLine,
@@ -70,6 +76,21 @@ export function ApprovalList() {
     deleteTimeSheet,
     checkApprovalPermission,
   } = useApprovalStore();
+
+  // Each person's billable target (their own, else the company default), as on the Team page
+  const companyBillableDefault = useCompanyBillableDefault(hasBillableTargetFields(resources));
+  const billableTargetsByResource = useMemo(
+    () =>
+      companyBillableDefault === null
+        ? null
+        : new Map(
+            resources.map((resource) => [
+              resource.number,
+              resolveBillableTarget(resource, companyBillableDefault),
+            ])
+          ),
+    [resources, companyBillableDefault]
+  );
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [linesCache, setLinesCache] = useState<Record<string, BCTimeSheetLine[]>>({});
@@ -581,6 +602,7 @@ export function ApprovalList() {
                     resourceEmail={getFullEmail(timeSheet.resourceEmail) || undefined}
                     jobsCache={jobsCache}
                     tasksCache={tasksCache}
+                    billableTarget={billableTargetsByResource?.get(timeSheet.resourceNo) ?? null}
                   />
                 ))}
               </div>
