@@ -160,8 +160,8 @@ export function PoppieLineNotesPopover({
     setIsPinned(false);
     setIsDismissed(true);
   }, []);
+  // Focus leaving clears focus, pinning and dismissal; hover is left to the pointer events
   const reset = () => {
-    setIsHovered(false);
     setIsFocused(false);
     setIsPinned(false);
     setIsDismissed(false);
@@ -216,7 +216,7 @@ export function PoppieLineNotesPopover({
         }}
         onFocus={() => setIsFocused(true)}
         onBlur={handleBlur}
-        aria-label={`${name}'s ${notes.length === 1 ? 'note' : `${notes.length} notes`} on this entry`}
+        aria-label={`${name}'s ${notes.length === 1 ? 'note' : `${notes.length} notes`} on this entry (${getSeverityStyle(worst.severity).label})`}
         aria-expanded={isOpen}
         aria-describedby={isOpen ? popoverId : undefined}
         className="hover:bg-dark-700 inline-flex items-center gap-0.5 rounded-md p-1"
