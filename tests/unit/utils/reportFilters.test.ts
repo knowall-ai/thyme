@@ -352,4 +352,16 @@ describe('filtering', () => {
       ]);
     }
   });
+
+  it('lists every picked name when asked, e.g. for a printout', () => {
+    const names = {
+      clients: ['Adatum Corporation', 'Contoso Ltd.', 'Trey Research'],
+      projects: [],
+      resources: [],
+    };
+    expect(describeReportFilters(names)).toBe('3 clients · All projects · All resources');
+    expect(describeReportFilters(names, Infinity)).toBe(
+      'Adatum Corporation, Contoso Ltd., Trey Research · All projects · All resources'
+    );
+  });
 });

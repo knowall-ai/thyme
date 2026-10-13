@@ -476,7 +476,10 @@ export function ReportsPanel() {
   const hasHours = summary.totalHours > 0;
 
   // The printed report's heading: its period and filters, as the filter bar is hidden
-  const printSummary = describeReportPrintout(period, [describeReportFilters(filterNames)]);
+  // Every picked name, not a count: the printout has no filter bar to show them
+  const printSummary = describeReportPrintout(period, [
+    describeReportFilters(filterNames, Infinity),
+  ]);
   const billableBand = billableTarget
     ? getBillableTargetBand(summary.billablePercent, billableTarget.percent, hasHours)
     : null;
