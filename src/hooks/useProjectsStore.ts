@@ -85,37 +85,44 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
   fetchProjectHours: async () => {
     const companyKey = activeCompanyKey();
     set({ isLoadingHours: true });
+    const { projects } = get();
+    const projectCodes = projects.map((p) => p.code);
     try {
-      const { projects } = get();
-      const projectCodes = projects.map((p) => p.code);
-
-      // Fetch hours and budgets in parallel
-      const [hoursMap, budgetsMap] = await Promise.all([
-        projectService.getProjectHours(),
-        projectService.getProjectBudgets(
-          projectCodes,
-          new Set(projects.filter((p) => p.isInternal).map((p) => p.code))
-        ),
-      ]);
+      // Time spent, estimate and billing mode for every project, as the project page works them out
+      const figures = await projectService.getProjectFigures(projects);
 
       // Another company's figures: drop them (the new company loads its own)
       if (activeCompanyKey() !== companyKey) return;
 
-      // Update projects with hours and budget data
-      set((state) => ({
-        projects: state.projects.map((project) => ({
-          ...project,
-          totalHours: hoursMap.get(project.code) ?? 0,
-          budgetHours: budgetsMap.get(project.code),
-        })),
-        isLoadingHours: false,
-      }));
-
-      // Also fetch billing modes in the background
-      get().fetchBillingModes(projectCodes);
+      set((state) => {
+        const billingModes = new Map(state.billingModes);
+        for (const [code, { billingMode }] of figures) billingModes.set(code, billingMode);
+        return {
+          projects: state.projects.map((project) => {
+            const projectFigures = figures.get(project.code);
+            if (!projectFigures) return project;
+            const { timeByStage, estimateHours, plannedHours } = projectFigures;
+            return {
+              ...project,
+              totalHours: timeByStage.total,
+              timeByStage,
+              // No estimate (or plan) on the project: shown as "-"
+              estimateHours: estimateHours > 0 ? estimateHours : undefined,
+              plannedHours: plannedHours > 0 ? plannedHours : undefined,
+            };
+          }),
+          billingModes,
+          isLoadingHours: false,
+        };
+      });
     } catch {
-      if (activeCompanyKey() === companyKey) set({ isLoadingHours: false });
+      if (activeCompanyKey() !== companyKey) return;
+      set({ isLoadingHours: false });
     }
+
+    // Billing modes came with the figures; this only loads any still missing (e.g. if the
+    // figures failed), one project at a time
+    get().fetchBillingModes(projectCodes);
   },
 
   fetchBillingModes: async (projectCodes?: string[]) => {

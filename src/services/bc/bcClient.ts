@@ -664,35 +664,23 @@ class BusinessCentralClient {
       return [];
     }
 
+    // Escape single quotes in jobNumber for OData filter syntax
+    const escapedJobNumber = this.sanitizeODataString(jobNumber);
+    const filter = `jobNo eq '${escapedJobNumber}'`;
     try {
-      const token = await getBCAccessToken();
-      if (!token) return [];
-
-      // Escape single quotes in jobNumber for OData filter syntax
-      const escapedJobNumber = this.sanitizeODataString(jobNumber);
-      const filter = `jobNo eq '${escapedJobNumber}'`;
-      const url = `${this.customApiBaseUrl}/jobPlanningLines?$filter=${encodeURIComponent(filter)}`;
-      const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        // 404 means the endpoint doesn't exist (extension too old)
-        if (response.status === 404) {
-          console.warn(
-            '[BC API] jobPlanningLines endpoint not found. Upgrade Thyme BC Extension to v1.6.0+.'
-          );
-          return [];
-        }
+      // Every page, as for the Projects list (getAllJobPlanningLines), so both agree
+      const lines = await this.customApiFetchAll<BCJobPlanningLine>(
+        `/jobPlanningLines?$filter=${encodeURIComponent(filter)}`
+      );
+      return this.normalizePlanningLines(lines);
+    } catch (error) {
+      // 404 means the endpoint doesn't exist (extension too old)
+      if (error instanceof Error && error.message.includes('404')) {
+        console.warn(
+          '[BC API] jobPlanningLines endpoint not found. Upgrade Thyme BC Extension to v1.6.0+.'
+        );
         return [];
       }
-
-      const data = await response.json();
-      return this.normalizePlanningLines(data.value || []);
-    } catch (error) {
       console.error('[BC API] Error fetching job planning lines:', error);
       return [];
     }
@@ -1053,37 +1041,45 @@ class BusinessCentralClient {
       return [];
     }
 
+    const escapedJobNumber = this.sanitizeODataString(jobNumber);
+    const filter = `jobNo eq '${escapedJobNumber}'`;
     try {
-      const token = await getBCAccessToken();
-      if (!token) return [];
-
-      const escapedJobNumber = this.sanitizeODataString(jobNumber);
-      const filter = `jobNo eq '${escapedJobNumber}'`;
-      const url = `${this.customApiBaseUrl}/timeEntries?$filter=${encodeURIComponent(filter)}`;
-      const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        // 404 means the endpoint doesn't exist (extension too old)
-        if (response.status === 404) {
-          console.warn(
-            '[BC API] timeEntries endpoint not found. Upgrade Thyme BC Extension to v1.7.0+.'
-          );
-          return [];
-        }
+      // Every page, as for the Projects list (getAllTimeEntries), so both agree
+      return await this.customApiFetchAll<BCTimeEntry>(
+        `/timeEntries?$filter=${encodeURIComponent(filter)}`
+      );
+    } catch (error) {
+      // 404 means the endpoint doesn't exist (extension too old)
+      if (error instanceof Error && error.message.includes('404')) {
+        console.warn(
+          '[BC API] timeEntries endpoint not found. Upgrade Thyme BC Extension to v1.7.0+.'
+        );
         return [];
       }
-
-      const data = await response.json();
-      return data.value || [];
-    } catch (error) {
       console.error('[BC API] Error fetching time entries:', error);
       return [];
     }
+  }
+
+  /**
+   * Every project's posted time entries (Job Ledger Entry), in one query, for the Projects
+   * list (getTimeEntries is the one-project version). Throws on failure.
+   */
+  async getAllTimeEntries(): Promise<BCTimeEntry[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) return [];
+    return this.customApiFetchAll<BCTimeEntry>('/timeEntries');
+  }
+
+  /**
+   * Every project's Job Planning Lines, in one query, for the Projects list
+   * (getJobPlanningLines is the one-project version). Throws on failure.
+   */
+  async getAllJobPlanningLines(): Promise<BCJobPlanningLine[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) return [];
+    const lines = await this.customApiFetchAll<BCJobPlanningLine>('/jobPlanningLines');
+    return this.normalizePlanningLines(lines);
   }
 
   // Resources (Users/Employees) - uses custom Thyme API
@@ -1926,6 +1922,33 @@ class BusinessCentralClient {
     return this.customApiFetchAll<BCTimeSheetDetail>(
       `/timeSheetDetails?$filter=${encodeURIComponent(filter)}`
     );
+  }
+
+  /**
+   * Every project (Job) timesheet line, across all projects and timesheets, in one query:
+   * the Projects list works out each project's time spent from these in a single pass
+   * (getTimeSheetLinesForJob is the one-project version).
+   */
+  async getAllJobTimeSheetLines(): Promise<BCTimeSheetLine[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+    const filter = encodeURIComponent("type eq 'Job'");
+    return this.customApiFetchAll<BCTimeSheetLine>(`/timeSheetLines?$filter=${filter}`);
+  }
+
+  /**
+   * Every project (Job) timesheet detail (daily hours), across all projects, in one query
+   * (getTimeSheetDetailsForJob is the one-project version).
+   */
+  async getAllJobTimeSheetDetails(): Promise<BCTimeSheetDetail[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+    const filter = encodeURIComponent("type eq 'Job'");
+    return this.customApiFetchAll<BCTimeSheetDetail>(`/timeSheetDetails?$filter=${filter}`);
   }
 
   /**

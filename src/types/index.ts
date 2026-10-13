@@ -1,3 +1,5 @@
+import type { StageHours } from '@/utils/timesheetStatus';
+
 // UI types
 export interface SelectOption {
   value: string;
@@ -462,9 +464,11 @@ export interface Project {
   // BC Job Currency Code: the currency of the project's prices. Blank, or undefined with
   // Thyme BC Extension before 1.14.0.0, means the company currency
   currencyCode?: string;
-  // Analytics data (loaded separately)
-  totalHours?: number;
-  budgetHours?: number;
+  // Analytics data (loaded separately), worked out as on the project page
+  totalHours?: number; // Time Spent: all timesheet hours
+  timeByStage?: StageHours; // totalHours split by timesheet stage
+  estimateHours?: number; // Quoted on Billable Resource lines: the budget it's tracked against
+  plannedHours?: number; // On Budget Resource lines (the Plan); shown for internal projects
 }
 
 export interface Task {
