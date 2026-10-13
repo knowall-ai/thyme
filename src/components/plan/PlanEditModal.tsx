@@ -13,6 +13,7 @@ import {
   buildUOMConversionMap,
   convertToHours,
   convertFromHours,
+  roundToQuarterHour,
   formatHours,
   type UOMConversionMap,
 } from '@/utils';
@@ -128,9 +129,7 @@ export function PlanEditModal({
         const totalQuantity = lines.reduce((sum, l) => sum + l.quantity, 0);
         // Convert base unit to hours using shared conversion utility
         const totalHours = convertToHours(allocation.resourceNumber, totalQuantity, conversionMap);
-        // Round to nearest 0.25 hour (15-minute increments)
-        const rounded = Math.round(totalHours * 4) / 4;
-        hours[date] = rounded.toString();
+        hours[date] = roundToQuarterHour(totalHours).toString();
       }
 
       setExistingLinesByDate(byDate);
@@ -240,7 +239,8 @@ export function PlanEditModal({
 
     for (const day of weekDays) {
       const dateKey = format(day, 'yyyy-MM-dd');
-      const newHours = parseFloat(hoursPerDay[dateKey] || '0');
+      // Saved in quarter hours, so a typed 4.2 is planned as 4.25
+      const newHours = roundToQuarterHour(parseFloat(hoursPerDay[dateKey] || '0'));
       const existingLines = existingLinesByDate[dateKey] || [];
       const hasHours = !isNaN(newHours) && newHours > 0;
 
