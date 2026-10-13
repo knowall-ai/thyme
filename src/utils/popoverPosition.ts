@@ -18,7 +18,7 @@ interface AnchorRect {
  * Where to put a popover anchored to an element, in viewport coordinates: below the element and
  * lined up with its left edge, flipping to line up with its right edge when it would run
  * off the right of the screen (e.g. the week grid's Sat/Sun columns), and above it when there's no
- * room below. Always kept inside the screen.
+ * room below. Kept inside the screen, provided the popover's height is capped to fit it.
  */
 export function computePopoverPosition(
   anchor: AnchorRect,

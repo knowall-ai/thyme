@@ -121,8 +121,11 @@ export function PoppieLineNotesPopover({
   reviewer?: string | null;
   className?: string;
 }) {
+  // Hover or focus peeks at the notes and a click pins them open. Clicking a pinned popover or
+  // pressing Escape dismisses it until the pointer leaves or focus moves on.
   const [isHovered, setIsHovered] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverId = useId();
   if (!notes || notes.length === 0) return null;
@@ -130,11 +133,16 @@ export function PoppieLineNotesPopover({
   const worst = notes.reduce((a, b) =>
     (SEVERITY_RANK[b.severity] ?? 0) > (SEVERITY_RANK[a.severity] ?? 0) ? b : a
   );
-  const isOpen = isHovered || isPinned;
+  const isOpen = isPinned || (isHovered && !isDismissed);
   const name = reviewer?.trim() || 'Poppie';
-  const close = () => {
+  const dismiss = () => {
+    setIsPinned(false);
+    setIsDismissed(true);
+  };
+  const reset = () => {
     setIsHovered(false);
     setIsPinned(false);
+    setIsDismissed(false);
   };
 
   return (
@@ -143,15 +151,22 @@ export function PoppieLineNotesPopover({
         ref={buttonRef}
         type="button"
         onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseLeave={() => {
+          setIsHovered(false);
+          setIsDismissed(false);
+        }}
         onClick={(e) => {
           e.stopPropagation();
-          setIsPinned((pinned) => !pinned);
+          if (isPinned) dismiss();
+          else {
+            setIsPinned(true);
+            setIsDismissed(false);
+          }
         }}
         onFocus={() => setIsHovered(true)}
-        onBlur={close}
+        onBlur={reset}
         onKeyDown={(e) => {
-          if (e.key === 'Escape') close();
+          if (e.key === 'Escape') dismiss();
         }}
         aria-label={`${name}'s ${notes.length === 1 ? 'note' : `${notes.length} notes`} on this entry`}
         aria-expanded={isOpen}
@@ -220,7 +235,7 @@ function FloatingPopover({
       ref={popoverRef}
       id={id}
       role="tooltip"
-      className="border-dark-600 bg-dark-800 fixed z-50 w-80 max-w-[calc(100vw-16px)] rounded-lg border p-3 shadow-lg"
+      className="border-dark-600 bg-dark-800 fixed z-50 max-h-[calc(100vh-16px)] w-80 max-w-[calc(100vw-16px)] overflow-y-auto rounded-lg border p-3 shadow-lg"
       style={{
         top: position?.top ?? 0,
         left: position?.left ?? 0,
