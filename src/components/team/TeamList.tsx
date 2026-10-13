@@ -5,28 +5,27 @@ import toast from 'react-hot-toast';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
 import {
-  ChevronUpDownIcon,
   MagnifyingGlassIcon,
   ExclamationTriangleIcon,
   ArrowTopRightOnSquareIcon,
-  UserGroupIcon,
-  PencilSquareIcon,
 } from '@heroicons/react/24/outline';
-import { BillableTargetBadge, BillableTargetEditor } from '@/components/targets';
+import { BillableTargetEditor } from '@/components/targets';
 import { WeeklyCapacityEditor } from './WeeklyCapacityEditor';
+import { TeamTable, DEFAULT_TEAM_TABLE_SORT } from './TeamTable';
+import type { TeamTableRow, TeamTableSort } from './TeamTable';
 import { GitHubUsernameEditor } from './GitHubUsernameEditor';
+import { ProjectsUnavailableWarning } from './ProjectsUnavailableWarning';
 import {
   Card,
   WeekNavigation,
   ExtensionPreviewWrapper,
-  GitHubIcon,
   StageBar,
   StageLegend,
   getStageSegments,
 } from '@/components/ui';
 import { bcClient, loadTeamHours, ExtensionNotInstalledError } from '@/services/bc';
-import { useCompanyStore, useBillableTargetStore, usePlanStore } from '@/hooks';
-import { useAuth, resolveResourceIdentity } from '@/services/auth';
+import { useCompanyStore, useBillableTargetStore, usePlanStore, useResourcePhotos } from '@/hooks';
+import { useAuth } from '@/services/auth';
 import {
   getWeekStart,
   getBCResourcesListUrl,
@@ -38,24 +37,17 @@ import {
   isCounted,
   hasWeeklyCapacityFields,
   hasGitHubUsernameField,
-  getGitHubProfileUrl,
   withWeeklyCapacityFields,
-  describeWeeklyCapacity,
   getBillableTargetGap,
   getBillableTargetBand,
   formatTargetGap,
   TARGET_GAP_DESCRIPTION,
   BILLABLE_TARGET_BAND_COLORS,
 } from '@/utils';
-import type { StageHours, BillableTarget, WeeklyCapacity } from '@/utils';
+import type { StageHours, WeeklyCapacity } from '@/utils';
 import { cn } from '@/utils';
 import type { BCResource } from '@/types';
-import {
-  teamConfig,
-  getTimesheetCompletionColor,
-  getBillableColor,
-  TIMESHEET_COMPLETION_DESCRIPTION,
-} from '@/config';
+import { getTimesheetCompletionColor, TIMESHEET_COMPLETION_DESCRIPTION } from '@/config';
 
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -74,8 +66,6 @@ interface TeamMember {
   weeklyBase: Pick<WeeklyCapacity, 'hoursPerDay' | 'defaultHours'>;
   billablePercent: number; // percentage of total hours that are billable
   isCurrentUser: boolean; // Whether this resource belongs to the logged-in user
-  photoUrl: string | null; // Azure AD profile photo URL
-  userPrincipalName: string | null; // time sheet owner's UPN, used to resolve the member's own photo
   // The person's own billable target from BC (undefined on older Thyme BC Extensions)
   billableTargetPercent?: number;
   billableTargetSet?: boolean;
@@ -94,48 +84,8 @@ interface TeamMember {
  * aren't available). Someone with a weekly capacity of 0 is listed but not counted
  * (`weekly.excluded`): no completion or target, and left out of the team totals.
  */
-type TeamMemberRow = TeamMember & {
-  weekly: WeeklyCapacity;
-  capacity: number;
-  /** Timesheet completion: hours logged as a percentage of capacity (null when not counted) */
-  completion: number | null;
-  target: BillableTarget | null;
-};
-
-type SortField =
-  | 'name'
-  | 'code'
-  | 'totalHours'
-  | 'completion'
-  | 'capacity'
-  | 'billablePercent'
-  | 'billableGap';
-type SortDirection = 'asc' | 'desc';
-
-// Points above (+) or below (-) the member's billable target; 0 without a target.
-// Someone with no hours counts as 0% billable, so they sort with the furthest behind.
-function getMemberGap(member: TeamMemberRow): number {
-  return member.target ? getBillableTargetGap(member.billablePercent, member.target.percent) : 0;
-}
-
-// People who aren't counted sort below everyone else by completion
-const sortableCompletion = (member: TeamMemberRow) => member.completion ?? -1;
-
-// Build URL to open a resource in BC web client
-function getBCResourceUrl(
-  tenantId: string,
-  environment: string,
-  companyName: string,
-  resourceNumber: string
-): string {
-  // BC Web Client URL format: opens the Resource Card (page 76) filtered to this resource
-  // Note: BC expects the company display name, not the GUID
-  const encodedCompany = encodeURIComponent(companyName);
-  // Escape single quotes in resource number for OData filter syntax (double them per OData standard)
-  const escapedResourceNumber = resourceNumber.replace(/'/g, "''");
-  const filter = encodeURIComponent(`No. IS '${escapedResourceNumber}'`);
-  return `https://businesscentral.dynamics.com/${tenantId}/${environment}/?company=${encodedCompany}&page=76&filter=Resource.${filter}`;
-}
+type TeamMemberRow = TeamMember &
+  Pick<TeamTableRow, 'weekly' | 'capacity' | 'completion' | 'target'>;
 
 export function TeamList() {
   const { selectedCompany, companyVersion } = useCompanyStore();
@@ -144,6 +94,11 @@ export function TeamList() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [members, setMembers] = useState<TeamMember[]>([]);
+  // The members' BC resources, for their profile photos
+  const [resources, setResources] = useState<BCResource[]>([]);
+  const photos = useResourcePhotos(resources, userEmail);
+  // Projects didn't load, so internal time can't be told apart from billable
+  const [projectsUnavailable, setProjectsUnavailable] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentUserInList, setCurrentUserInList] = useState(true);
   const [extensionNotInstalled, setExtensionNotInstalled] = useState(false);
@@ -172,12 +127,10 @@ export function TeamList() {
   // Week navigation state
   const [currentWeekStart, setCurrentWeekStart] = useState(() => getWeekStart(new Date()));
 
-  // Sorting state
-  const [sortField, setSortField] = useState<SortField>('name');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-
   // Filter state
   const [searchQuery, setSearchQuery] = useState('');
+  // Kept here so it survives the table unmounting while another week loads
+  const [sort, setSort] = useState<TeamTableSort>(DEFAULT_TEAM_TABLE_SORT);
 
   // Navigation handlers
   const handlePrevious = () => {
@@ -202,6 +155,8 @@ export function TeamList() {
 
   // Fetch resources and their hours when company or week changes
   useEffect(() => {
+    // A newer week or company makes this load stale: its results are dropped
+    let cancelled = false;
     async function fetchTeamData() {
       setIsLoading(true);
       setError(null);
@@ -211,10 +166,12 @@ export function TeamList() {
         // calculation as Reports, so both pages agree for the same week
         const weekEnd = new Date(currentWeekStart);
         weekEnd.setDate(weekEnd.getDate() + 6);
-        const [{ people }, currentUserResource] = await Promise.all([
+        const [{ people, projectsUnavailable }, currentUserResource] = await Promise.all([
           loadTeamHours(currentWeekStart, weekEnd),
           userEmail ? bcClient.getResourceByEmail(userEmail) : Promise.resolve(null),
         ]);
+        if (cancelled) return;
+        setProjectsUnavailable(projectsUnavailable);
         setTargetFieldsPresent(hasBillableTargetFields(people.map((p) => p.resource)));
         setCapacityFieldsPresent(hasWeeklyCapacityFields(people.map((p) => p.resource)));
         setGitHubFieldPresent(hasGitHubUsernameField(people.map((p) => p.resource)));
@@ -223,20 +180,11 @@ export function TeamList() {
         // Get the current user's resource ID to mark them in the list
         const currentUserResourceId = currentUserResource?.id;
 
-        // Extract domain from current user's email for deriving UPNs
-        const emailDomain = userEmail ? userEmail.split('@')[1] : null;
-
         const membersWithHours = people.map(
           ({ resource, capacity, weekly, stages, billableHours }): TeamMember => {
             const totalHours = stages.total;
             const nonBillableHours = totalHours - billableHours;
             const billablePercent = totalHours > 0 ? (billableHours / totalHours) * 100 : 0;
-
-            // Derive UPN from BC timeSheetOwnerUserId (e.g., "BEN.WEEKS" -> "ben.weeks@domain.com")
-            let userPrincipalName: string | null = null;
-            if (resource.timeSheetOwnerUserId && emailDomain) {
-              userPrincipalName = `${resource.timeSheetOwnerUserId.toLowerCase()}@${emailDomain}`;
-            }
 
             return {
               id: resource.id,
@@ -251,8 +199,6 @@ export function TeamList() {
               weeklyBase: weekly ?? { hoursPerDay: capacity / 5, defaultHours: capacity },
               billablePercent,
               isCurrentUser: resource.id === currentUserResourceId,
-              photoUrl: null, // Will be fetched separately
-              userPrincipalName,
               billableTargetPercent: resource.billableTargetPercent,
               billableTargetSet: resource.billableTargetSet,
               weeklyCapacityHours: resource.weeklyCapacityHours,
@@ -265,40 +211,9 @@ export function TeamList() {
         );
 
         setMembers(membersWithHours);
-
-        // Fetch each member's own profile photo (don't block initial render)
-        void (async () => {
-          try {
-            const photoUpdates = await Promise.all(
-              membersWithHours.map(async (member) => {
-                const { photoUrl } = await resolveResourceIdentity(
-                  { name: member.name, ownerUserId: member.userPrincipalName },
-                  emailDomain ?? ''
-                );
-                if (!photoUrl) {
-                  return null;
-                }
-                return { id: member.id, photoUrl };
-              })
-            );
-
-            const validUpdates = photoUpdates.filter(
-              (update): update is { id: string; photoUrl: string } => update !== null
-            );
-
-            if (validUpdates.length > 0) {
-              setMembers((prev) =>
-                prev.map((member) => {
-                  const update = validUpdates.find((u) => u.id === member.id);
-                  return update ? { ...member, photoUrl: update.photoUrl } : member;
-                })
-              );
-            }
-          } catch {
-            // Ignore photo loading errors to avoid impacting main data load
-          }
-        })();
+        setResources(people.map((p) => p.resource));
       } catch (err) {
+        if (cancelled) return;
         if (err instanceof ExtensionNotInstalledError) {
           setExtensionNotInstalled(true);
         } else {
@@ -306,10 +221,13 @@ export function TeamList() {
           toast.error('Failed to load team members. Please try again.');
         }
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     }
     fetchTeamData();
+    return () => {
+      cancelled = true;
+    };
     // companyVersion changes when company switches, ensuring refetch
   }, [companyVersion, currentWeekStart, userEmail]);
 
@@ -447,99 +365,19 @@ export function TeamList() {
         ],
       };
 
-  // Sorting and filtering
-  const filteredAndSortedMembers = useMemo(() => {
-    let result = [...rows];
-
-    // Filter by search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(
-        (m) =>
-          m.name.toLowerCase().includes(query) ||
-          m.email.toLowerCase().includes(query) ||
-          m.role.toLowerCase().includes(query)
-      );
-    }
-
-    // Sort
-    result.sort((a, b) => {
-      let comparison = 0;
-      switch (sortField) {
-        case 'name':
-          comparison = a.name.localeCompare(b.name);
-          break;
-        case 'code':
-          comparison = a.number.localeCompare(b.number);
-          break;
-        case 'totalHours':
-          comparison = a.totalHours - b.totalHours;
-          break;
-        case 'completion':
-          comparison = sortableCompletion(a) - sortableCompletion(b);
-          break;
-        case 'capacity':
-          comparison = a.capacity - b.capacity;
-          break;
-        case 'billablePercent':
-          comparison = a.billablePercent - b.billablePercent;
-          break;
-        case 'billableGap':
-          comparison = getMemberGap(a) - getMemberGap(b);
-          break;
-      }
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-
-    return result;
-  }, [rows, searchQuery, sortField, sortDirection]);
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  const SortIcon = ({ field }: { field: SortField }) => {
-    // Show up/down arrow on all sortable columns
-    // Full opacity when sorted, reduced opacity when not sorted
-    return <ChevronUpDownIcon className={cn('h-4 w-4', sortField !== field && 'opacity-50')} />;
-  };
-
-  // Get aria-sort value for accessible sortable headers
-  const getAriaSort = (field: SortField): 'ascending' | 'descending' | 'none' => {
-    if (sortField !== field) return 'none';
-    return sortDirection === 'asc' ? 'ascending' : 'descending';
-  };
-
-  // Get timesheet completion status text for accessibility
-  const getCompletionStatus = (completion: number): string => {
-    if (completion >= teamConfig.timesheetCompletion.thresholds.high) {
-      return 'complete';
-    } else if (completion >= teamConfig.timesheetCompletion.thresholds.low) {
-      return 'partly complete';
-    }
-    return 'incomplete - needs attention';
-  };
-
-  // Stage breakdown for a member's Hours cell (tooltip and screen readers)
-  const getStageSummary = (stages: StageHours): string =>
-    getStageSegments(stages)
-      .map((seg) => `${seg.label} ${seg.hours.toFixed(1)}h`)
-      .join(' · ');
-
-  // Get billable status text for accessibility
-  const getBillableStatus = (billablePercent: number): string => {
-    if (billablePercent >= teamConfig.billable.thresholds.high) {
-      return 'high';
-    } else if (billablePercent >= teamConfig.billable.thresholds.low) {
-      return 'moderate';
-    }
-    return 'low';
-  };
+  // Filter by search query; the table sorts
+  const displayRows = useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    const filtered = query
+      ? rows.filter(
+          (m) =>
+            m.name.toLowerCase().includes(query) ||
+            m.email.toLowerCase().includes(query) ||
+            m.role.toLowerCase().includes(query)
+        )
+      : rows;
+    return filtered.map((m) => ({ ...m, photoUrl: photos[m.id] ?? null }));
+  }, [rows, searchQuery, photos]);
 
   if (error) {
     return (
@@ -582,6 +420,8 @@ export function TeamList() {
           onToday={handleToday}
           onDateSelect={handleDateSelect}
         />
+
+        {!isLoading && projectsUnavailable && <ProjectsUnavailableWarning />}
 
         {/* Warning if current user not in resource list */}
         {!isLoading && !currentUserInList && userEmail && (
@@ -750,321 +590,22 @@ export function TeamList() {
             </div>
 
             {/* Team Members Table */}
-            <Card variant="bordered" className="overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-dark-700 bg-dark-800/50 border-b">
-                      <th
-                        className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-left text-sm font-medium"
-                        onClick={() => handleSort('name')}
-                        role="columnheader"
-                        aria-sort={getAriaSort('name')}
-                        tabIndex={0}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSort('name')}
-                      >
-                        <div className="flex items-center gap-1">
-                          Employee
-                          <SortIcon field="name" />
-                        </div>
-                      </th>
-                      <th
-                        className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-left text-sm font-medium"
-                        onClick={() => handleSort('code')}
-                        role="columnheader"
-                        aria-sort={getAriaSort('code')}
-                        tabIndex={0}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSort('code')}
-                      >
-                        <div className="flex items-center gap-1">
-                          Code
-                          <SortIcon field="code" />
-                        </div>
-                      </th>
-                      <th
-                        className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
-                        onClick={() => handleSort('totalHours')}
-                        role="columnheader"
-                        aria-sort={getAriaSort('totalHours')}
-                        tabIndex={0}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSort('totalHours')}
-                      >
-                        <div className="flex items-center justify-end gap-1">
-                          Hours
-                          <SortIcon field="totalHours" />
-                        </div>
-                      </th>
-                      <th
-                        className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
-                        onClick={() => handleSort('completion')}
-                        role="columnheader"
-                        aria-sort={getAriaSort('completion')}
-                        tabIndex={0}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSort('completion')}
-                        title={TIMESHEET_COMPLETION_DESCRIPTION}
-                      >
-                        <div className="flex items-center justify-end gap-1">
-                          Timesheet completion
-                          <SortIcon field="completion" />
-                        </div>
-                      </th>
-                      <th
-                        className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
-                        onClick={() => handleSort('capacity')}
-                        role="columnheader"
-                        aria-sort={getAriaSort('capacity')}
-                        tabIndex={0}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSort('capacity')}
-                      >
-                        <div className="flex items-center justify-end gap-1">
-                          Capacity
-                          <SortIcon field="capacity" />
-                        </div>
-                      </th>
-                      <th
-                        className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
-                        onClick={() => handleSort('billablePercent')}
-                        role="columnheader"
-                        aria-sort={getAriaSort('billablePercent')}
-                        tabIndex={0}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSort('billablePercent')}
-                        title={BILLABLE_RULE_DESCRIPTION}
-                      >
-                        <div className="flex items-center justify-end gap-1">
-                          {targetsEnabled ? 'Billable % / target' : 'Billable %'}
-                          <SortIcon field="billablePercent" />
-                        </div>
-                      </th>
-                      {targetsEnabled && (
-                        <th
-                          className="text-dark-300 hover:text-dark-100 cursor-pointer px-4 py-3 text-right text-sm font-medium"
-                          onClick={() => handleSort('billableGap')}
-                          role="columnheader"
-                          aria-sort={getAriaSort('billableGap')}
-                          tabIndex={0}
-                          onKeyDown={(e) => e.key === 'Enter' && handleSort('billableGap')}
-                          title={TARGET_GAP_DESCRIPTION}
-                        >
-                          <div className="flex items-center justify-end gap-1">
-                            Gap to target
-                            <SortIcon field="billableGap" />
-                          </div>
-                        </th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredAndSortedMembers.map((member) => (
-                      <tr
-                        key={member.id}
-                        className={cn(
-                          'border-dark-700 hover:bg-dark-800/50 border-b last:border-b-0',
-                          member.weekly.excluded && 'opacity-50'
-                        )}
-                        title={
-                          member.weekly.excluded
-                            ? 'Not counted: weekly capacity is 0, so this person is left out of the team totals'
-                            : undefined
-                        }
-                        data-testid={member.weekly.excluded ? 'team-member-not-counted' : undefined}
-                      >
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            {member.photoUrl ? (
-                              <img
-                                src={member.photoUrl}
-                                alt={member.name}
-                                className="h-9 w-9 rounded-full object-cover"
-                              />
-                            ) : (
-                              <div className="bg-dark-600 text-dark-200 flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium">
-                                {member.name
-                                  .split(' ')
-                                  .map((n) => n[0])
-                                  .join('')
-                                  .slice(0, 2)
-                                  .toUpperCase()}
-                              </div>
-                            )}
-                            <div>
-                              <p className="text-dark-100 font-medium">
-                                {member.name}
-                                {member.isCurrentUser && (
-                                  <span className="text-knowall-green ml-2">(you)</span>
-                                )}
-                              </p>
-                              {member.email && (
-                                <p className="text-dark-400 text-xs">{member.email}</p>
-                              )}
-                              {githubFieldPresent && (
-                                <MemberGitHub
-                                  member={member}
-                                  onEdit={() => setEditingGitHubMemberId(member.id)}
-                                />
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-dark-300">{member.role}</span>
-                            {selectedCompany?.name && (
-                              <a
-                                href={getBCResourceUrl(
-                                  bcClient.tenantId,
-                                  bcClient.environment,
-                                  selectedCompany.name,
-                                  member.number
-                                )}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-dark-400 hover:text-knowall-green"
-                                title="Open in Business Central"
-                              >
-                                <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-                              </a>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div
-                            className="flex flex-col items-end gap-1"
-                            title={
-                              member.totalHours > 0 ? getStageSummary(member.stages) : undefined
-                            }
-                          >
-                            <span className="text-dark-100">{member.totalHours.toFixed(1)}</span>
-                            {/* The member's hours by stage; full width = their total */}
-                            {member.totalHours > 0 && (
-                              <>
-                                <StageBar
-                                  segments={getStageSegments(member.stages)}
-                                  max={member.totalHours}
-                                  className="h-1 w-16"
-                                />
-                                <span className="sr-only">{getStageSummary(member.stages)}</span>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          {member.completion === null ? (
-                            <div className="text-dark-400 text-right text-sm" title="Not counted">
-                              –
-                            </div>
-                          ) : (
-                            <div
-                              className="flex flex-col items-end gap-1"
-                              role="meter"
-                              aria-valuenow={member.completion}
-                              aria-valuemin={0}
-                              aria-valuemax={100}
-                              aria-label={`Timesheet completion ${member.completion.toFixed(0)}% - ${getCompletionStatus(member.completion)}`}
-                              title={`${member.totalHours.toFixed(1)}h logged of ${member.capacity.toFixed(1)}h capacity`}
-                            >
-                              <span className="text-dark-100 text-sm font-medium">
-                                {member.completion.toFixed(0)}%
-                              </span>
-                              <div className="bg-dark-700 h-4 w-24 overflow-hidden rounded">
-                                <div
-                                  className={cn(
-                                    'h-full',
-                                    getTimesheetCompletionColor(member.completion)
-                                  )}
-                                  style={{ width: `${Math.min(member.completion, 100)}%` }}
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </td>
-                        <td className="text-dark-300 px-4 py-3 text-right">
-                          <div
-                            className="flex items-center justify-end gap-1"
-                            title={describeWeeklyCapacity(member.weekly)}
-                          >
-                            {member.weekly.flexible && (
-                              <span className="bg-dark-700 text-dark-300 rounded px-1.5 py-0.5 text-xs">
-                                flexible
-                              </span>
-                            )}
-                            <span className="tabular-nums">{member.capacity.toFixed(1)}</span>
-                            {capacityFieldsPresent && (
-                              <button
-                                type="button"
-                                onClick={() => setEditingCapacityMemberId(member.id)}
-                                className="text-dark-400 hover:text-knowall-green rounded p-1"
-                                title="Edit weekly capacity"
-                                aria-label={`Edit weekly capacity for ${member.name}`}
-                              >
-                                <PencilSquareIcon className="h-4 w-4" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {member.weekly.excluded ? (
-                            <span className="text-dark-400 text-sm">
-                              {member.totalHours > 0
-                                ? `${member.billablePercent.toFixed(0)}%`
-                                : '–'}
-                            </span>
-                          ) : member.target ? (
-                            <div className="flex items-center justify-end gap-1">
-                              <BillableTargetBadge
-                                actualPercent={member.billablePercent}
-                                target={member.target}
-                                hasHours={member.totalHours > 0}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setEditingMemberId(member.id)}
-                                className="text-dark-400 hover:text-knowall-green rounded p-1"
-                                title="Edit billable target"
-                                aria-label={`Edit billable target for ${member.name}`}
-                              >
-                                <PencilSquareIcon className="h-4 w-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <span
-                              className={cn(
-                                'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
-                                getBillableColor(member.billablePercent)
-                              )}
-                              aria-label={`Billable percentage ${member.billablePercent.toFixed(0)}% - ${getBillableStatus(member.billablePercent)}`}
-                            >
-                              {member.billablePercent.toFixed(0)}%
-                            </span>
-                          )}
-                        </td>
-                        {targetsEnabled && (
-                          <td
-                            className="text-dark-300 px-4 py-3 text-right text-sm tabular-nums"
-                            title={TARGET_GAP_DESCRIPTION}
-                          >
-                            {member.target && member.totalHours > 0
-                              ? formatTargetGap(getMemberGap(member))
-                              : '–'}
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                    {filteredAndSortedMembers.length === 0 && (
-                      <tr>
-                        <td colSpan={targetsEnabled ? 7 : 6} className="px-4 py-12 text-center">
-                          <UserGroupIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
-                          <p className="text-dark-400">
-                            {searchQuery
-                              ? 'No team members match your search'
-                              : 'No team members found'}
-                          </p>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+            <TeamTable
+              rows={displayRows}
+              targetsEnabled={targetsEnabled}
+              showGitHub={githubFieldPresent}
+              companyName={selectedCompany?.name}
+              emptyMessage={
+                searchQuery ? 'No team members match your search' : 'No team members found'
+              }
+              onEditTarget={(row) => setEditingMemberId(row.id)}
+              onEditCapacity={
+                capacityFieldsPresent ? (row) => setEditingCapacityMemberId(row.id) : undefined
+              }
+              onEditGitHub={(row) => setEditingGitHubMemberId(row.id)}
+              sort={sort}
+              onSortChange={setSort}
+            />
           </>
         )}
       </div>
@@ -1104,54 +645,5 @@ export function TeamList() {
         />
       )}
     </ExtensionPreviewWrapper>
-  );
-}
-
-/**
- * A member's GitHub username under their name, linking to their profile, with a pencil when
- * the signed-in user may change it (an administrator, or it's their own). Nothing for
- * someone without one unless it can be set here.
- */
-function MemberGitHub({
-  member,
-  onEdit,
-}: {
-  member: Pick<TeamMember, 'name' | 'githubUsername' | 'canEditConnectedAccounts'>;
-  onEdit: () => void;
-}) {
-  const username = member.githubUsername ?? '';
-  const profileUrl = getGitHubProfileUrl(username);
-  if (!profileUrl && !member.canEditConnectedAccounts) return null;
-  return (
-    <div className="mt-0.5 flex items-center gap-1 text-xs">
-      {profileUrl ? (
-        <a
-          href={profileUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-dark-400 hover:text-knowall-green inline-flex items-center gap-1"
-          title={`${member.name} on GitHub`}
-        >
-          <GitHubIcon className="h-3.5 w-3.5" />
-          {username}
-        </a>
-      ) : (
-        <span className="text-dark-500 inline-flex items-center gap-1">
-          <GitHubIcon className="h-3.5 w-3.5" />
-          No GitHub username
-        </span>
-      )}
-      {member.canEditConnectedAccounts && (
-        <button
-          type="button"
-          onClick={onEdit}
-          className="text-dark-400 hover:text-knowall-green rounded p-0.5"
-          title={profileUrl ? 'Change GitHub username' : 'Add GitHub username'}
-          aria-label={`${profileUrl ? 'Change' : 'Add'} GitHub username for ${member.name}`}
-        >
-          <PencilSquareIcon className="h-3.5 w-3.5" />
-        </button>
-      )}
-    </div>
   );
 }

@@ -9,28 +9,16 @@ import {
   resolveWeeklyCapacity,
 } from '@/utils';
 import type { PersonHours, TimesheetData } from '@/utils';
-import type { BCProject, BCTimeSheet } from '@/types';
-
-// Time sheets loaded at once (two requests each): BC throttles beyond a handful of
-// concurrent requests per user
-const MAX_PARALLEL_TIMESHEETS = 3;
-
-/** Run `task` on every item, at most `limit` at a time; rejects on the first failure */
-async function inParallel<T>(
-  items: T[],
-  limit: number,
-  task: (item: T) => Promise<void>
-): Promise<void> {
-  const queue = [...items];
-  const worker = async () => {
-    while (queue.length > 0) await task(queue.shift()!);
-  };
-  await Promise.all(Array.from({ length: Math.min(limit, queue.length) }, worker));
-}
+import type { BCTimeSheet } from '@/types';
 
 export interface TeamHours {
   /** The people on the team (isTeamMember), with their hours for the period */
   people: PersonHours[];
+  /**
+   * Projects couldn't be loaded, so internal projects' time couldn't be told apart and
+   * counts as billable unless its line is marked not chargeable
+   */
+  projectsUnavailable: boolean;
 }
 
 /**
@@ -48,12 +36,16 @@ export async function loadTeamHours(from: Date, to: Date): Promise<TeamHours> {
   // A weekly time sheet starting up to 6 days earlier can still hold time in the period
   const earliestStart = format(subDays(from, 6), 'yyyy-MM-dd');
 
-  const [resources, uoms, projectsByNumber, timesheets] = await Promise.all([
+  // Lines and details come in one paged query each, by date, rather than two requests
+  // per time sheet: a year for a whole team is then a handful of requests, not thousands
+  const [resources, uoms, projectsByNumber, timesheets, allLines, allDetails] = await Promise.all([
     bcClient.getResources(),
     bcClient.getResourceUnitsOfMeasure(),
     // Projects' bill-to customers decide which time is billable
-    projectService.getProjectsByNumber().catch(() => new Map<string, BCProject>()),
+    projectService.getProjectsByNumber().catch(() => null),
     bcClient.getTimeSheetsStartingBetween(earliestStart, range.to),
+    bcClient.getTimeSheetLinesStartingBetween(earliestStart, range.to),
+    bcClient.getTimeSheetDetailsBetween(range.from, range.to),
   ]);
   // The people who can log time: leaves out placeholder role resources, blocked
   // resources and empty resource cards
@@ -68,17 +60,13 @@ export async function loadTeamHours(from: Date, to: Date): Promise<TeamHours> {
     ]);
   }
 
-  // Each time sheet's lines and details, a few time sheets at a time so BC doesn't
-  // throttle a big team's month. Any failure fails the load rather than hiding hours.
-  const ownSheets = timesheets.filter((ts) => people.some((p) => p.number === ts.resourceNo));
-  const sheetData = new Map<string, TimesheetData>();
-  await inParallel(ownSheets, MAX_PARALLEL_TIMESHEETS, async (ts) => {
-    const [lines, details] = await Promise.all([
-      bcClient.getTimeSheetLines(ts.number),
-      bcClient.getAllTimeSheetDetails(ts.number),
-    ]);
-    sheetData.set(ts.number, { lines, details });
-  });
+  // Each time sheet's lines and details. Only time sheets the user can see (those
+  // getTimeSheetsStartingBetween returned) are kept.
+  const sheetData = new Map<string, TimesheetData>(
+    timesheets.map((ts) => [ts.number, { lines: [], details: [] }])
+  );
+  for (const line of allLines) sheetData.get(line.timeSheetNo)?.lines.push(line);
+  for (const detail of allDetails) sheetData.get(detail.timeSheetNo)?.details.push(detail);
 
   const peopleHours = people.map((resource) => {
     const data = (timesheetsByResource.get(resource.number) ?? []).flatMap(
@@ -86,8 +74,11 @@ export async function loadTeamHours(from: Date, to: Date): Promise<TeamHours> {
     );
     // Their own weekly capacity (Thyme BC Extension 1.19+), else hours per day x 5
     const weekly = resolveWeeklyCapacity(resource, uomMap, teamConfig.defaultCapacity);
-    return { ...getPersonHours(resource, weekly.hours, data, projectsByNumber, range), weekly };
+    return {
+      ...getPersonHours(resource, weekly.hours, data, projectsByNumber ?? new Map(), range),
+      weekly,
+    };
   });
 
-  return { people: peopleHours };
+  return { people: peopleHours, projectsUnavailable: projectsByNumber === null };
 }
