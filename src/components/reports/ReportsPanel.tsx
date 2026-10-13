@@ -144,6 +144,10 @@ export function ReportsPanel() {
   const { account } = useAuth();
   const userEmail = account?.username || '';
   const { from: startDate, to: endDate } = period;
+  // The period as timestamps for the load effect: re-picking the same dates (e.g.
+  // switching to a custom range of them) makes new Date objects but mustn't reload
+  const fromTime = startDate.getTime();
+  const toTime = endDate.getTime();
 
   // Another company has other people: back to everyone
   useEffect(() => {
@@ -159,7 +163,7 @@ export function ReportsPanel() {
       setError(null);
       setExtensionNotInstalled(false);
       try {
-        const loaded = await loadTeamHours(startDate, endDate);
+        const loaded = await loadTeamHours(new Date(fromTime), new Date(toTime));
         if (cancelled) return;
         setPeople(loaded.people);
         setProjectsUnavailable(loaded.projectsUnavailable);
@@ -181,7 +185,7 @@ export function ReportsPanel() {
       cancelled = true;
     };
     // companyVersion ensures refetch when company switches
-  }, [startDate, endDate, companyVersion]);
+  }, [fromTime, toTime, companyVersion]);
 
   const resources = useMemo(() => people.map((p) => p.resource), [people]);
   const isLoadingResources = isLoading && resources.length === 0;
