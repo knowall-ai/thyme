@@ -41,7 +41,7 @@ import {
   DATE_FORMAT_DAY_SHORT,
 } from '@/utils';
 import type { BillableTarget } from '@/utils';
-import { buildWeekDailyHours, isOverDailyHours } from './dailyHours';
+import { buildWeekDailyHours, getWorkedDayRuns, isOverDailyHours } from './dailyHours';
 
 interface ApprovalCardProps {
   timeSheet: BCTimeSheet;
@@ -170,6 +170,17 @@ export function ApprovalCard({
     };
   });
   const showDays = daily !== null && weekDays.length > 0;
+
+  // Lines by the first day they have hours on, so the list reads through the week.
+  // Lines with no hours that week (or before details load) keep their order, at the end.
+  const sortedLines = useMemo(() => {
+    if (!daily) return lines;
+    const firstDay = (lineNo: number) => {
+      const index = (daily.byLine.get(lineNo) ?? []).findIndex((hours) => hours > 0);
+      return index === -1 ? weekDays.length : index;
+    };
+    return [...lines].sort((a, b) => firstDay(a.lineNo) - firstDay(b.lineNo));
+  }, [lines, daily, weekDays.length]);
 
   // Helper to get project name from cache
   const getJobName = (jobNo: string): string => {
@@ -421,32 +432,18 @@ export function ApprovalCard({
             className="m-4"
           />
 
-          {/* Day column headings, aligned with each line's hours per day (hidden on small screens) */}
-          {showDays && lines.length > 0 && (
-            <div className="text-dark-400 hidden items-center gap-4 px-4 pt-3 text-[10px] md:flex">
-              <div className="min-w-0 flex-1" />
-              <div className="grid w-72 shrink-0 grid-cols-7 text-center">
-                {weekDays.map((day) => (
-                  <span
-                    key={day.key}
-                    className={cn(
-                      day.isToday && 'text-knowall-green font-medium',
-                      day.isWeekend && !day.isToday && 'text-dark-500'
-                    )}
-                  >
-                    {day.label}
-                  </span>
-                ))}
-              </div>
-              <div className="w-16 shrink-0 text-right">Total</div>
-            </div>
-          )}
-
-          {/* Time sheet lines */}
+          {/* Time sheet lines, in the order the work was done */}
           <div className="divide-dark-700/50 divide-y">
-            {lines.length > 0 ? (
-              lines.map((line) => (
+            {sortedLines.length > 0 ? (
+              sortedLines.map((line) => (
                 <div key={line.id} className="flex items-center gap-4 px-4 py-3">
+                  {/* The day(s) the work was done; the week's spread is in the strip above */}
+                  {showDays && (
+                    <LineDays
+                      weekDays={weekDays}
+                      hoursPerDay={daily.byLine.get(line.lineNo) ?? []}
+                    />
+                  )}
                   <div className="min-w-0 flex-1">
                     {line.type === 'Job' && line.jobNo ? (
                       <>
@@ -488,21 +485,6 @@ export function ApprovalCard({
                     )}
                     <PoppieLineNotes notes={poppieReview.notesByLine.get(line.lineNo)} />
                   </div>
-                  {showDays && (
-                    <div className="hidden w-72 shrink-0 grid-cols-7 text-center text-xs tabular-nums md:grid">
-                      {weekDays.map((day, i) => {
-                        const hours = daily.byLine.get(line.lineNo)?.[i] ?? 0;
-                        return (
-                          <span
-                            key={day.key}
-                            className={hours > 0 ? 'text-white' : 'text-dark-500'}
-                          >
-                            {hours > 0 ? formatHours(hours) : '–'}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
                   <p className="w-16 shrink-0 text-right text-sm font-medium text-white">
                     {line.totalQuantity} hrs
                   </p>
@@ -588,5 +570,42 @@ export function ApprovalCard({
         </div>
       )}
     </Card>
+  );
+}
+
+interface LineDaysProps {
+  weekDays: Array<{ key: string; date: Date; label: string; isToday: boolean }>;
+  /** The line's hours per day, aligned with weekDays */
+  hoursPerDay: number[];
+}
+
+/** The day(s) a line was worked, consecutive days as a range, with the hours per day on hover */
+function LineDays({ weekDays, hoursPerDay }: LineDaysProps) {
+  const runs = getWorkedDayRuns(hoursPerDay);
+  const breakdown = weekDays
+    .flatMap((day, i) =>
+      hoursPerDay[i] > 0
+        ? [`${format(day.date, DATE_FORMAT_DAY_SHORT)}: ${formatHours(hoursPerDay[i])} hours`]
+        : []
+    )
+    .join('\n');
+
+  return (
+    <div
+      title={breakdown || undefined}
+      className="text-dark-300 w-24 shrink-0 text-xs font-medium whitespace-nowrap tabular-nums"
+    >
+      {runs.length > 0 ? (
+        runs.map(([start, end]) => (
+          <p key={start} className={cn(weekDays[start].isToday && 'text-knowall-green')}>
+            {start === end
+              ? weekDays[start].label
+              : `${weekDays[start].label} – ${weekDays[end].label}`}
+          </p>
+        ))
+      ) : (
+        <p className="text-dark-500">–</p>
+      )}
+    </div>
   );
 }

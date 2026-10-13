@@ -55,6 +55,21 @@ export function buildWeekDailyHours(
 }
 
 /**
+ * The days a line has hours on, as runs of consecutive days (start and end indexes into the week),
+ * so a line worked Mon–Wed reads as one range rather than three days.
+ */
+export function getWorkedDayRuns(hoursPerDay: number[]): Array<[number, number]> {
+  const runs: Array<[number, number]> = [];
+  hoursPerDay.forEach((hours, i) => {
+    if (hours <= 0) return;
+    const last = runs[runs.length - 1];
+    if (last && last[1] === i - 1) last[1] = i;
+    else runs.push([i, i]);
+  });
+  return runs;
+}
+
+/**
  * Whether a day's hours are over a working day, as a cue for the approver.
  * A tiny tolerance stops floating-point sums like 7.9999999 + 0.0000001 flagging.
  */
