@@ -475,6 +475,17 @@ describe('ReportsPanel client and project filters', () => {
     expect(cardValue('Total Hours')).toBe('0m');
   });
 
+  it('explains the hidden target for one person under a client filter', async () => {
+    render(<ReportsPanel />);
+    await screen.findByRole('table');
+    pick('Resource', /Alex Contoso/);
+    pick('Client', /Fabrikam/);
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.getByText(/Their billable target is hidden/)).toHaveTextContent(
+      'Hours on Fabrikam, Inc. only.'
+    );
+  });
+
   it("shows several people's hours, table and combined target, and one person on a name click", async () => {
     resources = [
       person('R1', 'Alex Contoso'),

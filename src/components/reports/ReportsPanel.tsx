@@ -635,6 +635,15 @@ export function ReportsPanel() {
           </Card>
         </div>
 
+        {/* One person under a client or project filter: there's no People table to carry
+            the note, so say here why their target isn't shown */}
+        {selectedPerson && filterDescription && !isLoading && !error && (
+          <p className="text-dark-400 text-sm">
+            Hours on {filterDescription} only. Their billable target is hidden: it covers all of
+            their time, not one client&apos;s or project&apos;s.
+          </p>
+        )}
+
         {/* People: the Team page's table for the period, of everyone or the people
             picked (not for one person: the report is theirs) */}
         {!selectedPerson && !isLoading && !error && tableRows.length > 0 && (
