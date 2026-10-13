@@ -117,6 +117,15 @@ export function describeWeeklyCapacity(capacity: WeeklyCapacity): string {
   return `${hours}${source}${capacity.flexible ? ', flexible days' : ''}`;
 }
 
+/**
+ * What "flexible" means for someone, for the badge's tooltip, e.g. "Flexible working
+ * days: works their 15h a week on any days, so their week is judged as a whole"
+ */
+export function describeFlexibleDays(capacity: Pick<WeeklyCapacity, 'hours'>): string {
+  const hours = `${Math.round(capacity.hours * 100) / 100}h a week`;
+  return `Flexible working days: works their ${hours} on any days, so their week is judged as a whole`;
+}
+
 /** A friendly message for a failed capacity save; BC decides who may change it */
 export function describeCapacitySaveError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
