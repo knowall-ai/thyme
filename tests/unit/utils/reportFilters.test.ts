@@ -9,7 +9,10 @@ import {
   getReportProjects,
   isReportFilterActive,
   matchesReportFilter,
-  selectReportClient,
+  selectReportClients,
+  toggleFilterValue,
+  describeFilterSelection,
+  describeReportFilters,
   NO_REPORT_FILTER,
 } from '@/utils/reportFilters';
 import { getPersonHours } from '@/utils/teamHours';
@@ -194,17 +197,41 @@ describe('getHoursByProject', () => {
 describe('filtering', () => {
   const projects = getReportProjects(alex.entries, projectsByNumber);
 
+  const matching = (filter: { clientIds: string[]; projectNos: string[] }) =>
+    alex.entries.filter((e) => matchesReportFilter(e, filter, projects)).map((e) => e.projectId);
+
   it('matches entries by client and by project', () => {
-    const fabrikam = { clientId: 'customer:C20000', projectNo: null };
-    expect(alex.entries.filter((e) => matchesReportFilter(e, fabrikam, projects))).toHaveLength(2);
-    const internal = { clientId: INTERNAL_CLIENT.id, projectNo: null };
-    expect(
-      alex.entries.filter((e) => matchesReportFilter(e, internal, projects)).map((e) => e.projectId)
-    ).toEqual(['INT-ADMIN']);
-    const project = { clientId: null, projectNo: 'PR-CONTOSO' };
-    expect(alex.entries.filter((e) => matchesReportFilter(e, project, projects))).toHaveLength(3);
+    expect(matching({ clientIds: ['customer:C20000'], projectNos: [] })).toHaveLength(2);
+    expect(matching({ clientIds: [INTERNAL_CLIENT.id], projectNos: [] })).toEqual(['INT-ADMIN']);
+    const project = { clientIds: [], projectNos: ['PR-CONTOSO'] };
+    expect(matching(project)).toHaveLength(3);
+    expect(matching({ clientIds: [], projectNos: [] })).toHaveLength(alex.entries.length);
     expect(isReportFilterActive(NO_REPORT_FILTER)).toBe(false);
     expect(isReportFilterActive(project)).toBe(true);
+  });
+
+  it('matches any picked client or project, and both filters together', () => {
+    // Either client
+    expect(
+      matching({ clientIds: ['customer:C10000', INTERNAL_CLIENT.id], projectNos: [] })
+    ).toEqual(['PR-CONTOSO', 'PR-CONTOSO', 'PR-CONTOSO', 'INT-ADMIN']);
+    // Either project
+    expect(matching({ clientIds: [], projectNos: ['PR-CONTOSO', 'PR-FABRIKAM'] })).toHaveLength(5);
+    // One of the clients and one of the projects
+    expect(
+      matching({
+        clientIds: ['customer:C10000', 'customer:C20000'],
+        projectNos: ['PR-FABRIKAM', 'INT-ADMIN'],
+      })
+    ).toEqual(['PR-FABRIKAM', 'PR-FABRIKAM']);
+    // None of these projects is Unknown client's
+    expect(matching({ clientIds: [UNKNOWN_CLIENT.id], projectNos: [] })).toEqual([]);
+  });
+
+  it('toggles a value in and out of the picks', () => {
+    expect(toggleFilterValue([], 'a')).toEqual(['a']);
+    expect(toggleFilterValue(['a', 'b'], 'c')).toEqual(['a', 'b', 'c']);
+    expect(toggleFilterValue(['a', 'b'], 'a')).toEqual(['b']);
   });
 
   it("restricts a person's stages and billable hours to the entries kept", () => {
@@ -217,17 +244,56 @@ describe('filtering', () => {
     expect(filterPersonHours(alex, () => true)).toBe(alex);
   });
 
-  it("keeps the project when picking its client, and drops another client's", () => {
-    const filter = { clientId: null, projectNo: 'PR-CONTOSO' };
-    expect(selectReportClient(filter, 'customer:C10000', projects)).toEqual({
-      clientId: 'customer:C10000',
-      projectNo: 'PR-CONTOSO',
+  it("keeps the projects of the clients picked, and drops other clients'", () => {
+    const filter = { clientIds: [], projectNos: ['PR-CONTOSO', 'PR-FABRIKAM'] };
+    expect(selectReportClients(filter, ['customer:C10000'], projects)).toEqual({
+      clientIds: ['customer:C10000'],
+      projectNos: ['PR-CONTOSO'],
     });
-    expect(selectReportClient(filter, 'customer:C20000', projects)).toEqual({
-      clientId: 'customer:C20000',
-      projectNo: null,
+    expect(selectReportClients(filter, ['customer:C20000'], projects)).toEqual({
+      clientIds: ['customer:C20000'],
+      projectNos: ['PR-FABRIKAM'],
     });
-    expect(selectReportClient(filter, null, projects)).toEqual(filter);
+    // Both clients: both projects stay
+    expect(selectReportClients(filter, ['customer:C10000', 'customer:C20000'], projects)).toEqual({
+      clientIds: ['customer:C10000', 'customer:C20000'],
+      projectNos: filter.projectNos,
+    });
+    // Dropping a client drops its projects
+    const both = {
+      clientIds: ['customer:C10000', 'customer:C20000'],
+      projectNos: filter.projectNos,
+    };
+    expect(selectReportClients(both, ['customer:C20000'], projects).projectNos).toEqual([
+      'PR-FABRIKAM',
+    ]);
+    expect(selectReportClients(filter, [INTERNAL_CLIENT.id], projects).projectNos).toEqual([]);
+    // No clients: every project stays
+    expect(selectReportClients(filter, [], projects)).toEqual(filter);
+  });
+
+  it('describes the picks: everything, the names, or how many', () => {
+    expect(describeFilterSelection([], 'All Clients', 'clients')).toBe('All Clients');
+    expect(describeFilterSelection(['Contoso Ltd.'], 'All Clients', 'clients')).toBe(
+      'Contoso Ltd.'
+    );
+    expect(describeFilterSelection(['Contoso Ltd.', 'Fabrikam, Inc.'], 'All', 'clients')).toBe(
+      '2 clients'
+    );
+    expect(describeFilterSelection(['Contoso Ltd.', 'Fabrikam, Inc.'], 'All', 'clients', 2)).toBe(
+      'Contoso Ltd., Fabrikam, Inc.'
+    );
+    expect(describeFilterSelection(['A', 'B', 'C'], 'All', 'resources', 2)).toBe('3 resources');
+    expect(
+      describeReportFilters({
+        clients: ['Adatum Corporation', 'Trey Research'],
+        projects: [],
+        resources: ['Alex', 'Sam', 'Kim'],
+      })
+    ).toBe('Adatum Corporation, Trey Research · All projects · 3 resources');
+    expect(
+      describeReportFilters({ clients: [], projects: ['Contoso Website'], resources: [] })
+    ).toBe('All clients · Contoso Website · All resources');
   });
 
   it('lists clients by name with Internal and Unknown last, and narrows projects to the client', () => {
@@ -240,7 +306,7 @@ describe('filtering', () => {
         billToCustomerName: 'Adatum Corporation',
       }),
     ];
-    const options = getReportFilterOptions(all, null);
+    const options = getReportFilterOptions(all);
     expect(options.clients.map((c) => c.name)).toEqual([
       'Adatum Corporation',
       'Contoso Ltd.',
@@ -255,9 +321,19 @@ describe('filtering', () => {
       'Fabrikam Rollout',
       'PR-OLD',
     ]);
-    expect(getReportFilterOptions(all, 'customer:C20000').projects.map((p) => p.number)).toEqual([
+    expect(getReportFilterOptions(all, ['customer:C20000']).projects.map((p) => p.number)).toEqual([
       'PR-FABRIKAM',
     ]);
+    // Several clients: all their projects
+    expect(
+      getReportFilterOptions(all, [
+        'customer:C20000',
+        'customer:C30000',
+        UNKNOWN_CLIENT.id,
+      ]).projects.map((p) => p.number)
+    ).toEqual(['PR-ZETA', 'PR-FABRIKAM', 'PR-OLD']);
+    // The client list isn't narrowed
+    expect(getReportFilterOptions(all, ['customer:C20000']).clients).toHaveLength(5);
   });
 
   it('names a client by its customer name even when another project only has the number', () => {
@@ -271,7 +347,7 @@ describe('filtering', () => {
       [named, numberOnly],
       [numberOnly, named],
     ]) {
-      expect(getReportFilterOptions(order, null).clients).toEqual([
+      expect(getReportFilterOptions(order).clients).toEqual([
         { id: 'customer:C40000', name: 'Northwind Traders' },
       ]);
     }

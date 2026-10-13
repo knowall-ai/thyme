@@ -2,8 +2,8 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import type { ComponentType, KeyboardEvent, SVGProps } from 'react';
-import { ChevronDownIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
-import { cn } from '@/utils';
+import { CheckIcon, ChevronDownIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { cn, describeFilterSelection, toggleFilterValue } from '@/utils';
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -12,7 +12,7 @@ export interface FilterMenuOption {
   label: string;
   /** A second, smaller line, e.g. a resource or project number */
   description?: string;
-  /** A colour dot shown instead of the option icon, e.g. a project's colour */
+  /** A colour dot beside the label, e.g. a project's colour */
   color?: string;
 }
 
@@ -21,16 +21,19 @@ export interface FilterMenuProps {
   label: string;
   /** The everything option, e.g. "All Clients" */
   allLabel: string;
-  /** Shown on the button and beside the everything option */
+  /** Lower case, for the button when several are picked, e.g. "clients" for "3 clients" */
+  pluralLabel: string;
+  /** Shown on the button */
   icon: Icon;
-  /** Beside each option without a colour */
-  optionIcon: Icon;
-  /** The picked option's value; null for everything */
-  value: string | null;
-  /** The button's text when the picked value isn't among the options */
-  valueLabel?: string;
+  /** The picked options' values; none for everything */
+  values: readonly string[];
+  /**
+   * The picked options' names, in the order to list them, including any that aren't
+   * among the options (e.g. a client without time in this period)
+   */
+  valueLabels: readonly string[];
   options: FilterMenuOption[];
-  onChange: (value: string | null) => void;
+  onChange: (values: string[]) => void;
   isLoading?: boolean;
   /** Shown when there are no options */
   emptyMessage?: string;
@@ -41,17 +44,34 @@ export interface FilterMenuProps {
 const optionClass =
   'hover:bg-dark-700 focus:bg-dark-700 flex w-full items-center gap-3 px-4 py-2 text-left text-sm focus:outline-none';
 
+// A checkbox-style tick box: options are toggle buttons (aria-pressed), so it's decorative
+function Check({ checked }: { checked: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'flex h-4 w-4 shrink-0 items-center justify-center rounded border',
+        checked ? 'border-thyme-500 bg-thyme-500 text-white' : 'border-dark-500'
+      )}
+    >
+      {checked && <CheckIcon className="h-3 w-3" strokeWidth={3} />}
+    </span>
+  );
+}
+
 /**
- * A filter dropdown for Reports: everything, or one option, with a search box when
- * the list is long. Arrow keys move through the options, Escape closes it.
+ * A multi-select filter dropdown for Reports: everything, or any number of options,
+ * with a search box when the list is long. Each option toggles (Space or Enter), the
+ * everything option clears the picks, arrow keys move through the options and Escape
+ * closes it.
  */
 export function FilterMenu({
   label,
   allLabel,
+  pluralLabel,
   icon: TriggerIcon,
-  optionIcon: OptionIcon,
-  value,
-  valueLabel,
+  values,
+  valueLabels,
   options,
   onChange,
   isLoading = false,
@@ -67,8 +87,9 @@ export function FilterMenu({
   const popoverId = useId();
 
   const searchable = options.length > searchThreshold;
-  const selected = value === null ? null : options.find((o) => o.value === value);
-  const currentLabel = value === null ? allLabel : (selected?.label ?? valueLabel ?? value);
+  const noneSelected = values.length === 0;
+  // "All Clients", a name, or e.g. "3 clients"
+  const currentLabel = describeFilterSelection(valueLabels, allLabel, pluralLabel);
   const needle = query.trim().toLowerCase();
   const shown = needle
     ? options.filter((o) => `${o.label} ${o.description ?? ''}`.toLowerCase().includes(needle))
@@ -78,11 +99,6 @@ export function FilterMenu({
     setIsOpen(false);
     setQuery('');
     if (refocus) triggerRef.current?.focus();
-  };
-
-  const pick = (next: string | null) => {
-    onChange(next);
-    close(true);
   };
 
   // Close on a click or tap anywhere else
@@ -97,7 +113,7 @@ export function FilterMenu({
     return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [isOpen]);
 
-  // Opening focuses the search box, or the picked option
+  // Opening focuses the search box, or the first picked option
   useEffect(() => {
     if (!isOpen) return;
     if (searchRef.current) {
@@ -138,12 +154,13 @@ export function FilterMenu({
         aria-haspopup="true"
         aria-expanded={isOpen}
         aria-controls={isOpen ? popoverId : undefined}
-        aria-label={`${label}: ${currentLabel}`}
+        // Every picked name, e.g. "Client: Contoso Ltd., Fabrikam, Inc."
+        aria-label={`${label}: ${noneSelected ? allLabel : valueLabels.join(', ')}`}
         className={cn(
           'flex h-10 items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
           'border-dark-600 bg-dark-700 hover:border-dark-500 hover:bg-dark-600 border',
           'focus:border-thyme-500 focus:ring-thyme-500 focus:ring-1 focus:outline-none',
-          (isOpen || value !== null) && 'border-thyme-500'
+          (isOpen || !noneSelected) && 'border-thyme-500'
         )}
       >
         <TriggerIcon className="text-dark-400 h-4 w-4 shrink-0" />
@@ -180,13 +197,14 @@ export function FilterMenu({
             </div>
           )}
           <div ref={listRef} className="max-h-64 overflow-y-auto py-1">
+            {/* Everything: clears the picks, so it's ticked when there are none */}
             <button
               type="button"
-              onClick={() => pick(null)}
-              aria-pressed={value === null}
-              className={cn(optionClass, value === null && 'bg-dark-700')}
+              onClick={() => onChange([])}
+              aria-pressed={noneSelected}
+              className={cn(optionClass, noneSelected && 'bg-dark-700')}
             >
-              <TriggerIcon className="text-thyme-500 h-5 w-5 shrink-0" />
+              <Check checked={noneSelected} />
               <span className="text-dark-200">{allLabel}</span>
             </button>
 
@@ -197,34 +215,35 @@ export function FilterMenu({
             ) : shown.length === 0 ? (
               <div className="text-dark-400 px-4 py-3 text-center text-sm">No matches</div>
             ) : (
-              shown.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => pick(option.value)}
-                  aria-pressed={value === option.value}
-                  className={cn(optionClass, value === option.value && 'bg-dark-700')}
-                >
-                  {option.color ? (
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+              shown.map((option) => {
+                const checked = values.includes(option.value);
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => onChange(toggleFilterValue(values, option.value))}
+                    aria-pressed={checked}
+                    className={optionClass}
+                  >
+                    <Check checked={checked} />
+                    {option.color && (
                       <span
-                        className="h-3 w-3 rounded-full"
+                        aria-hidden="true"
+                        className="h-3 w-3 shrink-0 rounded-full"
                         style={{ backgroundColor: option.color }}
                       />
-                    </span>
-                  ) : (
-                    <OptionIcon className="text-dark-400 h-5 w-5 shrink-0" />
-                  )}
-                  <span className="min-w-0 flex-1">
-                    <span className="text-dark-200 block truncate">{option.label}</span>
-                    {option.description && (
-                      <span className="text-dark-500 block truncate text-xs">
-                        {option.description}
-                      </span>
                     )}
-                  </span>
-                </button>
-              ))
+                    <span className="min-w-0 flex-1">
+                      <span className="text-dark-200 block truncate">{option.label}</span>
+                      {option.description && (
+                        <span className="text-dark-500 block truncate text-xs">
+                          {option.description}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                );
+              })
             )}
           </div>
         </div>
