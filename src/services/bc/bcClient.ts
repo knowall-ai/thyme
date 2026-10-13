@@ -1698,6 +1698,43 @@ class BusinessCentralClient {
   }
 
   /**
+   * Every timesheet line on timesheets starting between two dates, inclusive
+   * (YYYY-MM-DD): one paged query for a whole team's period, however long.
+   */
+  async getTimeSheetLinesStartingBetween(
+    fromDate: string,
+    toDate: string
+  ): Promise<BCTimeSheetLine[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+    const from = this.sanitizeDateInput(fromDate);
+    const to = this.sanitizeDateInput(toDate);
+    const filter = `timeSheetStartingDate ge ${from} and timeSheetStartingDate le ${to}`;
+    return this.customApiFetchAll<BCTimeSheetLine>(
+      `/timeSheetLines?$filter=${encodeURIComponent(filter)}`
+    );
+  }
+
+  /**
+   * Every timesheet detail (daily hours) dated between two dates, inclusive
+   * (YYYY-MM-DD), across all timesheets: one paged query, however long the period.
+   */
+  async getTimeSheetDetailsBetween(fromDate: string, toDate: string): Promise<BCTimeSheetDetail[]> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) {
+      throw new Error('Thyme BC Extension is not installed.');
+    }
+    const from = this.sanitizeDateInput(fromDate);
+    const to = this.sanitizeDateInput(toDate);
+    const filter = `date ge ${from} and date le ${to}`;
+    return this.customApiFetchAll<BCTimeSheetDetail>(
+      `/timeSheetDetails?$filter=${encodeURIComponent(filter)}`
+    );
+  }
+
+  /**
    * Get a specific timesheet by ID.
    */
   async getTimeSheet(timeSheetId: string): Promise<BCTimeSheet> {

@@ -3,8 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const getResources = vi.fn();
 const getResourceUnitsOfMeasure = vi.fn();
 const getTimeSheetsStartingBetween = vi.fn();
-const getTimeSheetLines = vi.fn();
-const getAllTimeSheetDetails = vi.fn();
+const getTimeSheetLinesStartingBetween = vi.fn();
+const getTimeSheetDetailsBetween = vi.fn();
 const getProjectsByNumber = vi.fn();
 
 vi.mock('@/services/bc/bcClient', () => ({
@@ -12,8 +12,9 @@ vi.mock('@/services/bc/bcClient', () => ({
     getResources: (...args: unknown[]) => getResources(...args),
     getResourceUnitsOfMeasure: (...args: unknown[]) => getResourceUnitsOfMeasure(...args),
     getTimeSheetsStartingBetween: (...args: unknown[]) => getTimeSheetsStartingBetween(...args),
-    getTimeSheetLines: (...args: unknown[]) => getTimeSheetLines(...args),
-    getAllTimeSheetDetails: (...args: unknown[]) => getAllTimeSheetDetails(...args),
+    getTimeSheetLinesStartingBetween: (...args: unknown[]) =>
+      getTimeSheetLinesStartingBetween(...args),
+    getTimeSheetDetailsBetween: (...args: unknown[]) => getTimeSheetDetailsBetween(...args),
   },
 }));
 vi.mock('@/services/bc/projectService', () => ({
@@ -66,15 +67,24 @@ describe('loadTeamHours', () => {
         status: 'Open',
       },
     ];
-    getTimeSheetLines.mockImplementation(async (ts: string) => lineFor(ts));
-    getAllTimeSheetDetails.mockImplementation(async (ts: string) => [
-      {
+    getTimeSheetLinesStartingBetween.mockResolvedValue([
+      ...lineFor('TS-A'),
+      ...lineFor('TS-S'),
+      // A time sheet the user can't see (not returned by getTimeSheetsStartingBetween)
+      ...lineFor('TS-HIDDEN'),
+    ]);
+    getTimeSheetDetailsBetween.mockResolvedValue(
+      [
+        ['TS-A', 9.75],
+        ['TS-S', 6],
+        ['TS-HIDDEN', 8],
+      ].map(([ts, quantity]) => ({
         timeSheetNo: ts,
         timeSheetLineNo: 10000,
         date: '2026-10-06',
-        quantity: ts === 'TS-A' ? 9.75 : 6,
-      },
-    ]);
+        quantity,
+      }))
+    );
 
     const { people } = await loadTeamHours(new Date(2026, 9, 5), new Date(2026, 9, 11));
 
@@ -85,34 +95,28 @@ describe('loadTeamHours', () => {
     );
     // One request for everyone's time sheets, from 6 days before the period
     expect(getTimeSheetsStartingBetween).toHaveBeenCalledWith('2026-09-29', '2026-10-11');
-    expect(getTimeSheetLines).toHaveBeenCalledTimes(2);
+    // Lines and details in one query each, however many time sheets
+    expect(getTimeSheetLinesStartingBetween).toHaveBeenCalledWith('2026-09-29', '2026-10-11');
+    expect(getTimeSheetDetailsBetween).toHaveBeenCalledWith('2026-10-05', '2026-10-11');
   });
 
-  it('loads a big team a few time sheets at a time, and fails rather than hide hours', async () => {
-    const people = Array.from({ length: 10 }, (_, i) =>
-      person(`R${i}`, `Person ${i} Contoso`, `PERSON${i}.CONTOSO`)
-    );
-    getResources.mockResolvedValue(people);
-    getTimeSheetsStartingBetween.mockResolvedValue(
-      people.map((p) => ({ number: `TS-${p.number}`, resourceNo: p.number }))
-    );
-    let inFlight = 0;
-    let maxInFlight = 0;
-    getTimeSheetLines.mockImplementation(async () => {
-      inFlight++;
-      maxInFlight = Math.max(maxInFlight, inFlight);
-      await new Promise((resolve) => setTimeout(resolve, 1));
-      inFlight--;
-      return [];
-    });
-    getAllTimeSheetDetails.mockResolvedValue([]);
+  it('fails rather than hide hours, but carries on without projects', async () => {
+    getResources.mockResolvedValue([person('R1', 'Alex Contoso', 'ALEX.CONTOSO')]);
+    getTimeSheetsStartingBetween.mockResolvedValue([{ number: 'TS-A', resourceNo: 'R1' }]);
+    getTimeSheetLinesStartingBetween.mockResolvedValue([
+      { id: 'l1', timeSheetNo: 'TS-A', lineNo: 1, type: 'Job', jobNo: 'PR-INTERNAL' },
+    ]);
+    getTimeSheetDetailsBetween.mockResolvedValue([
+      { timeSheetNo: 'TS-A', timeSheetLineNo: 1, date: '2026-10-06', quantity: 4 },
+    ]);
 
-    const { people: loaded } = await loadTeamHours(new Date(2026, 9, 5), new Date(2026, 9, 11));
-    expect(loaded).toHaveLength(10);
-    expect(getTimeSheetLines).toHaveBeenCalledTimes(10);
-    expect(maxInFlight).toBeLessThanOrEqual(3);
+    // Without projects, time can't be judged internal: flagged so the page can say so
+    getProjectsByNumber.mockRejectedValueOnce(new Error('BC API Error (500)'));
+    const withoutProjects = await loadTeamHours(new Date(2026, 9, 5), new Date(2026, 9, 11));
+    expect(withoutProjects.projectsUnavailable).toBe(true);
+    expect(withoutProjects.people[0].billableHours).toBe(4);
 
-    getAllTimeSheetDetails.mockRejectedValueOnce(new Error('BC API Error (429)'));
+    getTimeSheetDetailsBetween.mockRejectedValueOnce(new Error('BC API Error (429)'));
     await expect(loadTeamHours(new Date(2026, 9, 5), new Date(2026, 9, 11))).rejects.toThrow('429');
   });
 });
@@ -127,6 +131,8 @@ describe('loadTeamHours weekly capacity', () => {
     ]);
     getProjectsByNumber.mockResolvedValue(new Map());
     getTimeSheetsStartingBetween.mockResolvedValue([]);
+    getTimeSheetLinesStartingBetween.mockResolvedValue([]);
+    getTimeSheetDetailsBetween.mockResolvedValue([]);
   });
 
   it("uses each person's own weekly capacity, and 0 means listed but not counted", async () => {
