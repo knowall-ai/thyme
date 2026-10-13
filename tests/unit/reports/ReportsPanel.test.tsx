@@ -403,6 +403,29 @@ describe('ReportsPanel client and project filters', () => {
     expect(trigger).toHaveFocus();
   });
 
+  it('prints the report, headed by its period and filters', async () => {
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {});
+    render(<ReportsPanel />);
+    await screen.findByRole('table');
+    // This week: Monday 12 to Sunday 18 October 2026
+    expect(
+      screen.getByText('Reports · 12 - 18 Oct 2026 · All clients · All projects · All resources')
+    ).toBeInTheDocument();
+
+    pick('Client', /Fabrikam/);
+    pick('Project', /Fabrikam Rollout/);
+    pick('Resource', /Alex Contoso/);
+    expect(
+      screen.getByText(
+        'Reports · 12 - 18 Oct 2026 · Fabrikam, Inc. · Fabrikam Rollout · Alex Contoso'
+      )
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Print' }));
+    expect(print).toHaveBeenCalledTimes(1);
+    print.mockRestore();
+  });
+
   it("splits each project's hours by stage, with a legend of the stages' totals", async () => {
     render(<ReportsPanel />);
     await screen.findByRole('table');

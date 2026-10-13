@@ -3,6 +3,7 @@ import {
   countWeekdays,
   currentPeriod,
   customPeriod,
+  describeReportPrintout,
   formatPeriod,
   getBreakdownBuckets,
   getBreakdownGranularity,
@@ -123,5 +124,18 @@ describe('breakdown', () => {
       from: '2026-10-01',
       to: '2026-10-13',
     });
+  });
+});
+
+describe('describeReportPrintout', () => {
+  it('names the period and each filter, for the printed report', () => {
+    expect(
+      describeReportPrintout(customPeriod(new Date(2026, 0, 1), today), [
+        'Contoso Ltd.',
+        'All projects',
+        'All resources',
+      ])
+    ).toBe('Reports · 1 Jan - 13 Oct 2026 · Contoso Ltd. · All projects · All resources');
+    expect(describeReportPrintout(periodOf('month', today), [])).toBe('Reports · October 2026');
   });
 });

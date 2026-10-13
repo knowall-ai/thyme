@@ -8,7 +8,8 @@ export default function ReportsPage() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div>
+        {/* The printed report has its own heading, with the period and filters */}
+        <div className="print:hidden">
           <h1 className="text-2xl font-bold text-white">Reports</h1>
           <p className="text-dark-400 mt-1">View time tracking reports and analytics</p>
         </div>

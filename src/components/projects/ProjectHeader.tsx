@@ -5,10 +5,10 @@ import Link from 'next/link';
 import {
   ArrowLeftIcon,
   ArrowTopRightOnSquareIcon,
-  DocumentArrowDownIcon,
   CalendarIcon,
   InformationCircleIcon,
   PencilIcon,
+  PrinterIcon,
   CheckIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
@@ -302,9 +302,10 @@ export function ProjectHeader() {
 
   if (!project) return null;
 
-  // Prints the page exactly as shown - amounts hidden via their Eye toggles stay masked
-  const handleExportPDF = () => {
-    // Set document title for PDF filename: "Customer - Project Code - Project Report"
+  // Prints the page exactly as shown (or saves it as a PDF from the print dialog) -
+  // amounts hidden via their Eye toggles stay masked
+  const handlePrint = () => {
+    // Set document title, the suggested PDF filename: "Customer - Project Code - Project Report"
     const originalTitle = document.title;
     const parts = [project.customerName, project.code, 'Project Report'].filter(Boolean);
     document.title = parts.join(' - ');
@@ -374,14 +375,16 @@ export function ProjectHeader() {
 
         {/* Action buttons */}
         <div className="flex items-center gap-2">
-          {/* PDF Export - hidden in print */}
+          {/* Print (or save as PDF) - hidden in print */}
           <button
-            onClick={handleExportPDF}
+            type="button"
+            onClick={handlePrint}
             className="border-dark-600 bg-dark-700 hover:border-thyme-500/50 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm text-gray-300 transition-colors hover:text-white print:hidden"
-            title="Export to PDF (hidden amounts stay masked)"
+            title="Print, or save as PDF (hidden amounts stay masked)"
+            aria-label="Print"
           >
-            <DocumentArrowDownIcon className="h-4 w-4" />
-            <span className="hidden sm:inline">Export PDF</span>
+            <PrinterIcon className="h-4 w-4" />
+            <span className="hidden sm:inline">Print</span>
           </button>
 
           {/* BC Link */}

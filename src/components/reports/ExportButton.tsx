@@ -33,7 +33,7 @@ export function ExportButton({ entries, projects, fileSuffix }: ExportButtonProp
     <button
       onClick={handleExport}
       disabled={entries.length === 0}
-      className="bg-dark-700 text-dark-300 hover:bg-dark-600 flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+      className="bg-dark-700 text-dark-300 hover:bg-dark-600 flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-50 print:hidden"
     >
       <DocumentArrowDownIcon className="h-4 w-4" />
       Export

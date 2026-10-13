@@ -197,6 +197,14 @@ export function formatPeriod(period: ReportPeriod): string {
   }
 }
 
+/**
+ * What a printed report covers, e.g. "Reports · October 2026 · Contoso Ltd. · All projects ·
+ * All resources": the period, then each active filter in words
+ */
+export function describeReportPrintout(period: ReportPeriod, filters: readonly string[]): string {
+  return ['Reports', formatPeriod(period), ...filters].join(' · ');
+}
+
 /** Days in a period, inclusive */
 export function getPeriodDays(period: Pick<ReportPeriod, 'from' | 'to'>): number {
   return differenceInCalendarDays(period.to, period.from) + 1;
