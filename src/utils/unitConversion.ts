@@ -111,6 +111,15 @@ export function roundToQuarterHour(hours: number): number {
 }
 
 /**
+ * An hours input's text rounded to the nearest quarter hour, for when the field loses focus.
+ * Empty or non-numeric text is left as it is.
+ */
+export function roundHoursInput(value: string): string {
+  const hours = parseFloat(value);
+  return Number.isNaN(hours) ? value : String(roundToQuarterHour(hours));
+}
+
+/**
  * Convert hours back to a resource's base unit for saving to BC.
  *
  * Inverse of convertToHours: if the resource is DAY-based, divides hours by the

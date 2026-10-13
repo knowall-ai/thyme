@@ -11,6 +11,7 @@ import {
   buildUOMConversionMap,
   convertToHours,
   convertFromHours,
+  roundHoursInput,
   roundToQuarterHour,
   formatHours,
   type UOMConversionMap,
@@ -512,6 +513,9 @@ export function PlanResourceModal({
                     type="number"
                     value={dayHours[dateKey] || ''}
                     onChange={(e) => handleDayHoursChange(dateKey, e.target.value)}
+                    // Round to a quarter hour on leaving the field, so the 0.25 step never
+                    // blocks saving a typed value like 4.2
+                    onBlur={(e) => handleDayHoursChange(dateKey, roundHoursInput(e.target.value))}
                     min="0"
                     max="24"
                     step="0.25"

@@ -6,6 +6,7 @@ import {
   getWeeklyCapacityHours,
   convertToHours,
   convertFromHours,
+  roundHoursInput,
   roundToQuarterHour,
   isResourceDayBased,
   isBudgetPlanningLine,
@@ -367,5 +368,18 @@ describe('roundToQuarterHour', () => {
 
   it('keeps NaN as NaN, so an empty input is still treated as no hours', () => {
     expect(roundToQuarterHour(NaN)).toBeNaN();
+  });
+});
+
+describe('roundHoursInput', () => {
+  it('rounds typed hours to a quarter hour', () => {
+    expect(roundHoursInput('4.2')).toBe('4.25');
+    expect(roundHoursInput('7.17')).toBe('7.25');
+    expect(roundHoursInput('8')).toBe('8');
+  });
+
+  it('leaves empty or non-numeric text alone', () => {
+    expect(roundHoursInput('')).toBe('');
+    expect(roundHoursInput('abc')).toBe('abc');
   });
 });
