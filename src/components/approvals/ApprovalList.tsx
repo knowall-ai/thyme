@@ -15,11 +15,18 @@ import { Card, ExtensionPreviewWrapper } from '@/components/ui';
 import { ApprovalCard } from './ApprovalCard';
 import { ApprovalFilters } from './ApprovalFilters';
 import { prefetchTimeSheetLines } from './prefetchTimeSheetLines';
-import { useApprovalStore, useCompanyStore } from '@/hooks';
+import { useApprovalStore, useCompanyBillableDefault, useCompanyStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
 import { resolveResourceIdentity } from '@/services/auth/resourceIdentity';
 import { bcClient } from '@/services/bc/bcClient';
-import { cn, DATE_FORMAT_FULL, DATE_FORMAT_SHORT } from '@/utils';
+import {
+  cn,
+  hasBillableTargetFields,
+  resolveBillableTargetIfKnown,
+  DATE_FORMAT_FULL,
+  DATE_FORMAT_SHORT,
+} from '@/utils';
+import type { BillableTarget } from '@/utils';
 import type {
   BCTimeSheet,
   BCTimeSheetLine,
@@ -70,6 +77,19 @@ export function ApprovalList() {
     deleteTimeSheet,
     checkApprovalPermission,
   } = useApprovalStore();
+
+  // Each person's billable target: their own, else the company default once it's loaded
+  const targetFieldsPresent = hasBillableTargetFields(resources);
+  const companyBillableDefault = useCompanyBillableDefault(targetFieldsPresent);
+  const billableTargetsByResource = useMemo(() => {
+    const targets = new Map<string, BillableTarget>();
+    if (!targetFieldsPresent) return targets;
+    for (const resource of resources) {
+      const target = resolveBillableTargetIfKnown(resource, companyBillableDefault);
+      if (target) targets.set(resource.number, target);
+    }
+    return targets;
+  }, [resources, targetFieldsPresent, companyBillableDefault]);
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [linesCache, setLinesCache] = useState<Record<string, BCTimeSheetLine[]>>({});
@@ -581,6 +601,7 @@ export function ApprovalList() {
                     resourceEmail={getFullEmail(timeSheet.resourceEmail) || undefined}
                     jobsCache={jobsCache}
                     tasksCache={tasksCache}
+                    billableTarget={billableTargetsByResource.get(timeSheet.resourceNo) ?? null}
                   />
                 ))}
               </div>

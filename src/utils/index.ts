@@ -11,6 +11,7 @@ export * from './weeklyCapacity';
 export * from './githubUsername';
 export * from './projectBudget';
 export * from './projectDates';
+export * from './projectTime';
 export * from './timesheetReview';
 export * from './csvExport';
 export * from './companyPath';

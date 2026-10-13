@@ -26,7 +26,7 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Team tab shows 0 hours for everyone during summer time
 | Upgrade to the latest Thyme version. Earlier versions looked up each person's timesheet with the week start converted to UTC, which in timezones ahead of UTC (e.g. UK summer time, BST) is the previous day (Sunday), so no timesheet matched and every person showed 0 hours. The same fix stops a custom date range on the Approvals page being stored one day early.
 
-| Team page shows no billable targets (no "/ 75% default" next to Billable %, no "Billable vs target" card), and Settings has no Billable Target section
+| Team page shows no billable targets (no "/ 75% default target" next to Billable %, no "Billable vs target" card), and Settings has no Billable Target section
 | Billable targets need a Thyme BC Extension version with billable targets (the `billableTargetPercent` / `billableTargetSet` fields on the resources API and the `thymeSetup` API). Install the latest extension in the BC environment; older versions keep working, just without targets.
 
 | "You don't have permission in Business Central to change billable targets" when saving a target
@@ -112,6 +112,9 @@ Common issues and their solutions. Add new entries as problems are discovered an
 
 | Poppie finished a request for a teammate but no suggestions appear
 | Suggestions are only visible to the person they're for and to Thyme administrators, because they can include meeting subjects and other activity the person hasn't logged yet. As their approver you can ask Poppie to check their week, and Thyme tells you how many she found. They see the suggestions on their own timesheet.
+
+| The Projects list's hours, budget or % used don't match the project page
+| Upgrade to the latest Thyme version. Earlier versions measured the list against the Plan (Budget lines) rather than the Estimate (the quoted time on Billable lines) and only counted timesheets from the last six months, so the figures differed. The list now works them out exactly as the project page does, and its bar shows the time by stage (Posted, Approved, Submitted, Unsubmitted). Hover over the bar to see the hours in each stage.
 
 | There's no *Linked sources* card on the project page
 | The card needs Thyme BC Extension 1.20 or later (the `projectSourceLinks` API); on older versions it's hidden. Upgrade the extension from https://github.com/knowall-ai/thyme-bc-extension.

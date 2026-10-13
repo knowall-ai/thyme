@@ -14,6 +14,7 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline';
 import { Card, Button } from '@/components/ui';
+import { BillableTargetBadge } from '@/components/targets';
 import { PoppieReviewPanel, PoppieVerdictChip, PoppieLineNotes } from '@/components/review';
 import { useTimesheetReview } from '@/hooks';
 import { resolveResourceIdentity } from '@/services/auth/resourceIdentity';
@@ -39,6 +40,7 @@ import {
   DATE_FORMAT_FULL,
   DATE_FORMAT_DAY_SHORT,
 } from '@/utils';
+import type { BillableTarget } from '@/utils';
 import { buildWeekDailyHours, isOverDailyHours } from './dailyHours';
 
 interface ApprovalCardProps {
@@ -64,6 +66,8 @@ interface ApprovalCardProps {
   jobsCache?: Record<string, BCProject>;
   /** Cache of tasks per job for displaying task names */
   tasksCache?: Record<string, BCJobTask[]>;
+  /** The person's billable target; the week's billable % is coloured against it when set */
+  billableTarget?: BillableTarget | null;
 }
 
 export function ApprovalCard({
@@ -82,6 +86,7 @@ export function ApprovalCard({
   isAnyProcessing = false,
   jobsCache = {},
   tasksCache = {},
+  billableTarget,
 }: ApprovalCardProps) {
   const toHref = useCompanyPath();
   const [rejectReason, setRejectReason] = useState('');
@@ -142,7 +147,8 @@ export function ApprovalCard({
         line.type === 'Job' && isBillableEntry(line, line.jobNo ? jobsCache[line.jobNo] : undefined)
     )
     .reduce((sum, line) => sum + (line.totalQuantity || 0), 0);
-  const billablePercent = totalHours > 0 ? Math.round((billableHours / totalHours) * 100) : 0;
+  const exactBillablePercent = totalHours > 0 ? (billableHours / totalHours) * 100 : 0;
+  const billablePercent = Math.round(exactBillablePercent);
 
   // Use timeSheet.totalQuantity as fallback if lines not loaded yet
   const displayHours = totalHours || timeSheet.totalQuantity || 0;
@@ -249,7 +255,19 @@ export function ApprovalCard({
             <span className="flex items-center gap-1">
               <ClockIcon className="h-4 w-4" />
               {displayHours} hours
-              {lines.length > 0 && (
+              {lines.length > 0 && billableTarget && (
+                <span className="flex items-center gap-1">
+                  <span className="text-dark-500" title={BILLABLE_RULE_DESCRIPTION}>
+                    · billable
+                  </span>
+                  <BillableTargetBadge
+                    actualPercent={exactBillablePercent}
+                    target={billableTarget}
+                    hasHours={totalHours > 0}
+                  />
+                </span>
+              )}
+              {lines.length > 0 && !billableTarget && (
                 <span className="text-dark-500" title={BILLABLE_RULE_DESCRIPTION}>
                   ({billablePercent}% billable)
                 </span>
