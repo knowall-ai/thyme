@@ -157,13 +157,17 @@ export interface ReportFilterNames {
 
 /**
  * The Reports filters in words, e.g. "Adatum Corporation, Trey Research · All
- * projects · 3 resources": up to two names per filter, otherwise how many are picked
+ * projects · 3 resources": up to `maxNames` names per filter (two by default), otherwise
+ * how many are picked
  */
-export function describeReportFilters({ clients, projects, resources }: ReportFilterNames): string {
+export function describeReportFilters(
+  { clients, projects, resources }: ReportFilterNames,
+  maxNames = 2
+): string {
   return [
-    describeFilterSelection(clients, 'All clients', 'clients', 2),
-    describeFilterSelection(projects, 'All projects', 'projects', 2),
-    describeFilterSelection(resources, 'All resources', 'resources', 2),
+    describeFilterSelection(clients, 'All clients', 'clients', maxNames),
+    describeFilterSelection(projects, 'All projects', 'projects', maxNames),
+    describeFilterSelection(resources, 'All resources', 'resources', maxNames),
   ].join(' · ');
 }
 

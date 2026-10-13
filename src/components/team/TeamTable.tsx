@@ -247,13 +247,16 @@ export function TeamTable({
     >
       <div className={cn('flex items-center gap-1', align === 'right' && 'justify-end')}>
         {label}
-        <ChevronUpDownIcon className={cn('h-4 w-4', sortField !== field && 'opacity-50')} />
+        <ChevronUpDownIcon
+          className={cn('h-4 w-4 print:hidden', sortField !== field && 'opacity-50')}
+        />
       </div>
     </th>
   );
 
   return (
-    <Card variant="bordered" className="overflow-hidden">
+    // In print the table shrinks to the page instead of scrolling (see globals.css)
+    <Card variant="bordered" className="overflow-hidden print:overflow-visible">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -351,7 +354,7 @@ export function TeamTable({
                         )}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-dark-400 hover:text-knowall-green"
+                        className="text-dark-400 hover:text-knowall-green print:hidden"
                         title="Open in Business Central"
                       >
                         <ArrowTopRightOnSquareIcon className="h-4 w-4" />
@@ -425,7 +428,7 @@ export function TeamTable({
                           <button
                             type="button"
                             onClick={() => onEditCapacity(member)}
-                            className="text-dark-400 hover:text-knowall-green rounded p-1"
+                            className="text-dark-400 hover:text-knowall-green rounded p-1 print:hidden"
                             title="Edit weekly capacity"
                             aria-label={`Edit weekly capacity for ${member.name}`}
                           >
@@ -452,7 +455,7 @@ export function TeamTable({
                         <button
                           type="button"
                           onClick={() => onEditTarget(member)}
-                          className="text-dark-400 hover:text-knowall-green rounded p-1"
+                          className="text-dark-400 hover:text-knowall-green rounded p-1 print:hidden"
                           title="Edit billable target"
                           aria-label={`Edit billable target for ${member.name}`}
                         >

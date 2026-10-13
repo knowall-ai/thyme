@@ -358,11 +358,11 @@ Thyme provides an "eye" toggle button to show/hide internal costs:
 
 This allows managers to share project status with customers without exposing internal cost data.
 
-== PDF Export
+== Print
 
-The PDF export creates a customer-friendly report that respects the visibility toggle:
+The project page's *Print* button prints a customer-friendly report (choose "Save as PDF" in the print dialog for a PDF) that respects the visibility toggle:
 
-* When costs are hidden, the PDF excludes Budget Cost and Actual Cost
+* When costs are hidden, the Budget Cost and Actual Cost cards still print, with their amounts masked and without their breakdowns
 * Includes: Project details, Hours (Spent/Planned), Revenue (Billable/Invoiced)
 
 == Thyme BC Extension Requirements

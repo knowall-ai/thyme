@@ -60,7 +60,9 @@ import {
   getReportFilterOptions,
   selectReportClients,
   describeFilterSelection,
+  describeReportFilters,
   getHoursByProject,
+  describeReportPrintout,
 } from '@/utils';
 import type {
   BillableTarget,
@@ -73,6 +75,7 @@ import type {
 import type { BCProject } from '@/types';
 import { ExportButton } from './ExportButton';
 import { FilterMenu } from './FilterMenu';
+import { PrintButton } from './PrintButton';
 import { ReportPeriodPicker } from './ReportPeriodPicker';
 
 const byName = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: 'base' });
@@ -471,6 +474,12 @@ export function ReportsPanel() {
   const maxRowHours = Math.max(...breakdown.map((row) => Math.max(row.hours, row.capacity)), 1);
 
   const hasHours = summary.totalHours > 0;
+
+  // The printed report's heading: its period and filters, as the filter bar is hidden
+  // Every picked name, not a count: the printout has no filter bar to show them
+  const printSummary = describeReportPrintout(period, [
+    describeReportFilters(filterNames, Infinity),
+  ]);
   const billableBand = billableTarget
     ? getBillableTargetBand(summary.billablePercent, billableTarget.percent, hasHours)
     : null;
@@ -478,8 +487,10 @@ export function ReportsPanel() {
   return (
     <ExtensionPreviewWrapper extensionNotInstalled={extensionNotInstalled} pageName="Reports">
       <div className="space-y-6">
-        {/* Period, and the client, project and resource filters */}
-        <ReportPeriodPicker period={period} onChange={setPeriod}>
+        <p className="hidden text-xl font-bold text-white print:block">{printSummary}</p>
+
+        {/* Period, and the client, project and resource filters (hidden in print) */}
+        <ReportPeriodPicker period={period} onChange={setPeriod} actions={<PrintButton />}>
           {(filterActive || resourceNos.length > 0) && (
             <button
               type="button"
@@ -562,7 +573,7 @@ export function ReportsPanel() {
         {!isLoading && projectsUnavailable && <ProjectsUnavailableWarning />}
 
         {/* Summary Stats */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4 print:grid-cols-4">
           <Card variant="bordered" className="p-4">
             <div className="flex items-center gap-3">
               <div className="bg-thyme-500/20 rounded-lg p-2">
@@ -726,7 +737,7 @@ export function ReportsPanel() {
               {projectHours.map((project) => (
                 <div
                   key={project.projectNo}
-                  className="space-y-2"
+                  className="break-inside-avoid space-y-2"
                   title={getStageSummary(project.stages, formatTime)}
                 >
                   <div className="flex items-center justify-between">
@@ -806,7 +817,7 @@ export function ReportsPanel() {
                 const unbillableWidth = (unbillableHours / maxRowHours) * 100;
 
                 return (
-                  <div key={row.key} className="flex items-center gap-4">
+                  <div key={row.key} className="flex break-inside-avoid items-center gap-4">
                     <span className="text-dark-400 w-28 text-sm">{row.label}</span>
                     <div className="bg-dark-700 relative h-6 flex-1 overflow-hidden rounded">
                       {row.hours > 0 && (

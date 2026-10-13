@@ -36,13 +36,21 @@ export interface ReportPeriodPickerProps {
   onChange: (period: ReportPeriod) => void;
   /** Other controls shown beside the period dropdown, e.g. the resource filter */
   children?: ReactNode;
+  /** Shown after the period dropdown, e.g. the Print button */
+  actions?: ReactNode;
 }
 
 /**
  * Picks the report's period: a preset (this week ... last year), a custom date range,
- * and arrows to step back and forward by the period's own length.
+ * and arrows to step back and forward by the period's own length. All controls, so
+ * hidden in print: the printed report names its period and filters in a heading instead.
  */
-export function ReportPeriodPicker({ period, onChange, children }: ReportPeriodPickerProps) {
+export function ReportPeriodPicker({
+  period,
+  onChange,
+  children,
+  actions,
+}: ReportPeriodPickerProps) {
   const preset = matchPreset(period);
   const isCustom = period.unit === 'custom';
   const selectValue = preset ?? (isCustom ? CUSTOM : '');
@@ -54,7 +62,7 @@ export function ReportPeriodPicker({ period, onChange, children }: ReportPeriodP
   };
 
   return (
-    <Card variant="bordered" className="p-4">
+    <Card variant="bordered" className="p-4 print:hidden">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <button
@@ -108,6 +116,7 @@ export function ReportPeriodPicker({ period, onChange, children }: ReportPeriodP
             ))}
             <option value={CUSTOM}>Custom range…</option>
           </select>
+          {actions}
         </div>
       </div>
 
