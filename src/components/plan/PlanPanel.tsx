@@ -1560,9 +1560,13 @@ export function PlanPanel({
 
   // Red and amber flags use each person's own working day (as the Edit Allocation modal
   // does), else 8h, and their weekly capacity when they have one
+  // Capacity is a person's, not a project's, so the Projects tab shows no rings: its cells mix
+  // several people's days. A project's own Plan dialog keeps them, to show who's overbooked.
+  const showCapacityFlags = viewMode === 'team' || !!projectCode;
   const getCapacityFlag = useCallback<CapacityFlagLookup>(
-    (dayAllocations, date, includeName = false) =>
-      getCellCapacityFlag(
+    (dayAllocations, date, includeName = false) => {
+      if (!showCapacityFlags) return undefined;
+      return getCellCapacityFlag(
         dayAllocations,
         resourceDailyTotals,
         date,
@@ -1570,8 +1574,9 @@ export function PlanPanel({
         (resourceNumber) =>
           getResourceHoursPerDay(resourceNumber, uomConversionMap) ?? DAILY_CAPACITY_HOURS,
         (resourceNumber) => weeklyCapacityByResource.get(resourceNumber) ?? null
-      ),
-    [resourceDailyTotals, uomConversionMap, weeklyCapacityByResource]
+      );
+    },
+    [resourceDailyTotals, uomConversionMap, weeklyCapacityByResource, showCapacityFlags]
   );
 
   // A project's dialog loads its plan up front (and skips team-only data)
@@ -2128,14 +2133,18 @@ export function PlanPanel({
         <span className="text-dark-400">Tip:</span>
         <span className="text-dark-300">Click hours to expand, then click allocation to edit</span>
         <span className="text-dark-300">Hover over week to add plan</span>
-        <span className="text-dark-300 flex items-center gap-1.5">
-          <span className={cn('h-3 w-3 rounded', OVER_ALLOCATED_CLASS)} aria-hidden="true" />
-          Over capacity
-        </span>
-        <span className="text-dark-300 flex items-center gap-1.5">
-          <span className={cn('h-3 w-3 rounded', UNDER_ALLOCATED_CLASS)} aria-hidden="true" />
-          Under capacity
-        </span>
+        {showCapacityFlags && (
+          <>
+            <span className="text-dark-300 flex items-center gap-1.5">
+              <span className={cn('h-3 w-3 rounded', OVER_ALLOCATED_CLASS)} aria-hidden="true" />
+              Over capacity
+            </span>
+            <span className="text-dark-300 flex items-center gap-1.5">
+              <span className={cn('h-3 w-3 rounded', UNDER_ALLOCATED_CLASS)} aria-hidden="true" />
+              Under capacity
+            </span>
+          </>
+        )}
       </div>
 
       {/* Plan Entry Modal (Team view - select project for resource) */}
