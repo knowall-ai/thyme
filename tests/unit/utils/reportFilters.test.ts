@@ -259,4 +259,21 @@ describe('filtering', () => {
       'PR-FABRIKAM',
     ]);
   });
+
+  it('names a client by its customer name even when another project only has the number', () => {
+    const named = getReportProject('PR-A', {
+      displayName: 'A',
+      billToCustomerNo: 'C40000',
+      billToCustomerName: 'Northwind Traders',
+    });
+    const numberOnly = getReportProject('PR-B', { displayName: 'B', billToCustomerNo: 'C40000' });
+    for (const order of [
+      [named, numberOnly],
+      [numberOnly, named],
+    ]) {
+      expect(getReportFilterOptions(order, null).clients).toEqual([
+        { id: 'customer:C40000', name: 'Northwind Traders' },
+      ]);
+    }
+  });
 });

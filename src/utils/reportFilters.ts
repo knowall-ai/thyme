@@ -168,7 +168,15 @@ export function getReportFilterOptions(
 ): ReportFilterOptions {
   const all = [...projects];
   const clients = new Map<string, ReportClient>();
-  for (const { client } of all) clients.set(client.id, client);
+  // A project without the customer's name labels it by number; any project with the
+  // name wins, whichever comes first
+  const isBareNumber = (client: ReportClient) => client.id === `customer:${client.name}`;
+  for (const { client } of all) {
+    const existing = clients.get(client.id);
+    if (!existing || (isBareNumber(existing) && !isBareNumber(client))) {
+      clients.set(client.id, client);
+    }
+  }
   return {
     clients: [...clients.values()].sort(
       (a, b) =>
