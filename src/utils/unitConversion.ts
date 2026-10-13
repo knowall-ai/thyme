@@ -103,6 +103,23 @@ export function convertToHours(
 }
 
 /**
+ * Round hours to the nearest quarter hour (15 minutes), the granularity planned hours are kept to.
+ * Planning lines stored in days (e.g. 0.56 days of a 7.5h day = 4.2h) come back as quarter hours.
+ */
+export function roundToQuarterHour(hours: number): number {
+  return Math.round(hours * 4) / 4;
+}
+
+/**
+ * An hours input's text rounded to the nearest quarter hour, for when the field loses focus.
+ * Empty or non-numeric text is left as it is.
+ */
+export function roundHoursInput(value: string): string {
+  const hours = parseFloat(value);
+  return Number.isNaN(hours) ? value : String(roundToQuarterHour(hours));
+}
+
+/**
  * Convert hours back to a resource's base unit for saving to BC.
  *
  * Inverse of convertToHours: if the resource is DAY-based, divides hours by the

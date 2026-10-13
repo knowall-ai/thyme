@@ -12,6 +12,8 @@ import {
   buildUOMConversionMap,
   convertToHours,
   convertFromHours,
+  roundHoursInput,
+  roundToQuarterHour,
   formatHours,
   type UOMConversionMap,
 } from '@/utils';
@@ -166,8 +168,7 @@ export function PlanEntryModal({
         }
         // Round each date's total once to 0.25-hour (15-minute) granularity
         for (const [dateKey, total] of Object.entries(rawHours)) {
-          const rounded = Math.round(total * 4) / 4;
-          newHours[dateKey] = rounded.toString();
+          newHours[dateKey] = roundToQuarterHour(total).toString();
         }
 
         setDayHours(newHours);
@@ -274,7 +275,8 @@ export function PlanEntryModal({
     const toDelete: { date: string; id: string; etag: string }[] = [];
 
     for (const [date, hoursStr] of Object.entries(dayHours)) {
-      const hours = parseFloat(hoursStr);
+      // Saved in quarter hours, so a typed 4.2 is planned as 4.25
+      const hours = roundToQuarterHour(parseFloat(hoursStr));
       const hasHours = !isNaN(hours) && hours > 0;
       const existing = existingLinesByDate[date];
 
@@ -508,6 +510,9 @@ export function PlanEntryModal({
                     type="number"
                     value={dayHours[dateKey] || ''}
                     onChange={(e) => handleDayHoursChange(dateKey, e.target.value)}
+                    // Round to a quarter hour on leaving the field, so the 0.25 step never
+                    // blocks saving a typed value like 4.2
+                    onBlur={(e) => handleDayHoursChange(dateKey, roundHoursInput(e.target.value))}
                     min="0"
                     max="24"
                     step="0.25"

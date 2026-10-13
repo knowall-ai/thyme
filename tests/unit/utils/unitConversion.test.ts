@@ -6,6 +6,8 @@ import {
   getWeeklyCapacityHours,
   convertToHours,
   convertFromHours,
+  roundHoursInput,
+  roundToQuarterHour,
   isResourceDayBased,
   isBudgetPlanningLine,
   sumPlannedHours,
@@ -335,5 +337,49 @@ describe('getWeeklyCapacityHours', () => {
   it('falls back to the configured default without usable units of measure', () => {
     expect(getWeeklyCapacityHours('R2', map, 40)).toBe(40);
     expect(getWeeklyCapacityHours('R1', new Map(), 40)).toBe(40);
+  });
+});
+
+describe('roundToQuarterHour', () => {
+  it('rounds to the nearest quarter hour', () => {
+    expect(roundToQuarterHour(4.2)).toBe(4.25);
+    expect(roundToQuarterHour(2.24)).toBe(2.25);
+    expect(roundToQuarterHour(18.7)).toBe(18.75);
+    expect(roundToQuarterHour(4.1)).toBe(4);
+    expect(roundToQuarterHour(0.1)).toBe(0);
+  });
+
+  it('leaves quarter hours alone', () => {
+    for (const hours of [0, 0.25, 0.5, 0.75, 1, 7.5, 8.75]) {
+      expect(roundToQuarterHour(hours)).toBe(hours);
+    }
+  });
+
+  it('turns days stored for a day-based resource back into quarter hours', () => {
+    const map = buildUOMConversionMap([
+      { resourceNo: 'R001', code: 'HOUR', qtyPerUnitOfMeasure: 7.5 } as BCResourceUnitOfMeasure,
+    ]);
+    // 0.56 days of a 7.5h day is 4.2h
+    expect(roundToQuarterHour(convertToHours('R001', 0.56, map))).toBe(4.25);
+    // 4.25h saved as days (0.5666...) and rounded by BC to 5 decimals comes back as 4.25h
+    const days = Math.round(convertFromHours('R001', 4.25, map) * 1e5) / 1e5;
+    expect(roundToQuarterHour(convertToHours('R001', days, map))).toBe(4.25);
+  });
+
+  it('keeps NaN as NaN, so an empty input is still treated as no hours', () => {
+    expect(roundToQuarterHour(NaN)).toBeNaN();
+  });
+});
+
+describe('roundHoursInput', () => {
+  it('rounds typed hours to a quarter hour', () => {
+    expect(roundHoursInput('4.2')).toBe('4.25');
+    expect(roundHoursInput('7.17')).toBe('7.25');
+    expect(roundHoursInput('8')).toBe('8');
+  });
+
+  it('leaves empty or non-numeric text alone', () => {
+    expect(roundHoursInput('')).toBe('');
+    expect(roundHoursInput('abc')).toBe('abc');
   });
 });

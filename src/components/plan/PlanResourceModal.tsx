@@ -11,6 +11,8 @@ import {
   buildUOMConversionMap,
   convertToHours,
   convertFromHours,
+  roundHoursInput,
+  roundToQuarterHour,
   formatHours,
   type UOMConversionMap,
 } from '@/utils';
@@ -164,14 +166,18 @@ export function PlanResourceModal({
         });
 
         // Fill in existing values (convert base unit to hours for display)
+        // Sum all raw hours per date first, then round once to avoid cumulative drift
+        const rawHours: Record<string, number> = {};
         for (const line of existingLines) {
           const dateKey = line.planningDate;
           const hoursValue = convertToHours(resourceId, line.quantity, uomMap);
-          // If there are multiple lines for the same day, sum them
-          const existingVal = parseFloat(newHours[dateKey] || '0');
-          newHours[dateKey] = (existingVal + hoursValue).toString();
+          rawHours[dateKey] = (rawHours[dateKey] || 0) + hoursValue;
           // Track id and etag for updates (last one wins if multiple)
           newLinesByDate[dateKey] = { id: line.id, etag: line['@odata.etag'] || '' };
+        }
+        // Round each date's total once to quarter hours
+        for (const [dateKey, total] of Object.entries(rawHours)) {
+          newHours[dateKey] = roundToQuarterHour(total).toString();
         }
 
         setDayHours(newHours);
@@ -275,7 +281,8 @@ export function PlanResourceModal({
     const toDelete: { date: string; id: string; etag: string }[] = [];
 
     for (const [date, hoursStr] of Object.entries(dayHours)) {
-      const hours = parseFloat(hoursStr);
+      // Saved in quarter hours, so a typed 4.2 is planned as 4.25
+      const hours = roundToQuarterHour(parseFloat(hoursStr));
       const hasHours = !isNaN(hours) && hours > 0;
       const existing = existingLinesByDate[date];
 
@@ -506,6 +513,9 @@ export function PlanResourceModal({
                     type="number"
                     value={dayHours[dateKey] || ''}
                     onChange={(e) => handleDayHoursChange(dateKey, e.target.value)}
+                    // Round to a quarter hour on leaving the field, so the 0.25 step never
+                    // blocks saving a typed value like 4.2
+                    onBlur={(e) => handleDayHoursChange(dateKey, roundHoursInput(e.target.value))}
                     min="0"
                     max="24"
                     step="0.25"

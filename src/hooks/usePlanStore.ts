@@ -12,6 +12,7 @@ import {
   getTimesheetDisplayStatus,
   buildUOMConversionMap,
   convertToHours,
+  roundToQuarterHour,
   getPlanPreloadWindow,
   type UOMConversionMap,
 } from '@/utils';
@@ -491,7 +492,10 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
               );
 
               for (const line of resourceLines) {
-                const hours = convertToHours(line.number, line.quantity, uomConversionMap);
+                // Planned hours are kept to quarter hours, whatever unit BC stores them in
+                const hours = roundToQuarterHour(
+                  convertToHours(line.number, line.quantity, uomConversionMap)
+                );
                 const allocation: AllocationBlock = {
                   id: `${line.jobNo}-${line.jobTaskNo}-${line.lineNo}`,
                   resourceId: resourceIdMap.get(line.number) || line.number,

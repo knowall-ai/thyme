@@ -5,6 +5,7 @@ import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import {
   cn,
   convertToHours,
+  roundToQuarterHour,
   getResourceHoursPerDay,
   formatHours,
   getOverAllocationHours,
@@ -112,7 +113,10 @@ export function ResourceWorkload({
     return dateKeys.map((date) => {
       const hours = filteredLines
         .filter((l) => l.planningDate === date)
-        .reduce((sum, l) => sum + convertToHours(resourceNo, l.quantity, uomMap), 0);
+        .reduce(
+          (sum, l) => sum + roundToQuarterHour(convertToHours(resourceNo, l.quantity, uomMap)),
+          0
+        );
       return { date, hours };
     });
   }, [dateKeys, filteredLines, resourceNo, uomMap]);
@@ -148,7 +152,7 @@ export function ResourceWorkload({
         });
       }
       const entry = map.get(key)!;
-      const hours = convertToHours(resourceNo, line.quantity, uomMap);
+      const hours = roundToQuarterHour(convertToHours(resourceNo, line.quantity, uomMap));
       entry.days[line.planningDate] = (entry.days[line.planningDate] || 0) + hours;
       entry.total += hours;
     }
