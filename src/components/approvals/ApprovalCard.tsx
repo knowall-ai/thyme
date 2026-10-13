@@ -41,7 +41,7 @@ import {
   DATE_FORMAT_DAY_SHORT,
 } from '@/utils';
 import type { BillableTarget } from '@/utils';
-import { buildWeekDailyHours, getWorkedDayRuns, isOverDailyHours } from './dailyHours';
+import { buildWeekDailyHours, isOverDailyHours } from './dailyHours';
 
 interface ApprovalCardProps {
   timeSheet: BCTimeSheet;
@@ -171,15 +171,28 @@ export function ApprovalCard({
   });
   const showDays = daily !== null && weekDays.length > 0;
 
-  // Lines by the first day they have hours on, so the list reads through the week.
+  // One row per entry (a line's hours on one day), in date order. Thyme puts each entry on its
+  // own line, but a line entered in BC can have hours on several days, so it's split per day.
   // Lines with no hours that week (or before details load) keep their order, at the end.
-  const sortedLines = useMemo(() => {
-    if (!daily) return lines;
-    const firstDay = (lineNo: number) => {
-      const index = (daily.byLine.get(lineNo) ?? []).findIndex((hours) => hours > 0);
-      return index === -1 ? weekDays.length : index;
-    };
-    return [...lines].sort((a, b) => firstDay(a.lineNo) - firstDay(b.lineNo));
+  const entries = useMemo(() => {
+    type Entry = { line: BCTimeSheetLine; dayIndex: number | null; hours: number };
+    const rows = lines.flatMap((line): Entry[] => {
+      const hoursPerDay = daily?.byLine.get(line.lineNo) ?? [];
+      const days = hoursPerDay.flatMap((hours, dayIndex): Entry[] =>
+        hours > 0 ? [{ line, dayIndex, hours }] : []
+      );
+      return days.length > 0 ? days : [{ line, dayIndex: null, hours: line.totalQuantity }];
+    });
+    const order = (dayIndex: number | null) => dayIndex ?? weekDays.length;
+    // Poppie's notes are per line, not per day, so a split line shows them once, on its first day
+    const seen = new Set<number>();
+    return rows
+      .sort((a, b) => order(a.dayIndex) - order(b.dayIndex))
+      .map((row) => {
+        const isFirstOfLine = !seen.has(row.line.lineNo);
+        seen.add(row.line.lineNo);
+        return { ...row, isFirstOfLine };
+      });
   }, [lines, daily, weekDays.length]);
 
   // Helper to get project name from cache
@@ -432,17 +445,25 @@ export function ApprovalCard({
             className="m-4"
           />
 
-          {/* Time sheet lines, in the order the work was done */}
+          {/* Time sheet entries, in the order the work was done */}
           <div className="divide-dark-700/50 divide-y">
-            {sortedLines.length > 0 ? (
-              sortedLines.map((line) => (
-                <div key={line.id} className="flex items-center gap-4 px-4 py-3">
-                  {/* The day(s) the work was done; the week's spread is in the strip above */}
+            {entries.length > 0 ? (
+              entries.map(({ line, dayIndex, hours, isFirstOfLine }) => (
+                <div key={`${line.id}-${dayIndex}`} className="flex items-center gap-4 px-4 py-3">
+                  {/* The day the work was done; the week's spread is in the strip above */}
                   {showDays && (
-                    <LineDays
-                      weekDays={weekDays}
-                      hoursPerDay={daily.byLine.get(line.lineNo) ?? []}
-                    />
+                    <p
+                      className={cn(
+                        'w-14 shrink-0 text-xs font-medium whitespace-nowrap',
+                        dayIndex === null
+                          ? 'text-dark-500'
+                          : weekDays[dayIndex].isToday
+                            ? 'text-knowall-green'
+                            : 'text-dark-300'
+                      )}
+                    >
+                      {dayIndex === null ? '–' : weekDays[dayIndex].label}
+                    </p>
                   )}
                   <div className="min-w-0 flex-1">
                     {line.type === 'Job' && line.jobNo ? (
@@ -483,10 +504,12 @@ export function ApprovalCard({
                         )}
                       </p>
                     )}
-                    <PoppieLineNotes notes={poppieReview.notesByLine.get(line.lineNo)} />
+                    {isFirstOfLine && (
+                      <PoppieLineNotes notes={poppieReview.notesByLine.get(line.lineNo)} />
+                    )}
                   </div>
                   <p className="w-16 shrink-0 text-right text-sm font-medium text-white">
-                    {line.totalQuantity} hrs
+                    {formatHours(hours)} hrs
                   </p>
                 </div>
               ))
@@ -570,42 +593,5 @@ export function ApprovalCard({
         </div>
       )}
     </Card>
-  );
-}
-
-interface LineDaysProps {
-  weekDays: Array<{ key: string; date: Date; label: string; isToday: boolean }>;
-  /** The line's hours per day, aligned with weekDays */
-  hoursPerDay: number[];
-}
-
-/** The day(s) a line was worked, consecutive days as a range, with the hours per day on hover */
-function LineDays({ weekDays, hoursPerDay }: LineDaysProps) {
-  const runs = getWorkedDayRuns(hoursPerDay);
-  const breakdown = weekDays
-    .flatMap((day, i) =>
-      hoursPerDay[i] > 0
-        ? [`${format(day.date, DATE_FORMAT_DAY_SHORT)}: ${formatHours(hoursPerDay[i])} hours`]
-        : []
-    )
-    .join('\n');
-
-  return (
-    <div
-      title={breakdown || undefined}
-      className="text-dark-300 w-24 shrink-0 text-xs font-medium whitespace-nowrap tabular-nums"
-    >
-      {runs.length > 0 ? (
-        runs.map(([start, end]) => (
-          <p key={start} className={cn(weekDays[start].isToday && 'text-knowall-green')}>
-            {start === end
-              ? weekDays[start].label
-              : `${weekDays[start].label} – ${weekDays[end].label}`}
-          </p>
-        ))
-      ) : (
-        <p className="text-dark-500">–</p>
-      )}
-    </div>
   );
 }
