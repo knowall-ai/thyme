@@ -3,6 +3,7 @@ import {
   buildUOMConversionMap,
   describeCapacitySaveError,
   describeWeeklyCapacity,
+  describeFlexibleDays,
   hasWeeklyCapacityFields,
   parseWeeklyCapacityHours,
   resolveWeeklyCapacity,
@@ -147,6 +148,14 @@ describe('describeCapacitySaveError', () => {
     ).toBe('Business Central rejected the change: Value "200" is too high.');
     expect(describeCapacitySaveError(new Error('BC Custom API Error (400): <html>'))).toBe(
       'Business Central rejected the change. Check the hours and try again.'
+    );
+  });
+});
+
+describe('describeFlexibleDays', () => {
+  it("explains what flexible means for the person's week", () => {
+    expect(describeFlexibleDays({ hours: 15 })).toBe(
+      'Flexible working days: works their 15h a week on any days, so their week is judged as a whole'
     );
   });
 });

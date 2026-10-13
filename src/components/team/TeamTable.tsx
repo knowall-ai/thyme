@@ -15,6 +15,7 @@ import {
   BILLABLE_RULE_DESCRIPTION,
   getGitHubProfileUrl,
   describeWeeklyCapacity,
+  describeFlexibleDays,
   getBillableTargetGap,
   formatTargetGap,
   TARGET_GAP_DESCRIPTION,
@@ -419,8 +420,12 @@ export function TeamTable({
                         title={describeCapacity(member)}
                       >
                         {member.weekly.flexible && (
-                          <span className="bg-dark-700 text-dark-300 rounded px-1.5 py-0.5 text-xs">
-                            flexible
+                          <span
+                            className="bg-dark-700 text-dark-300 cursor-help rounded px-1.5 py-0.5 text-xs"
+                            title={describeFlexibleDays(member.weekly)}
+                          >
+                            <span aria-hidden="true">flexible</span>
+                            <span className="sr-only">{describeFlexibleDays(member.weekly)}</span>
                           </span>
                         )}
                         <span className="tabular-nums">{member.capacity.toFixed(1)}</span>
