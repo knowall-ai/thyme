@@ -6,7 +6,12 @@ import {
   getOverAllocatedResources,
   getOverAllocationTitle,
   getWeekToDateHours,
+  getWeekHours,
   formatOverAllocation,
+  getUnderAllocationHours,
+  getUnderAllocatedResources,
+  getUnderAllocationTitle,
+  getCapacityFlag,
   type DailyResourceAllocation,
 } from '@/utils/capacity';
 
@@ -277,5 +282,181 @@ describe('weekly capacity', () => {
     );
     expect(title).toContain('Alex Contoso over-allocated: 9.5h planned');
     expect(title).toContain('Alex Contoso over weekly capacity: 24.5h planned this week so far');
+  });
+});
+
+describe('getUnderAllocationHours', () => {
+  it('returns the shortfall under capacity', () => {
+    expect(getUnderAllocationHours(5.5)).toBe(2.5);
+    expect(getUnderAllocationHours(6, 7.5)).toBe(1.5);
+  });
+
+  it('returns 0 at or over capacity', () => {
+    expect(getUnderAllocationHours(DAILY_CAPACITY_HOURS)).toBe(0);
+    expect(getUnderAllocationHours(9)).toBe(0);
+  });
+
+  it('ignores floating-point noise', () => {
+    expect(getUnderAllocationHours(7.4999999, 7.5)).toBe(0);
+  });
+});
+
+describe('under capacity', () => {
+  const underOn = (allocations: DailyResourceAllocation[], date = DAY, weekly?: number | null) =>
+    getUnderAllocatedResources(
+      allocations,
+      buildResourceDailyTotals(allocations),
+      date,
+      () => 7.5,
+      weekly === undefined ? undefined : () => weekly
+    );
+
+  it('flags a weekday with some hours planned but under a working day', () => {
+    const allocations = [
+      alloc({ hoursPerDay: 4 }),
+      alloc({ projectNumber: 'PR002', projectName: 'Contoso App', hoursPerDay: 1.5 }),
+    ];
+    const [under] = underOn(allocations);
+    expect(under).toMatchObject({
+      plannedHours: 5.5,
+      capacityHours: 7.5,
+      underByHours: 2,
+      weekly: false,
+    });
+    expect(
+      getUnderAllocationTitle(
+        allocations,
+        buildResourceDailyTotals(allocations),
+        DAY,
+        false,
+        () => 8
+      )
+    ).toBe(
+      'Under capacity: 5.5h planned (capacity 8h)\n  Contoso Website: 4h\n  Contoso App: 1.5h'
+    );
+  });
+
+  it('does not flag a day at exactly capacity, even with floating-point noise', () => {
+    expect(underOn([alloc({ hoursPerDay: 7.5 })])).toEqual([]);
+    expect(underOn([alloc({ hoursPerDay: 7.4999999 })])).toEqual([]);
+  });
+
+  it('does not flag a day with nothing planned', () => {
+    expect(underOn([alloc({ hoursPerDay: 0 })])).toEqual([]);
+    // Allocations on another day don't count for this one
+    expect(underOn([alloc({ startDate: '2026-10-06', hoursPerDay: 2 })])).toEqual([]);
+  });
+
+  it('never flags weekends', () => {
+    expect(underOn([alloc({ startDate: '2026-10-10', hoursPerDay: 2 })], '2026-10-10')).toEqual([]);
+    expect(underOn([alloc({ startDate: '2026-10-11', hoursPerDay: 2 })], '2026-10-11', 15)).toEqual(
+      []
+    );
+  });
+
+  it('never flags someone who is not counted (weekly capacity 0)', () => {
+    expect(underOn([alloc({ hoursPerDay: 2 })], DAY, 0)).toEqual([]);
+  });
+
+  describe('with a weekly capacity', () => {
+    // Mon 5 and Tue 6 Oct 2026 for someone on 15h a week
+    const week = (hours: number[]) =>
+      hours.map((hoursPerDay, i) => alloc({ startDate: `2026-10-0${5 + i}`, hoursPerDay }));
+
+    it('sums the whole week, Monday to Sunday', () => {
+      const allocations = [...week([7.5, 7.5]), alloc({ startDate: '2026-10-11', hoursPerDay: 1 })];
+      const totals = buildResourceDailyTotals(allocations);
+      expect(getWeekHours(totals, 'R001', '2026-10-05')).toBe(16);
+      expect(getWeekHours(totals, 'R001', '2026-10-11')).toBe(16);
+      expect(getWeekHours(totals, 'R001', '2026-10-12')).toBe(0);
+    });
+
+    it("flags every planned day of a week under their weekly capacity, whatever each day's hours", () => {
+      const allocations = week([7.5, 4.5]);
+      const totals = buildResourceDailyTotals(allocations);
+      for (const date of ['2026-10-05', '2026-10-06']) {
+        const [under] = underOn(allocations, date, 15);
+        expect(under).toMatchObject({ plannedHours: 12, capacityHours: 15, weekly: true });
+      }
+      // A weekday with nothing planned stays clear
+      expect(underOn(allocations, '2026-10-07', 15)).toEqual([]);
+      expect(
+        getUnderAllocationTitle(
+          allocations,
+          totals,
+          '2026-10-05',
+          false,
+          () => 7.5,
+          () => 15
+        )
+      ).toBe(
+        'Under weekly capacity: 12h planned this week (capacity 15h a week)\n  Contoso Website: 7.5h'
+      );
+      expect(
+        getUnderAllocationTitle(
+          allocations,
+          totals,
+          '2026-10-06',
+          true,
+          () => 7.5,
+          () => 15
+        )
+      ).toContain('Alex Contoso under weekly capacity: 12h planned this week');
+    });
+
+    it('does not flag a week at or over their weekly capacity', () => {
+      expect(underOn(week([7.5, 7.5]), '2026-10-05', 15)).toEqual([]);
+      // A short day is fine when the week as a whole is full
+      expect(underOn(week([7.5, 3, 4.5]), '2026-10-06', 15)).toEqual([]);
+      expect(underOn(week([7.5, 7.5, 3]), '2026-10-07', 15)).toEqual([]);
+    });
+  });
+});
+
+describe('getCapacityFlag', () => {
+  it('is red when over, amber when under, and nothing at capacity', () => {
+    const flag = (allocations: DailyResourceAllocation[]) =>
+      getCapacityFlag(allocations, buildResourceDailyTotals(allocations), DAY)?.status;
+    expect(flag([alloc({ hoursPerDay: 9 })])).toBe('over');
+    expect(flag([alloc({ hoursPerDay: 5 })])).toBe('under');
+    expect(flag([alloc({ hoursPerDay: 8 })])).toBeUndefined();
+  });
+
+  it('prefers red to amber on the same cell', () => {
+    // A 9h Monday is over a 7.5h day, though the week is under 15h
+    const allocations = [
+      alloc({ hoursPerDay: 9 }),
+      alloc({ startDate: '2026-10-06', hoursPerDay: 2 }),
+    ];
+    const totals = buildResourceDailyTotals(allocations);
+    const monday = getCapacityFlag(
+      allocations,
+      totals,
+      DAY,
+      false,
+      () => 7.5,
+      () => 15
+    );
+    expect(monday?.status).toBe('over');
+    expect(monday?.title).toMatch(/^Over-allocated: 9h planned/);
+    expect(
+      getCapacityFlag(
+        allocations,
+        totals,
+        '2026-10-06',
+        false,
+        () => 7.5,
+        () => 15
+      )?.status
+    ).toBe('under');
+
+    // A rolled-up cell with one person over and another under is red
+    const rolledUp = [
+      alloc({ hoursPerDay: 9 }),
+      alloc({ resourceNumber: 'R002', resourceName: 'Sam Contoso', hoursPerDay: 4 }),
+    ];
+    expect(getCapacityFlag(rolledUp, buildResourceDailyTotals(rolledUp), DAY, true)?.status).toBe(
+      'over'
+    );
   });
 });

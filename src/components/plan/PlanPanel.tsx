@@ -29,11 +29,12 @@ import {
   getBCJobUrl,
   formatHours,
   buildResourceDailyTotals,
-  getOverAllocationTitle,
+  getCapacityFlag as getCellCapacityFlag,
   getResourceHoursPerDay,
   resolveWeeklyCapacity,
   groupAllocationsByTask,
   DAILY_CAPACITY_HOURS,
+  type CapacityFlag,
   type PlanJobTask,
 } from '@/utils';
 import type { AllocationBlock, PlanTeamMember, PlanProject, ViewMode } from '@/hooks/usePlanStore';
@@ -52,21 +53,30 @@ import {
 // Red ring on hour cells where a resource's total across all projects exceeds daily capacity
 // (same red treatment as the Edit Allocation modal's "Other Workload" bars)
 const OVER_ALLOCATED_CLASS = 'ring-2 ring-inset ring-red-500';
+// Amber ring on weekday hour cells where a resource has some hours planned but is short of
+// capacity (their working day, or their weekly capacity across the week)
+const UNDER_ALLOCATED_CLASS = 'ring-2 ring-inset ring-amber-400';
+
+const CAPACITY_FLAG_CLASS: Record<CapacityFlag['status'], string> = {
+  over: OVER_ALLOCATED_CLASS,
+  under: UNDER_ALLOCATED_CLASS,
+};
 
 /**
- * Over-allocation tooltip for a cell's allocations on a day (undefined when within capacity),
- * e.g. "Over-allocated: 28.75h planned across 3 projects (capacity 7.5h)".
+ * Capacity flag for a cell's allocations on a day (undefined when at capacity), with its
+ * tooltip, e.g. "Over-allocated: 28.75h planned across 3 projects (capacity 7.5h)" or
+ * "Under capacity: 5.5h planned (capacity 8h)". Over wins over under.
  * `includeName` names each person, for rows that roll up several people.
  */
-type OverAllocationLookup = (
+type CapacityFlagLookup = (
   dayAllocations: AllocationBlock[],
   date: string,
   includeName?: boolean
-) => string | undefined;
+) => CapacityFlag | undefined;
 
-/** Reads a red-ringed cell's over-allocation to screen readers (sighted users get the tooltip) */
-function OverAllocationLabel({ title }: { title?: string }) {
-  return title ? <span className="sr-only">{title}</span> : null;
+/** Reads a ringed cell's capacity flag to screen readers (sighted users get the tooltip) */
+function CapacityFlagLabel({ flag }: { flag?: CapacityFlag }) {
+  return flag ? <span className="sr-only">{flag.title}</span> : null;
 }
 
 // Context for adding plans - allows pre-selecting project, task, and resource
@@ -78,8 +88,8 @@ interface AddPlanContext {
 
 // Resource Row Component with expandable allocations
 interface ResourceRowProps {
-  /** Over-allocation tooltip for a cell, from every project's allocations */
-  getOverAllocation: OverAllocationLookup;
+  /** Capacity flag for a cell, from every project's allocations */
+  getCapacityFlag: CapacityFlagLookup;
   member: PlanTeamMember;
   days: Date[];
   selectedAllocationId: string | null;
@@ -96,7 +106,7 @@ interface ResourceRowProps {
 }
 
 function ResourceRow({
-  getOverAllocation,
+  getCapacityFlag,
   member,
   days,
   selectedAllocationId,
@@ -282,7 +292,7 @@ function ResourceRow({
                 // Calculate hours for this day
                 const dayAllocations = member.allocations.filter((a) => a.startDate === dayStr);
                 const dayHours = dayAllocations.reduce((sum, a) => sum + a.hoursPerDay, 0);
-                const overAllocationTitle = getOverAllocation(dayAllocations, dayStr);
+                const capacityFlag = getCapacityFlag(dayAllocations, dayStr);
                 return (
                   <div
                     key={day.toISOString()}
@@ -300,17 +310,17 @@ function ResourceRow({
                       <div
                         className={cn(
                           'bg-knowall-green/90 text-dark-950 absolute inset-0.5 flex cursor-pointer items-center justify-center rounded text-xs font-semibold',
-                          overAllocationTitle && OVER_ALLOCATED_CLASS
+                          capacityFlag && CAPACITY_FLAG_CLASS[capacityFlag.status]
                         )}
                         onClick={onToggleExpand}
                         title={
-                          overAllocationTitle
-                            ? `${overAllocationTitle}\nClick to expand and edit allocations`
+                          capacityFlag
+                            ? `${capacityFlag.title}\nClick to expand and edit allocations`
                             : 'Click to expand and edit allocations'
                         }
                       >
                         {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
-                        <OverAllocationLabel title={overAllocationTitle} />
+                        <CapacityFlagLabel flag={capacityFlag} />
                       </div>
                     )}
                   </div>
@@ -359,7 +369,7 @@ function ResourceRow({
                 <div key={projectNumber}>
                   {/* Project row - clickable to expand/collapse tasks, with Add button */}
                   <TeamProjectRow
-                    getOverAllocation={getOverAllocation}
+                    getCapacityFlag={getCapacityFlag}
                     projectData={projectData}
                     weekGroups={weekGroups}
                     projectTotalHours={projectTotalHours}
@@ -401,7 +411,7 @@ function ResourceRow({
                           return (
                             <TeamTaskRow
                               key={taskKey}
-                              getOverAllocation={getOverAllocation}
+                              getCapacityFlag={getCapacityFlag}
                               taskData={taskData}
                               projectData={projectData}
                               weekGroups={weekGroups}
@@ -472,8 +482,8 @@ function ResourceRow({
 
 // Team Task Row Component (for Team view - shows task under a project with add capability)
 interface TeamTaskRowProps {
-  /** Over-allocation tooltip for a cell, from every project's allocations */
-  getOverAllocation: OverAllocationLookup;
+  /** Capacity flag for a cell, from every project's allocations */
+  getCapacityFlag: CapacityFlagLookup;
   taskData: { taskNumber: string; taskName: string; allocations: AllocationBlock[] };
   projectData: {
     projectNumber: string;
@@ -489,7 +499,7 @@ interface TeamTaskRowProps {
 }
 
 function TeamTaskRow({
-  getOverAllocation,
+  getCapacityFlag,
   taskData,
   projectData,
   weekGroups,
@@ -559,7 +569,7 @@ function TeamTaskRow({
                 const dayStr = format(day, 'yyyy-MM-dd');
                 const dayAllocations = taskData.allocations.filter((a) => a.startDate === dayStr);
                 const dayHours = dayAllocations.reduce((sum, a) => sum + a.hoursPerDay, 0);
-                const overAllocationTitle = getOverAllocation(dayAllocations, dayStr);
+                const capacityFlag = getCapacityFlag(dayAllocations, dayStr);
                 return (
                   <div
                     key={day.toISOString()}
@@ -586,13 +596,13 @@ function TeamTaskRow({
                       <div
                         className={cn(
                           'absolute inset-0.5 flex items-center justify-center rounded text-[10px] font-medium text-white/80',
-                          overAllocationTitle && OVER_ALLOCATED_CLASS
+                          capacityFlag && CAPACITY_FLAG_CLASS[capacityFlag.status]
                         )}
                         style={{ backgroundColor: `${projectData.color}99` }}
-                        title={overAllocationTitle}
+                        title={capacityFlag?.title}
                       >
                         {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
-                        <OverAllocationLabel title={overAllocationTitle} />
+                        <CapacityFlagLabel flag={capacityFlag} />
                       </div>
                     )}
                   </div>
@@ -629,8 +639,8 @@ function TeamTaskRow({
 
 // Team Project Row Component (for Team view - shows project under a resource with add capability)
 interface TeamProjectRowProps {
-  /** Over-allocation tooltip for a cell, from every project's allocations */
-  getOverAllocation: OverAllocationLookup;
+  /** Capacity flag for a cell, from every project's allocations */
+  getCapacityFlag: CapacityFlagLookup;
   projectData: {
     projectNumber: string;
     projectName: string;
@@ -645,7 +655,7 @@ interface TeamProjectRowProps {
 }
 
 function TeamProjectRow({
-  getOverAllocation,
+  getCapacityFlag,
   projectData,
   weekGroups,
   projectTotalHours,
@@ -708,7 +718,7 @@ function TeamProjectRow({
                   (a) => a.startDate === dayStr
                 );
                 const dayHours = dayAllocations.reduce((sum, a) => sum + a.hoursPerDay, 0);
-                const overAllocationTitle = getOverAllocation(dayAllocations, dayStr);
+                const capacityFlag = getCapacityFlag(dayAllocations, dayStr);
                 return (
                   <div
                     key={day.toISOString()}
@@ -732,13 +742,13 @@ function TeamProjectRow({
                       <div
                         className={cn(
                           'absolute inset-0.5 flex items-center justify-center rounded text-[10px] font-semibold text-white',
-                          overAllocationTitle && OVER_ALLOCATED_CLASS
+                          capacityFlag && CAPACITY_FLAG_CLASS[capacityFlag.status]
                         )}
                         style={{ backgroundColor: projectData.color }}
-                        title={overAllocationTitle}
+                        title={capacityFlag?.title}
                       >
                         {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
-                        <OverAllocationLabel title={overAllocationTitle} />
+                        <CapacityFlagLabel flag={capacityFlag} />
                       </div>
                     )}
                   </div>
@@ -774,8 +784,8 @@ function TeamProjectRow({
 
 // Task Row Component (for Projects view - shows task under a project with add capability)
 interface TaskRowProps {
-  /** Over-allocation tooltip for a cell, from every project's allocations */
-  getOverAllocation: OverAllocationLookup;
+  /** Capacity flag for a cell, from every project's allocations */
+  getCapacityFlag: CapacityFlagLookup;
   taskData: { taskNumber: string; taskName: string; allocations: AllocationBlock[] };
   taskKey: string;
   days: Date[];
@@ -788,7 +798,7 @@ interface TaskRowProps {
 }
 
 function TaskRow({
-  getOverAllocation,
+  getCapacityFlag,
   taskData,
   taskKey,
   days,
@@ -851,7 +861,7 @@ function TaskRow({
                 const dayStr = format(day, 'yyyy-MM-dd');
                 const dayAllocations = taskData.allocations.filter((a) => a.startDate === dayStr);
                 const dayHours = dayAllocations.reduce((sum, a) => sum + a.hoursPerDay, 0);
-                const overAllocationTitle = getOverAllocation(dayAllocations, dayStr, true);
+                const capacityFlag = getCapacityFlag(dayAllocations, dayStr, true);
                 return (
                   <div
                     key={day.toISOString()}
@@ -873,13 +883,13 @@ function TaskRow({
                       <div
                         className={cn(
                           'absolute inset-0.5 flex items-center justify-center rounded text-[10px] font-semibold text-white',
-                          overAllocationTitle && OVER_ALLOCATED_CLASS
+                          capacityFlag && CAPACITY_FLAG_CLASS[capacityFlag.status]
                         )}
                         style={{ backgroundColor: projectColor }}
-                        title={overAllocationTitle}
+                        title={capacityFlag?.title}
                       >
                         {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
-                        <OverAllocationLabel title={overAllocationTitle} />
+                        <CapacityFlagLabel flag={capacityFlag} />
                       </div>
                     )}
                   </div>
@@ -913,8 +923,8 @@ function TaskRow({
 
 // Resource-Task Row Component (for Projects view - shows resource under a task with add capability)
 interface ResourceTaskRowProps {
-  /** Over-allocation tooltip for a cell, from every project's allocations */
-  getOverAllocation: OverAllocationLookup;
+  /** Capacity flag for a cell, from every project's allocations */
+  getCapacityFlag: CapacityFlagLookup;
   allocations: AllocationBlock[];
   days: Date[];
   weekGroups: { weekStart: Date; days: Date[] }[];
@@ -927,7 +937,7 @@ interface ResourceTaskRowProps {
 }
 
 function ResourceTaskRow({
-  getOverAllocation,
+  getCapacityFlag,
   allocations,
   days,
   weekGroups,
@@ -1000,7 +1010,7 @@ function ResourceTaskRow({
                 const dayStr = format(day, 'yyyy-MM-dd');
                 const dayAllocations = allocations.filter((a) => a.startDate === dayStr);
                 const dayHours = dayAllocations.reduce((sum, a) => sum + a.hoursPerDay, 0);
-                const overAllocationTitle = getOverAllocation(dayAllocations, dayStr);
+                const capacityFlag = getCapacityFlag(dayAllocations, dayStr);
                 return (
                   <div
                     key={day.toISOString()}
@@ -1027,13 +1037,13 @@ function ResourceTaskRow({
                       <div
                         className={cn(
                           'absolute inset-0.5 flex items-center justify-center rounded text-[10px] font-medium text-white/80',
-                          overAllocationTitle && OVER_ALLOCATED_CLASS
+                          capacityFlag && CAPACITY_FLAG_CLASS[capacityFlag.status]
                         )}
                         style={{ backgroundColor: `${projectColor}99` }}
-                        title={overAllocationTitle}
+                        title={capacityFlag?.title}
                       >
                         {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
-                        <OverAllocationLabel title={overAllocationTitle} />
+                        <CapacityFlagLabel flag={capacityFlag} />
                       </div>
                     )}
                   </div>
@@ -1135,8 +1145,8 @@ function AddResourceRow({
 
 // Project Row Component (for Projects view)
 interface ProjectRowProps {
-  /** Over-allocation tooltip for a cell, from every project's allocations */
-  getOverAllocation: OverAllocationLookup;
+  /** Capacity flag for a cell, from every project's allocations */
+  getCapacityFlag: CapacityFlagLookup;
   project: PlanProject;
   days: Date[];
   selectedAllocationId: string | null;
@@ -1161,7 +1171,7 @@ interface ProjectRowProps {
 }
 
 function ProjectRow({
-  getOverAllocation,
+  getCapacityFlag,
   project,
   days,
   selectedAllocationId,
@@ -1315,7 +1325,7 @@ function ProjectRow({
                 // Calculate total hours for this project on this day
                 const dayAllocations = project.allocations.filter((a) => a.startDate === dayStr);
                 const dayHours = dayAllocations.reduce((sum, a) => sum + a.hoursPerDay, 0);
-                const overAllocationTitle = getOverAllocation(dayAllocations, dayStr, true);
+                const capacityFlag = getCapacityFlag(dayAllocations, dayStr, true);
                 return (
                   <div
                     key={day.toISOString()}
@@ -1330,13 +1340,13 @@ function ProjectRow({
                       <div
                         className={cn(
                           'absolute inset-0.5 flex items-center justify-center rounded text-xs font-semibold text-white',
-                          overAllocationTitle && OVER_ALLOCATED_CLASS
+                          capacityFlag && CAPACITY_FLAG_CLASS[capacityFlag.status]
                         )}
                         style={{ backgroundColor: project.color }}
-                        title={overAllocationTitle}
+                        title={capacityFlag?.title}
                       >
                         {dayHours % 1 === 0 ? dayHours : formatHours(dayHours)}
-                        <OverAllocationLabel title={overAllocationTitle} />
+                        <CapacityFlagLabel flag={capacityFlag} />
                       </div>
                     )}
                   </div>
@@ -1382,7 +1392,7 @@ function ProjectRow({
               <div key={taskKey}>
                 {/* Task row - clickable to expand/collapse resources */}
                 <TaskRow
-                  getOverAllocation={getOverAllocation}
+                  getCapacityFlag={getCapacityFlag}
                   taskData={taskData}
                   taskKey={taskKey}
                   days={days}
@@ -1401,7 +1411,7 @@ function ProjectRow({
                     .map(([resourceNumber, allocations]) => (
                       <ResourceTaskRow
                         key={resourceNumber}
-                        getOverAllocation={getOverAllocation}
+                        getCapacityFlag={getCapacityFlag}
                         allocations={allocations}
                         days={days}
                         weekGroups={weekGroups}
@@ -1548,11 +1558,15 @@ export function PlanPanel({
     return map;
   }, [planResources, uomConversionMap]);
 
-  // Red flags use each person's own working day (as the Edit Allocation modal does), else 8h,
-  // and their weekly capacity when they have one
-  const getOverAllocation = useCallback<OverAllocationLookup>(
-    (dayAllocations, date, includeName = false) =>
-      getOverAllocationTitle(
+  // Red and amber flags use each person's own working day (as the Edit Allocation modal
+  // does), else 8h, and their weekly capacity when they have one
+  // Capacity is a person's, not a project's, so the Projects tab shows no rings: its cells mix
+  // several people's days. A project's own Plan dialog keeps them, to show who's overbooked.
+  const showCapacityFlags = viewMode === 'team' || !!projectCode;
+  const getCapacityFlag = useCallback<CapacityFlagLookup>(
+    (dayAllocations, date, includeName = false) => {
+      if (!showCapacityFlags) return undefined;
+      return getCellCapacityFlag(
         dayAllocations,
         resourceDailyTotals,
         date,
@@ -1560,8 +1574,9 @@ export function PlanPanel({
         (resourceNumber) =>
           getResourceHoursPerDay(resourceNumber, uomConversionMap) ?? DAILY_CAPACITY_HOURS,
         (resourceNumber) => weeklyCapacityByResource.get(resourceNumber) ?? null
-      ),
-    [resourceDailyTotals, uomConversionMap, weeklyCapacityByResource]
+      );
+    },
+    [resourceDailyTotals, uomConversionMap, weeklyCapacityByResource, showCapacityFlags]
   );
 
   // A project's dialog loads its plan up front (and skips team-only data)
@@ -2052,7 +2067,7 @@ export function PlanPanel({
                 filteredMembers.map((member) => (
                   <ResourceRow
                     key={member.id}
-                    getOverAllocation={getOverAllocation}
+                    getCapacityFlag={getCapacityFlag}
                     member={member}
                     days={allDays}
                     selectedAllocationId={selectedAllocationId}
@@ -2081,7 +2096,7 @@ export function PlanPanel({
               filteredProjects.map((project) => (
                 <ProjectRow
                   key={project.number}
-                  getOverAllocation={getOverAllocation}
+                  getCapacityFlag={getCapacityFlag}
                   project={project}
                   days={allDays}
                   selectedAllocationId={selectedAllocationId}
@@ -2118,6 +2133,18 @@ export function PlanPanel({
         <span className="text-dark-400">Tip:</span>
         <span className="text-dark-300">Click hours to expand, then click allocation to edit</span>
         <span className="text-dark-300">Hover over week to add plan</span>
+        {showCapacityFlags && (
+          <>
+            <span className="text-dark-300 flex items-center gap-1.5">
+              <span className={cn('h-3 w-3 rounded', OVER_ALLOCATED_CLASS)} aria-hidden="true" />
+              Over capacity
+            </span>
+            <span className="text-dark-300 flex items-center gap-1.5">
+              <span className={cn('h-3 w-3 rounded', UNDER_ALLOCATED_CLASS)} aria-hidden="true" />
+              Under capacity
+            </span>
+          </>
+        )}
       </div>
 
       {/* Plan Entry Modal (Team view - select project for resource) */}
