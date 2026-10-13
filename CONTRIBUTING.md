@@ -13,8 +13,7 @@ Each PR needs:
 - a title starting with `feat:`, `fix:`, `perf:`, `refactor:`, `chore:`, `ci:`, `docs:`, `deps:`, `test:`, `build:` or `style:`
 - a `Fixes #nnn` line (for `feat`/`fix`/`perf`/`refactor`)
 - a `## Test plan` section
-
-UI changes need before/after screenshots.
+- a `## Screenshots` section (for `feat`/`fix`/`perf`/`refactor`/`style`): before/after images for UI changes, or `N/A — <reason>` when nothing visible changed. Commit images under `docs/images/pr/` and link them via `raw.githubusercontent.com` URLs at the commit SHA.
 
 ## No client data, anywhere
 
