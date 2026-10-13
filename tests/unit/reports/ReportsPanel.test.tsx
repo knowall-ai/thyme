@@ -242,6 +242,15 @@ describe('ReportsPanel', () => {
     );
   });
 
+  it("doesn't reload when switching to a custom range of the same dates", async () => {
+    render(<ReportsPanel />);
+    await screen.findByRole('table');
+    const loads = loadTeamHours.mock.calls.length;
+    fireEvent.change(screen.getByLabelText('Period'), { target: { value: 'custom' } });
+    await screen.findByText('From');
+    expect(loadTeamHours.mock.calls.length).toBe(loads);
+  });
+
   it("warns when projects couldn't be loaded", async () => {
     projectsUnavailable = true;
     render(<ReportsPanel />);
