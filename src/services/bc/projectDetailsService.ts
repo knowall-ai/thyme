@@ -1,12 +1,18 @@
 import { bcClient } from './bcClient';
-import type { Project, Task, BCTimeSheetLine, BCJobPlanningLine, BCTimeEntry } from '@/types';
+import type { Project, Task, BCJobPlanningLine, BCTimeEntry } from '@/types';
 import {
   getWeekStart,
   buildUOMConversionMap,
   convertToHours,
   getHoursPerDay,
   isBudgetPlanningLine,
+  isBillablePlanningLine,
   sumPlannedHours,
+  sumEstimateHours,
+  getBillingModeFromLines,
+  collectProjectTimeRows,
+  sumHoursByStatus,
+  type BillingMode,
   isBillableEntry,
   isInternalProject,
   getAbsenceTaskNos,
@@ -37,8 +43,8 @@ export interface CostBreakdown {
   total: number;
 }
 
-// Billing mode derived from Job Planning Line configuration
-export type BillingMode = 'T&M' | 'Fixed Price' | 'Mixed' | 'Not Set';
+// Billing mode derived from Job Planning Line configuration (see getBillingModeFromLines)
+export type { BillingMode };
 
 export interface ResourceHours {
   resourceNo: string;
@@ -348,20 +354,18 @@ export const projectDetailsService = {
     const resourceNoByTimesheet = new Map(timesheets.map((ts) => [ts.number, ts.resourceNo]));
 
     const resourcesByNumber = new Map(resources.map((r) => [r.number, r]));
-    const linesByKey = new Map<string, BCTimeSheetLine>();
-    for (const line of jobLines) {
-      if (line.type !== 'Job' || line.jobNo !== projectNumber || !(line.totalQuantity > 0))
-        continue;
-      linesByKey.set(`${line.timeSheetNo}|${line.lineNo}`, line);
-    }
 
-    for (const detail of jobDetails) {
-      if (!(detail.quantity > 0)) continue;
-      const line = linesByKey.get(`${detail.timeSheetNo}|${detail.timeSheetLineNo}`);
-      // Only people resources (as returned by getResources) count, matching the previous per-resource walk
-      const resourceNo = resourceNoByTimesheet.get(detail.timeSheetNo);
-      const resource = resourceNo ? resourcesByNumber.get(resourceNo) : undefined;
-      if (!line || !resource) continue;
+    // Which hours count is shared with the Projects list, so the two show the same Time
+    // Spent. Only people resources (as returned by getResources) count.
+    const timeRows = collectProjectTimeRows(
+      jobLines,
+      jobDetails,
+      resourceNoByTimesheet,
+      new Set(resourcesByNumber.keys()),
+      projectNumber
+    );
+    for (const { line, detail, resourceNo } of timeRows) {
+      const resource = resourcesByNumber.get(resourceNo)!;
 
       teamMembersSet.add(resource.number);
       timeEntries.push({
@@ -378,19 +382,14 @@ export const projectDetailsService = {
       });
     }
 
-    // Calculate analytics from collected data
-    const totalHours = timeEntries.reduce((sum, e) => sum + e.hours, 0);
-
-    // Status totals: posting needs approval first, so posted time is a subset of approved
-    const approvedHours = timeEntries
-      .filter((e) => e.status === 'Approved')
-      .reduce((sum, e) => sum + e.hours, 0);
-    const submittedHours = timeEntries
-      .filter((e) => e.status === 'Submitted')
-      .reduce((sum, e) => sum + e.hours, 0);
-    const unsubmittedHours = timeEntries
-      .filter((e) => e.status === 'Open')
-      .reduce((sum, e) => sum + e.hours, 0);
+    // Status totals (shared with the Projects list): posting needs approval first, so
+    // posted time is a subset of approved
+    const {
+      total: totalHours,
+      approved: approvedHours,
+      submitted: submittedHours,
+      unsubmitted: unsubmittedHours,
+    } = sumHoursByStatus(timeEntries);
     const pendingHours = submittedHours + unsubmittedHours;
 
     const billableHours = timeEntries
@@ -469,6 +468,7 @@ export const projectDetailsService = {
     const addHours = (map: Map<string, number>, resourceNo: string, hours: number) =>
       map.set(resourceNo, (map.get(resourceNo) ?? 0) + hours);
     let hoursPerDay = 8; // Default, will be updated from BC if DAY unit is configured
+    let billingMode: BillingMode = 'Not Set';
     let budgetCost = 0;
     let budgetCostBreakdown: CostBreakdown = { resource: 0, item: 0, glAccount: 0, total: 0 };
     let billablePrice = 0;
@@ -510,12 +510,6 @@ export const projectDetailsService = {
           break;
         }
       }
-
-      // Helper to check if lineType includes Billable (handles URL-encoded spaces from API)
-      const isBillableLine = (lineType: string) =>
-        lineType === 'Billable' ||
-        lineType === 'Both Budget and Billable' ||
-        lineType === 'Both_x0020_Budget_x0020_and_x0020_Billable';
 
       // Hours Planned: shared helper — sums Resource Budget lines and converts
       // each quantity to hours via the per-resource UoM map.
@@ -560,18 +554,19 @@ export const projectDetailsService = {
 
       // Billable Price: sum totalPrice (project currency) from ALL Billable lines with breakdown by type
       const billableLines = planningLines.filter((line: BCJobPlanningLine) =>
-        isBillableLine(line.lineType)
+        isBillablePlanningLine(line.lineType)
       );
       billablePrice = billableLines.reduce(
         (sum: number, line: BCJobPlanningLine) => sum + line.totalPrice,
         0
       );
       // Estimate: the quoted time on Billable Resource lines (Budget lines are the Plan
-      // screen's weekly allocations), converted to hours via the UoM map
+      // screen's weekly allocations), converted to hours via the UoM map. The total is the
+      // shared rule the Projects list uses too.
+      estimateHours = sumEstimateHours(planningLines, uomConversionMap);
       for (const line of billableLines) {
         if (line.type !== 'Resource') continue;
         const hours = convertToHours(line.number, line.quantity, uomConversionMap);
-        estimateHours += hours;
         addHours(estimateHoursByResource, line.number, hours);
       }
       billablePriceBreakdown = {
@@ -586,6 +581,8 @@ export const projectDetailsService = {
           .reduce((sum: number, line: BCJobPlanningLine) => sum + line.totalPrice, 0),
         total: billablePrice,
       };
+      // Billing mode from the same lines, by the rule the Projects list uses
+      billingMode = getBillingModeFromLines(planningLines);
 
       // Build planned hours by week from Resource Budget lines with valid planningDate
       // This shows the budgeted hours allocation in the Hours per Week chart
@@ -863,19 +860,6 @@ export const projectDetailsService = {
       total: invoicedPrice,
     };
 
-    // Derive billing mode from billable price breakdown
-    // T&M: Resource lines only (hourly billing)
-    // Fixed Price: Item or G/L Account lines only (deliverable billing)
-    // Mixed: Multiple line types
-    // Not Set: No billable lines configured
-    const hasResource = billablePriceBreakdown.resource > 0;
-    const hasItem = billablePriceBreakdown.item > 0;
-    const hasGL = billablePriceBreakdown.glAccount > 0;
-    const typeCount = [hasResource, hasItem, hasGL].filter(Boolean).length;
-
-    const billingMode: BillingMode =
-      typeCount === 0 ? 'Not Set' : typeCount > 1 ? 'Mixed' : hasResource ? 'T&M' : 'Fixed Price';
-
     return {
       // Billing mode
       billingMode,
@@ -929,42 +913,7 @@ export const projectDetailsService = {
    */
   async getBillingMode(projectNumber: string): Promise<BillingMode> {
     try {
-      const planningLines = await bcClient.getJobPlanningLines(projectNumber);
-
-      // Helper to check if lineType includes Billable
-      const isBillableLine = (lineType: string) =>
-        lineType === 'Billable' ||
-        lineType === 'Both Budget and Billable' ||
-        lineType === 'Both_x0020_Budget_x0020_and_x0020_Billable';
-
-      // Sum billable prices by type
-      const billableLines = planningLines.filter((line: BCJobPlanningLine) =>
-        isBillableLine(line.lineType)
-      );
-
-      const resourcePrice = billableLines
-        .filter((line: BCJobPlanningLine) => line.type === 'Resource')
-        .reduce((sum: number, line: BCJobPlanningLine) => sum + line.totalPrice, 0);
-      const itemPrice = billableLines
-        .filter((line: BCJobPlanningLine) => line.type === 'Item')
-        .reduce((sum: number, line: BCJobPlanningLine) => sum + line.totalPrice, 0);
-      const glPrice = billableLines
-        .filter((line: BCJobPlanningLine) => line.type === 'G/L Account')
-        .reduce((sum: number, line: BCJobPlanningLine) => sum + line.totalPrice, 0);
-
-      // Derive billing mode
-      const hasResource = resourcePrice > 0;
-      const hasItem = itemPrice > 0;
-      const hasGL = glPrice > 0;
-      const typeCount = [hasResource, hasItem, hasGL].filter(Boolean).length;
-
-      return typeCount === 0
-        ? 'Not Set'
-        : typeCount > 1
-          ? 'Mixed'
-          : hasResource
-            ? 'T&M'
-            : 'Fixed Price';
+      return getBillingModeFromLines(await bcClient.getJobPlanningLines(projectNumber));
     } catch {
       return 'Not Set';
     }
