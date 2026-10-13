@@ -59,6 +59,9 @@ export interface BCResource {
   // versions), and whether the signed-in user may change it (an admin, or it's their own)
   githubUsername?: string;
   canEditConnectedAccounts?: boolean;
+  // Whether the signed-in user may change plans (planning lines and day notes); undefined on
+  // extensions that predate day notes, which counts as no
+  canEditPlan?: boolean;
   '@odata.etag'?: string;
 }
 
@@ -97,6 +100,9 @@ export interface BCProject {
   '@odata.etag'?: string;
   // Set by bcClient, not BC: the bill-to customer is the company itself (named after it)
   billToIsCompany?: boolean;
+  // Whether the signed-in user may change plans (planning lines and day notes); undefined on
+  // extensions that predate day notes, which counts as no
+  canEditPlan?: boolean;
 }
 
 export interface BCCustomer {
@@ -382,6 +388,28 @@ export interface BCProjectSourceLinkInput {
   value: string;
   jobTaskNo: string;
   useMonthlyBlock: boolean;
+}
+
+// A note on a day of the Plan, e.g. "Company Off-Site" (Thyme BC Extension `dayNotes` API).
+// resourceNo '' = the whole company; noProjectWork = the day isn't available for project work.
+export interface BCDayNote {
+  id: string;
+  entryNo: number;
+  noteDate: string; // YYYY-MM-DD
+  resourceNo: string;
+  note: string; // up to DAY_NOTE_MAX_LENGTH characters
+  noProjectWork: boolean;
+  createdBy?: string;
+  createdAt?: string;
+  lastModifiedDateTime?: string;
+  '@odata.etag'?: string;
+}
+
+export interface BCDayNoteInput {
+  noteDate: string;
+  resourceNo: string;
+  note: string;
+  noProjectWork: boolean;
 }
 
 // When an AI agent (Poppie) was last seen (Thyme BC Extension 1.18+ agentHeartbeats API).

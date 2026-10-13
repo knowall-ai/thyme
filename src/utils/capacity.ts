@@ -26,6 +26,13 @@ const defaultCapacity: CapacityLookup = () => DAILY_CAPACITY_HOURS;
  */
 export type WeeklyCapacityLookup = (resourceNumber: string) => number | null;
 
+/**
+ * Why a resource can't do project work on a day - a day note's text, e.g. "Company Off-Site" -
+ * or undefined when they can. Such a day counts like a day off: any hours planned on it are
+ * over capacity, it's never under capacity, and it isn't part of their expected week.
+ */
+export type NoProjectWorkLookup = (resourceNumber: string, date: string) => string | undefined;
+
 /** Minimal allocation shape needed to work out per-resource daily totals */
 export interface DailyResourceAllocation {
   resourceNumber: string;
@@ -63,6 +70,8 @@ export interface OverAllocation {
   weekPlannedHours?: number;
   weekCapacityHours?: number;
   weekOverByHours?: number;
+  /** Set when the day isn't available for project work: why, e.g. "Company Off-Site" */
+  noProjectWork?: string;
   /** Projects planned that day, most hours first */
   projects: ProjectDayHours[];
 }
@@ -137,6 +146,32 @@ function weekDatesUpTo(date: string): string[] {
   return dates;
 }
 
+/** Monday to Friday of the week containing `date` */
+function weekdayDates(date: string): string[] {
+  const sunday = parseDate(date);
+  sunday.setUTCDate(sunday.getUTCDate() + ((7 - sunday.getUTCDay()) % 7));
+  return weekDatesUpTo(sunday.toISOString().slice(0, 10)).slice(0, 5);
+}
+
+/**
+ * A weekly capacity, less the weekdays that week with no project work: it's capped at the
+ * person's working day times the weekdays left, so a full-timer's 37.5h week with an off-site
+ * day is 30h, while a part-timer's 15h still fits in the four days left and stays 15h.
+ * Unchanged when every weekday is available.
+ */
+export function getAvailableWeeklyCapacity(
+  weekCapacityHours: number,
+  resourceNumber: string,
+  date: string,
+  getCapacity: CapacityLookup = defaultCapacity,
+  getNoProjectWork?: NoProjectWorkLookup
+): number {
+  if (!getNoProjectWork) return weekCapacityHours;
+  const daysOff = weekdayDates(date).filter((d) => getNoProjectWork(resourceNumber, d)).length;
+  if (daysOff === 0) return weekCapacityHours;
+  return Math.min(weekCapacityHours, getCapacity(resourceNumber) * (5 - daysOff));
+}
+
 /** A resource's planned hours from Monday up to and including `date` */
 export function getWeekToDateHours(
   dailyTotals: ResourceDailyTotals,
@@ -180,7 +215,8 @@ export function getOverAllocatedResources(
   dailyTotals: ResourceDailyTotals,
   date: string,
   getCapacity: CapacityLookup = defaultCapacity,
-  getWeeklyCapacity?: WeeklyCapacityLookup
+  getWeeklyCapacity?: WeeklyCapacityLookup,
+  getNoProjectWork?: NoProjectWorkLookup
 ): OverAllocation[] {
   const result = new Map<string, OverAllocation>();
   const checked = new Set<string>();
@@ -191,15 +227,26 @@ export function getOverAllocatedResources(
     if (weekCapacityHours === 0) continue; // not counted
     const load = dailyTotals.get(dailyTotalKey(allocation.resourceNumber, date));
     const allocatedHours = load?.hours ?? 0;
-    const capacityHours = getCapacity(allocation.resourceNumber);
+    // A day with no project work has no capacity: any hours planned on it are over
+    const noProjectWork = getNoProjectWork?.(allocation.resourceNumber, date);
+    const capacityHours = noProjectWork ? 0 : getCapacity(allocation.resourceNumber);
     const overByHours = getOverAllocationHours(allocatedHours, capacityHours);
 
     let weekly: Pick<OverAllocation, 'weekPlannedHours' | 'weekCapacityHours' | 'weekOverByHours'> =
       {};
     if (weekCapacityHours !== null && allocatedHours > 0) {
       const weekPlannedHours = getWeekToDateHours(dailyTotals, allocation.resourceNumber, date);
-      const weekOverByHours = getOverAllocationHours(weekPlannedHours, weekCapacityHours);
-      if (weekOverByHours > 0) weekly = { weekPlannedHours, weekCapacityHours, weekOverByHours };
+      const availableWeekHours = getAvailableWeeklyCapacity(
+        weekCapacityHours,
+        allocation.resourceNumber,
+        date,
+        getCapacity,
+        getNoProjectWork
+      );
+      const weekOverByHours = getOverAllocationHours(weekPlannedHours, availableWeekHours);
+      if (weekOverByHours > 0) {
+        weekly = { weekPlannedHours, weekCapacityHours: availableWeekHours, weekOverByHours };
+      }
     }
 
     if (overByHours > 0 || weekly.weekOverByHours) {
@@ -210,6 +257,7 @@ export function getOverAllocatedResources(
         capacityHours,
         overByHours,
         ...weekly,
+        ...(noProjectWork ? { noProjectWork } : {}),
         projects: sortedProjects(load),
       });
     }
@@ -225,7 +273,13 @@ export function formatOverAllocation(overAllocation: OverAllocation, includeName
   const projectCount = overAllocation.projects.length;
   const prefix = includeName ? `${overAllocation.resourceName} over-allocated` : 'Over-allocated';
   const lines: string[] = [];
-  if (overAllocation.overByHours > 0) {
+  if (overAllocation.noProjectWork && overAllocation.overByHours > 0) {
+    // e.g. "Company Off-Site: no project work, but 4h planned"
+    const who = includeName ? `${overAllocation.resourceName}: ` : '';
+    lines.push(
+      `${who}${overAllocation.noProjectWork}: no project work, but ${formatHours(overAllocation.allocatedHours)}h planned`
+    );
+  } else if (overAllocation.overByHours > 0) {
     lines.push(
       `${prefix}: ${formatHours(overAllocation.allocatedHours)}h planned across ${projectCount} ${
         projectCount === 1 ? 'project' : 'projects'
@@ -253,14 +307,16 @@ export function getOverAllocationTitle(
   date: string,
   includeName = false,
   getCapacity: CapacityLookup = defaultCapacity,
-  getWeeklyCapacity?: WeeklyCapacityLookup
+  getWeeklyCapacity?: WeeklyCapacityLookup,
+  getNoProjectWork?: NoProjectWorkLookup
 ): string | undefined {
   const overAllocations = getOverAllocatedResources(
     dayAllocations,
     dailyTotals,
     date,
     getCapacity,
-    getWeeklyCapacity
+    getWeeklyCapacity,
+    getNoProjectWork
   );
   if (overAllocations.length === 0) return undefined;
   return overAllocations.map((o) => formatOverAllocation(o, includeName)).join('\n');
@@ -296,14 +352,17 @@ export function getUnderAllocationHours(
  * Resources with some hours planned on a given weekday that leave them short of capacity:
  * under their working day, or, for people with a weekly capacity, a week whose total
  * (Monday to Sunday) is under it, which marks every planned weekday of that week.
- * Days with nothing planned and weekends are never flagged, nor is anyone not counted.
+ * Days with nothing planned, weekends and days with no project work (see NoProjectWorkLookup)
+ * are never flagged, nor is anyone not counted. A week's expected capacity leaves out its
+ * weekdays with no project work (see getAvailableWeeklyCapacity).
  */
 export function getUnderAllocatedResources(
   dayAllocations: DailyResourceAllocation[],
   dailyTotals: ResourceDailyTotals,
   date: string,
   getCapacity: CapacityLookup = defaultCapacity,
-  getWeeklyCapacity?: WeeklyCapacityLookup
+  getWeeklyCapacity?: WeeklyCapacityLookup,
+  getNoProjectWork?: NoProjectWorkLookup
 ): UnderAllocation[] {
   if (isWeekendDate(date)) return [];
   const result: UnderAllocation[] = [];
@@ -313,6 +372,7 @@ export function getUnderAllocatedResources(
     checked.add(allocation.resourceNumber);
     const weekCapacityHours = getWeeklyCapacity?.(allocation.resourceNumber) ?? null;
     if (weekCapacityHours === 0) continue; // not counted
+    if (getNoProjectWork?.(allocation.resourceNumber, date)) continue; // a day off: over, if anything
     const load = dailyTotals.get(dailyTotalKey(allocation.resourceNumber, date));
     const allocatedHours = load?.hours ?? 0;
     if (Math.round(allocatedHours * 100) <= 0) continue; // nothing planned
@@ -321,7 +381,15 @@ export function getUnderAllocatedResources(
     const plannedHours = weekly
       ? getWeekHours(dailyTotals, allocation.resourceNumber, date)
       : allocatedHours;
-    const capacityHours = weekly ? weekCapacityHours : getCapacity(allocation.resourceNumber);
+    const capacityHours = weekly
+      ? getAvailableWeeklyCapacity(
+          weekCapacityHours,
+          allocation.resourceNumber,
+          date,
+          getCapacity,
+          getNoProjectWork
+        )
+      : getCapacity(allocation.resourceNumber);
     const underByHours = getUnderAllocationHours(plannedHours, capacityHours);
     if (underByHours > 0) {
       result.push({
@@ -367,14 +435,16 @@ export function getUnderAllocationTitle(
   date: string,
   includeName = false,
   getCapacity: CapacityLookup = defaultCapacity,
-  getWeeklyCapacity?: WeeklyCapacityLookup
+  getWeeklyCapacity?: WeeklyCapacityLookup,
+  getNoProjectWork?: NoProjectWorkLookup
 ): string | undefined {
   const underAllocations = getUnderAllocatedResources(
     dayAllocations,
     dailyTotals,
     date,
     getCapacity,
-    getWeeklyCapacity
+    getWeeklyCapacity,
+    getNoProjectWork
   );
   if (underAllocations.length === 0) return undefined;
   return underAllocations.map((u) => formatUnderAllocation(u, includeName)).join('\n');
@@ -389,7 +459,8 @@ export interface CapacityFlag {
 
 /**
  * A grid cell's capacity flag, or undefined when everyone planned that day is at capacity.
- * Over-allocation wins: a cell with anyone over capacity is red, never amber.
+ * Over-allocation wins: a cell with anyone over capacity is red, never amber. Hours on a day
+ * with no project work (see NoProjectWorkLookup) are always over.
  */
 export function getCapacityFlag(
   dayAllocations: DailyResourceAllocation[],
@@ -397,7 +468,8 @@ export function getCapacityFlag(
   date: string,
   includeName = false,
   getCapacity: CapacityLookup = defaultCapacity,
-  getWeeklyCapacity?: WeeklyCapacityLookup
+  getWeeklyCapacity?: WeeklyCapacityLookup,
+  getNoProjectWork?: NoProjectWorkLookup
 ): CapacityFlag | undefined {
   const args = [
     dayAllocations,
@@ -406,6 +478,7 @@ export function getCapacityFlag(
     includeName,
     getCapacity,
     getWeeklyCapacity,
+    getNoProjectWork,
   ] as const;
   const overTitle = getOverAllocationTitle(...args);
   if (overTitle) return { status: 'over', title: overTitle };

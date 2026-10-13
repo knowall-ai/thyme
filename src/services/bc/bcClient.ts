@@ -24,13 +24,21 @@ import type {
   BCProjectSourceLink,
   BCProjectSourceLinkInput,
   BCAgentHeartbeat,
+  BCDayNote,
+  BCDayNoteInput,
   BCTimesheetReview,
   BCTimesheetReviewLine,
   TimeSheetStatus,
   TimesheetDisplayStatus,
   PaginatedResponse,
 } from '@/types';
-import { getTimesheetDisplayStatus, decodeBCEnum, isCompanyName } from '@/utils';
+import {
+  getTimesheetDisplayStatus,
+  decodeBCEnum,
+  isCompanyName,
+  normalizeDayNote,
+  validateDayNoteInput,
+} from '@/utils';
 
 const BC_BASE_URL =
   process.env.NEXT_PUBLIC_BC_BASE_URL || 'https://api.businesscentral.dynamics.com/v2.0';
@@ -1603,6 +1611,63 @@ class BusinessCentralClient {
     await this.customApiFetch<void>(`/projectSourceLinks(${id})`, {
       method: 'DELETE',
       headers: { 'If-Match': etag || '*' },
+    });
+  }
+
+  // ============================================
+  // Day notes (e.g. "Company Off-Site" on the Plan)
+  // ============================================
+
+  /**
+   * Day notes dated from `fromDate` to `toDate` (inclusive), company-wide and per person.
+   * Returns undefined when the extension has no dayNotes endpoint (404, not updated yet) or
+   * isn't installed, so callers can hide the feature.
+   */
+  async getDayNotes(fromDate: string, toDate: string): Promise<BCDayNote[] | undefined> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) return undefined;
+    const filter = `noteDate ge ${this.sanitizeDateInput(fromDate)} and noteDate le ${this.sanitizeDateInput(toDate)}`;
+    try {
+      const notes = await this.customApiFetchAll<BCDayNote>(
+        `/dayNotes?$filter=${encodeURIComponent(filter)}`
+      );
+      return notes.map(normalizeDayNote);
+    } catch (error) {
+      if (isEndpointMissing(error)) return undefined;
+      throw error;
+    }
+  }
+
+  /** Add a day note; BC checks the caller may change plans */
+  async createDayNote(input: BCDayNoteInput): Promise<BCDayNote> {
+    const created = await this.customApiFetch<BCDayNote>('/dayNotes', {
+      method: 'POST',
+      body: JSON.stringify(validateDayNoteInput(input)),
+    });
+    return normalizeDayNote(created);
+  }
+
+  /** Change a day note. `etag` is the note's @odata.etag, so a newer change isn't overwritten */
+  async updateDayNote(
+    id: string,
+    input: BCDayNoteInput,
+    etag: string | undefined
+  ): Promise<BCDayNote> {
+    const updated = await this.customApiFetch<BCDayNote>(
+      `/dayNotes(${requireSystemId(id, 'day note')})`,
+      {
+        method: 'PATCH',
+        headers: { 'If-Match': requireETag(etag, 'day note') },
+        body: JSON.stringify(validateDayNoteInput(input)),
+      }
+    );
+    return normalizeDayNote(updated);
+  }
+
+  async deleteDayNote(id: string, etag: string | undefined): Promise<void> {
+    await this.customApiFetch<void>(`/dayNotes(${requireSystemId(id, 'day note')})`, {
+      method: 'DELETE',
+      headers: { 'If-Match': requireETag(etag, 'day note') },
     });
   }
 

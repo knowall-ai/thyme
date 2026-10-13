@@ -85,6 +85,8 @@ interface CachedProject {
   billToCustomerName: string;
   startingDate?: string;
   endingDate?: string;
+  /** Whether the signed-in user may change plans (see canEditPlan in utils/dayNotes) */
+  canEditPlan?: boolean;
 }
 
 // Cached data structure
@@ -397,6 +399,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
           billToCustomerName: p.billToCustomerName || '',
           startingDate: p.startingDate,
           endingDate: p.endingDate,
+          canEditPlan: p.canEditPlan,
         }));
       }
 
