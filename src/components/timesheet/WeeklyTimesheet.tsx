@@ -17,6 +17,7 @@ import {
   useTimeEntriesStore,
   useProjectsStore,
   useTeammateStore,
+  useViewedBillableTarget,
   useSettingsStore,
   useTimesheetReview,
 } from '@/hooks';
@@ -24,6 +25,7 @@ import { useTeammateFromUrl } from '@/hooks/useTeammateFromUrl';
 import { useAuth } from '@/services/auth';
 import { Button, Card, WeekNavigation, ExtensionPreviewWrapper } from '@/components/ui';
 import { PoppieReviewPanel } from '@/components/review';
+import { BillableTargetBadge } from '@/components/targets';
 import { TimeEntryCell } from './TimeEntryCell';
 import { TimeEntryModal } from './TimeEntryModal';
 import { PoppieSuggestionsPanel } from './PoppieSuggestionsPanel';
@@ -355,6 +357,8 @@ export function WeeklyTimesheet() {
   const totalHours = getTotalHours();
   // The week's billable share, by the same rule as Team and Reports (see billable.ts)
   const weekBillable = useMemo(() => getBillableSplit(entries), [entries]);
+  // Their billable target, to colour the billable % against (as on the Team page)
+  const billableTarget = useViewedBillableTarget(selectedTeammate?.resourceNo ?? null, userEmail);
 
   // No resource record exists state
   if (noResourceExists && !isViewingTeammate) {
@@ -689,7 +693,18 @@ Thank you!`)}`}
         <div className="flex items-center gap-6">
           <div className="text-dark-400 text-sm">
             Week total: <span className="font-semibold text-white">{formatTime(totalHours)}</span>
-            {weekBillable.totalHours > 0 && (
+            {weekBillable.totalHours > 0 && billableTarget && (
+              <span className="whitespace-nowrap">
+                {' '}
+                · billable{' '}
+                <BillableTargetBadge
+                  actualPercent={weekBillable.billablePercent}
+                  target={billableTarget}
+                  hasHours
+                />
+              </span>
+            )}
+            {weekBillable.totalHours > 0 && !billableTarget && (
               <span className="whitespace-nowrap" title={describeBillableSplit(weekBillable)}>
                 {' '}
                 · <span className="text-dark-300">{formatBillablePercent(weekBillable)}</span>{' '}
@@ -761,6 +776,7 @@ Thank you!`)}`}
                     onMoveEntry={handleMoveEntry}
                     readOnly={!canEdit}
                     reviewNotesByLine={hasPoppieReview ? poppieReview.notesByLine : undefined}
+                    billableTarget={billableTarget}
                   />
                 );
               })}
