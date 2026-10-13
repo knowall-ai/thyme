@@ -112,10 +112,21 @@ export function buildResourceDailyTotals(
   return totals;
 }
 
+/** "YYYY-MM-DD" as a UTC date, so day-of-week maths doesn't depend on the time zone */
+function parseDate(date: string): Date {
+  const [year, month, day] = date.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+/** Saturday or Sunday */
+function isWeekendDate(date: string): boolean {
+  const dayOfWeek = parseDate(date).getUTCDay();
+  return dayOfWeek === 0 || dayOfWeek === 6;
+}
+
 /** "YYYY-MM-DD" dates from that week's Monday up to and including `date` */
 function weekDatesUpTo(date: string): string[] {
-  const [year, month, day] = date.split('-').map(Number);
-  const current = new Date(Date.UTC(year, month - 1, day));
+  const current = parseDate(date);
   const daysSinceMonday = (current.getUTCDay() + 6) % 7;
   const dates: string[] = [];
   for (let offset = daysSinceMonday; offset >= 0; offset--) {
@@ -137,6 +148,27 @@ export function getWeekToDateHours(
     0
   );
 }
+
+/** A resource's planned hours across the whole week (Monday to Sunday) containing `date` */
+export function getWeekHours(
+  dailyTotals: ResourceDailyTotals,
+  resourceNumber: string,
+  date: string
+): number {
+  const sunday = parseDate(date);
+  sunday.setUTCDate(sunday.getUTCDate() + ((7 - sunday.getUTCDay()) % 7));
+  return getWeekToDateHours(dailyTotals, resourceNumber, sunday.toISOString().slice(0, 10));
+}
+
+/** A day's projects, most hours first */
+const sortedProjects = (load: ResourceDayLoad | undefined): ProjectDayHours[] =>
+  Array.from(load?.byProject.values() ?? []).sort(
+    (a, b) => b.hours - a.hours || a.projectName.localeCompare(b.projectName)
+  );
+
+/** One line per project, for the tooltips */
+const formatProjectBreakdown = (projects: ProjectDayHours[]): string[] =>
+  projects.map((p) => `  ${p.projectName}: ${formatHours(p.hours)}h`);
 
 /**
  * Resources allocated on a given day (via any of the given allocations) whose total
@@ -178,9 +210,7 @@ export function getOverAllocatedResources(
         capacityHours,
         overByHours,
         ...weekly,
-        projects: Array.from(load?.byProject.values() ?? []).sort(
-          (a, b) => b.hours - a.hours || a.projectName.localeCompare(b.projectName)
-        ),
+        projects: sortedProjects(load),
       });
     }
   }
@@ -210,10 +240,7 @@ export function formatOverAllocation(overAllocation: OverAllocation, includeName
       `${weekPrefix}: ${formatHours(overAllocation.weekPlannedHours ?? 0)}h planned this week so far (capacity ${formatHours(overAllocation.weekCapacityHours)}h a week)`
     );
   }
-  const breakdown = overAllocation.projects.map(
-    (p) => `  ${p.projectName}: ${formatHours(p.hours)}h`
-  );
-  return [...lines, ...breakdown].join('\n');
+  return [...lines, ...formatProjectBreakdown(overAllocation.projects)].join('\n');
 }
 
 /**
@@ -237,4 +264,151 @@ export function getOverAllocationTitle(
   );
   if (overAllocations.length === 0) return undefined;
   return overAllocations.map((o) => formatOverAllocation(o, includeName)).join('\n');
+}
+
+export interface UnderAllocation {
+  resourceNumber: string;
+  resourceName: string;
+  /** Hours planned that day, or that whole week when judged on their weekly capacity */
+  plannedHours: number;
+  /** Their working day, or their weekly capacity when `weekly` */
+  capacityHours: number;
+  underByHours: number;
+  /** Judged on the whole week against their weekly capacity rather than the day */
+  weekly: boolean;
+  /** Projects planned that day, most hours first */
+  projects: ProjectDayHours[];
+}
+
+/**
+ * Hours under capacity (0 when at or over capacity).
+ * Rounded to 2dp so floating-point sums like 7.4999999 against 7.5 don't flag.
+ */
+export function getUnderAllocationHours(
+  allocatedHours: number,
+  capacityHours: number = DAILY_CAPACITY_HOURS
+): number {
+  const under = Math.round((capacityHours - allocatedHours) * 100) / 100;
+  return under > 0 ? under : 0;
+}
+
+/**
+ * Resources with some hours planned on a given weekday that leave them short of capacity:
+ * under their working day, or, for people with a weekly capacity, a week whose total
+ * (Monday to Sunday) is under it, which marks every planned weekday of that week.
+ * Days with nothing planned and weekends are never flagged, nor is anyone not counted.
+ */
+export function getUnderAllocatedResources(
+  dayAllocations: DailyResourceAllocation[],
+  dailyTotals: ResourceDailyTotals,
+  date: string,
+  getCapacity: CapacityLookup = defaultCapacity,
+  getWeeklyCapacity?: WeeklyCapacityLookup
+): UnderAllocation[] {
+  if (isWeekendDate(date)) return [];
+  const result: UnderAllocation[] = [];
+  const checked = new Set<string>();
+  for (const allocation of dayAllocations) {
+    if (allocation.startDate !== date || checked.has(allocation.resourceNumber)) continue;
+    checked.add(allocation.resourceNumber);
+    const weekCapacityHours = getWeeklyCapacity?.(allocation.resourceNumber) ?? null;
+    if (weekCapacityHours === 0) continue; // not counted
+    const load = dailyTotals.get(dailyTotalKey(allocation.resourceNumber, date));
+    const allocatedHours = load?.hours ?? 0;
+    if (Math.round(allocatedHours * 100) <= 0) continue; // nothing planned
+
+    const weekly = weekCapacityHours !== null;
+    const plannedHours = weekly
+      ? getWeekHours(dailyTotals, allocation.resourceNumber, date)
+      : allocatedHours;
+    const capacityHours = weekly ? weekCapacityHours : getCapacity(allocation.resourceNumber);
+    const underByHours = getUnderAllocationHours(plannedHours, capacityHours);
+    if (underByHours > 0) {
+      result.push({
+        resourceNumber: allocation.resourceNumber,
+        resourceName: allocation.resourceName || allocation.resourceNumber,
+        plannedHours,
+        capacityHours,
+        underByHours,
+        weekly,
+        projects: sortedProjects(load),
+      });
+    }
+  }
+  return result;
+}
+
+/**
+ * e.g. "Under capacity: 5.5h planned (capacity 8h)" or "Under weekly capacity: 12h planned
+ * this week (capacity 15h a week)", then one line per project. Optionally names the resource.
+ */
+export function formatUnderAllocation(
+  underAllocation: UnderAllocation,
+  includeName = false
+): string {
+  const { resourceName, plannedHours, capacityHours, weekly } = underAllocation;
+  const reason = weekly ? 'under weekly capacity' : 'under capacity';
+  const prefix = includeName
+    ? `${resourceName} ${reason}`
+    : reason[0].toUpperCase() + reason.slice(1);
+  const line = weekly
+    ? `${prefix}: ${formatHours(plannedHours)}h planned this week (capacity ${formatHours(capacityHours)}h a week)`
+    : `${prefix}: ${formatHours(plannedHours)}h planned (capacity ${formatHours(capacityHours)}h)`;
+  return [line, ...formatProjectBreakdown(underAllocation.projects)].join('\n');
+}
+
+/**
+ * Tooltip (and accessible label) for a grid cell listing under-allocated resources,
+ * or undefined when no one planned that day is short of capacity.
+ */
+export function getUnderAllocationTitle(
+  dayAllocations: DailyResourceAllocation[],
+  dailyTotals: ResourceDailyTotals,
+  date: string,
+  includeName = false,
+  getCapacity: CapacityLookup = defaultCapacity,
+  getWeeklyCapacity?: WeeklyCapacityLookup
+): string | undefined {
+  const underAllocations = getUnderAllocatedResources(
+    dayAllocations,
+    dailyTotals,
+    date,
+    getCapacity,
+    getWeeklyCapacity
+  );
+  if (underAllocations.length === 0) return undefined;
+  return underAllocations.map((u) => formatUnderAllocation(u, includeName)).join('\n');
+}
+
+/** How a grid cell is outlined: red when over capacity, amber when under */
+export interface CapacityFlag {
+  status: 'over' | 'under';
+  /** Tooltip (and accessible label) */
+  title: string;
+}
+
+/**
+ * A grid cell's capacity flag, or undefined when everyone planned that day is at capacity.
+ * Over-allocation wins: a cell with anyone over capacity is red, never amber.
+ */
+export function getCapacityFlag(
+  dayAllocations: DailyResourceAllocation[],
+  dailyTotals: ResourceDailyTotals,
+  date: string,
+  includeName = false,
+  getCapacity: CapacityLookup = defaultCapacity,
+  getWeeklyCapacity?: WeeklyCapacityLookup
+): CapacityFlag | undefined {
+  const args = [
+    dayAllocations,
+    dailyTotals,
+    date,
+    includeName,
+    getCapacity,
+    getWeeklyCapacity,
+  ] as const;
+  const overTitle = getOverAllocationTitle(...args);
+  if (overTitle) return { status: 'over', title: overTitle };
+  const underTitle = getUnderAllocationTitle(...args);
+  return underTitle ? { status: 'under', title: underTitle } : undefined;
 }

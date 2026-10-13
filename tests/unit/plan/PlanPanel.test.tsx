@@ -39,11 +39,12 @@ vi.mock('@/services/bc', () => ({
       { jobNo, jobTaskNo: '100', description: 'Build', jobTaskType: 'Posting' },
       { jobNo, jobTaskNo: '200', description: 'Design', jobTaskType: 'Posting' },
     ]),
-    // Alex has 8h on PR001 and 1.5h on PR002 the same day: over an 8h day
+    // Alex has 8h on PR001 and 1.5h on PR002 the same day: over an 8h day.
+    // Sam has 6h that day: under an 8h day
     getJobPlanningLines: vi.fn(async (jobNo: string) =>
       jobNo === 'PR001'
         ? [planningLine('PR001', 'RES01', 1)]
-        : [planningLine('PR002', 'RES02', 1), planningLine('PR002', 'RES01', 2, 1.5)]
+        : [planningLine('PR002', 'RES02', 1, 6), planningLine('PR002', 'RES01', 2, 1.5)]
     ),
     getResourceUnitsOfMeasure: vi.fn(async () => []),
     getTimeSheets: vi.fn(async () => []),
@@ -131,6 +132,24 @@ describe('PlanPanel scoped to one project', () => {
     expect(labels[0].textContent).toContain('Contoso Website: 8h');
     expect(labels[0].textContent).toContain('Contoso App: 1.5h');
     expect(labels[0].parentElement).toHaveAttribute('title', labels[0].textContent);
+  });
+
+  it('outlines a red cell in red and a short day in amber', async () => {
+    render(<PlanPanel />);
+    await screen.findByText('Sam Contoso');
+
+    const [over] = screen.getAllByText(/^Over-allocated: 9\.5h planned/);
+    expect(over.parentElement).toHaveClass('ring-red-500');
+    expect(over.parentElement).not.toHaveClass('ring-amber-400');
+
+    const [under] = screen.getAllByText(/^Under capacity: 6h planned \(capacity 8h\)/);
+    expect(under).toHaveClass('sr-only');
+    expect(under.textContent).toContain('Contoso App: 6h');
+    expect(under.parentElement).toHaveClass('ring-amber-400');
+    expect(under.parentElement).toHaveAttribute(
+      'title',
+      `${under.textContent}\nClick to expand and edit allocations`
+    );
   });
 
   it('loads once on open, then moves between weeks without fetching', async () => {
