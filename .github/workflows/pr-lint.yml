@@ -97,6 +97,42 @@ jobs:
             fi
           fi
 
+          # 5. feat/fix/perf/refactor/style PRs must include a Screenshots section.
+          #    These prefixes may change what users see, so the body needs a
+          #    '## Screenshots' heading (optional trailing text is fine, e.g.
+          #    '## Screenshots (sandbox, CRONUS UK Ltd.)'). Its content (up to the
+          #    next '## ' heading, HTML comments stripped as in the Test plan check)
+          #    must contain EITHER at least one image — markdown `![alt](url)` or an
+          #    `<img` tag — OR start with 'N/A' followed by a reason, e.g.
+          #    'N/A — no UI change (backend only)'.
+          #    chore/ci/docs/deps/test/build PRs may omit the section.
+          if echo "$PR_TITLE" | grep -Eq '^(feat|fix|perf|refactor|style): '; then
+            if ! echo "$PR_BODY" | grep -Eq '^## Screenshots([^A-Za-z0-9]|$)'; then
+              echo "::error::PR body must include a '## Screenshots' section for feat/fix/perf/refactor/style PRs."
+              echo "::error::Add before/after images of the UI change, or 'N/A — <reason>' if nothing visible changed."
+              fail=1
+            else
+              # Same extraction as the Test plan check: content after the heading
+              # up to the next '## ' heading or EOF, with HTML comments removed.
+              ss_content=$(echo "$PR_BODY" | awk '
+                /^## Screenshots([^A-Za-z0-9]|$)/ {inss=1; next}
+                /^## / {inss=0}
+                inss {print}
+              ' | perl -0pe 's/<!--.*?-->//gs')
+              if echo "$ss_content" | grep -Eiq '!\[[^]]*\]\([^)]+\)|<img[[:space:]>]'; then
+                : # at least one image
+              elif echo "$ss_content" | perl -CS -0ne 'exit(/\A\s*N\/A\b[\s\x{2014}\x{2013}:.,-]*+\S/i ? 0 : 1)'; then
+                : # explicit N/A with a reason
+              else
+                echo "::error::'## Screenshots' section needs at least one image (![alt](url) or <img>) or 'N/A — <reason>'."
+                echo "::error::Use before/after screenshots from the CRONUS UK Ltd. sandbox company — never real client data or £ amounts."
+                fail=1
+              fi
+            fi
+          else
+            echo "Non-UI PR prefix detected — skipping '## Screenshots' requirement."
+          fi
+
           if [ "$fail" -ne 0 ]; then
             exit 1
           fi

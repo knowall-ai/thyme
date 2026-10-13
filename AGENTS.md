@@ -1,6 +1,6 @@
 # Agent Instructions
 
-Follow [CLAUDE.md](CLAUDE.md) for project conventions and [CONTRIBUTING.md](CONTRIBUTING.md) for pull requests.
+Follow [CLAUDE.md](CLAUDE.md) for project conventions and [CONTRIBUTING.md](CONTRIBUTING.md) for pull requests. `feat`/`fix`/`perf`/`refactor`/`style` PRs need a `## Screenshots` section (images, or `N/A — <reason>`).
 
 **This repository is public. Never include real client or customer data** in PR titles or descriptions, issues, commit messages, code comments, test data, docs, or screenshots. That includes customer, project and contact names, and monetary amounts (budgets, costs, prices, £ chart axes).
 
