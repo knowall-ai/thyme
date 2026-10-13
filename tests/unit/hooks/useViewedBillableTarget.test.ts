@@ -44,6 +44,24 @@ describe('useViewedBillableTarget', () => {
     expect(client.getResources).toHaveBeenCalledWith("number eq 'R''2'");
   });
 
+  it("shows someone's own target even when the company default can't be loaded", async () => {
+    client.getThymeSetup.mockRejectedValue(new Error('BC API Error (500)'));
+    client.getResourceForCurrentUser.mockResolvedValue(
+      resource({ billableTargetSet: true, billableTargetPercent: 25 })
+    );
+    const { result } = renderHook(() => useViewedBillableTarget(null, 'me@contoso.com'));
+    await waitFor(() => expect(result.current).toEqual({ percent: 25, isDefault: false }));
+  });
+
+  it('shows no target for someone without their own until the company default loads', async () => {
+    client.getThymeSetup.mockRejectedValue(new Error('BC API Error (500)'));
+    client.getResourceForCurrentUser.mockResolvedValue(resource({ billableTargetSet: false }));
+    const { result } = renderHook(() => useViewedBillableTarget(null, 'me@contoso.com'));
+    await waitFor(() => expect(client.getThymeSetup).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 0));
+    expect(result.current).toBeNull();
+  });
+
   it('shows no target on extensions without billable targets', async () => {
     client.getResourceForCurrentUser.mockResolvedValue(resource({}));
     const { result } = renderHook(() => useViewedBillableTarget(null, 'me@contoso.com'));

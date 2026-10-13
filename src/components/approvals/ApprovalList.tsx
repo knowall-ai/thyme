@@ -22,10 +22,11 @@ import { bcClient } from '@/services/bc/bcClient';
 import {
   cn,
   hasBillableTargetFields,
-  resolveBillableTarget,
+  resolveBillableTargetIfKnown,
   DATE_FORMAT_FULL,
   DATE_FORMAT_SHORT,
 } from '@/utils';
+import type { BillableTarget } from '@/utils';
 import type {
   BCTimeSheet,
   BCTimeSheetLine,
@@ -77,20 +78,18 @@ export function ApprovalList() {
     checkApprovalPermission,
   } = useApprovalStore();
 
-  // Each person's billable target (their own, else the company default), as on the Team page
-  const companyBillableDefault = useCompanyBillableDefault(hasBillableTargetFields(resources));
-  const billableTargetsByResource = useMemo(
-    () =>
-      companyBillableDefault === null
-        ? null
-        : new Map(
-            resources.map((resource) => [
-              resource.number,
-              resolveBillableTarget(resource, companyBillableDefault),
-            ])
-          ),
-    [resources, companyBillableDefault]
-  );
+  // Each person's billable target: their own, else the company default once it's loaded
+  const targetFieldsPresent = hasBillableTargetFields(resources);
+  const companyBillableDefault = useCompanyBillableDefault(targetFieldsPresent);
+  const billableTargetsByResource = useMemo(() => {
+    const targets = new Map<string, BillableTarget>();
+    if (!targetFieldsPresent) return targets;
+    for (const resource of resources) {
+      const target = resolveBillableTargetIfKnown(resource, companyBillableDefault);
+      if (target) targets.set(resource.number, target);
+    }
+    return targets;
+  }, [resources, targetFieldsPresent, companyBillableDefault]);
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [linesCache, setLinesCache] = useState<Record<string, BCTimeSheetLine[]>>({});
@@ -602,7 +601,7 @@ export function ApprovalList() {
                     resourceEmail={getFullEmail(timeSheet.resourceEmail) || undefined}
                     jobsCache={jobsCache}
                     tasksCache={tasksCache}
-                    billableTarget={billableTargetsByResource?.get(timeSheet.resourceNo) ?? null}
+                    billableTarget={billableTargetsByResource.get(timeSheet.resourceNo) ?? null}
                   />
                 ))}
               </div>

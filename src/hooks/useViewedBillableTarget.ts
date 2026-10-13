@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { bcClient } from '@/services/bc/bcClient';
 import type { BCResource } from '@/types';
-import { hasBillableTargetFields, resolveBillableTarget } from '@/utils';
+import { hasBillableTargetFields, resolveBillableTargetIfKnown } from '@/utils';
 import type { BillableTarget } from '@/utils';
 import { useCompanyBillableDefault } from './useCompanyBillableDefault';
 import { useCompanyStore } from './useCompanyStore';
@@ -43,9 +43,9 @@ export function useViewedBillableTarget(
   }, [key, resourceNo, userEmail]);
 
   const resource = loaded?.key === key ? loaded.resource : null;
-  const companyDefault = useCompanyBillableDefault(
-    resource !== null && hasBillableTargetFields([resource])
-  );
-  if (!resource || companyDefault === null) return null;
-  return resolveBillableTarget(resource, companyDefault);
+  const targetFieldsPresent = resource !== null && hasBillableTargetFields([resource]);
+  const companyDefault = useCompanyBillableDefault(targetFieldsPresent);
+  if (!resource || !targetFieldsPresent) return null;
+  // Their own target doesn't wait for (or depend on) the company default
+  return resolveBillableTargetIfKnown(resource, companyDefault);
 }
