@@ -1,13 +1,22 @@
 'use client';
 
-import { useId, useState } from 'react';
+import {
+  useCallback,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react';
+import { createPortal } from 'react-dom';
 import {
   ExclamationCircleIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
 } from '@heroicons/react/24/outline';
 import type { BCTimesheetReviewLine, TimesheetReviewSeverity } from '@/types';
-import { cn, type VerdictTone } from '@/utils';
+import { cn, computePopoverPosition, type VerdictTone } from '@/utils';
 import type { TimesheetReviewResult } from '@/hooks';
 import { useReviewerPhoto } from '@/services/auth/reviewerIdentity';
 
@@ -114,6 +123,7 @@ export function PoppieLineNotesPopover({
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverId = useId();
   if (!notes || notes.length === 0) return null;
 
@@ -122,29 +132,26 @@ export function PoppieLineNotesPopover({
   );
   const isOpen = isHovered || isPinned;
   const name = reviewer?.trim() || 'Poppie';
+  const close = () => {
+    setIsHovered(false);
+    setIsPinned(false);
+  };
 
   return (
-    <span
-      className={cn('relative inline-flex', className)}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
+    <span className={cn('inline-flex', className)}>
       <button
+        ref={buttonRef}
         type="button"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         onClick={(e) => {
           e.stopPropagation();
           setIsPinned((pinned) => !pinned);
         }}
         onFocus={() => setIsHovered(true)}
-        onBlur={() => {
-          setIsHovered(false);
-          setIsPinned(false);
-        }}
+        onBlur={close}
         onKeyDown={(e) => {
-          if (e.key === 'Escape') {
-            setIsHovered(false);
-            setIsPinned(false);
-          }
+          if (e.key === 'Escape') close();
         }}
         aria-label={`${name}'s ${notes.length === 1 ? 'note' : `${notes.length} notes`} on this entry`}
         aria-expanded={isOpen}
@@ -157,19 +164,72 @@ export function PoppieLineNotesPopover({
         )}
       </button>
       {isOpen && (
-        <div
-          id={popoverId}
-          role="tooltip"
-          className="border-dark-600 bg-dark-800 absolute top-full right-0 z-50 mt-1 w-80 rounded-lg border p-3 shadow-lg"
-        >
+        <FloatingPopover id={popoverId} anchorRef={buttonRef}>
           <p className="mb-2 flex items-center gap-2 text-xs font-medium text-white">
             <PoppieAvatar reviewer={reviewer} className="h-5 w-5 text-[9px]" />
             {name}&apos;s {notes.length === 1 ? 'note' : 'notes'}
           </p>
           <PoppieLineNotes notes={notes} className="mt-0 space-y-1.5" />
-        </div>
+        </FloatingPopover>
       )}
     </span>
+  );
+}
+
+/**
+ * A popover rendered into the document body, so cards that clip their overflow don't cut it
+ * off, and kept on screen next to its anchor as the page scrolls or resizes.
+ */
+function FloatingPopover({
+  id,
+  anchorRef,
+  children,
+}: {
+  id: string;
+  anchorRef: RefObject<HTMLElement | null>;
+  children: ReactNode;
+}) {
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+
+  const reposition = useCallback(() => {
+    const anchor = anchorRef.current;
+    const popover = popoverRef.current;
+    if (!anchor || !popover) return;
+    const { top, left } = computePopoverPosition(
+      anchor.getBoundingClientRect(),
+      { width: popover.offsetWidth, height: popover.offsetHeight },
+      { width: window.innerWidth, height: window.innerHeight }
+    );
+    setPosition({ top, left });
+  }, [anchorRef]);
+
+  // Measure before paint so it never shows in the wrong place
+  useLayoutEffect(() => {
+    reposition();
+    window.addEventListener('scroll', reposition, true);
+    window.addEventListener('resize', reposition);
+    return () => {
+      window.removeEventListener('scroll', reposition, true);
+      window.removeEventListener('resize', reposition);
+    };
+  }, [reposition]);
+
+  return createPortal(
+    <div
+      ref={popoverRef}
+      id={id}
+      role="tooltip"
+      className="border-dark-600 bg-dark-800 fixed z-50 w-80 max-w-[calc(100vw-16px)] rounded-lg border p-3 shadow-lg"
+      style={{
+        top: position?.top ?? 0,
+        left: position?.left ?? 0,
+        visibility: position ? 'visible' : 'hidden',
+      }}
+    >
+      {children}
+    </div>,
+    document.body
   );
 }
 
