@@ -58,7 +58,7 @@ export interface TeamTableRow {
   target: BillableTarget | null;
 }
 
-type SortField =
+export type TeamTableSortField =
   | 'name'
   | 'code'
   | 'totalHours'
@@ -66,7 +66,15 @@ type SortField =
   | 'capacity'
   | 'billablePercent'
   | 'billableGap';
-type SortDirection = 'asc' | 'desc';
+
+export interface TeamTableSort {
+  field: TeamTableSortField;
+  direction: 'asc' | 'desc';
+}
+
+type SortField = TeamTableSortField;
+
+export const DEFAULT_TEAM_TABLE_SORT: TeamTableSort = { field: 'name', direction: 'asc' };
 
 // Points above (+) or below (-) the member's billable target; 0 without a target.
 // Someone with no hours counts as 0% billable, so they sort with the furthest behind.
@@ -137,6 +145,12 @@ export interface TeamTableProps {
   onEditGitHub?: (row: TeamTableRow) => void;
   /** Makes each name a button, e.g. to show just that person's report */
   onSelect?: (row: TeamTableRow) => void;
+  /**
+   * The sort, kept by the page so it survives the table unmounting while a new week or
+   * period loads; without it the table keeps its own
+   */
+  sort?: TeamTableSort;
+  onSortChange?: (sort: TeamTableSort) => void;
 }
 
 /**
@@ -155,9 +169,15 @@ export function TeamTable({
   onEditCapacity,
   onEditGitHub,
   onSelect,
+  sort: controlledSort,
+  onSortChange,
 }: TeamTableProps) {
-  const [sortField, setSortField] = useState<SortField>('name');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [ownSort, setOwnSort] = useState<TeamTableSort>(DEFAULT_TEAM_TABLE_SORT);
+  const { field: sortField, direction: sortDirection } = controlledSort ?? ownSort;
+  const setSort = (next: TeamTableSort) => {
+    setOwnSort(next);
+    onSortChange?.(next);
+  };
 
   const sortedRows = useMemo(() => {
     const result = [...rows];
@@ -192,12 +212,10 @@ export function TeamTable({
   }, [rows, sortField, sortDirection]);
 
   const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
+    setSort({
+      field,
+      direction: sortField === field && sortDirection === 'asc' ? 'desc' : 'asc',
+    });
   };
 
   // Sortable column header: full-opacity arrows on the sorted column

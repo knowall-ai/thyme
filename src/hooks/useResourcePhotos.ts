@@ -37,11 +37,15 @@ export function useResourcePhotos(
         emailDomain ?? ''
       )
         .then(({ photoUrl }) => {
-          if (!cancelled && photoUrl) {
-            setPhotos((prev) =>
-              prev[person.id] === photoUrl ? prev : { ...prev, [person.id]: photoUrl }
-            );
-          }
+          if (cancelled) return;
+          // No photo (e.g. the resource now belongs to someone else): drop any old one
+          setPhotos((prev) => {
+            if (photoUrl)
+              return prev[person.id] === photoUrl ? prev : { ...prev, [person.id]: photoUrl };
+            if (!(person.id in prev)) return prev;
+            const { [person.id]: _dropped, ...rest } = prev;
+            return rest;
+          });
         })
         .catch(() => {
           // No photo: initials are shown instead

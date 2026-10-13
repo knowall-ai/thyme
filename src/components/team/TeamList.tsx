@@ -11,8 +11,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { BillableTargetEditor } from '@/components/targets';
 import { WeeklyCapacityEditor } from './WeeklyCapacityEditor';
-import { TeamTable } from './TeamTable';
-import type { TeamTableRow } from './TeamTable';
+import { TeamTable, DEFAULT_TEAM_TABLE_SORT } from './TeamTable';
+import type { TeamTableRow, TeamTableSort } from './TeamTable';
 import { GitHubUsernameEditor } from './GitHubUsernameEditor';
 import { ProjectsUnavailableWarning } from './ProjectsUnavailableWarning';
 import {
@@ -129,6 +129,8 @@ export function TeamList() {
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState('');
+  // Kept here so it survives the table unmounting while another week loads
+  const [sort, setSort] = useState<TeamTableSort>(DEFAULT_TEAM_TABLE_SORT);
 
   // Navigation handlers
   const handlePrevious = () => {
@@ -601,6 +603,8 @@ export function TeamList() {
                 capacityFieldsPresent ? (row) => setEditingCapacityMemberId(row.id) : undefined
               }
               onEditGitHub={(row) => setEditingGitHubMemberId(row.id)}
+              sort={sort}
+              onSortChange={setSort}
             />
           </>
         )}

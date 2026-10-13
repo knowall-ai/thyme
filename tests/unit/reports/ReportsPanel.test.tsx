@@ -168,6 +168,21 @@ describe('ReportsPanel', () => {
     expect(screen.queryByText(/target$/, { selector: 'p' })).not.toBeInTheDocument();
   });
 
+  it('keeps the table sort when another period loads', async () => {
+    render(<ReportsPanel />);
+    fireEvent.click(await screen.findByRole('columnheader', { name: /^Hours/ }));
+    expect(screen.getByRole('columnheader', { name: /^Hours/ })).toHaveAttribute(
+      'aria-sort',
+      'ascending'
+    );
+    fireEvent.change(screen.getByLabelText('Period'), { target: { value: 'lastMonth' } });
+    await waitFor(() => expect(loadTeamHours).toHaveBeenCalledTimes(2));
+    expect(await screen.findByRole('columnheader', { name: /^Hours/ })).toHaveAttribute(
+      'aria-sort',
+      'ascending'
+    );
+  });
+
   it("warns when projects couldn't be loaded", async () => {
     projectsUnavailable = true;
     render(<ReportsPanel />);

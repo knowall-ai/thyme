@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useMemo, useId } from 'react';
 import { Card, ExtensionPreviewWrapper } from '@/components/ui';
-import { TeamTable, ProjectsUnavailableWarning } from '@/components/team';
-import type { TeamTableRow } from '@/components/team';
+import { TeamTable, ProjectsUnavailableWarning, DEFAULT_TEAM_TABLE_SORT } from '@/components/team';
+import type { TeamTableRow, TeamTableSort } from '@/components/team';
 import { ExtensionNotInstalledError, loadTeamHours } from '@/services/bc';
 import {
   ChartBarIcon,
@@ -132,6 +132,8 @@ export function ReportsPanel() {
   // latest load, so a changed target or capacity is never stale)
   const [selectedNo, setSelectedNo] = useState<string>(EVERYONE);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  // Kept here so it survives the people table unmounting while another period loads
+  const [tableSort, setTableSort] = useState<TeamTableSort>(DEFAULT_TEAM_TABLE_SORT);
 
   const { projects, fetchProjects } = useProjectsStore();
   const { selectedCompany, companyVersion } = useCompanyStore();
@@ -506,6 +508,8 @@ export function ReportsPanel() {
                   : `${row.capacity.toFixed(1)}h for this period: ${describeWeeklyCapacity(row.weekly)}, for every 5 working days`
               }
               onSelect={(row) => setSelectedNo(row.number)}
+              sort={tableSort}
+              onSortChange={setTableSort}
             />
           </section>
         )}

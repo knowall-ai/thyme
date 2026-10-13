@@ -3,6 +3,6 @@ export { TeamList } from './TeamList';
 export { ZaplieBanner } from './ZaplieBanner';
 export { GitHubUsernameEditor } from './GitHubUsernameEditor';
 export { GitHubUsernameInput } from './GitHubUsernameInput';
-export { TeamTable } from './TeamTable';
-export type { TeamTableRow, TeamTableProps } from './TeamTable';
+export { TeamTable, DEFAULT_TEAM_TABLE_SORT } from './TeamTable';
+export type { TeamTableRow, TeamTableProps, TeamTableSort } from './TeamTable';
 export { ProjectsUnavailableWarning } from './ProjectsUnavailableWarning';
