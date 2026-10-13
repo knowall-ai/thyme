@@ -17,7 +17,6 @@ import {
   CalendarIcon,
   ClockIcon,
   UsersIcon,
-  UserIcon,
   InformationCircleIcon,
   BuildingOfficeIcon,
   BriefcaseIcon,
@@ -38,6 +37,7 @@ import {
   hasBillableTargetFields,
   resolveBillableTarget,
   resolveCompanyDefault,
+  getWeightedBillableTarget,
   summariseHours,
   isCounted,
   getBillableTargetBand,
@@ -58,15 +58,17 @@ import {
   getReportProject,
   getReportProjects,
   getReportFilterOptions,
-  selectReportClient,
+  selectReportClients,
+  describeFilterSelection,
+  describeReportFilters,
   getHoursByProject,
   describeReportPrintout,
 } from '@/utils';
 import type {
   BillableTarget,
   PersonHours,
-  ReportClient,
   ReportFilter,
+  ReportFilterNames,
   ReportPeriod,
   WeeklyCapacity,
 } from '@/utils';
@@ -76,7 +78,7 @@ import { FilterMenu } from './FilterMenu';
 import { PrintButton } from './PrintButton';
 import { ReportPeriodPicker } from './ReportPeriodPicker';
 
-const EVERYONE = 'everyone';
+const byName = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: 'base' });
 
 // A bar segment narrower than this (% of the row) is left unlabelled: its hours are in
 // the totals beside the bar, and e.g. "200h 45m" wouldn't fit
@@ -159,9 +161,9 @@ export function ReportsPanel() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [extensionNotInstalled, setExtensionNotInstalled] = useState(false);
-  // Everyone, or one person by resource number (their data always comes from the
-  // latest load, so a changed target or capacity is never stale)
-  const [selectedNo, setSelectedNo] = useState<string>(EVERYONE);
+  // The people picked by resource number, none for everyone (their data always comes
+  // from the latest load, so a changed target or capacity is never stale)
+  const [resourceNos, setResourceNos] = useState<string[]>([]);
   // Client and project: kept across periods, so stepping through weeks keeps the filter
   const [filter, setFilter] = useState<ReportFilter>(NO_REPORT_FILTER);
   // Kept here so it survives the people table unmounting while another period loads
@@ -175,7 +177,7 @@ export function ReportsPanel() {
 
   // Another company has other people, clients and projects: back to everything
   useEffect(() => {
-    setSelectedNo(EVERYONE);
+    setResourceNos([]);
     setFilter(NO_REPORT_FILTER);
   }, [companyVersion]);
 
@@ -234,35 +236,55 @@ export function ReportsPanel() {
     [people, projectsByNumber, projects]
   );
   const filterOptions = useMemo(
-    () => getReportFilterOptions(reportProjects.values(), filter.clientId),
-    [reportProjects, filter.clientId]
+    () => getReportFilterOptions(reportProjects.values(), filter.clientIds),
+    [reportProjects, filter.clientIds]
   );
   const filterActive = isReportFilterActive(filter);
 
-  // The picked client and project by name, even in a period without their time
-  const filterClient: ReportClient | null = useMemo(() => {
-    if (filter.clientId === null) return null;
-    const known = filterOptions.clients.find((c) => c.id === filter.clientId);
-    if (known) return known;
-    for (const [number, project] of projectsByNumber) {
-      const { client } = getReportProject(number, project);
-      if (client.id === filter.clientId) return client;
-    }
-    return [INTERNAL_CLIENT, UNKNOWN_CLIENT].find((c) => c.id === filter.clientId) ?? null;
-  }, [filter.clientId, filterOptions.clients, projectsByNumber]);
-  const filterProjectName =
-    filter.projectNo === null
-      ? null
-      : (
-          reportProjects.get(filter.projectNo) ??
-          getReportProject(
-            filter.projectNo,
-            projectsByNumber.get(filter.projectNo),
-            projectsByCode.get(filter.projectNo)?.name
-          )
-        ).name;
-  // What the figures are restricted to, e.g. "Contoso Ltd." or a project's name
-  const filterDescription = filterProjectName ?? filterClient?.name ?? null;
+  // Every client's name by id, including clients without time in this period (the
+  // options' names win, as they have the period's projects)
+  const clientNames = useMemo(() => {
+    const all = getReportFilterOptions(
+      [...projectsByNumber].map(([number, project]) => getReportProject(number, project))
+    ).clients;
+    return new Map(
+      [INTERNAL_CLIENT, UNKNOWN_CLIENT, ...all, ...filterOptions.clients].map((c) => [c.id, c.name])
+    );
+  }, [projectsByNumber, filterOptions.clients]);
+
+  // The picked clients, projects and people by name, even in a period without their time
+  const filterNames: ReportFilterNames = useMemo(
+    () => ({
+      clients: filter.clientIds
+        .map((id) => clientNames.get(id) ?? id.replace(/^customer:/, ''))
+        .sort(byName),
+      projects: filter.projectNos
+        .map(
+          (number) =>
+            (
+              reportProjects.get(number) ??
+              getReportProject(
+                number,
+                projectsByNumber.get(number),
+                projectsByCode.get(number)?.name
+              )
+            ).name
+        )
+        .sort(byName),
+      resources: resourceNos
+        .map((number) => resources.find((r) => r.number === number)?.name?.trim() || number)
+        .sort(byName),
+    }),
+    [filter, clientNames, reportProjects, projectsByNumber, projectsByCode, resourceNos, resources]
+  );
+  // What the figures are restricted to, e.g. "Contoso Ltd.", two projects' names or
+  // "3 projects" (the picked projects are all the picked clients')
+  const filterDescription =
+    filter.projectNos.length > 0
+      ? describeFilterSelection(filterNames.projects, '', 'projects', 2)
+      : filter.clientIds.length > 0
+        ? describeFilterSelection(filterNames.clients, '', 'clients', 2)
+        : null;
 
   // Everyone's hours restricted to the client and project: entries, stages and billable
   // hours alike, so every figure below follows the filter
@@ -276,18 +298,16 @@ export function ReportsPanel() {
     [people, filter, filterActive, reportProjects]
   );
 
-  const selectedPerson =
-    selectedNo === EVERYONE
-      ? null
-      : (filteredPeople.find((p) => p.resource.number === selectedNo) ?? null);
-
-  // The people in the selection: everyone, or the one picked (by resource number, so
+  // The people in the selection: everyone, or those picked (by resource number, so
   // resources whose time sheets share an owner never pick up each other's time)
   const selectedPeople = useMemo(() => {
-    // Everyone means the people who count: not those on a weekly capacity of 0
-    if (selectedNo === EVERYONE) return filteredPeople.filter(isCounted);
-    return filteredPeople.filter((p) => p.resource.number === selectedNo);
-  }, [filteredPeople, selectedNo]);
+    // Everyone means the people who count: not those on a weekly capacity of 0. Anyone
+    // picked counts, as they were asked for
+    if (resourceNos.length === 0) return filteredPeople.filter(isCounted);
+    return filteredPeople.filter((p) => resourceNos.includes(p.resource.number));
+  }, [filteredPeople, resourceNos]);
+  // The one person picked, whose report it is (their own target, no People table)
+  const selectedPerson = resourceNos.length === 1 ? (selectedPeople[0] ?? null) : null;
   const entries = useMemo(() => selectedPeople.flatMap((p) => p.entries), [selectedPeople]);
 
   // Billable targets: each person's own (or the company default). Null on Thyme BC
@@ -323,27 +343,56 @@ export function ReportsPanel() {
     [selectedPeople, companyDefault]
   );
 
-  // Billable target for the selection: the person's own (or the company default), or for
-  // everyone the team target, weighted by capacity exactly as on the Team page. None
+  // The counted people's targets weighted by capacity, exactly as the Team page's team
+  // target: for everyone, or for several people picked (anyone not counted has none)
+  const weightedTarget = useMemo(
+    () =>
+      companyDefault === null
+        ? null
+        : getWeightedBillableTarget(
+            selectedPeople.filter(isCounted).map((p) => ({
+              capacity: p.capacity,
+              targetPercent: resolveBillableTarget(p.resource, companyDefault).percent,
+            }))
+          ),
+    [selectedPeople, companyDefault]
+  );
+
+  // Billable target for the selection: one person's own (or the company default), or
+  // the weighted target of everyone (the team target) or of the people picked. None
   // under a client or project filter: targets are for all of a person's time, and one
   // client's work is nearly all billable (or, for Internal, none of it)
   const billableTarget: BillableTarget | null = filterActive
     ? null
     : selectedPerson
       ? targetOf(selectedPerson)
-      : summary.billableTarget === null || !targetsEnabled
+      : weightedTarget === null || !targetsEnabled
         ? null
-        : { percent: summary.billableTarget, isDefault: false };
+        : { percent: weightedTarget, isDefault: false };
+  const billableTargetName =
+    resourceNos.length === 0
+      ? 'team target'
+      : resourceNos.length > 1
+        ? 'combined target'
+        : billableTarget?.isDefault
+          ? 'default target'
+          : 'target';
 
   const uniqueProjects = useMemo(() => new Set(entries.map((e) => e.projectId)).size, [entries]);
 
-  // Everyone in the Team page's table, for the period: capacity and completion scale
-  // with the period's working days (one week = their weekly capacity). Under a client or
-  // project filter, only the people with time on it, and no targets (see billableTarget)
+  // Everyone (or the people picked) in the Team page's table, for the period: capacity
+  // and completion scale with the period's working days (one week = their weekly
+  // capacity). Under a client or project filter, only the people with time on it, and
+  // no targets (see billableTarget)
   const tableRows = useMemo(
     (): TeamTableRow[] =>
-      (filterActive ? filteredPeople.filter((p) => p.stages.total > 0) : filteredPeople).map(
-        (p) => {
+      filteredPeople
+        .filter(
+          (p) =>
+            (resourceNos.length === 0 || resourceNos.includes(p.resource.number)) &&
+            (!filterActive || p.stages.total > 0)
+        )
+        .map((p) => {
           const weekly = weeklyOf(p);
           const totalHours = p.stages.total;
           const capacity = getPeriodCapacity(weekly.hours, startDate, endDate);
@@ -365,9 +414,8 @@ export function ReportsPanel() {
                 ? resolveBillableTarget(p.resource, companyDefault)
                 : null,
           };
-        }
-      ),
-    [filteredPeople, filterActive, photos, startDate, endDate, companyDefault]
+        }),
+    [filteredPeople, resourceNos, filterActive, photos, startDate, endDate, companyDefault]
   );
 
   // Hours by project, split by stage as on the project page's Time Spent card
@@ -412,11 +460,7 @@ export function ReportsPanel() {
   const hasHours = summary.totalHours > 0;
 
   // The printed report's heading: its period and filters, as the filter bar is hidden
-  const printSummary = describeReportPrintout(period, [
-    filterClient?.name ?? 'All clients',
-    filterProjectName ?? 'All projects',
-    selectedNo === EVERYONE ? 'All resources' : selectedPerson?.resource.name?.trim() || selectedNo,
-  ]);
+  const printSummary = describeReportPrintout(period, [describeReportFilters(filterNames)]);
   const billableBand = billableTarget
     ? getBillableTargetBand(summary.billablePercent, billableTarget.percent, hasHours)
     : null;
@@ -428,12 +472,12 @@ export function ReportsPanel() {
 
         {/* Period, and the client, project and resource filters (hidden in print) */}
         <ReportPeriodPicker period={period} onChange={setPeriod} actions={<PrintButton />}>
-          {(filterActive || selectedNo !== EVERYONE) && (
+          {(filterActive || resourceNos.length > 0) && (
             <button
               type="button"
               onClick={() => {
                 setFilter(NO_REPORT_FILTER);
-                setSelectedNo(EVERYONE);
+                setResourceNos([]);
               }}
               className="text-dark-300 hover:text-thyme-400 flex h-10 items-center gap-1 rounded-lg px-2 text-sm transition-colors"
             >
@@ -444,10 +488,10 @@ export function ReportsPanel() {
           <FilterMenu
             label="Client"
             allLabel="All Clients"
+            pluralLabel="clients"
             icon={BuildingOfficeIcon}
-            optionIcon={BuildingOfficeIcon}
-            value={filter.clientId}
-            valueLabel={filterClient?.name}
+            values={filter.clientIds}
+            valueLabels={filterNames.clients}
             options={filterOptions.clients.map((client) => {
               const count = [...reportProjects.values()].filter(
                 (p) => p.client.id === client.id
@@ -458,43 +502,50 @@ export function ReportsPanel() {
                 description: `${count} project${count === 1 ? '' : 's'}`,
               };
             })}
-            onChange={(clientId) => setFilter(selectReportClient(filter, clientId, reportProjects))}
+            onChange={(clientIds) =>
+              setFilter((current) => selectReportClients(current, clientIds, reportProjects))
+            }
             isLoading={isLoading && reportProjects.size === 0}
             emptyMessage="No client time in this period"
           />
           <FilterMenu
             label="Project"
-            allLabel={filterClient ? `All ${filterClient.name} Projects` : 'All Projects'}
+            allLabel={
+              filter.clientIds.length === 1
+                ? `All ${filterNames.clients[0]} Projects`
+                : 'All Projects'
+            }
+            pluralLabel="projects"
             icon={BriefcaseIcon}
-            optionIcon={BriefcaseIcon}
-            value={filter.projectNo}
-            valueLabel={filterProjectName ?? undefined}
+            values={filter.projectNos}
+            valueLabels={filterNames.projects}
             options={filterOptions.projects.map((project) => ({
               value: project.number,
               label: project.name,
+              // The client too, unless only one client's projects are listed
               description:
-                filter.clientId === null
-                  ? `${project.number} · ${project.client.name}`
-                  : project.number,
+                filter.clientIds.length === 1
+                  ? project.number
+                  : `${project.number} · ${project.client.name}`,
               color: projectsByCode.get(project.number)?.color,
             }))}
-            onChange={(projectNo) => setFilter({ ...filter, projectNo })}
+            onChange={(projectNos) => setFilter((current) => ({ ...current, projectNos }))}
             isLoading={isLoading && reportProjects.size === 0}
             emptyMessage="No project time in this period"
           />
           <FilterMenu
             label="Resource"
             allLabel="All Resources"
+            pluralLabel="resources"
             icon={UsersIcon}
-            optionIcon={UserIcon}
-            value={selectedNo === EVERYONE ? null : selectedNo}
-            valueLabel={selectedPerson?.resource.name?.trim() || selectedNo}
+            values={resourceNos}
+            valueLabels={filterNames.resources}
             options={resources.map((resource) => ({
               value: resource.number,
               label: resource.name?.trim() || 'Unknown',
               description: resource.number,
             }))}
-            onChange={(number) => setSelectedNo(number ?? EVERYONE)}
+            onChange={setResourceNos}
             isLoading={isLoadingResources}
             emptyMessage="No resources"
           />
@@ -566,14 +617,13 @@ export function ReportsPanel() {
                       'mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
                       BILLABLE_TARGET_BAND_COLORS[billableBand]
                     )}
-                    title={BILLABLE_TARGET_BAND_LABELS[billableBand]}
+                    title={
+                      selectedPerson
+                        ? BILLABLE_TARGET_BAND_LABELS[billableBand]
+                        : `${BILLABLE_TARGET_BAND_LABELS[billableBand]}. The ${billableTargetName} is ${resourceNos.length === 0 ? "the team's" : "the selected people's"} targets, weighted by capacity.`
+                    }
                   >
-                    {billableTarget.percent.toFixed(0)}%{' '}
-                    {selectedNo === EVERYONE
-                      ? 'team target'
-                      : billableTarget.isDefault
-                        ? 'default target'
-                        : 'target'}
+                    {billableTarget.percent.toFixed(0)}% {billableTargetName}
                   </p>
                 )}
               </div>
@@ -581,8 +631,9 @@ export function ReportsPanel() {
           </Card>
         </div>
 
-        {/* People: the Team page's table for the period */}
-        {selectedNo === EVERYONE && !isLoading && !error && tableRows.length > 0 && (
+        {/* People: the Team page's table for the period, of everyone or the people
+            picked (not for one person: the report is theirs) */}
+        {!selectedPerson && !isLoading && !error && tableRows.length > 0 && (
           <section className="space-y-3" aria-labelledby="report-people">
             <div>
               <h2 id="report-people" className="text-lg font-semibold text-white">
@@ -606,7 +657,8 @@ export function ReportsPanel() {
                   ? describeWeeklyCapacity(row.weekly)
                   : `${row.capacity.toFixed(1)}h for this period: ${describeWeeklyCapacity(row.weekly)}, for every 5 working days`
               }
-              onSelect={(row) => setSelectedNo(row.number)}
+              // Just that person's report, in place of any people picked
+              onSelect={(row) => setResourceNos([row.number])}
               sort={tableSort}
               onSortChange={setTableSort}
             />

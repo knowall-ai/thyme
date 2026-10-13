@@ -287,11 +287,20 @@ describe('ReportsPanel client and project filters', () => {
       (p) => p.textContent?.startsWith(label) && p.nextElementSibling
     )?.nextElementSibling?.textContent;
 
-  const pick = (menu: string, option: RegExp) => {
+  /** Opens a filter, toggles each option, and closes it */
+  const pick = (menu: string, ...options: RegExp[]) => {
     fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${menu}:`) }));
     const group = screen.getByRole('group', { name: `Filter by ${menu}` });
-    fireEvent.click(within(group).getByRole('button', { name: option }));
+    for (const option of options) {
+      fireEvent.click(within(group).getByRole('button', { name: option }));
+    }
+    fireEvent.keyDown(group, { key: 'Escape' });
   };
+
+  const peopleInTable = () =>
+    within(screen.getByRole('table'))
+      .getAllByRole('button', { name: /Contoso/ })
+      .map((b) => b.textContent);
 
   const optionNames = (menu: string) => {
     fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${menu}:`) }));
@@ -386,6 +395,97 @@ describe('ReportsPanel client and project filters', () => {
     expect(screen.getByRole('button', { name: 'Resource: All Resources' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: /Timesheet completion/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument();
+  });
+
+  it('sums the hours of several clients, and lists all their projects', async () => {
+    render(<ReportsPanel />);
+    await screen.findByRole('table');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Client: All Clients' }));
+    const group = screen.getByRole('group', { name: 'Filter by Client' });
+    fireEvent.click(within(group).getByRole('button', { name: /Contoso Ltd\./ }));
+    // The menu stays open for more picks, with each pick ticked
+    fireEvent.click(within(group).getByRole('button', { name: /Fabrikam/ }));
+    expect(within(group).getByRole('button', { name: /Contoso Ltd\./ })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(within(group).getByRole('button', { name: 'All Clients' })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
+    fireEvent.keyDown(group, { key: 'Escape' });
+
+    // Contoso's 10h and Fabrikam's 4h + 3h
+    expect(cardValue('Total Hours')).toBe('17h');
+    expect(cardValue('Projects')).toBe('3');
+    const trigger = screen.getByRole('button', { name: 'Client: Contoso Ltd., Fabrikam, Inc.' });
+    expect(trigger).toHaveTextContent('2 clients');
+    expect(screen.getByText(/Hours on Contoso Ltd\., Fabrikam, Inc\. only/)).toBeInTheDocument();
+    expect(screen.getByTestId('export-entries')).toHaveTextContent(/^R1-b,R1-n,R1-x0,R2-x0$/);
+    expect(optionNames('Project')).toEqual([
+      'All Projects',
+      'Contoso WebsitePR-CONTOSO · Contoso Ltd.',
+      'Fabrikam RolloutPR-FABRIKAM · Fabrikam, Inc.',
+      'Fabrikam SupportPR-FABRIKAM-2 · Fabrikam, Inc.',
+    ]);
+
+    // "All Clients" clears the picks
+    pick('Client', /^All Clients$/);
+    expect(cardValue('Total Hours')).toBe('19h');
+    expect(screen.getByRole('button', { name: 'Client: All Clients' })).toBeInTheDocument();
+  });
+
+  it("matches any picked project of the picked clients, dropping an unpicked client's", async () => {
+    render(<ReportsPanel />);
+    await screen.findByRole('table');
+    pick('Client', /Contoso Ltd\./, /Fabrikam/);
+    pick('Project', /Contoso Website/, /Fabrikam Rollout/);
+    expect(cardValue('Total Hours')).toBe('14h');
+    expect(screen.getByRole('button', { name: /^Project:/ })).toHaveTextContent('2 projects');
+    expect(
+      screen.getByRole('button', { name: 'Project: Contoso Website, Fabrikam Rollout' })
+    ).toBeInTheDocument();
+
+    // Contoso's no longer picked: its project goes too
+    pick('Client', /Contoso Ltd\./);
+    expect(cardValue('Total Hours')).toBe('4h');
+    expect(screen.getByRole('button', { name: 'Project: Fabrikam Rollout' })).toBeInTheDocument();
+    expect(screen.getByTestId('export-entries')).toHaveTextContent(/^R1-x0$/);
+  });
+
+  it("shows several people's hours, table and combined target, and one person on a name click", async () => {
+    resources = [
+      person('R1', 'Alex Contoso'),
+      person('R2', 'Sam Contoso', { billableTargetPercent: 45 }),
+      person('R3', 'Contoso Agent', { weeklyCapacitySet: true, weeklyCapacityHours: 0 }),
+    ];
+    render(<ReportsPanel />);
+    await screen.findByRole('table');
+    expect(await targetPill()).toHaveTextContent(/team target$/);
+
+    pick('Resource', /Alex Contoso/, /Sam Contoso/);
+    // Alex's 16h and Sam's 3h
+    expect(cardValue('Total Hours')).toBe('19h');
+    const trigger = screen.getByRole('button', { name: 'Resource: Alex Contoso, Sam Contoso' });
+    expect(trigger).toHaveTextContent('2 resources');
+    expect(peopleInTable()).toEqual(['Alex Contoso', 'Sam Contoso']);
+    // 75% and 45%, on the same capacity
+    expect(await targetPill()).toHaveTextContent('60% combined target');
+
+    // Adding someone not counted: their hours, but no say in the target
+    pick('Resource', /Contoso Agent/);
+    expect(cardValue('Total Hours')).toBe('24h');
+    expect(trigger).toHaveTextContent('3 resources');
+    expect(peopleInTable()).toHaveLength(3);
+    expect(await targetPill()).toHaveTextContent('60% combined target');
+
+    // A name in the table shows just that person's report
+    fireEvent.click(within(screen.getByRole('table')).getByRole('button', { name: 'Sam Contoso' }));
+    expect(screen.getByRole('button', { name: 'Resource: Sam Contoso' })).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(cardValue('Total Hours')).toBe('3h');
+    expect(await targetPill()).toHaveTextContent(/^45% target$/);
   });
 
   it('opens with the picked option focused, moves with arrow keys and closes on Escape', async () => {

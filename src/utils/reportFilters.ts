@@ -77,45 +77,91 @@ export function getReportProjects(
   return projects;
 }
 
-/** The report's filter: null shows everything */
+/**
+ * The report's client and project filter. An entry matches when it's on any of the
+ * picked clients and any of the picked projects; an empty list matches everything.
+ */
 export interface ReportFilter {
-  clientId: string | null;
-  projectNo: string | null;
+  clientIds: readonly string[];
+  projectNos: readonly string[];
 }
 
-export const NO_REPORT_FILTER: ReportFilter = { clientId: null, projectNo: null };
+export const NO_REPORT_FILTER: ReportFilter = { clientIds: [], projectNos: [] };
 
 export function isReportFilterActive(filter: ReportFilter): boolean {
-  return filter.clientId !== null || filter.projectNo !== null;
+  return filter.clientIds.length > 0 || filter.projectNos.length > 0;
 }
 
-/** Whether an entry is on the filter's client and project */
+/** Whether an entry is on one of the filter's clients and one of its projects */
 export function matchesReportFilter(
   entry: Pick<TimeEntry, 'projectId'>,
   filter: ReportFilter,
   projects: ReadonlyMap<string, ReportProject>
 ): boolean {
-  if (filter.projectNo !== null && entry.projectId !== filter.projectNo) return false;
-  if (filter.clientId !== null) {
+  if (filter.projectNos.length > 0 && !filter.projectNos.includes(entry.projectId)) return false;
+  if (filter.clientIds.length > 0) {
     const clientId = projects.get(entry.projectId)?.client.id ?? UNKNOWN_CLIENT.id;
-    if (clientId !== filter.clientId) return false;
+    if (!filter.clientIds.includes(clientId)) return false;
   }
   return true;
 }
 
+/** Adds a value to a multi-select filter's picks, or removes it if it's there */
+export function toggleFilterValue(values: readonly string[], value: string): string[] {
+  return values.includes(value) ? values.filter((v) => v !== value) : [...values, value];
+}
+
 /**
- * Picks a client, keeping the project only if it's that client's (so the project
- * list, narrowed to the client, always holds the picked project)
+ * Picks the clients, keeping only the picked projects that are one of theirs (so the
+ * project list, narrowed to those clients, always holds the picked projects)
  */
-export function selectReportClient(
+export function selectReportClients(
   filter: ReportFilter,
-  clientId: string | null,
+  clientIds: readonly string[],
   projects: ReadonlyMap<string, ReportProject>
 ): ReportFilter {
-  const keepProject =
-    filter.projectNo !== null &&
-    (clientId === null || projects.get(filter.projectNo)?.client.id === clientId);
-  return { clientId, projectNo: keepProject ? filter.projectNo : null };
+  const projectNos =
+    clientIds.length === 0
+      ? filter.projectNos
+      : filter.projectNos.filter((number) => {
+          const clientId = projects.get(number)?.client.id;
+          return clientId !== undefined && clientIds.includes(clientId);
+        });
+  return { clientIds: [...clientIds], projectNos };
+}
+
+/**
+ * A filter's picks in words: `allLabel` when nothing's picked, the names (comma
+ * separated) when there are at most `maxNames`, otherwise how many, e.g. "3 clients"
+ */
+export function describeFilterSelection(
+  names: readonly string[],
+  allLabel: string,
+  plural: string,
+  maxNames = 1
+): string {
+  if (names.length === 0) return allLabel;
+  if (names.length <= maxNames) return names.join(', ');
+  return `${names.length} ${plural}`;
+}
+
+/** The names picked in each Reports filter (none for everything) */
+export interface ReportFilterNames {
+  clients: readonly string[];
+  projects: readonly string[];
+  resources: readonly string[];
+}
+
+/**
+ * The Reports filters in words, e.g. "Adatum Corporation, Trey Research · All
+ * projects · 3 resources": up to two names per filter, otherwise how many are picked
+ */
+export function describeReportFilters({ clients, projects, resources }: ReportFilterNames): string {
+  return [
+    describeFilterSelection(clients, 'All clients', 'clients', 2),
+    describeFilterSelection(projects, 'All projects', 'projects', 2),
+    describeFilterSelection(resources, 'All resources', 'resources', 2),
+  ].join(' · ');
 }
 
 /** Hours by stage and billable hours for some entries */
@@ -157,14 +203,14 @@ const byName = (a: { name: string }, b: { name: string }) =>
 export interface ReportFilterOptions {
   /** Clients by name, with Internal and Unknown last */
   clients: ReportClient[];
-  /** Projects by name, only the client's when `clientId` is set */
+  /** Projects by name: only the picked clients' when any are picked */
   projects: ReportProject[];
 }
 
 /** The clients and projects to pick from */
 export function getReportFilterOptions(
   projects: Iterable<ReportProject>,
-  clientId: string | null
+  clientIds: readonly string[] = []
 ): ReportFilterOptions {
   const all = [...projects];
   const clients = new Map<string, ReportClient>();
@@ -183,7 +229,7 @@ export function getReportFilterOptions(
         (SPECIAL_CLIENT_ORDER[a.id] ?? 0) - (SPECIAL_CLIENT_ORDER[b.id] ?? 0) || byName(a, b)
     ),
     projects: all
-      .filter((p) => clientId === null || p.client.id === clientId)
+      .filter((p) => clientIds.length === 0 || clientIds.includes(p.client.id))
       .sort((a, b) => byName(a, b) || a.number.localeCompare(b.number)),
   };
 }
