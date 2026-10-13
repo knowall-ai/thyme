@@ -113,7 +113,9 @@ export function toggleFilterValue(values: readonly string[], value: string): str
 
 /**
  * Picks the clients, keeping only the picked projects that are one of theirs (so the
- * project list, narrowed to those clients, always holds the picked projects)
+ * project list, narrowed to those clients, always holds the picked projects). Pass
+ * every loaded project, not just those with time in the period, so a picked project
+ * isn't dropped after switching to a period without time on it.
  */
 export function selectReportClients(
   filter: ReportFilter,
@@ -124,8 +126,9 @@ export function selectReportClients(
     clientIds.length === 0
       ? filter.projectNos
       : filter.projectNos.filter((number) => {
-          const clientId = projects.get(number)?.client.id;
-          return clientId !== undefined && clientIds.includes(clientId);
+          // As matchesReportFilter: a project that isn't known is the Unknown client's
+          const clientId = projects.get(number)?.client.id ?? UNKNOWN_CLIENT.id;
+          return clientIds.includes(clientId);
         });
   return { clientIds: [...clientIds], projectNos };
 }

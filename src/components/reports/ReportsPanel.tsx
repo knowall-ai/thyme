@@ -232,6 +232,18 @@ export function ReportsPanel() {
       ),
     [people, projectsByNumber, projects]
   );
+  // Every loaded project's client, with or without time in this period, so picking
+  // clients never drops a picked project just because the period has no time on it
+  const allReportProjects = useMemo(
+    () =>
+      new Map([
+        ...[...projectsByNumber].map(
+          ([number, project]) => [number, getReportProject(number, project)] as const
+        ),
+        ...reportProjects,
+      ]),
+    [projectsByNumber, reportProjects]
+  );
   const filterOptions = useMemo(
     () => getReportFilterOptions(reportProjects.values(), filter.clientIds),
     [reportProjects, filter.clientIds]
@@ -495,7 +507,7 @@ export function ReportsPanel() {
               };
             })}
             onChange={(clientIds) =>
-              setFilter((current) => selectReportClients(current, clientIds, reportProjects))
+              setFilter((current) => selectReportClients(current, clientIds, allReportProjects))
             }
             isLoading={isLoading && reportProjects.size === 0}
             emptyMessage="No client time in this period"

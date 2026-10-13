@@ -454,6 +454,27 @@ describe('ReportsPanel client and project filters', () => {
     expect(screen.getByTestId('export-entries')).toHaveTextContent(/^R1-x0$/);
   });
 
+  it('keeps a picked project when adding a client in a period without time on it', async () => {
+    render(<ReportsPanel />);
+    await screen.findByRole('table');
+    pick('Client', /Fabrikam/);
+    pick('Project', /Fabrikam Rollout/);
+    expect(screen.getByRole('button', { name: 'Project: Fabrikam Rollout' })).toBeInTheDocument();
+
+    // Last month has no time on Fabrikam Rollout
+    extra = { R2: [{ projectId: 'PR-FABRIKAM-2', hours: 3, billable: true, stage: 'posted' }] };
+    const loads = loadTeamHours.mock.calls.length;
+    fireEvent.change(screen.getByLabelText('Period'), { target: { value: 'lastMonth' } });
+    await waitFor(() => expect(loadTeamHours.mock.calls.length).toBeGreaterThan(loads));
+    await waitFor(() => expect(screen.queryByText('Loading...')).not.toBeInTheDocument());
+
+    // Adding Contoso keeps Fabrikam Rollout picked, so the report doesn't widen to
+    // every project of both clients
+    pick('Client', /Contoso Ltd\./);
+    expect(screen.getByRole('button', { name: 'Project: Fabrikam Rollout' })).toBeInTheDocument();
+    expect(cardValue('Total Hours')).toBe('0m');
+  });
+
   it("shows several people's hours, table and combined target, and one person on a name click", async () => {
     resources = [
       person('R1', 'Alex Contoso'),
