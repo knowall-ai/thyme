@@ -155,6 +155,9 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Reports (All Resources) shows more hours than the Team page for the same week, e.g. one person's time counted several times
 | Fixed in Thyme: older versions looked up each resource's time sheet through its *Time Sheet Owner User ID*, so when one user owns the time sheets of several resources (e.g. AI agents whose time sheets a colleague looks after), that user's own time sheet was counted once per resource. Team and Reports now use the same calculation, matching time sheets to people by resource number. Reload Thyme to get the fix. If the two pages still differ, check that both are showing the same week (Reports' *This Month* covers the whole month).
 
+| Reports: timesheet completion, capacity and billable targets disappear after picking a client or project, or a project is listed under "Internal" or "Unknown client"
+| By design: with a client or project filter, Reports shows only the time on that client or project, and completion, capacity and targets cover all of each person's time, so comparing them with one client's hours would be misleading. Choose *Clear filters* to see them again. A project's client is its *Bill-to Customer* in BC; internal projects (see "Internal time shows as billable" above) are grouped under *Internal*. *Unknown client* means Thyme couldn't load that project from BC (see "Billable figures may be too high" above).
+
 | "Poppie's recommendation" never appears on the Approvals or Time page
 | The panel only shows when the Thyme BC Extension has the `timesheetReviews` and `timesheetReviewLines` API pages; on an older extension Thyme hides it (the browser console shows "timesheetReviews endpoint not found"). Update the extension in BC. If the panel says "Awaiting Poppie's review…" for more than about 10 minutes, check that Poppie's review job is running and can reach the company: Thyme only reads reviews, it doesn't create them.
 

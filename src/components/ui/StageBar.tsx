@@ -17,10 +17,13 @@ export function getStageSegments(stages: Omit<StageHours, 'total'>): StageSegmen
   ];
 }
 
-/** Hours by stage as text, e.g. "Posted 4.0h · Approved 2.0h · …", for tooltips and screen readers */
-export function getStageSummary(stages: Omit<StageHours, 'total'>): string {
+/** Hours by stage in words, for a tooltip or screen readers, e.g. "Posted 1.0h · ..." */
+export function getStageSummary(
+  stages: Omit<StageHours, 'total'>,
+  formatHours: (hours: number) => string = (hours) => `${hours.toFixed(1)}h`
+): string {
   return getStageSegments(stages)
-    .map((seg) => `${seg.label} ${seg.hours.toFixed(1)}h`)
+    .map((seg) => `${seg.label} ${formatHours(seg.hours)}`)
     .join(' · ');
 }
 

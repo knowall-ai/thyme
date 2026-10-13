@@ -8,7 +8,7 @@ import {
   PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 import { BillableTargetBadge } from '@/components/targets';
-import { Card, GitHubIcon, StageBar, getStageSegments } from '@/components/ui';
+import { Card, GitHubIcon, StageBar, getStageSegments, getStageSummary } from '@/components/ui';
 import { bcClient } from '@/services/bc';
 import {
   cn,
@@ -111,12 +111,6 @@ const getCompletionStatus = (completion: number): string => {
   return 'incomplete - needs attention';
 };
 
-// Stage breakdown for a member's Hours cell (tooltip and screen readers)
-const getStageSummary = (stages: StageHours): string =>
-  getStageSegments(stages)
-    .map((seg) => `${seg.label} ${seg.hours.toFixed(1)}h`)
-    .join(' · ');
-
 // Get billable status text for accessibility
 const getBillableStatus = (billablePercent: number): string => {
   if (billablePercent >= teamConfig.billable.thresholds.high) {
@@ -131,6 +125,12 @@ export interface TeamTableProps {
   rows: TeamTableRow[];
   /** Show billable % against each person's target, and the gap column */
   targetsEnabled: boolean;
+  /**
+   * Show the timesheet completion and capacity columns (default true). Off when the
+   * hours are only part of each person's time (e.g. one client's), as comparing them
+   * with all their capacity would mislead
+   */
+  showCapacity?: boolean;
   /** Show GitHub usernames under names (Thyme BC Extension 1.21+) */
   showGitHub?: boolean;
   /** The company's name, for links to each resource in BC */
@@ -161,6 +161,7 @@ export interface TeamTableProps {
 export function TeamTable({
   rows,
   targetsEnabled,
+  showCapacity = true,
   showGitHub = false,
   companyName,
   describeCapacity = (row) => describeWeeklyCapacity(row.weekly),
@@ -173,7 +174,12 @@ export function TeamTable({
   onSortChange,
 }: TeamTableProps) {
   const [ownSort, setOwnSort] = useState<TeamTableSort>(DEFAULT_TEAM_TABLE_SORT);
-  const { field: sortField, direction: sortDirection } = controlledSort ?? ownSort;
+  const activeSort = controlledSort ?? ownSort;
+  // A hidden column can't be the sort: fall back to the default until it's shown again
+  const { field: sortField, direction: sortDirection } =
+    !showCapacity && (activeSort.field === 'completion' || activeSort.field === 'capacity')
+      ? DEFAULT_TEAM_TABLE_SORT
+      : activeSort;
   const setSort = (next: TeamTableSort) => {
     setOwnSort(next);
     onSortChange?.(next);
@@ -255,10 +261,11 @@ export function TeamTable({
               {sortHeader('name', 'Employee', { align: 'left' })}
               {sortHeader('code', 'Code', { align: 'left' })}
               {sortHeader('totalHours', 'Hours')}
-              {sortHeader('completion', 'Timesheet completion', {
-                title: TIMESHEET_COMPLETION_DESCRIPTION,
-              })}
-              {sortHeader('capacity', 'Capacity')}
+              {showCapacity &&
+                sortHeader('completion', 'Timesheet completion', {
+                  title: TIMESHEET_COMPLETION_DESCRIPTION,
+                })}
+              {showCapacity && sortHeader('capacity', 'Capacity')}
               {sortHeader(
                 'billablePercent',
                 targetsEnabled ? 'Billable % / target' : 'Billable %',
@@ -371,57 +378,64 @@ export function TeamTable({
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-3">
-                  {member.completion === null ? (
-                    <div className="text-dark-400 text-right text-sm" title="Not counted">
-                      –
-                    </div>
-                  ) : (
-                    <div
-                      className="flex flex-col items-end gap-1"
-                      role="meter"
-                      aria-valuenow={member.completion}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-label={`Timesheet completion ${member.completion.toFixed(0)}% - ${getCompletionStatus(member.completion)}`}
-                      title={`${member.totalHours.toFixed(1)}h logged of ${member.capacity.toFixed(1)}h capacity`}
-                    >
-                      <span className="text-dark-100 text-sm font-medium">
-                        {member.completion.toFixed(0)}%
-                      </span>
-                      <div className="bg-dark-700 h-4 w-24 overflow-hidden rounded">
+                {showCapacity && (
+                  <>
+                    <td className="px-4 py-3">
+                      {member.completion === null ? (
+                        <div className="text-dark-400 text-right text-sm" title="Not counted">
+                          –
+                        </div>
+                      ) : (
                         <div
-                          className={cn('h-full', getTimesheetCompletionColor(member.completion))}
-                          style={{ width: `${Math.min(member.completion, 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </td>
-                <td className="text-dark-300 px-4 py-3 text-right">
-                  <div
-                    className="flex items-center justify-end gap-1"
-                    title={describeCapacity(member)}
-                  >
-                    {member.weekly.flexible && (
-                      <span className="bg-dark-700 text-dark-300 rounded px-1.5 py-0.5 text-xs">
-                        flexible
-                      </span>
-                    )}
-                    <span className="tabular-nums">{member.capacity.toFixed(1)}</span>
-                    {onEditCapacity && (
-                      <button
-                        type="button"
-                        onClick={() => onEditCapacity(member)}
-                        className="text-dark-400 hover:text-knowall-green rounded p-1"
-                        title="Edit weekly capacity"
-                        aria-label={`Edit weekly capacity for ${member.name}`}
+                          className="flex flex-col items-end gap-1"
+                          role="meter"
+                          aria-valuenow={member.completion}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-label={`Timesheet completion ${member.completion.toFixed(0)}% - ${getCompletionStatus(member.completion)}`}
+                          title={`${member.totalHours.toFixed(1)}h logged of ${member.capacity.toFixed(1)}h capacity`}
+                        >
+                          <span className="text-dark-100 text-sm font-medium">
+                            {member.completion.toFixed(0)}%
+                          </span>
+                          <div className="bg-dark-700 h-4 w-24 overflow-hidden rounded">
+                            <div
+                              className={cn(
+                                'h-full',
+                                getTimesheetCompletionColor(member.completion)
+                              )}
+                              style={{ width: `${Math.min(member.completion, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </td>
+                    <td className="text-dark-300 px-4 py-3 text-right">
+                      <div
+                        className="flex items-center justify-end gap-1"
+                        title={describeCapacity(member)}
                       >
-                        <PencilSquareIcon className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                </td>
+                        {member.weekly.flexible && (
+                          <span className="bg-dark-700 text-dark-300 rounded px-1.5 py-0.5 text-xs">
+                            flexible
+                          </span>
+                        )}
+                        <span className="tabular-nums">{member.capacity.toFixed(1)}</span>
+                        {onEditCapacity && (
+                          <button
+                            type="button"
+                            onClick={() => onEditCapacity(member)}
+                            className="text-dark-400 hover:text-knowall-green rounded p-1"
+                            title="Edit weekly capacity"
+                            aria-label={`Edit weekly capacity for ${member.name}`}
+                          >
+                            <PencilSquareIcon className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </>
+                )}
                 <td className="px-4 py-3 text-right">
                   {member.weekly.excluded ? (
                     <span className="text-dark-400 text-sm">

@@ -18,6 +18,14 @@ export interface TimesheetData {
   details: BCTimeSheetDetail[];
 }
 
+/**
+ * A time sheet detail as a time entry, with its hours by stage (worked out by
+ * getStageHours, as for the person's totals). `stages.total` is the entry's hours.
+ */
+export interface StagedTimeEntry extends TimeEntry {
+  stages: StageHours;
+}
+
 /** A person's hours for a period */
 export interface PersonHours {
   resource: BCResource;
@@ -28,8 +36,11 @@ export interface PersonHours {
   /** Project time by stage; `stages.total` is all their hours */
   stages: StageHours;
   billableHours: number;
-  /** One entry per time sheet detail, for breakdowns by project or day and exports */
-  entries: TimeEntry[];
+  /**
+   * One entry per time sheet detail, for breakdowns by project or day and exports.
+   * Their stages add up to `stages`, so filtered entries give filtered totals.
+   */
+  entries: StagedTimeEntry[];
 }
 
 /** Dates are compared as YYYY-MM-DD strings, inclusive */
@@ -51,7 +62,7 @@ export function getPersonHours(
 ): PersonHours {
   let stages = emptyStageHours();
   let billableHours = 0;
-  const entries: TimeEntry[] = [];
+  const entries: StagedTimeEntry[] = [];
 
   for (const { lines, details } of timesheets) {
     const inRange = details.filter(
@@ -82,6 +93,8 @@ export function getPersonHours(
         bcTimeSheetNo: line.timeSheetNo,
         bcTimeSheetLineNo: line.lineNo,
         lineStatus: line.status,
+        // The same stage rules as the totals above, for just this day's hours
+        stages: getStageHours([line], [detail]),
       });
     }
   }

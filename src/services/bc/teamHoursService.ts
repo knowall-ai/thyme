@@ -9,7 +9,7 @@ import {
   resolveWeeklyCapacity,
 } from '@/utils';
 import type { PersonHours, TimesheetData } from '@/utils';
-import type { BCTimeSheet } from '@/types';
+import type { BCProject, BCTimeSheet } from '@/types';
 
 export interface TeamHours {
   /** The people on the team (isTeamMember), with their hours for the period */
@@ -19,6 +19,11 @@ export interface TeamHours {
    * counts as billable unless its line is marked not chargeable
    */
   projectsUnavailable: boolean;
+  /**
+   * The projects loaded to decide billable time, by project number (empty when they
+   * couldn't be loaded): their names and bill-to customers, e.g. for Reports' filters
+   */
+  projectsByNumber: ReadonlyMap<string, BCProject>;
 }
 
 /**
@@ -80,5 +85,9 @@ export async function loadTeamHours(from: Date, to: Date): Promise<TeamHours> {
     };
   });
 
-  return { people: peopleHours, projectsUnavailable: projectsByNumber === null };
+  return {
+    people: peopleHours,
+    projectsUnavailable: projectsByNumber === null,
+    projectsByNumber: projectsByNumber ?? new Map(),
+  };
 }

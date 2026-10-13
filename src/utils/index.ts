@@ -19,3 +19,4 @@ export * from './planScope';
 export * from './currency';
 export * from './teamHours';
 export * from './reportPeriod';
+export * from './reportFilters';
