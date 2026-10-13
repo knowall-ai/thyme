@@ -480,6 +480,9 @@ function ProjectRow({
     !isInternal && hours !== undefined
       ? getPercentOfEstimate(hours, project.estimateHours ?? 0)
       : undefined;
+  // Over the estimate by the actual hours, not the rounded % (100.4h of 100h is over)
+  const overEstimate =
+    percentUsed !== undefined && hours !== undefined && hours > (project.estimateHours ?? 0);
   const stageSummary = stages && stages.total > 0 ? getStageSummary(stages) : undefined;
 
   const dates = describeProjectDates(
@@ -574,11 +577,7 @@ function ProjectRow({
       {/* Spent column: hours by stage, against the estimate as on the project page */}
       <td className="px-4 py-3">
         <div className="flex flex-col items-end gap-1" title={stageSummary}>
-          <span
-            className={cn(
-              percentUsed !== undefined && percentUsed > 100 ? 'text-red-400' : 'text-white'
-            )}
-          >
+          <span className={cn(overEstimate ? 'text-red-400' : 'text-white')}>
             {hours !== undefined ? `${hours.toFixed(1)}h` : '-'}
           </span>
           {stages && stageSummary && (
