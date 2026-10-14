@@ -237,6 +237,34 @@ describe('usePlanReviewStore', () => {
     expect(usePlanReviewStore.getState().changes[1]).toEqual([]);
   });
 
+  it('keeps a request made while an older refresh was in flight', async () => {
+    bc.getPlanReviews.mockResolvedValue([]);
+    let answerRequests: (value: unknown[]) => void = () => {};
+    bc.getPlanReviewRequests.mockImplementationOnce(
+      () => new Promise((resolve) => (answerRequests = resolve))
+    );
+    const refresh = usePlanReviewStore.getState().load(scope);
+    await vi.waitFor(() => expect(bc.getPlanReviewRequests).toHaveBeenCalled());
+
+    // Asked for a review while the refresh waits on BC
+    bc.createPlanReviewRequest.mockResolvedValue({
+      id: 'q1',
+      entryNo: 1,
+      subjectType: 'Resource',
+      subjectNo: 'R0010',
+      weekStart: '2026-10-19',
+      status: 'Requested',
+      progress: '',
+      errorMessage: '',
+    });
+    await usePlanReviewStore.getState().requestReview('Resource', 'R0010', '2026-10-19');
+
+    // The refresh's answer predates the request: it mustn't drop it
+    answerRequests([]);
+    await refresh;
+    expect(usePlanReviewStore.getState().requests[KEY]?.status).toBe('Requested');
+  });
+
   it('turns a refused request into a message to show', async () => {
     bc.createPlanReviewRequest.mockRejectedValue(new Error('BC API Error (403): not allowed'));
     bc.getPlanReviewRequests.mockResolvedValue([]);
@@ -281,6 +309,16 @@ describe('usePlanReviewStore', () => {
       bc.applyPlanReviewFinding.mockRejectedValue(new Error('BC API Error (400): nope'));
       await expect(usePlanReviewStore.getState().applyFinding(finding)).rejects.toThrow();
       expect(usePlanReviewStore.getState().lines[1][0].appliedAt).toBe('');
+    });
+
+    it('reports a company switch during the read of the stamp after applying', async () => {
+      bc.applyPlanReviewFinding.mockResolvedValue(undefined);
+      bc.getPlanReviewLines.mockImplementation(async () => {
+        bc.companyId = 'c2';
+        return [{ ...finding, appliedAt: '2026-10-22T13:05:00Z', appliedBy: 'Alex Contoso' }];
+      });
+      const result = await usePlanReviewStore.getState().applyFinding(finding);
+      expect(result).toEqual({ companyChanged: true });
     });
 
     it("doesn't show the result in another company after a switch", async () => {

@@ -66,6 +66,12 @@ interface PlanReviewStore {
 // Bumped on reset (company switch) so late responses from before it are dropped
 let generation = 0;
 
+// When each subject-week's request was last set by requestReview, on a running count. A load
+// leaves alone the requests set after it started: its older answer would otherwise drop a
+// request just made (and stop the fast polling that follows it).
+let requestSeq = 0;
+let requestSetAt = new Map<string, number>();
+
 /**
  * The company (environment + id) bcClient talks to, and the switch count. Captured when a
  * request starts, so a result that arrives after a company switch isn't shown in the other
@@ -93,6 +99,8 @@ export const usePlanReviewStore = create<PlanReviewStore>((set, get) => ({
     const loadGeneration = generation;
     const isStale = () => loadGeneration !== generation;
     const { subjectType, subjectNos, weekStarts } = scope;
+    const loadStartedAt = requestSeq;
+    const setSinceLoadStarted = (key: string) => (requestSetAt.get(key) ?? -1) > loadStartedAt;
 
     // The latest reviews and their findings; false when the endpoints don't exist
     const fetchReviews = async (): Promise<Record<string, BCPlanReview> | false | null> => {
@@ -175,6 +183,7 @@ export const usePlanReviewStore = create<PlanReviewStore>((set, get) => ({
       set((state) => {
         const requests = { ...state.requests };
         for (const key of keys) {
+          if (setSinceLoadStarted(key)) continue;
           const open = openByKey.get(key);
           if (open) {
             requests[key] = open;
@@ -185,7 +194,7 @@ export const usePlanReviewStore = create<PlanReviewStore>((set, get) => ({
         // A failed request stays to say why; a done one gives way to its review
         for (const request of ended) {
           const key = planReviewKey(request.subjectType, request.subjectNo, request.weekStart);
-          if (openByKey.has(key)) continue;
+          if (openByKey.has(key) || setSinceLoadStarted(key)) continue;
           if (request.status === 'Failed') requests[key] = request;
           else delete requests[key];
         }
@@ -241,6 +250,7 @@ export const usePlanReviewStore = create<PlanReviewStore>((set, get) => ({
       const created = await bcClient.createPlanReviewRequest(subjectType, subjectNo, weekStart);
       // Made in the company it was asked in; the other company's view mustn't show it
       if (!isCurrent()) return;
+      requestSetAt.set(key, ++requestSeq);
       set((state) => ({ requests: { ...state.requests, [key]: created } }));
     } catch (error) {
       if (!isCurrent()) return;
@@ -251,6 +261,7 @@ export const usePlanReviewStore = create<PlanReviewStore>((set, get) => ({
       if (!isCurrent()) return;
       const existing = open?.find(isOpenPlanReviewRequest);
       if (existing) {
+        requestSetAt.set(key, ++requestSeq);
         set((state) => ({ requests: { ...state.requests, [key]: existing } }));
         return;
       }
@@ -286,11 +297,14 @@ export const usePlanReviewStore = create<PlanReviewStore>((set, get) => ({
     } catch {
       // The local stamp will do until the next load
     }
-    return { companyChanged: false };
+    // The company may have switched while the stamp was read: then the caller mustn't toast
+    // success or refresh the grid (that would be the other company's)
+    return { companyChanged: !isCurrent() };
   },
 
   reset: () => {
     generation += 1;
+    requestSetAt = new Map();
     set({ available: null, reviews: {}, loaded: {}, requests: {}, lines: {}, changes: {} });
   },
 }));
