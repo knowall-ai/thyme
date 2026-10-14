@@ -26,6 +26,11 @@ import type {
   BCAgentHeartbeat,
   BCDayNote,
   BCDayNoteInput,
+  BCPlanReview,
+  BCPlanReviewChange,
+  BCPlanReviewLine,
+  BCPlanReviewRequest,
+  PlanReviewSubjectType,
   BCTimesheetReview,
   BCTimesheetReviewLine,
   TimeSheetStatus,
@@ -38,6 +43,11 @@ import {
   isCompanyName,
   normalizeDayNote,
   validateDayNoteInput,
+  normalizePlanReview,
+  normalizePlanReviewChange,
+  normalizePlanReviewLine,
+  normalizePlanReviewRequest,
+  PLAN_REVIEW_PENDING_HASH,
 } from '@/utils';
 
 const BC_BASE_URL =
@@ -75,6 +85,17 @@ function narrowEnum<T extends string>(decoded: string, allowed: readonly T[], fa
 // filter result is a 200 with no rows), i.e. the extension is missing or too old
 function isEndpointMissing(error: unknown): boolean {
   return error instanceof Error && error.message.startsWith('BC API Error (404)');
+}
+
+// Subjects per plan-review request, keeping the OR-filter URL well under BC's length limit
+const PLAN_REVIEW_BATCH_SIZE = 15;
+
+const PLAN_REVIEW_SUBJECT_TYPES: readonly PlanReviewSubjectType[] = ['Resource', 'Project'];
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
 }
 
 // Available environments to query
@@ -1669,6 +1690,217 @@ class BusinessCentralClient {
       method: 'DELETE',
       headers: { 'If-Match': requireETag(etag, 'day note') },
     });
+  }
+
+  // ============================================
+  // Plan reviews (Poppie's review of a person's or a project's week on the Plan)
+  // ============================================
+
+  /**
+   * The OData filter for some subjects' plan reviews (or requests) in a range of weeks.
+   * Null when there's nothing to ask for.
+   */
+  private planReviewFilter(
+    subjectType: PlanReviewSubjectType,
+    subjectNos: string[],
+    weekStarts: string[]
+  ): string | null {
+    if (!PLAN_REVIEW_SUBJECT_TYPES.includes(subjectType)) {
+      throw new Error('BC API: invalid plan review subject type');
+    }
+    const weeks = [...new Set(weekStarts.map((week) => this.sanitizeDateInput(week)))].sort();
+    const subjects = subjectNos
+      .filter(Boolean)
+      .map((no) => `subjectNo eq '${this.sanitizeODataString(no)}'`);
+    if (weeks.length === 0 || subjects.length === 0) return null;
+    return `subjectType eq '${subjectType}' and weekStart ge ${weeks[0]} and weekStart le ${weeks[weeks.length - 1]} and (${subjects.join(' or ')})`;
+  }
+
+  /**
+   * Fetch one plan-review entity set for some subjects and weeks, in batches of subjects.
+   * Returns undefined when the extension has no such endpoint (404, not updated yet) or
+   * isn't installed, so callers can hide the feature.
+   */
+  private async fetchPlanReviewSet<T>(
+    entitySet: 'planReviews' | 'planReviewRequests',
+    subjectType: PlanReviewSubjectType,
+    subjectNos: string[],
+    weekStarts: string[],
+    extraFilter?: string
+  ): Promise<T[] | undefined> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) return undefined;
+    const unique = [...new Set(subjectNos.filter(Boolean))];
+    try {
+      const batches = await Promise.all(
+        chunk(unique, PLAN_REVIEW_BATCH_SIZE).map((batch) => {
+          const filter = this.planReviewFilter(subjectType, batch, weekStarts);
+          if (!filter) return Promise.resolve([] as T[]);
+          const fullFilter = extraFilter ? `${filter} and ${extraFilter}` : filter;
+          return this.customApiFetchAll<T>(
+            `/${entitySet}?$filter=${encodeURIComponent(fullFilter)}`
+          );
+        })
+      );
+      return batches.flat();
+    } catch (error) {
+      if (isEndpointMissing(error)) return undefined;
+      throw error;
+    }
+  }
+
+  /**
+   * Poppie's plan reviews for some subjects (people or projects) in a set of weeks (their
+   * Mondays, YYYY-MM-DD), newest first. Headers she is still writing (plan hash PENDING) are
+   * left out. Undefined when the extension has no planReviews API yet.
+   */
+  async getPlanReviews(
+    subjectType: PlanReviewSubjectType,
+    subjectNos: string[],
+    weekStarts: string[]
+  ): Promise<BCPlanReview[] | undefined> {
+    const raw = await this.fetchPlanReviewSet<BCPlanReview>(
+      'planReviews',
+      subjectType,
+      subjectNos,
+      weekStarts
+    );
+    if (raw === undefined) return undefined;
+    const weeks = new Set(weekStarts);
+    return raw
+      .map(normalizePlanReview)
+      .filter((review) => review.planHash && review.planHash !== PLAN_REVIEW_PENDING_HASH)
+      .filter((review) => weeks.has(review.weekStart))
+      .sort(
+        (a, b) =>
+          (Date.parse(b.reviewedAt) || 0) - (Date.parse(a.reviewedAt) || 0) || b.entryNo - a.entryNo
+      );
+  }
+
+  /** The entries' findings, in line order. Undefined when there's no planReviewLines API. */
+  async getPlanReviewLines(reviewEntryNos: number[]): Promise<BCPlanReviewLine[] | undefined> {
+    const raw = await this.fetchPlanReviewChildren<BCPlanReviewLine>(
+      'planReviewLines',
+      reviewEntryNos
+    );
+    return raw
+      ?.map(normalizePlanReviewLine)
+      .sort((a, b) => a.reviewEntryNo - b.reviewEntryNo || a.lineNo - b.lineNo);
+  }
+
+  /** The entries' proposed changes. Undefined when there's no planReviewChanges API. */
+  async getPlanReviewChanges(reviewEntryNos: number[]): Promise<BCPlanReviewChange[] | undefined> {
+    const raw = await this.fetchPlanReviewChildren<BCPlanReviewChange>(
+      'planReviewChanges',
+      reviewEntryNos
+    );
+    return raw
+      ?.map(normalizePlanReviewChange)
+      .sort(
+        (a, b) =>
+          a.reviewEntryNo - b.reviewEntryNo ||
+          a.reviewLineNo - b.reviewLineNo ||
+          a.changeNo - b.changeNo
+      );
+  }
+
+  private async fetchPlanReviewChildren<T>(
+    entitySet: 'planReviewLines' | 'planReviewChanges',
+    reviewEntryNos: number[]
+  ): Promise<T[] | undefined> {
+    const entryNos = [...new Set(reviewEntryNos.filter((no) => Number.isInteger(no)))];
+    if (entryNos.length === 0) return [];
+    try {
+      const batches = await Promise.all(
+        chunk(entryNos, PLAN_REVIEW_BATCH_SIZE).map((batch) => {
+          const filter = batch.map((no) => `reviewEntryNo eq ${no}`).join(' or ');
+          return this.customApiFetchAll<T>(`/${entitySet}?$filter=${encodeURIComponent(filter)}`);
+        })
+      );
+      return batches.flat();
+    } catch (error) {
+      if (isEndpointMissing(error)) return undefined;
+      throw error;
+    }
+  }
+
+  /**
+   * Open (Requested or Running) review requests for some subjects in a set of weeks.
+   * Undefined when the extension has no planReviewRequests API yet.
+   */
+  async getPlanReviewRequests(
+    subjectType: PlanReviewSubjectType,
+    subjectNos: string[],
+    weekStarts: string[]
+  ): Promise<BCPlanReviewRequest[] | undefined> {
+    const raw = await this.fetchPlanReviewSet<BCPlanReviewRequest>(
+      'planReviewRequests',
+      subjectType,
+      subjectNos,
+      weekStarts,
+      "(status eq 'Requested' or status eq 'Running')"
+    );
+    if (raw === undefined) return undefined;
+    const weeks = new Set(weekStarts);
+    return raw.map(normalizePlanReviewRequest).filter((request) => weeks.has(request.weekStart));
+  }
+
+  /** Re-read one plan review request (to see how a request that's no longer open ended) */
+  async getPlanReviewRequest(id: string): Promise<BCPlanReviewRequest> {
+    const raw = await this.customApiFetch<BCPlanReviewRequest>(
+      `/planReviewRequests(${requireSystemId(id, 'plan review request')})`
+    );
+    return normalizePlanReviewRequest(raw);
+  }
+
+  /**
+   * Ask Poppie to (re-)review a subject-week. BC checks the caller may change plans and
+   * rejects a second open request for the same subject-week.
+   */
+  async createPlanReviewRequest(
+    subjectType: PlanReviewSubjectType,
+    subjectNo: string,
+    weekStart: string
+  ): Promise<BCPlanReviewRequest> {
+    if (!PLAN_REVIEW_SUBJECT_TYPES.includes(subjectType)) {
+      throw new Error('BC API: invalid plan review subject type');
+    }
+    const created = await this.customApiFetch<BCPlanReviewRequest>('/planReviewRequests', {
+      method: 'POST',
+      body: JSON.stringify({
+        subjectType,
+        subjectNo,
+        weekStart: this.sanitizeDateInput(weekStart),
+      }),
+    });
+    return normalizePlanReviewRequest(created);
+  }
+
+  /**
+   * Apply a plan-review finding's changes. BC checks the caller may change the plan,
+   * re-checks every cell (empty or a single Budget line, still holding the hours Poppie saw)
+   * and writes them all in one transaction, so it's all or nothing. Its refusals come back as
+   * errors with BC's message (e.g. "The plan changed since Poppie looked. Ask her to
+   * re-review."): show them with bcErrorText.
+   *
+   * The company URL is taken once, when this is called, so a company switch while it runs
+   * can't send it elsewhere.
+   * @throws Error "Update the Thyme BC Extension to apply changes" when the action is missing
+   */
+  async applyPlanReviewFinding(findingId: string): Promise<void> {
+    const baseUrl = this.customApiBaseUrl;
+    try {
+      await this.customApiFetch<void>(
+        `/planReviewLines(${requireSystemId(findingId, 'plan review finding')})/Microsoft.NAV.applyChanges`,
+        { method: 'POST' },
+        baseUrl
+      );
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('BC API Error (404)')) {
+        throw new Error('Update the Thyme BC Extension to apply changes');
+      }
+      throw error;
+    }
   }
 
   /** Re-read one suggestion request (progress polling). */

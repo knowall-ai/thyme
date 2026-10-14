@@ -44,6 +44,8 @@ vi.mock('@/services/bc', () => ({
     getJobPlanningLines: vi.fn(async () => [planningLine('PR001', 'RES02', 1, 6)]),
     getResourceUnitsOfMeasure: vi.fn(async () => []),
     getTimeSheets: vi.fn(async () => []),
+    // No planReviews API: Poppie's plan reviews stay hidden
+    getPlanReviews: vi.fn(async () => undefined),
     getDayNotes: vi.fn(async () => [
       {
         id: 'n1',

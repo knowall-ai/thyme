@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   MagnifyingGlassIcon,
@@ -27,7 +27,19 @@ import {
   useNoProjectWorkClass,
   type DayNotesContextValue,
 } from './DayNotes';
-import { usePlanStore, useDayNotesStore } from '@/hooks';
+import {
+  PlanReviewDayMarker,
+  PlanReviewProvider,
+  PlanReviewWeekChip,
+  type PlanReviewContextValue,
+} from './PlanReview';
+import {
+  usePlanStore,
+  useDayNotesStore,
+  usePlanReviewStore,
+  usePlanReviews,
+  type PlanReviewScope,
+} from '@/hooks';
 import { useCompanyStore } from '@/hooks';
 import { useAuth, resolveResourceIdentity } from '@/services/auth';
 import { ExtensionNotInstalledError } from '@/services/bc';
@@ -45,11 +57,18 @@ import {
   buildDayNotesIndex,
   canEditPlan,
   getNoProjectWorkReason,
+  computePlanHash,
+  getPlanReviewStatus,
+  planHashEntriesForSubjectWeek,
+  planReviewKey,
+  planCellManualReason,
   DAILY_CAPACITY_HOURS,
   type CapacityFlag,
   type PlanJobTask,
 } from '@/utils';
 import type { AllocationBlock, PlanTeamMember, PlanProject, ViewMode } from '@/hooks/usePlanStore';
+import type { BCPlanReviewChange, PlanReviewSubjectType } from '@/types';
+import type { PlanReviewSubjectWeek } from '@/utils';
 import {
   addWeeks,
   eachDayOfInterval,
@@ -60,6 +79,7 @@ import {
   isSameDay,
   isToday,
   isWeekend,
+  parseISO,
 } from 'date-fns';
 
 // Red ring on hour cells where a resource's total across all projects exceeds daily capacity
@@ -321,6 +341,7 @@ function ResourceRow({
                       onDrop={(e) => handleDrop(e, day)}
                     >
                       <PersonDayNoteMarker resourceNumber={member.number} date={dayStr} />
+                      <PlanReviewDayMarker subjectNo={member.number} date={dayStr} />
                       {/* Daily hours indicator - full width cell, clickable to expand */}
                       {dayHours > 0 && (
                         <div
@@ -1365,6 +1386,7 @@ function ProjectRow({
                       dayIsToday && 'bg-knowall-green/5'
                     )}
                   >
+                    <PlanReviewDayMarker subjectNo={project.number} date={dayStr} />
                     {/* Daily hours indicator - full width cell */}
                     {dayHours > 0 && (
                       <div
@@ -1950,6 +1972,210 @@ export function PlanPanel({
     }
   };
 
+  // Poppie's plan reviews: the Team view reviews people's weeks, the Projects view projects'
+  const reviewSubjectType: PlanReviewSubjectType = viewMode === 'team' ? 'Resource' : 'Project';
+  const reviewWeekStarts = useMemo(
+    () => headerWeekGroups.map((group) => format(group.weekStart, 'yyyy-MM-dd')),
+    [headerWeekGroups]
+  );
+  // The people listed, or the projects listed with a plan in view (a project's dialog: its own)
+  const reviewSubjects = useMemo(
+    () =>
+      viewMode === 'team'
+        ? filteredMembers.map((m) => ({ number: m.number, name: m.name }))
+        : filteredProjects
+            .filter((p) => !!projectCode || p.allocations.length > 0)
+            .map((p) => ({ number: p.number, name: p.name })),
+    [viewMode, filteredMembers, filteredProjects, projectCode]
+  );
+  const reviewScope = useMemo<PlanReviewScope | null>(
+    () =>
+      reviewSubjects.length > 0
+        ? {
+            subjectType: reviewSubjectType,
+            subjectNos: reviewSubjects.map((s) => s.number),
+            weekStarts: reviewWeekStarts,
+          }
+        : null,
+    [reviewSubjects, reviewSubjectType, reviewWeekStarts]
+  );
+  usePlanReviews(reviewScope);
+  const {
+    available: reviewsAvailable,
+    reviews: planReviews,
+    requests: planReviewRequests,
+    lines: planReviewLines,
+    changes: planReviewChanges,
+    loadChanges: loadPlanReviewChanges,
+    requestReview,
+    applyFinding: applyReviewFinding,
+  } = usePlanReviewStore();
+
+  // Each reviewed subject-week's plan hash now, from the plan as loaded (before quarter-hour
+  // rounding), to tell whether Poppie's review still describes it
+  const loadedWeeks = cache?.loadedWeeks;
+  const [currentPlanHashes, setCurrentPlanHashes] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (reviewsAvailable !== true || !loadedWeeks) return;
+    let cancelled = false;
+    const wanted: { key: string; subjectNo: string; weekStart: string }[] = [];
+    for (const subject of reviewSubjects) {
+      for (const weekStart of reviewWeekStarts) {
+        const key = planReviewKey(reviewSubjectType, subject.number, weekStart);
+        if (planReviews[key] && loadedWeeks.has(weekStart)) {
+          wanted.push({ key, subjectNo: subject.number, weekStart });
+        }
+      }
+    }
+    void Promise.all(
+      wanted.map(
+        async ({ key, subjectNo, weekStart }) =>
+          [
+            key,
+            await computePlanHash(
+              planHashEntriesForSubjectWeek(
+                loadedWeeks.get(weekStart) ?? [],
+                reviewSubjectType,
+                subjectNo,
+                weekStart
+              )
+            ),
+          ] as const
+      )
+    ).then((entries) => {
+      if (!cancelled) setCurrentPlanHashes(Object.fromEntries(entries));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    reviewsAvailable,
+    loadedWeeks,
+    reviewSubjects,
+    reviewWeekStarts,
+    reviewSubjectType,
+    planReviews,
+  ]);
+
+  // Per week, the subjects in view with a review, a request or a plan
+  const reviewWeeks = useMemo(() => {
+    const weeks = new Map<string, PlanReviewSubjectWeek[]>();
+    for (const weekStart of reviewWeekStarts) {
+      const weekAllocations = loadedWeeks?.get(weekStart) ?? [];
+      const subjects: PlanReviewSubjectWeek[] = [];
+      for (const subject of reviewSubjects) {
+        const key = planReviewKey(reviewSubjectType, subject.number, weekStart);
+        const review = planReviews[key] ?? null;
+        const request = planReviewRequests[key] ?? null;
+        const hasPlan = weekAllocations.some((a) =>
+          reviewSubjectType === 'Resource'
+            ? a.resourceNumber === subject.number
+            : a.projectNumber === subject.number
+        );
+        if (!review && !request && !hasPlan) continue;
+        subjects.push({
+          subjectType: reviewSubjectType,
+          subjectNo: subject.number,
+          name: subject.name,
+          weekStart,
+          review,
+          request,
+          hasPlan,
+          status: getPlanReviewStatus({ review, currentHash: currentPlanHashes[key], request }),
+        });
+      }
+      weeks.set(weekStart, subjects);
+    }
+    return weeks;
+  }, [
+    reviewWeekStarts,
+    loadedWeeks,
+    reviewSubjects,
+    reviewSubjectType,
+    planReviews,
+    planReviewRequests,
+    currentPlanHashes,
+  ]);
+
+  // The grid refreshes after a change is applied, through the usual save path
+  const handlePlanSavedRef = useRef(handlePlanSaved);
+  useEffect(() => {
+    handlePlanSavedRef.current = handlePlanSaved;
+  });
+
+  const planReviewContext = useMemo<PlanReviewContextValue | null>(() => {
+    if (reviewsAvailable !== true) return null;
+    const anyCanEdit = canEditPlan({ resources: planResources, projects: planProjects });
+    const findProject = (jobNo: string) => planProjects?.find((p) => p.number === jobNo);
+    const findResource = (resourceNo: string) =>
+      planResources?.find((r) => r.number === resourceNo);
+    return {
+      subjectType: reviewSubjectType,
+      weeks: reviewWeeks,
+      lines: planReviewLines,
+      changes: planReviewChanges,
+      // The store's own action: stable, so opening a popover loads its changes once
+      loadChanges: loadPlanReviewChanges,
+      // Asking for a review needs permission to change plans (the subject's own flag when BC
+      // gives one)
+      canRequest: (subjectNo) =>
+        (reviewSubjectType === 'Resource'
+          ? findResource(subjectNo)?.canEditPlan
+          : findProject(subjectNo)?.canEditPlan) ?? anyCanEdit,
+      // Applying writes the change's project's planning lines: that project's flag, else the
+      // person's
+      canApply: (change: BCPlanReviewChange) => {
+        const projectFlag = findProject(change.jobNo)?.canEditPlan;
+        if (projectFlag !== undefined) return projectFlag;
+        return findResource(change.resourceNo)?.canEditPlan === true;
+      },
+      projectName: (jobNo) => findProject(jobNo)?.displayName || jobNo,
+      resourceName: (resourceNo) => {
+        const resource = findResource(resourceNo);
+        return resource?.name || resource?.displayName || resourceNo;
+      },
+      onRequest: (subjectNo, weekStart) => requestReview(reviewSubjectType, subjectNo, weekStart),
+      manualReason: (change: BCPlanReviewChange) => {
+        // The cell's lines as loaded (the grid shows lines with hours; Apply re-reads BC)
+        const weekStart = format(
+          startOfWeek(parseISO(change.planningDate), { weekStartsOn: 1 }),
+          'yyyy-MM-dd'
+        );
+        const lines = (loadedWeeks?.get(weekStart) ?? []).filter(
+          (a) =>
+            a.projectNumber === change.jobNo &&
+            (a.taskNumber ?? '') === change.jobTaskNo &&
+            a.resourceNumber === change.resourceNo &&
+            a.startDate.slice(0, 10) === change.planningDate
+        );
+        return planCellManualReason(lines);
+      },
+      onApply: async (finding) => {
+        let companyChanged = false;
+        try {
+          ({ companyChanged } = await applyReviewFinding(finding));
+          return { companyChanged };
+        } finally {
+          // Refresh after any attempt, applied or refused (not after a company switch: the
+          // grid is already loading the other company)
+          if (!companyChanged) await handlePlanSavedRef.current();
+        }
+      },
+    };
+  }, [
+    reviewsAvailable,
+    planResources,
+    planProjects,
+    reviewSubjectType,
+    reviewWeeks,
+    planReviewLines,
+    planReviewChanges,
+    loadPlanReviewChanges,
+    requestReview,
+    applyReviewFinding,
+    loadedWeeks,
+  ]);
+
   const showLoading = isLoading || (!!projectCode && !hasLoaded);
 
   // Error state (only show if not loading)
@@ -1973,344 +2199,365 @@ export function PlanPanel({
 
   // Main content
   const planContent = (
-    <DayNotesProvider value={dayNotesContext}>
-      <div className={cn('space-y-4', isFullscreen && 'flex h-full flex-col')}>
-        {/* Header Row */}
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            {/* View Mode Toggle (not for a single project) */}
-            {!projectCode && (
-              <div className="border-dark-600 flex rounded-lg border">
-                <button
-                  onClick={() => setViewMode('team')}
-                  className={cn(
-                    'flex items-center gap-2 rounded-l-lg px-3 py-1.5 text-sm font-medium transition-colors',
-                    viewMode === 'team'
-                      ? 'bg-knowall-green text-dark-950'
-                      : 'text-dark-400 hover:text-white'
-                  )}
-                >
-                  <UserGroupIcon className="h-4 w-4" />
-                  Team
-                </button>
-                <button
-                  onClick={() => setViewMode('projects')}
-                  className={cn(
-                    'flex items-center gap-2 rounded-r-lg px-3 py-1.5 text-sm font-medium transition-colors',
-                    viewMode === 'projects'
-                      ? 'bg-knowall-green text-dark-950'
-                      : 'text-dark-400 hover:text-white'
-                  )}
-                >
-                  <FolderIcon className="h-4 w-4" />
-                  Projects
-                </button>
-              </div>
-            )}
+    <PlanReviewProvider value={planReviewContext}>
+      <DayNotesProvider value={dayNotesContext}>
+        <div className={cn('space-y-4', isFullscreen && 'flex h-full flex-col')}>
+          {/* Header Row */}
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              {/* View Mode Toggle (not for a single project) */}
+              {!projectCode && (
+                <div className="border-dark-600 flex rounded-lg border">
+                  <button
+                    onClick={() => setViewMode('team')}
+                    className={cn(
+                      'flex items-center gap-2 rounded-l-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                      viewMode === 'team'
+                        ? 'bg-knowall-green text-dark-950'
+                        : 'text-dark-400 hover:text-white'
+                    )}
+                  >
+                    <UserGroupIcon className="h-4 w-4" />
+                    Team
+                  </button>
+                  <button
+                    onClick={() => setViewMode('projects')}
+                    className={cn(
+                      'flex items-center gap-2 rounded-r-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                      viewMode === 'projects'
+                        ? 'bg-knowall-green text-dark-950'
+                        : 'text-dark-400 hover:text-white'
+                    )}
+                  >
+                    <FolderIcon className="h-4 w-4" />
+                    Projects
+                  </button>
+                </div>
+              )}
 
-            {/* Week Navigation */}
-            <WeekNavigation
-              currentWeekStart={currentWeekStart}
-              onPrevious={handlePrevious}
-              onNext={handleNext}
-              onToday={handleToday}
-              onDateSelect={(date) => goToWeek(startOfWeek(date, { weekStartsOn: 1 }))}
-              weeksToShow={effectiveWeeksToShow}
-              alwaysShowToday
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Search */}
-            <div className="relative">
-              <MagnifyingGlassIcon className="text-dark-400 absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder={projectCode ? 'Search people or tasks...' : 'Search...'}
-                aria-label={projectCode ? 'Search people or tasks' : 'Search'}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="border-dark-600 bg-dark-800 text-dark-100 placeholder:text-dark-500 focus:border-knowall-green w-48 rounded-lg border py-1.5 pr-3 pl-9 text-sm focus:ring-1 focus:outline-none"
+              {/* Week Navigation */}
+              <WeekNavigation
+                currentWeekStart={currentWeekStart}
+                onPrevious={handlePrevious}
+                onNext={handleNext}
+                onToday={handleToday}
+                onDateSelect={(date) => goToWeek(startOfWeek(date, { weekStartsOn: 1 }))}
+                weeksToShow={effectiveWeeksToShow}
+                alwaysShowToday
               />
             </div>
 
-            {/* Fullscreen Toggle */}
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setIsFullscreen(!isFullscreen)}
-              title={
-                isFullscreen
-                  ? isFullscreenHosted
-                    ? 'Exit fullscreen'
-                    : 'Exit fullscreen (Esc)'
-                  : 'Fullscreen'
-              }
-              aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-              aria-pressed={isFullscreen}
-            >
-              {isFullscreen ? (
-                <ArrowsPointingInIcon className="h-5 w-5" />
-              ) : (
-                <ArrowsPointingOutIcon className="h-5 w-5" />
-              )}
-            </Button>
-          </div>
-        </div>
+            <div className="flex items-center gap-2">
+              {/* Search */}
+              <div className="relative">
+                <MagnifyingGlassIcon className="text-dark-400 absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder={projectCode ? 'Search people or tasks...' : 'Search...'}
+                  aria-label={projectCode ? 'Search people or tasks' : 'Search'}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="border-dark-600 bg-dark-800 text-dark-100 placeholder:text-dark-500 focus:border-knowall-green w-48 rounded-lg border py-1.5 pr-3 pl-9 text-sm focus:ring-1 focus:outline-none"
+                />
+              </div>
 
-        {/* Calendar Grid */}
-        <Card
-          variant="bordered"
-          className={cn('overflow-hidden', isFullscreen && 'flex flex-1 flex-col')}
-        >
-          {/* Header with week numbers and dates */}
-          <div className="border-dark-700 bg-dark-800/50 flex w-full flex-col border-b">
-            {/* Week numbers row */}
-            <div className="flex w-full">
-              {/* Sticky name column header spacer */}
-              <div className="bg-dark-800/50 sticky left-0 z-10 flex shrink-0">
-                <div className="w-[230px] shrink-0" />
-              </div>
-              <div className="flex flex-1">
-                {headerWeekGroups.map((weekGroup, index) => (
-                  <div
-                    key={weekGroup.weekStart.toISOString()}
-                    className={cn(
-                      'border-dark-700 relative flex flex-1 items-center justify-center border-l py-1',
-                      index > 0 && 'border-l-2'
-                    )}
-                  >
-                    {/* Month at top left */}
-                    <span className="text-dark-500 absolute left-1 text-[10px]">
-                      {weekGroup.month}
-                    </span>
-                    {/* Week number centered */}
-                    <span className="text-dark-300 text-xs font-medium">
-                      {weekGroup.weekNumber}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="text-dark-500 flex w-16 shrink-0 items-center justify-end px-2 text-[10px]">
-                Total
-              </div>
+              {/* Fullscreen Toggle */}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setIsFullscreen(!isFullscreen)}
+                title={
+                  isFullscreen
+                    ? isFullscreenHosted
+                      ? 'Exit fullscreen'
+                      : 'Exit fullscreen (Esc)'
+                    : 'Fullscreen'
+                }
+                aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                aria-pressed={isFullscreen}
+              >
+                {isFullscreen ? (
+                  <ArrowsPointingInIcon className="h-5 w-5" />
+                ) : (
+                  <ArrowsPointingOutIcon className="h-5 w-5" />
+                )}
+              </Button>
             </div>
+          </div>
 
-            {/* Day names and numbers row */}
-            <div className="flex w-full">
-              {/* Sticky name column header spacer */}
-              <div className="bg-dark-800/50 sticky left-0 z-10 flex shrink-0">
-                <div className="w-[230px] shrink-0" />
-              </div>
-              <div className="flex flex-1">
-                {allDays.map((day, index) => {
-                  const dayIsToday = isToday(day);
-                  const dayIsWeekend = isWeekend(day);
-                  const isWeekStart = day.getDay() === 1;
-                  return (
-                    <DayHeaderNotes
-                      key={day.toISOString()}
-                      day={day}
+          {/* Calendar Grid */}
+          <Card
+            variant="bordered"
+            className={cn('overflow-hidden', isFullscreen && 'flex flex-1 flex-col')}
+          >
+            {/* Header with week numbers and dates */}
+            <div className="border-dark-700 bg-dark-800/50 flex w-full flex-col border-b">
+              {/* Week numbers row */}
+              <div className="flex w-full">
+                {/* Sticky name column header spacer */}
+                <div className="bg-dark-800/50 sticky left-0 z-10 flex shrink-0">
+                  <div className="w-[230px] shrink-0" />
+                </div>
+                <div className="flex flex-1">
+                  {headerWeekGroups.map((weekGroup, index) => (
+                    <div
+                      key={weekGroup.weekStart.toISOString()}
                       className={cn(
-                        'border-dark-700 flex flex-1 flex-col items-center justify-center border-l py-1',
-                        dayIsWeekend && 'bg-dark-700/60',
-                        dayIsToday && 'bg-knowall-green/10',
-                        isWeekStart && index > 0 && 'border-l-2',
-                        getNoProjectWorkReason(dayNotesIndex, format(day, 'yyyy-MM-dd')) &&
-                          NO_PROJECT_WORK_CLASS
+                        'border-dark-700 relative flex flex-1 items-center justify-center border-l py-1',
+                        index > 0 && 'border-l-2'
                       )}
                     >
-                      <span
-                        className={cn(
-                          'text-[10px]',
-                          dayIsWeekend ? 'text-dark-500' : 'text-dark-400'
-                        )}
-                      >
-                        {format(day, 'EEE')}
+                      {/* Month at top left */}
+                      <span className="text-dark-500 absolute left-1 text-[10px]">
+                        {weekGroup.month}
                       </span>
-                      <span
-                        className={cn(
-                          'text-xs font-medium',
-                          dayIsToday
-                            ? 'text-knowall-green'
-                            : dayIsWeekend
-                              ? 'text-dark-400'
-                              : 'text-dark-200'
-                        )}
-                      >
-                        {format(day, 'd')}
+                      {/* Week number centered */}
+                      <span className="text-dark-300 text-xs font-medium">
+                        {weekGroup.weekNumber}
                       </span>
-                    </DayHeaderNotes>
-                  );
-                })}
+                      {/* Poppie's review of the week, at the right */}
+                      <span className="absolute right-1 flex max-w-[calc(50%-1rem)] justify-end">
+                        <PlanReviewWeekChip
+                          weekStart={format(weekGroup.weekStart, 'yyyy-MM-dd')}
+                          weekNumber={weekGroup.weekNumber}
+                        />
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="text-dark-500 flex w-16 shrink-0 items-center justify-end px-2 text-[10px]">
+                  Total
+                </div>
               </div>
-              <div className="w-16 shrink-0" />
-            </div>
-          </div>
 
-          {/* Loading State */}
-          {showLoading && (
-            <div className="flex h-64 items-center justify-center">
-              <div className="border-knowall-green h-8 w-8 animate-spin rounded-full border-b-2"></div>
+              {/* Day names and numbers row */}
+              <div className="flex w-full">
+                {/* Sticky name column header spacer */}
+                <div className="bg-dark-800/50 sticky left-0 z-10 flex shrink-0">
+                  <div className="w-[230px] shrink-0" />
+                </div>
+                <div className="flex flex-1">
+                  {allDays.map((day, index) => {
+                    const dayIsToday = isToday(day);
+                    const dayIsWeekend = isWeekend(day);
+                    const isWeekStart = day.getDay() === 1;
+                    return (
+                      <DayHeaderNotes
+                        key={day.toISOString()}
+                        day={day}
+                        className={cn(
+                          'border-dark-700 flex flex-1 flex-col items-center justify-center border-l py-1',
+                          dayIsWeekend && 'bg-dark-700/60',
+                          dayIsToday && 'bg-knowall-green/10',
+                          isWeekStart && index > 0 && 'border-l-2',
+                          getNoProjectWorkReason(dayNotesIndex, format(day, 'yyyy-MM-dd')) &&
+                            NO_PROJECT_WORK_CLASS
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            'text-[10px]',
+                            dayIsWeekend ? 'text-dark-500' : 'text-dark-400'
+                          )}
+                        >
+                          {format(day, 'EEE')}
+                        </span>
+                        <span
+                          className={cn(
+                            'text-xs font-medium',
+                            dayIsToday
+                              ? 'text-knowall-green'
+                              : dayIsWeekend
+                                ? 'text-dark-400'
+                                : 'text-dark-200'
+                          )}
+                        >
+                          {format(day, 'd')}
+                        </span>
+                      </DayHeaderNotes>
+                    );
+                  })}
+                </div>
+                <div className="w-16 shrink-0" />
+              </div>
             </div>
-          )}
 
-          {/* Content */}
-          {!showLoading && (
-            <div className={cn('w-full', isFullscreen && 'flex-1 overflow-y-auto')}>
-              {viewMode === 'team' ? (
-                // Team View
-                filteredMembers.length > 0 ? (
-                  filteredMembers.map((member) => (
-                    <ResourceRow
-                      key={member.id}
+            {/* Loading State */}
+            {showLoading && (
+              <div className="flex h-64 items-center justify-center">
+                <div className="border-knowall-green h-8 w-8 animate-spin rounded-full border-b-2"></div>
+              </div>
+            )}
+
+            {/* Content */}
+            {!showLoading && (
+              <div className={cn('w-full', isFullscreen && 'flex-1 overflow-y-auto')}>
+                {viewMode === 'team' ? (
+                  // Team View
+                  filteredMembers.length > 0 ? (
+                    filteredMembers.map((member) => (
+                      <ResourceRow
+                        key={member.id}
+                        getCapacityFlag={getCapacityFlag}
+                        member={member}
+                        days={allDays}
+                        selectedAllocationId={selectedAllocationId}
+                        onSelectAllocation={selectAllocation}
+                        onEditAllocation={handleOpenEditModal}
+                        onDragStart={startDrag}
+                        onDragEnd={endDrag}
+                        onDrop={handleDrop}
+                        isDragging={isDragging}
+                        isExpanded={expandedMemberIds.has(member.id)}
+                        onToggleExpand={() => toggleMemberExpanded(member.id)}
+                        onAddPlan={(weekStart, context) =>
+                          handleOpenPlanModal(member, weekStart, context)
+                        }
+                        companyName={selectedCompany?.name}
+                      />
+                    ))
+                  ) : (
+                    <div className="text-dark-400 py-12 text-center">
+                      <UserGroupIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
+                      <p>{searchQuery ? 'No resources match your search' : 'No resources found'}</p>
+                    </div>
+                  )
+                ) : // Projects View
+                filteredProjects.length > 0 ? (
+                  filteredProjects.map((project) => (
+                    <ProjectRow
+                      key={project.number}
                       getCapacityFlag={getCapacityFlag}
-                      member={member}
+                      project={project}
                       days={allDays}
                       selectedAllocationId={selectedAllocationId}
                       onSelectAllocation={selectAllocation}
                       onEditAllocation={handleOpenEditModal}
                       onDragStart={startDrag}
                       onDragEnd={endDrag}
-                      onDrop={handleDrop}
                       isDragging={isDragging}
-                      isExpanded={expandedMemberIds.has(member.id)}
-                      onToggleExpand={() => toggleMemberExpanded(member.id)}
                       onAddPlan={(weekStart, context) =>
-                        handleOpenPlanModal(member, weekStart, context)
+                        handleOpenProjectPlanModal(project, weekStart, context)
                       }
+                      // A single project starts expanded, down to its people
+                      isExpanded={expandedProjectIds.has(project.id) !== !!projectCode}
+                      onToggleExpand={() => toggleProjectExpanded(project.id)}
                       companyName={selectedCompany?.name}
+                      defaultTasksExpanded={!!projectCode}
+                      // A single project lists all its tasks, so any of them can be planned
+                      jobTasks={projectCode ? jobTasksByProject.get(project.number) : undefined}
+                      searchQuery={projectCode ? searchQuery : undefined}
                     />
                   ))
                 ) : (
                   <div className="text-dark-400 py-12 text-center">
-                    <UserGroupIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
-                    <p>{searchQuery ? 'No resources match your search' : 'No resources found'}</p>
+                    <FolderIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
+                    <p>{searchQuery ? 'No projects match your search' : 'No allocations found'}</p>
                   </div>
-                )
-              ) : // Projects View
-              filteredProjects.length > 0 ? (
-                filteredProjects.map((project) => (
-                  <ProjectRow
-                    key={project.number}
-                    getCapacityFlag={getCapacityFlag}
-                    project={project}
-                    days={allDays}
-                    selectedAllocationId={selectedAllocationId}
-                    onSelectAllocation={selectAllocation}
-                    onEditAllocation={handleOpenEditModal}
-                    onDragStart={startDrag}
-                    onDragEnd={endDrag}
-                    isDragging={isDragging}
-                    onAddPlan={(weekStart, context) =>
-                      handleOpenProjectPlanModal(project, weekStart, context)
-                    }
-                    // A single project starts expanded, down to its people
-                    isExpanded={expandedProjectIds.has(project.id) !== !!projectCode}
-                    onToggleExpand={() => toggleProjectExpanded(project.id)}
-                    companyName={selectedCompany?.name}
-                    defaultTasksExpanded={!!projectCode}
-                    // A single project lists all its tasks, so any of them can be planned
-                    jobTasks={projectCode ? jobTasksByProject.get(project.number) : undefined}
-                    searchQuery={projectCode ? searchQuery : undefined}
+                )}
+              </div>
+            )}
+          </Card>
+
+          {/* Legend */}
+          <div className="flex flex-wrap items-center gap-4 text-xs">
+            <span className="text-dark-400">Tip:</span>
+            <span className="text-dark-300">
+              Click hours to expand, then click allocation to edit
+            </span>
+            <span className="text-dark-300">Hover over week to add plan</span>
+            {showCapacityFlags && (
+              <>
+                <span className="text-dark-300 flex items-center gap-1.5">
+                  <span
+                    className={cn('h-3 w-3 rounded', OVER_ALLOCATED_CLASS)}
+                    aria-hidden="true"
                   />
-                ))
-              ) : (
-                <div className="text-dark-400 py-12 text-center">
-                  <FolderIcon className="text-dark-600 mx-auto mb-4 h-12 w-12" />
-                  <p>{searchQuery ? 'No projects match your search' : 'No allocations found'}</p>
-                </div>
-              )}
-            </div>
-          )}
-        </Card>
+                  Over capacity
+                </span>
+                <span className="text-dark-300 flex items-center gap-1.5">
+                  <span
+                    className={cn('h-3 w-3 rounded', UNDER_ALLOCATED_CLASS)}
+                    aria-hidden="true"
+                  />
+                  Under capacity
+                </span>
+              </>
+            )}
+            {dayNotesContext && (
+              <>
+                <span className="text-dark-300 flex items-center gap-1.5">
+                  <span
+                    className={cn('border-dark-600 h-3 w-3 rounded border', NO_PROJECT_WORK_CLASS)}
+                    aria-hidden="true"
+                  />
+                  No project work
+                </span>
+                <span className="text-dark-300 flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-sky-400" aria-hidden="true" />
+                  Person&apos;s note
+                </span>
+                <span className="text-dark-300">Click a date for its notes</span>
+              </>
+            )}
+            {planReviewContext && (
+              <span className="text-dark-300 flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" aria-hidden="true" />
+                Poppie&apos;s finding (her review is by the week number)
+              </span>
+            )}
+          </div>
 
-        {/* Legend */}
-        <div className="flex flex-wrap items-center gap-4 text-xs">
-          <span className="text-dark-400">Tip:</span>
-          <span className="text-dark-300">
-            Click hours to expand, then click allocation to edit
-          </span>
-          <span className="text-dark-300">Hover over week to add plan</span>
-          {showCapacityFlags && (
-            <>
-              <span className="text-dark-300 flex items-center gap-1.5">
-                <span className={cn('h-3 w-3 rounded', OVER_ALLOCATED_CLASS)} aria-hidden="true" />
-                Over capacity
-              </span>
-              <span className="text-dark-300 flex items-center gap-1.5">
-                <span className={cn('h-3 w-3 rounded', UNDER_ALLOCATED_CLASS)} aria-hidden="true" />
-                Under capacity
-              </span>
-            </>
+          {/* Plan Entry Modal (Team view - select project for resource) */}
+          {selectedMemberForPlan && (
+            <PlanEntryModal
+              isOpen={isPlanModalOpen}
+              onClose={() => {
+                setIsPlanModalOpen(false);
+                setPreSelectedProjectCode(undefined);
+                setPreSelectedTeamTaskCode(undefined);
+              }}
+              resourceNumber={selectedMemberForPlan.number}
+              resourceName={selectedMemberForPlan.name}
+              selectedDate={selectedDateForPlan}
+              onSave={handlePlanSaved}
+              preSelectedProjectCode={preSelectedProjectCode}
+              preSelectedTaskCode={preSelectedTeamTaskCode}
+            />
           )}
-          {dayNotesContext && (
-            <>
-              <span className="text-dark-300 flex items-center gap-1.5">
-                <span
-                  className={cn('border-dark-600 h-3 w-3 rounded border', NO_PROJECT_WORK_CLASS)}
-                  aria-hidden="true"
-                />
-                No project work
-              </span>
-              <span className="text-dark-300 flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-sky-400" aria-hidden="true" />
-                Person&apos;s note
-              </span>
-              <span className="text-dark-300">Click a date for its notes</span>
-            </>
+
+          {/* Plan Resource Modal (Projects view - select resource for project) */}
+          {selectedProjectForPlan && (
+            <PlanResourceModal
+              isOpen={isResourceModalOpen}
+              onClose={() => {
+                setIsResourceModalOpen(false);
+                setPreSelectedTaskCode(undefined);
+                setPreSelectedResourceNo(undefined);
+              }}
+              projectNumber={selectedProjectForPlan.number}
+              projectName={selectedProjectForPlan.name}
+              selectedDate={selectedDateForPlan}
+              onSave={handlePlanSaved}
+              preSelectedTaskCode={preSelectedTaskCode}
+              preSelectedResourceNo={preSelectedResourceNo}
+            />
           )}
+
+          {/* Edit Allocation Modal */}
+          <PlanEditModal
+            isOpen={isEditModalOpen}
+            onClose={() => {
+              setIsEditModalOpen(false);
+              setSelectedAllocationForEdit(null);
+            }}
+            allocation={selectedAllocationForEdit}
+            onSave={handlePlanSaved}
+            onDelete={handlePlanSaved}
+          />
         </div>
-
-        {/* Plan Entry Modal (Team view - select project for resource) */}
-        {selectedMemberForPlan && (
-          <PlanEntryModal
-            isOpen={isPlanModalOpen}
-            onClose={() => {
-              setIsPlanModalOpen(false);
-              setPreSelectedProjectCode(undefined);
-              setPreSelectedTeamTaskCode(undefined);
-            }}
-            resourceNumber={selectedMemberForPlan.number}
-            resourceName={selectedMemberForPlan.name}
-            selectedDate={selectedDateForPlan}
-            onSave={handlePlanSaved}
-            preSelectedProjectCode={preSelectedProjectCode}
-            preSelectedTaskCode={preSelectedTeamTaskCode}
-          />
-        )}
-
-        {/* Plan Resource Modal (Projects view - select resource for project) */}
-        {selectedProjectForPlan && (
-          <PlanResourceModal
-            isOpen={isResourceModalOpen}
-            onClose={() => {
-              setIsResourceModalOpen(false);
-              setPreSelectedTaskCode(undefined);
-              setPreSelectedResourceNo(undefined);
-            }}
-            projectNumber={selectedProjectForPlan.number}
-            projectName={selectedProjectForPlan.name}
-            selectedDate={selectedDateForPlan}
-            onSave={handlePlanSaved}
-            preSelectedTaskCode={preSelectedTaskCode}
-            preSelectedResourceNo={preSelectedResourceNo}
-          />
-        )}
-
-        {/* Edit Allocation Modal */}
-        <PlanEditModal
-          isOpen={isEditModalOpen}
-          onClose={() => {
-            setIsEditModalOpen(false);
-            setSelectedAllocationForEdit(null);
-          }}
-          allocation={selectedAllocationForEdit}
-          onSave={handlePlanSaved}
-          onDelete={handlePlanSaved}
-        />
-      </div>
-    </DayNotesProvider>
+      </DayNotesProvider>
+    </PlanReviewProvider>
   );
 
   // Fullscreen mode (a hosting dialog does its own fullscreen layout)

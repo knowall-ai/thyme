@@ -188,4 +188,16 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | A task is missing from a project's Planned dialog
 | The dialog lists every *Posting* task on the project. Heading and total tasks can't hold plan lines, so they're left out. If a Posting task is missing, check its Job Task Type in Business Central, then close and reopen the dialog to reload.
 
+| Poppie's plan review doesn't show on the Plan (no chip by the week number, no "Ask Poppie")
+| Plan reviews need the plan-review release of the Thyme BC Extension (the `planReviews`, `planReviewLines`, `planReviewChanges` and `planReviewRequests` APIs). On an older extension Thyme hides them silently. Update the extension in Business Central. The "Ask Poppie" button and *Apply change* also need permission to change planning lines (`canEditPlan` on the projects and resources APIs).
+
+| *Apply change* says "The plan changed since Poppie looked. Ask her to re-review."
+| Business Central applies a finding's changes in one go, and only if every cell still holds the hours Poppie saw. Someone changed one of them since, so nothing was written. Click *Ask Poppie to re-review* in the week's review; she'll look at the plan as it is now.
+
+| Poppie's finding says "Edit this cell by hand"
+| Apply only changes a planning-line cell that is empty or has a single Budget line. A Billable or "Both Budget and Billable" line is part of the project's budget estimate, and a cell with several lines would have to be merged, so make that change yourself in the Plan's edit dialog or in Business Central.
+
+| *Apply change* says "Update the Thyme BC Extension to apply changes"
+| This environment's Thyme BC Extension doesn't have the plan-review apply action yet. Update the extension in Business Central; until then, make Poppie's changes by hand.
+
 |===

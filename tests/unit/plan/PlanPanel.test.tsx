@@ -48,6 +48,8 @@ vi.mock('@/services/bc', () => ({
     ),
     getResourceUnitsOfMeasure: vi.fn(async () => []),
     getTimeSheets: vi.fn(async () => []),
+    // No planReviews API: Poppie's plan reviews stay hidden
+    getPlanReviews: vi.fn(async () => undefined),
     // An extension without day notes: the feature stays hidden
     getDayNotes: vi.fn(async () => undefined),
   },

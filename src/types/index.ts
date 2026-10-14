@@ -450,6 +450,83 @@ export interface BCTimesheetReviewLine {
   note: string;
 }
 
+// Poppie's plan reviews (Thyme BC Extension planReviews, planReviewLines, planReviewChanges and
+// planReviewRequests APIs). Poppie reviews the Plan one subject-week at a time - a person's
+// week (Resource) or a project's week (Project) - and stamps each review with the planHash of
+// the plan she saw, so Thyme can tell when it's out of date.
+export type PlanReviewSubjectType = 'Resource' | 'Project';
+
+export type PlanReviewCheck =
+  | 'ROUNDING'
+  | 'OVER_CAPACITY'
+  | 'BILLABLE_TARGET'
+  | 'CALENDAR'
+  | 'BUDGET_BURN'
+  | 'PLAN_SHAPE'
+  | 'OUTSIDE_PROJECT_DATES'
+  | 'OTHER';
+
+export interface BCPlanReview {
+  id: string;
+  entryNo: number;
+  subjectType: PlanReviewSubjectType;
+  subjectNo: string; // Resource No. or Job No.
+  weekStart: string; // YYYY-MM-DD, a Monday
+  // Lowercase hex SHA-256 of the canonical plan (see utils/planReview); 'PENDING' while written
+  planHash: string;
+  verdict: TimesheetReviewVerdict;
+  summary: string;
+  reviewer: string;
+  reviewedAt: string;
+}
+
+/** A finding in a plan review */
+export interface BCPlanReviewLine {
+  id: string; // SystemId: the applyChanges action is bound to it
+  reviewEntryNo: number;
+  lineNo: number;
+  severity: TimesheetReviewSeverity;
+  check: PlanReviewCheck | string;
+  planningDate: string; // YYYY-MM-DD, '' = the whole week
+  jobNo: string;
+  resourceNo: string;
+  note: string;
+  // When (and by whom) the finding's changes were applied; '' until then
+  appliedAt: string;
+  appliedBy: string;
+}
+
+/** A proposed change to one planning-line cell; a finding's changes are applied together */
+export interface BCPlanReviewChange {
+  reviewEntryNo: number;
+  reviewLineNo: number;
+  changeNo: number;
+  jobNo: string;
+  jobTaskNo: string;
+  resourceNo: string;
+  planningDate: string; // YYYY-MM-DD
+  currentHours: number; // the cell's hours when Poppie looked
+  proposedHours: number; // quarter hours; 0 = remove the cell's planning line(s)
+}
+
+export type PlanReviewRequestStatus = 'Requested' | 'Running' | 'Done' | 'Failed';
+
+/** Someone asking Poppie to (re-)review a subject-week now */
+export interface BCPlanReviewRequest {
+  id: string;
+  entryNo: number;
+  subjectType: PlanReviewSubjectType;
+  subjectNo: string;
+  weekStart: string; // YYYY-MM-DD
+  status: PlanReviewRequestStatus;
+  progress: string;
+  errorMessage: string;
+  requestedBy?: string;
+  requestedAt?: string;
+  startedAt?: string;
+  finishedAt?: string;
+}
+
 // Approval workflow types
 export interface PendingApproval {
   id: string;
