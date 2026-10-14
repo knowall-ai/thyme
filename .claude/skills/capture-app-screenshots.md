@@ -41,15 +41,15 @@ Copy the company GUID from the Thyme URL (`/sandbox/<company-guid>/time`).
 
 ### Options
 
-| Option       | Environment variable | Default                 | Purpose                                                  |
-| ------------ | -------------------- | ----------------------- | -------------------------------------------------------- |
-| `--env`      | `THYME_ENV`          | `sandbox`               | Business Central environment (`sandbox` or `production`) |
-| `--company`  | `THYME_COMPANY_ID`   | (required)              | Business Central company GUID                            |
-| `--project`  | `THYME_PROJECT`      | (none: skips Projects)  | Project number for the project page shot                 |
-| `--week`     | `THYME_WEEK`         | current week            | Week (`yyyy-mm-dd`) for the Time page shots              |
-| `--only`     | `THYME_ONLY`         | all                     | Comma-separated shot names to capture                    |
-| `--base-url` | `THYME_BASE_URL`     | `http://localhost:3000` | Thyme URL                                                |
-| `--cdp-url`  | `CDP_URL`            | `http://localhost:9222` | Browser remote debugging URL                             |
+| Option       | Environment variable | Default                 | Purpose                                                                                                             |
+| ------------ | -------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `--env`      | `THYME_ENV`          | `sandbox`               | Business Central environment (`sandbox` or `production`)                                                            |
+| `--company`  | `THYME_COMPANY_ID`   | (required)              | Business Central company GUID                                                                                       |
+| `--project`  | `THYME_PROJECT`      | (none: skips Projects)  | Project number for the project page shot                                                                            |
+| `--week`     | `THYME_WEEK`         | current week            | Week (`yyyy-mm-dd`, not in the future) for the Time, Team and Reports shots; Plan always starts at the current week |
+| `--only`     | `THYME_ONLY`         | all                     | Comma-separated shot names to capture                                                                               |
+| `--base-url` | `THYME_BASE_URL`     | `http://localhost:3000` | Thyme URL                                                                                                           |
+| `--cdp-url`  | `CDP_URL`            | `http://localhost:9222` | Browser remote debugging URL                                                                                        |
 
 The script exits non-zero if any shot fails, and prints the `--only` list to retry.
 

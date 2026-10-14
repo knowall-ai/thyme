@@ -69,9 +69,24 @@ if (!GUID_PATTERN.test(companyId)) {
   );
   process.exit(1);
 }
-if (week && !/^\d{4}-\d{2}-\d{2}$/.test(week)) {
-  console.error(`--week must be a date like 2026-10-12, not "${week}"`);
-  process.exit(1);
+if (week) {
+  // A real calendar date (local components, so no UTC shift), not just the yyyy-mm-dd shape
+  const [y, m, d] = (week.match(/^(\d{4})-(\d{2})-(\d{2})$/) || []).slice(1).map(Number);
+  const parsed = y ? new Date(y, m - 1, d) : null;
+  if (
+    !parsed ||
+    parsed.getFullYear() !== y ||
+    parsed.getMonth() !== m - 1 ||
+    parsed.getDate() !== d
+  ) {
+    console.error(`--week must be a real date like 2026-10-12, not "${week}"`);
+    process.exit(1);
+  }
+  // Team and Reports can only step back from the current period, so a future week can't be shown
+  if (parsed > new Date()) {
+    console.error(`--week can't be in the future ("${week}"): Team and Reports only go back.`);
+    process.exit(1);
+  }
 }
 
 const weekQuery = week ? `?week=${week}` : '';
