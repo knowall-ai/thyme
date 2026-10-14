@@ -76,11 +76,38 @@ if (week && !/^\d{4}-\d{2}-\d{2}$/.test(week)) {
 
 const weekQuery = week ? `?week=${week}` : '';
 
+/** Monday of the week containing the date, at local midnight. */
+function mondayOf(date) {
+  const monday = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  return monday;
+}
+
+// How many weeks before this one --week is, for pages that don't take ?week= (Team, Reports)
+const weeksBack = week
+  ? Math.max(
+      0,
+      Math.round((mondayOf(new Date()) - mondayOf(new Date(`${week}T00:00:00`))) / (7 * 864e5))
+    )
+  : 0;
+
+// Hide the Next.js dev badge (it lives in the nextjs-portal element)
+const HIDE_CSS = 'nextjs-portal { display: none !important; }';
+
 /** Click the first element matching the selector, if there is one. */
 async function clickFirst(page, selector) {
   const target = page.locator(selector).first();
   await target.waitFor({ state: 'visible', timeout: 15000 });
   await target.click();
+}
+
+/** Click a button `times` times, waiting for the page to settle after each. */
+async function clickRepeatedly(page, selector, times) {
+  for (let i = 0; i < times; i++) {
+    await page.locator(selector).first().click();
+    await page.waitForTimeout(300);
+  }
+  if (times > 0) await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
 }
 
 /**
@@ -92,6 +119,11 @@ const shots = [
     name: 'timesheet',
     path: `/time${weekQuery}`,
     ready: 'text=/Week total/i',
+    prepare: async (page) => {
+      // Collapse Poppie's review of the week so more of the grid fits
+      const hide = page.locator('button[aria-label="Hide Poppie\'s review"]');
+      if (await hide.count()) await hide.first().click();
+    },
   },
   {
     name: 'poppie-suggestions',
@@ -99,8 +131,11 @@ const shots = [
     ready: "text=Poppie's suggestions",
     prepare: async (page) => {
       // Bring Poppie's panel to the top of the viewport
-      await page.locator('h3:has-text("Poppie\'s suggestions")').first().scrollIntoViewIfNeeded();
-      await page.evaluate(() => window.scrollBy(0, -80));
+      await page
+        .locator('h3:has-text("Poppie\'s suggestions")')
+        .first()
+        .evaluate((el) => el.scrollIntoView({ block: 'start' }));
+      await page.evaluate(() => window.scrollBy(0, -100));
     },
   },
   {
@@ -113,6 +148,10 @@ const shots = [
     name: 'team',
     path: '/team',
     ready: 'text=/Timesheet completion/i',
+    prepare: async (page) => {
+      // Team has no ?week=, so step back to --week
+      await clickRepeatedly(page, 'button:has-text("Previous week")', weeksBack);
+    },
   },
   {
     name: 'plan',
@@ -128,9 +167,20 @@ const shots = [
     path: '/plan',
     ready: '[data-testid="plan-review-week-chip"]',
     prepare: async (page) => {
-      // Open Poppie's review for the first reviewed week
-      await clickFirst(page, '[data-testid="plan-review-week-chip"]');
-      await page.locator('[role="dialog"]').first().waitFor({ state: 'visible', timeout: 10000 });
+      // Open the first week Poppie has reviewed (unreviewed weeks show "Ask Poppie")
+      await page
+        .locator('[data-testid="plan-review-week-chip"]')
+        .filter({ hasNotText: 'Ask Poppie' })
+        .first()
+        .click();
+      const dialog = page.locator('[role="dialog"]').first();
+      await dialog.waitFor({ state: 'visible', timeout: 10000 });
+      // Show a reviewed person's or project's findings and proposed changes. The first
+      // one needing attention usually opens already; if none is open, open the first
+      if (!(await dialog.locator('button[aria-expanded="true"]').count())) {
+        const collapsed = dialog.locator('button[aria-expanded="false"]');
+        if (await collapsed.count()) await collapsed.first().click();
+      }
     },
   },
   {
@@ -138,14 +188,42 @@ const shots = [
     path: '/approvals',
     ready: 'button[aria-label="Expand timesheet details"]',
     prepare: async (page) => {
-      // Expand the first submitted timesheet to show its entries, days and Poppie's notes
-      await clickFirst(page, 'button[aria-label="Expand timesheet details"]');
+      // Expand the first timesheet with hours, to show its entries, days and Poppie's notes
+      const index = await page.evaluate(() => {
+        const buttons = [
+          ...document.querySelectorAll('button[aria-label="Expand timesheet details"]'),
+        ];
+        return buttons.findIndex((button) => {
+          let card = button.parentElement;
+          while (card && !/ hours/.test(card.textContent ?? '')) card = card.parentElement;
+          return /(^|[^\d.])([1-9]\d*|0?\.\d*[1-9])(\.\d+)? hours/.test(card?.textContent ?? '');
+        });
+      });
+      if (index < 0) throw new Error('No timesheet with hours to expand');
+      // A handle, not a locator: once expanded, the button's label changes to "Collapse…"
+      const button = await page
+        .locator('button[aria-label="Expand timesheet details"]')
+        .nth(index)
+        .elementHandle();
+      await button.click();
+      // Wait for its lines to load before scrolling, so the layout has settled
+      await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+      await page.waitForTimeout(1500);
+      await button.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+      await page.evaluate(() => window.scrollBy(0, -40));
     },
   },
   {
     name: 'reports',
     path: '/reports',
     ready: 'text=/Hours by Project/i',
+    prepare: async (page) => {
+      // Report on the week of --week (Reports has no ?week=)
+      if (!week) return;
+      await page.selectOption('#report-period', 'thisWeek');
+      await page.waitForTimeout(300);
+      await clickRepeatedly(page, 'button[aria-label="Previous period"]', weeksBack);
+    },
   },
 ];
 
@@ -170,13 +248,16 @@ async function captureScreenshots() {
   }
   console.log('✓ Connected to browser');
 
-  // Reuse the signed-in context, and a Thyme tab if one is open
+  // A fresh tab in the signed-in context. Reusing an open tab can hang: the browser stops
+  // painting background tabs, so a screenshot of one waits forever.
   const context = browser.contexts()[0];
-  let page = context.pages().find((p) => p.url().startsWith(baseUrl));
-  if (!page) {
-    console.log('Creating new page...');
-    page = await context.newPage();
-  }
+  const page = await context.newPage();
+
+  // Keep the "Introducing Thyme Bot" promo banner out of the shots (it stays dismissed,
+  // as if you'd closed it)
+  await page.addInitScript(() => {
+    localStorage.setItem('thyme_teams_bot_banner_dismissed', 'true');
+  });
 
   // Auto-dismiss any dialogs
   page.on('dialog', async (dialog) => {
@@ -211,11 +292,14 @@ async function captureScreenshots() {
       // insist on a fully idle network)
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
 
+      await page.addStyleTag({ content: HIDE_CSS });
       if (shot.prepare) await shot.prepare(page);
 
       // Let expand/popover animations finish
       await page.waitForTimeout(1000);
 
+      // Bring the tab to the front so the browser paints it (see above)
+      await page.bringToFront();
       const filename = `${OUTPUT_DIR}/${shot.name}.png`;
       // scale: 'css' keeps the file at 1280x720 on HiDPI screens
       await page.screenshot({ path: filename, scale: 'css' });
@@ -226,6 +310,7 @@ async function captureScreenshots() {
     }
   }
 
+  await page.close();
   // Leave the browser open; we only attached to it
   console.log(`\nScreenshots saved to ${OUTPUT_DIR}/`);
   if (skipped.length) console.log(`Skipped: ${skipped.join(', ')}`);
