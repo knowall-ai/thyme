@@ -48,6 +48,8 @@ vi.mock('@/services/bc', () => ({
     ),
     getResourceUnitsOfMeasure: vi.fn(async () => []),
     getTimeSheets: vi.fn(async () => []),
+    // An extension without day notes: the feature stays hidden
+    getDayNotes: vi.fn(async () => undefined),
   },
 }));
 

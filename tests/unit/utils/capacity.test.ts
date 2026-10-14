@@ -12,7 +12,9 @@ import {
   getUnderAllocatedResources,
   getUnderAllocationTitle,
   getCapacityFlag,
+  getAvailableWeeklyCapacity,
   type DailyResourceAllocation,
+  type NoProjectWorkLookup,
 } from '@/utils/capacity';
 
 const DAY = '2026-10-05';
@@ -458,5 +460,162 @@ describe('getCapacityFlag', () => {
     expect(getCapacityFlag(rolledUp, buildResourceDailyTotals(rolledUp), DAY, true)?.status).toBe(
       'over'
     );
+  });
+});
+
+describe('days with no project work', () => {
+  // DAY (Mon 5 Oct 2026) is a company off-site for everyone
+  const offSite: NoProjectWorkLookup = (_resource, date) =>
+    date === DAY ? 'Company Off-Site' : undefined;
+  const eightHours = () => 8;
+
+  it('flags any hours planned that day as over capacity, naming the note', () => {
+    const allocations = [alloc({ hoursPerDay: 4 })];
+    const totals = buildResourceDailyTotals(allocations);
+
+    const [over] = getOverAllocatedResources(
+      allocations,
+      totals,
+      DAY,
+      eightHours,
+      undefined,
+      offSite
+    );
+    expect(over).toMatchObject({
+      capacityHours: 0,
+      overByHours: 4,
+      noProjectWork: 'Company Off-Site',
+    });
+    expect(formatOverAllocation(over)).toBe(
+      'Company Off-Site: no project work, but 4h planned\n  Contoso Website: 4h'
+    );
+    expect(formatOverAllocation(over, true)).toMatch(
+      /^Alex Contoso: Company Off-Site: no project work, but 4h planned/
+    );
+  });
+
+  it('is red, never amber, even when the hours would be short of a working day', () => {
+    const allocations = [alloc({ hoursPerDay: 2 })];
+    const totals = buildResourceDailyTotals(allocations);
+    expect(
+      getUnderAllocatedResources(allocations, totals, DAY, eightHours, undefined, offSite)
+    ).toEqual([]);
+    expect(
+      getCapacityFlag(allocations, totals, DAY, false, eightHours, undefined, offSite)
+    ).toEqual({
+      status: 'over',
+      title: 'Company Off-Site: no project work, but 2h planned\n  Contoso Website: 2h',
+    });
+  });
+
+  it('leaves a day with nothing planned unflagged', () => {
+    expect(
+      getCapacityFlag([], new Map(), DAY, false, eightHours, undefined, offSite)
+    ).toBeUndefined();
+  });
+
+  it('only affects the person a personal note is for', () => {
+    const personal: NoProjectWorkLookup = (resource, date) =>
+      resource === 'R001' && date === DAY ? 'Dentist' : undefined;
+    const allocations = [
+      alloc({ hoursPerDay: 8 }),
+      alloc({ resourceNumber: 'R002', resourceName: 'Sam Contoso', hoursPerDay: 8 }),
+    ];
+    const totals = buildResourceDailyTotals(allocations);
+    const over = getOverAllocatedResources(
+      allocations,
+      totals,
+      DAY,
+      eightHours,
+      undefined,
+      personal
+    );
+    expect(over.map((o) => o.resourceNumber)).toEqual(['R001']);
+  });
+
+  it('leaves the rules unchanged without a lookup', () => {
+    const allocations = [alloc({ hoursPerDay: 8 })];
+    const totals = buildResourceDailyTotals(allocations);
+    expect(getCapacityFlag(allocations, totals, DAY, false, eightHours)).toBeUndefined();
+  });
+
+  describe('expected weekly capacity', () => {
+    it("caps a week at the working days left: a full-timer's 37.5h week with an off-site is 30h", () => {
+      expect(getAvailableWeeklyCapacity(37.5, 'R001', '2026-10-07', () => 7.5, offSite)).toBe(30);
+    });
+
+    it("keeps a part-timer's week that still fits in the days left", () => {
+      expect(getAvailableWeeklyCapacity(15, 'R001', '2026-10-07', () => 7.5, offSite)).toBe(15);
+    });
+
+    it('is unchanged in a week with no such days, or without a lookup', () => {
+      expect(getAvailableWeeklyCapacity(37.5, 'R001', '2026-10-12', () => 7.5, offSite)).toBe(37.5);
+      expect(getAvailableWeeklyCapacity(37.5, 'R001', '2026-10-07', () => 7.5)).toBe(37.5);
+    });
+
+    it("doesn't count a weekend note against the week", () => {
+      const sunday: NoProjectWorkLookup = (_r, date) =>
+        date === '2026-10-11' ? 'Event' : undefined;
+      expect(getAvailableWeeklyCapacity(37.5, 'R001', '2026-10-07', () => 7.5, sunday)).toBe(37.5);
+    });
+
+    it('judges the rest of the week as full against the reduced capacity, not under', () => {
+      // 7.5h Tuesday to Friday: 30h, a full week once the off-site Monday is left out
+      const allocations = ['2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09'].map((d) =>
+        alloc({ startDate: d, hoursPerDay: 7.5 })
+      );
+      const totals = buildResourceDailyTotals(allocations);
+      const flag = getCapacityFlag(
+        allocations,
+        totals,
+        '2026-10-07',
+        false,
+        () => 7.5,
+        () => 37.5,
+        offSite
+      );
+      expect(flag).toBeUndefined();
+      // Without the note, the same week is 7.5h short
+      expect(
+        getCapacityFlag(
+          allocations,
+          totals,
+          '2026-10-07',
+          false,
+          () => 7.5,
+          () => 37.5
+        )?.status
+      ).toBe('under');
+    });
+
+    it('flags a week over its reduced capacity', () => {
+      const allocations = ['2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09'].map((d) =>
+        alloc({ startDate: d, hoursPerDay: d === '2026-10-09' ? 9 : 7.5 })
+      );
+      const totals = buildResourceDailyTotals(allocations);
+      const [over] = getOverAllocatedResources(
+        allocations,
+        totals,
+        '2026-10-09',
+        () => 10,
+        () => 37.5,
+        offSite
+      );
+      // 31.5h this week so far: within a 37.5h week when 4 days x 10h leaves room for it
+      expect(over).toBeUndefined();
+      const [tight] = getOverAllocatedResources(
+        allocations,
+        totals,
+        '2026-10-09',
+        () => 7.5,
+        () => 37.5,
+        offSite
+      );
+      expect(tight).toMatchObject({
+        weekPlannedHours: 31.5,
+        weekCapacityHours: 30,
+        weekOverByHours: 1.5,
+      });
+    });
   });
 });

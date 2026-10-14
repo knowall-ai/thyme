@@ -64,6 +64,38 @@ tests/
         └── Button.test.tsx
 ----
 
+=== Day notes
+
+Unit tests (Vitest):
+
+* `tests/unit/utils/dayNotes.test.ts` - grouping notes by date and person, "no project work"
+  reasons, tooltips, input validation, conflict detection and the `canEditPlan` rule
+* `tests/unit/utils/capacity.test.ts` (_days with no project work_) - hours on such a day are
+  over capacity and never under, and the reduced weekly capacity
+* `tests/unit/services/bcClient.dayNotes.test.ts` - the `dayNotes` date filter, 404 handling,
+  request bodies, ETags on PATCH/DELETE, and `canEditPlan` on projects and resources
+* `tests/unit/hooks/useDayNotesStore.test.ts` - out-of-date reads, edits applied at once, failed
+  re-reads, caching and company switches
+* `tests/unit/plan/DayNotes.test.tsx` and `tests/unit/plan/PlanPanel.dayNotes.test.tsx` - the
+  header marker, person markers, the popover (read-only vs. edit controls, keyboard, conflicts)
+  and the Plan's capacity outlines
+
+Manual test, in a sandbox company (e.g. CRONUS UK Ltd.) with Thyme BC Extension 1.22.0.0+:
+
+. As a user who can write planning lines, open *Plan* and click a date in the header. The popover
+  opens with focus inside it; *Escape* closes it and returns focus to the date.
+. Add a note "Company Off-Site" for *Everyone* with *No project work* ticked. It appears under the
+  date, the day's column is hatched, and anyone planned that day gets a red outline whose tooltip
+  starts "Company Off-Site: no project work".
+. Add a note for one person. Their day cell in the Team view shows a dot with the note as its
+  tooltip.
+. Edit and delete the notes. Edit one in two browser tabs and save both: the second save says the
+  note changed since it was opened.
+. Sign in as a user without permission to write planning lines: the popover lists the notes with
+  no *Add note*, edit or delete buttons.
+. With an older extension (no `dayNotes` API), the Plan shows no notes and the dates aren't
+  buttons.
+
 == Mocking Business Central API
 
 For E2E tests, use Playwright's request interception:

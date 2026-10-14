@@ -20,4 +20,5 @@ export * from './currency';
 export * from './teamHours';
 export * from './reportPeriod';
 export * from './reportFilters';
+export * from './dayNotes';
 export * from './popoverPosition';

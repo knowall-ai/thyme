@@ -6,7 +6,21 @@
 * Azure subscription with App Service plan
 * Microsoft Entra ID tenant (Azure AD)
 * Business Central environment with API access
+* Thyme BC Extension installed in each Business Central environment (see below)
 * Node.js 20 LTS (for local development)
+
+=== Thyme BC Extension version
+
+Thyme detects what the installed Thyme BC Extension supports and hides features it doesn't, so
+an older extension keeps working without them. Install the latest version from
+https://github.com/knowall-ai/thyme-bc-extension in every environment Thyme uses.
+
+|===
+| Feature | Needs
+
+| Day notes on the Plan (e.g. "Company Off-Site", "No project work" days) and the `canEditPlan` flag on the `projects` and `resources` APIs
+| Thyme BC Extension 1.22.0.0+ (the `dayNotes` API). With older versions the Plan shows no notes and no day header popover.
+|===
 
 == Azure Resource Setup
 

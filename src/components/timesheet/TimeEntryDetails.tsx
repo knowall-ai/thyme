@@ -19,7 +19,8 @@ import {
 } from '@/utils';
 import { PoppieLineNotes } from '@/components/review';
 
-// Re-exported from its old home, where its tests import it
+// Re-exported from its old home, where its tests import it (the Plan's day notes popover
+// uses it from @/utils too)
 export { computePopoverPosition };
 
 /** Lookups for an entry's project and task, shared by the card and its popover */

@@ -80,6 +80,8 @@ The application uses Zustand for state management with the following stores:
 * **useProjectsStore** - Projects and tasks from Business Central
 * **useTimeEntriesStore** - Time entries with local caching
 * **useSettingsStore** - User preferences with persistence
+* **usePlanStore** - The Plan grid's resources, projects and planning lines, cached per week
+* **useDayNotesStore** - Day notes for the Plan's visible dates (see <<Day notes>>)
 
 == Data Flow
 
@@ -144,6 +146,51 @@ so every company maps its own projects.
 * Adding a "Choose project" suggestion offers *Always map this to the chosen project and task*,
   which creates the link (repo, DevOps repo or project, meeting subject or attendee domain).
 * Links Poppie learns from approved time appear as *Learned*.
+
+=== Day notes
+
+Day notes put context on a date of the Plan, e.g. "Company Off-Site" or "Client workshop".
+They're stored in Business Central (Thyme BC Extension 1.22.0.0+ `dayNotes`, table 50111
+*Thyme Day Note*), per company. A note with no resource is for everyone; otherwise it's for that
+person. *No project work* marks the day as unavailable for project work (an off-site, a holiday).
+
+[source]
+----
+GET    /dayNotes?$filter=noteDate ge {from} and noteDate le {to}   # The Plan's visible dates
+POST   /dayNotes                                                   # Add a note
+PATCH  /dayNotes({id})        (If-Match: the note's ETag)          # Change a note
+DELETE /dayNotes({id})        (If-Match: the note's ETag)          # Delete a note
+----
+
+*Data flow.* The Plan grid asks `useDayNotesStore` for its visible dates whenever they change,
+alongside `usePlanStore`'s planning lines. The store caches each date range it has read
+successfully, and drops everything on a company switch. Every read and edit takes a sequence
+number, so an older response can't overwrite a newer one. A saved change is shown at once from
+BC's response (with its new ETag), then the dates are re-read; if that re-read fails, the user is
+told and the dates aren't cached, so the next load asks BC again. A 404 on the collection (an
+older extension) marks the feature unavailable and hides it.
+
+*Display.* Company-wide notes appear under the date in the Plan header (several show as a count);
+a person's note is a dot on their day cell in the Team view. *No project work* days are hatched:
+the whole column for a company note, that person's cells for a personal one. Clicking a date
+opens a popover listing the day's notes.
+
+*Permissions.* Anyone using Thyme can read notes. Adding, changing and deleting them is limited
+in BC to people who can write planning lines, Thyme administrators and the AI agent. BC exposes
+the same check as a read-only `canEditPlan` on the `projects` and `resources` APIs; Thyme shows
+the edit controls when any loaded project or resource has `canEditPlan` true (`canEditPlan()` in
+`src/utils/dayNotes.ts`). A missing flag (older extension) counts as no. BC re-checks every change.
+An edit sends the ETag the note had when editing began; if someone changed it meanwhile (or BC
+returns 412/409), the save is refused and the user is asked to reload.
+
+*Capacity.* A *No project work* day has no capacity (`src/utils/capacity.ts`):
+
+* Any hours planned that day are over capacity (a red outline, never amber), with a tooltip such as
+  "Company Off-Site: no project work, but 6h planned".
+* It's never flagged as under capacity.
+* A weekly capacity is capped at the person's working day times the weekdays left that week: a
+  37.5h week with one off-site day expects 30h, while a 15h part-timer's week still fits in the
+  four days left and stays 15h. Weekend notes don't reduce the week.
 
 == Security Considerations
 
