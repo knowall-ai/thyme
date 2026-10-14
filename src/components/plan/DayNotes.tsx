@@ -17,6 +17,7 @@ import toast from 'react-hot-toast';
 import { PencilSquareIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import type { BCDayNote, BCDayNoteInput } from '@/types';
+import type { DayNoteMutationResult } from '@/hooks/useDayNotesStore';
 import {
   cn,
   computePopoverPosition,
@@ -46,9 +47,10 @@ export interface DayNotesContextValue {
   /** The signed-in user may add, change and delete notes (see canEditPlan) */
   canEdit: boolean;
   people: DayNotePerson[];
-  onCreate: (input: BCDayNoteInput) => Promise<void>;
-  onUpdate: (note: BCDayNote, input: BCDayNoteInput) => Promise<void>;
-  onDelete: (note: BCDayNote) => Promise<void>;
+  /** Throw when the change fails; `revalidated: false` when it saved but the re-read didn't */
+  onCreate: (input: BCDayNoteInput) => Promise<DayNoteMutationResult>;
+  onUpdate: (note: BCDayNote, input: BCDayNoteInput) => Promise<DayNoteMutationResult>;
+  onDelete: (note: BCDayNote) => Promise<DayNoteMutationResult>;
 }
 
 /** Null when day notes are unavailable (the extension has no dayNotes API), which hides them */
@@ -288,11 +290,15 @@ function DayNotesPopover({
     };
   }, [anchorRef]);
 
-  const run = async (action: () => Promise<void>, success: string) => {
+  const run = async (action: () => Promise<DayNoteMutationResult>, success: string) => {
     setIsBusy(true);
     try {
-      await action();
+      const { revalidated } = await action();
       toast.success(success);
+      if (!revalidated) {
+        // Saved, but other people's latest notes couldn't be read back
+        toast.error("Notes couldn't be refreshed, so others' latest changes may be missing.");
+      }
       setEditing(null);
       setConfirmingDelete(null);
     } catch (error) {
@@ -309,7 +315,7 @@ function DayNotesPopover({
       role="dialog"
       aria-labelledby={titleId}
       tabIndex={-1}
-      className="bg-dark-800 border-dark-600 fixed z-[60] w-80 max-w-[calc(100vw-16px)] rounded-lg border p-3 text-left shadow-xl focus:outline-none"
+      className="bg-dark-800 border-dark-600 fixed z-[60] max-h-[calc(100vh-16px)] w-80 max-w-[calc(100vw-16px)] overflow-y-auto overscroll-contain rounded-lg border p-3 text-left shadow-xl focus:outline-none"
       style={{
         top: position?.top ?? 0,
         left: position?.left ?? 0,

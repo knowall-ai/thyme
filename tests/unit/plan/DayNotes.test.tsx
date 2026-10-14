@@ -32,9 +32,9 @@ function context(notes: BCDayNote[], overrides: Partial<DayNotesContextValue> = 
       { number: 'R001', name: 'Alex Contoso' },
       { number: 'R002', name: 'Sam Contoso' },
     ],
-    onCreate: vi.fn(async () => {}),
-    onUpdate: vi.fn(async () => {}),
-    onDelete: vi.fn(async () => {}),
+    onCreate: vi.fn(async () => ({ revalidated: true })),
+    onUpdate: vi.fn(async () => ({ revalidated: true })),
+    onDelete: vi.fn(async () => ({ revalidated: true })),
     ...overrides,
   } satisfies DayNotesContextValue;
 }
@@ -163,5 +163,29 @@ describe('PersonDayNoteMarker', () => {
     expect(markers).toHaveLength(1);
     expect(markers[0]).toHaveAttribute('title', 'Dentist (no project work)');
     expect(markers[0]).toHaveAccessibleName('Note: Dentist (no project work)');
+  });
+});
+
+describe('DayNotesPopover', () => {
+  it('scrolls within the screen height when there are many notes', () => {
+    renderHeader(context([note({})]));
+    fireEvent.click(screen.getByRole('button', { name: /Wednesday 14 October/ }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveClass('max-h-[calc(100vh-16px)]', 'overflow-y-auto');
+  });
+
+  it('says so when a change saved but the notes could not be re-read', async () => {
+    const toast = (await import('react-hot-toast')).default;
+    const value = context([note({})], {
+      canEdit: true,
+      onDelete: vi.fn(async () => ({ revalidated: false })),
+    });
+    renderHeader(value);
+    fireEvent.click(screen.getByRole('button', { name: /Wednesday 14 October/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete note "Company Off-Site"' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Note deleted'));
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/couldn't be refreshed/));
   });
 });
