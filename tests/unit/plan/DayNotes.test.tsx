@@ -35,6 +35,7 @@ function context(notes: BCDayNote[], overrides: Partial<DayNotesContextValue> = 
     onCreate: vi.fn(async () => ({ revalidated: true })),
     onUpdate: vi.fn(async () => ({ revalidated: true })),
     onDelete: vi.fn(async () => ({ revalidated: true })),
+    onReload: vi.fn(async () => {}),
     ...overrides,
   } satisfies DayNotesContextValue;
 }
@@ -187,5 +188,84 @@ describe('DayNotesPopover', () => {
 
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Note deleted'));
     expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/couldn't be refreshed/));
+  });
+});
+
+describe('editing a note someone else changes', () => {
+  const header = (value: DayNotesContextValue) => (
+    <DayNotesProvider value={value}>
+      <DayHeaderNotes day={DAY} className="header">
+        <span>Wed</span>
+      </DayHeaderNotes>
+    </DayNotesProvider>
+  );
+
+  function startEdit(value: DayNotesContextValue) {
+    const result = render(header(value));
+    fireEvent.click(screen.getByRole('button', { name: /Wednesday 14 October/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit note "Company Off-Site"' }));
+    return result;
+  }
+
+  it('sends the ETag from when editing began', async () => {
+    const original = note({ '@odata.etag': 'W/"1"' });
+    const value = context([original], { canEdit: true });
+    startEdit(value);
+    fireEvent.change(screen.getByLabelText('Note'), { target: { value: 'Off-Site (London)' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(value.onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ '@odata.etag': 'W/"1"' }),
+        expect.objectContaining({ note: 'Off-Site (London)' })
+      )
+    );
+  });
+
+  it('refuses to save over a change that arrived while editing, and offers a reload', async () => {
+    const original = note({ '@odata.etag': 'W/"1"' });
+    const value = context([original], { canEdit: true });
+    const { rerender } = startEdit(value);
+    fireEvent.change(screen.getByLabelText('Note'), { target: { value: 'My edit' } });
+
+    // A refresh brings someone else's change, with a new ETag
+    const theirs = note({ note: 'Their edit', '@odata.etag': 'W/"2"' });
+    rerender(header({ ...value, index: buildDayNotesIndex([theirs]) }));
+
+    // The form keeps what the user typed, but saving is refused
+    expect(screen.getByLabelText('Note')).toHaveValue('My edit');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'This note changed since you opened it — reload to see the latest.'
+    );
+    expect(value.onUpdate).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reload' }));
+    await waitFor(() => expect(value.onReload).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByLabelText('Note')).not.toBeInTheDocument());
+  });
+
+  it('treats a note deleted while editing as changed', async () => {
+    const value = context([note({})], { canEdit: true });
+    const { rerender } = startEdit(value);
+    rerender(header({ ...value, index: buildDayNotesIndex([]) }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('changed since you opened it');
+    expect(value.onUpdate).not.toHaveBeenCalled();
+  });
+
+  it('shows the conflict, without retrying, when BC rejects the ETag (412)', async () => {
+    const value = context([note({})], {
+      canEdit: true,
+      onUpdate: vi.fn(async () => {
+        throw new Error('BC API Error (412): {"error":{"message":"Another user has changed it"}}');
+      }),
+    });
+    startEdit(value);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('changed since you opened it');
+    expect(value.onUpdate).toHaveBeenCalledTimes(1);
   });
 });

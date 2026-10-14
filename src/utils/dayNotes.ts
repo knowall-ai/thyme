@@ -134,3 +134,15 @@ export function canEditPlan(records: {
     (records.projects ?? []).some((p) => p.canEditPlan === true)
   );
 }
+
+/** Shown when a note changed (or went) after the user started changing it */
+export const DAY_NOTE_CONFLICT_MESSAGE =
+  'This note changed since you opened it — reload to see the latest.';
+
+/**
+ * BC refused a change because the note's ETag no longer matches (412 Precondition Failed), or
+ * reported a conflicting change (409): someone else changed the note first.
+ */
+export function isDayNoteConflict(error: unknown): boolean {
+  return error instanceof Error && /^BC API Error \((409|412)\)/.test(error.message);
+}

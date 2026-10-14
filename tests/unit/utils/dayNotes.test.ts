@@ -6,6 +6,7 @@ import {
   formatDayNotesTitle,
   getNoProjectWorkReason,
   getNotesForDate,
+  isDayNoteConflict,
   normalizeDayNote,
   validateDayNoteInput,
 } from '@/utils/dayNotes';
@@ -83,5 +84,12 @@ describe('day notes', () => {
       expect(canEditPlan({ resources: [{}, { canEditPlan: false }], projects: [{}] })).toBe(false);
       expect(canEditPlan({})).toBe(false);
     });
+  });
+
+  it('recognises a conflicting change from BC', () => {
+    expect(isDayNoteConflict(new Error('BC API Error (412): changed'))).toBe(true);
+    expect(isDayNoteConflict(new Error('BC API Error (409): changed'))).toBe(true);
+    expect(isDayNoteConflict(new Error('BC API Error (400): bad'))).toBe(false);
+    expect(isDayNoteConflict('412')).toBe(false);
   });
 });

@@ -22,6 +22,8 @@ import {
   cn,
   computePopoverPosition,
   formatDayNotesTitle,
+  isDayNoteConflict,
+  DAY_NOTE_CONFLICT_MESSAGE,
   getNoProjectWorkReason,
   getNotesForDate,
   DAY_NOTE_MAX_LENGTH,
@@ -51,6 +53,8 @@ export interface DayNotesContextValue {
   onCreate: (input: BCDayNoteInput) => Promise<DayNoteMutationResult>;
   onUpdate: (note: BCDayNote, input: BCDayNoteInput) => Promise<DayNoteMutationResult>;
   onDelete: (note: BCDayNote) => Promise<DayNoteMutationResult>;
+  /** Re-read the visible dates from BC (after a conflicting change) */
+  onReload: () => Promise<void>;
 }
 
 /** Null when day notes are unavailable (the extension has no dayNotes API), which hides them */
@@ -228,6 +232,10 @@ function DayNotesPopover({
   const popoverRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
   const [editing, setEditing] = useState<Editing>(null);
+  // The note as it was when editing began: its values fill the form, and its ETag is the one
+  // sent, so a refresh meanwhile can't make a save overwrite someone else's change
+  const [editSnapshot, setEditSnapshot] = useState<BCDayNote | null>(null);
+  const [hasConflict, setHasConflict] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const titleId = useId();
@@ -290,6 +298,19 @@ function DayNotesPopover({
     };
   }, [anchorRef]);
 
+  const stopEditing = () => {
+    setEditing(null);
+    setEditSnapshot(null);
+    setHasConflict(false);
+  };
+
+  const startEditing = (note: BCDayNote) => {
+    setConfirmingDelete(null);
+    setHasConflict(false);
+    setEditSnapshot(note);
+    setEditing(note.id);
+  };
+
   const run = async (action: () => Promise<DayNoteMutationResult>, success: string) => {
     setIsBusy(true);
     try {
@@ -299,14 +320,46 @@ function DayNotesPopover({
         // Saved, but other people's latest notes couldn't be read back
         toast.error("Notes couldn't be refreshed, so others' latest changes may be missing.");
       }
-      setEditing(null);
+      stopEditing();
       setConfirmingDelete(null);
     } catch (error) {
-      toast.error(bcErrorText(error, 'The note could not be saved. Please try again.'));
+      if (isDayNoteConflict(error) && editSnapshot) {
+        // Never retried with the newer ETag: the user must see the latest first
+        setHasConflict(true);
+      } else if (isDayNoteConflict(error)) {
+        toast.error(DAY_NOTE_CONFLICT_MESSAGE);
+      } else {
+        toast.error(bcErrorText(error, 'The note could not be saved. Please try again.'));
+      }
     } finally {
       setIsBusy(false);
     }
   };
+
+  /** Save an edit with the ETag from when editing began, unless the note has changed since */
+  const saveEdit = (snapshot: BCDayNote, input: BCDayNoteInput) => {
+    const current = notes.find((n) => n.id === snapshot.id);
+    if (!current || current['@odata.etag'] !== snapshot['@odata.etag']) {
+      setHasConflict(true);
+      return;
+    }
+    void run(() => context.onUpdate(snapshot, input), 'Note saved');
+  };
+
+  const reloadAfterConflict = async () => {
+    setIsBusy(true);
+    try {
+      await context.onReload();
+    } finally {
+      setIsBusy(false);
+      stopEditing();
+    }
+  };
+
+  // A note deleted by someone else while being edited stays in the list as it was, so the
+  // form (and the conflict it will report) doesn't vanish under the user
+  const listedNotes =
+    editSnapshot && !notes.some((n) => n.id === editSnapshot.id) ? [...notes, editSnapshot] : notes;
 
   return createPortal(
     <div
@@ -341,17 +394,34 @@ function DayNotesPopover({
       )}
 
       <ul className="space-y-2">
-        {notes.map((note) =>
-          editing === note.id ? (
+        {listedNotes.map((note) =>
+          editing === note.id && editSnapshot ? (
             <li key={note.id}>
               <DayNoteForm
                 date={date}
                 people={people}
-                initial={note}
+                initial={editSnapshot}
                 isBusy={isBusy}
-                onCancel={() => setEditing(null)}
-                onSubmit={(input) => run(() => context.onUpdate(note, input), 'Note saved')}
+                saveDisabled={hasConflict}
+                onCancel={stopEditing}
+                onSubmit={(input) => saveEdit(editSnapshot, input)}
               />
+              {hasConflict && (
+                <div
+                  role="alert"
+                  className="mt-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-200"
+                >
+                  <p>{DAY_NOTE_CONFLICT_MESSAGE}</p>
+                  <button
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => void reloadAfterConflict()}
+                    className="focus-visible:ring-knowall-green mt-1 rounded font-medium text-amber-100 underline focus:outline-none focus-visible:ring-2 disabled:opacity-50"
+                  >
+                    Reload
+                  </button>
+                </div>
+              )}
             </li>
           ) : (
             <li key={note.id} className="bg-dark-900/60 rounded-md px-2 py-1.5">
@@ -371,10 +441,7 @@ function DayNotesPopover({
                   <div className="flex shrink-0 gap-1">
                     <button
                       type="button"
-                      onClick={() => {
-                        setConfirmingDelete(null);
-                        setEditing(note.id);
-                      }}
+                      onClick={() => startEditing(note)}
                       aria-label={`Edit note "${note.note}"`}
                       className="text-dark-400 hover:text-knowall-green focus-visible:ring-knowall-green rounded p-0.5 focus:outline-none focus-visible:ring-2"
                     >
@@ -423,8 +490,8 @@ function DayNotesPopover({
               date={date}
               people={people}
               isBusy={isBusy}
-              onCancel={() => setEditing(null)}
-              onSubmit={(input) => run(() => context.onCreate(input), 'Note added')}
+              onCancel={stopEditing}
+              onSubmit={(input) => void run(() => context.onCreate(input), 'Note added')}
             />
           </div>
         ) : (
@@ -451,11 +518,21 @@ interface DayNoteFormProps {
   people: DayNotePerson[];
   initial?: BCDayNote;
   isBusy: boolean;
+  /** Keep Save off, e.g. after a conflicting change */
+  saveDisabled?: boolean;
   onCancel: () => void;
   onSubmit: (input: BCDayNoteInput) => void;
 }
 
-function DayNoteForm({ date, people, initial, isBusy, onCancel, onSubmit }: DayNoteFormProps) {
+function DayNoteForm({
+  date,
+  people,
+  initial,
+  isBusy,
+  saveDisabled = false,
+  onCancel,
+  onSubmit,
+}: DayNoteFormProps) {
   const [note, setNote] = useState(initial?.note ?? '');
   const [resourceNo, setResourceNo] = useState(initial?.resourceNo ?? '');
   const [noProjectWork, setNoProjectWork] = useState(initial?.noProjectWork ?? false);
@@ -472,7 +549,7 @@ function DayNoteForm({ date, people, initial, isBusy, onCancel, onSubmit }: DayN
     resourceNo && !people.some((p) => p.number === resourceNo)
       ? [...people, { number: resourceNo, name: resourceNo }]
       : people;
-  const canSave = note.trim().length > 0 && !isBusy;
+  const canSave = note.trim().length > 0 && !isBusy && !saveDisabled;
 
   return (
     <form

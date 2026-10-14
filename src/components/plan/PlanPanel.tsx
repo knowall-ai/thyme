@@ -1668,6 +1668,7 @@ export function PlanPanel({
       onCreate: createDayNote,
       onUpdate: updateDayNote,
       onDelete: deleteDayNote,
+      onReload: () => loadDayNotes(notesFrom, notesTo, { force: true }),
     };
   }, [
     dayNotesAvailable,
@@ -1677,6 +1678,9 @@ export function PlanPanel({
     createDayNote,
     updateDayNote,
     deleteDayNote,
+    loadDayNotes,
+    notesFrom,
+    notesTo,
   ]);
 
   // Group days by week for header
