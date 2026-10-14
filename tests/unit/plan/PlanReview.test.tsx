@@ -124,14 +124,14 @@ describe('PlanReviewWeekChip', () => {
     const chip = screen.getByTestId('plan-review-week-chip');
     expect(chip).toHaveTextContent('2 to check');
     expect(chip).toHaveClass('text-amber-400');
-    expect(chip).not.toHaveTextContent('Out of date');
+    expect(chip).not.toHaveAccessibleName(/out of date/i);
   });
 
   it('shows "Out of date" when a subject\'s plan changed since the review', () => {
     renderChip(context([subject({ review: review({ verdict: 'Query' }), status: 'outOfDate' })]));
     const chip = screen.getByTestId('plan-review-week-chip');
     expect(chip).toHaveTextContent('Needs changes');
-    expect(chip).toHaveTextContent('Out of date');
+    expect(chip).toHaveAccessibleName(/out of date/i);
     expect(chip).toHaveClass('border-dashed');
   });
 

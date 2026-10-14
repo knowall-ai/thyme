@@ -117,7 +117,7 @@ describe('PlanPanel plan reviews', () => {
 
     const chip = await screen.findByTestId('plan-review-week-chip');
     expect(chip).toHaveTextContent('Worth a check');
-    expect(chip).not.toHaveTextContent('Out of date');
+    expect(chip).not.toHaveAccessibleName(/out of date/i);
     const marker = await screen.findByTestId('plan-review-day-marker');
     expect(marker).toHaveAttribute('title', "Poppie: 7.17h isn't a quarter hour.");
   });
@@ -126,6 +126,6 @@ describe('PlanPanel plan reviews', () => {
     reviewedHash = 'a'.repeat(64);
     render(<PlanPanel />);
     const chip = await screen.findByTestId('plan-review-week-chip');
-    await vi.waitFor(() => expect(chip).toHaveTextContent('Out of date'));
+    await vi.waitFor(() => expect(chip).toHaveAccessibleName(/out of date/i));
   });
 });

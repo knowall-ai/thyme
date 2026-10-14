@@ -14,7 +14,12 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
-import { ChevronDownIcon, ChevronRightIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import {
+  ArrowPathIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
 import { format, parseISO, startOfWeek } from 'date-fns';
 import type {
   BCPlanReviewChange,
@@ -162,7 +167,12 @@ export function PlanReviewWeekChip({
     content = (
       <>
         <span className="truncate">{label}</span>
-        {summary.outOfDate > 0 && <span className="shrink-0 opacity-80">· Out of date</span>}
+        {/* An icon rather than text, so the verdict fits the narrow week header */}
+        {summary.outOfDate > 0 && (
+          <span title="Out of date: the plan changed since Poppie looked" className="shrink-0">
+            <ArrowPathIcon className="h-3 w-3 opacity-80" aria-hidden="true" />
+          </span>
+        )}
         {summary.awaiting > 0 && <Spinner />}
       </>
     );
