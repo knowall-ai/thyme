@@ -61,6 +61,7 @@ import {
   getPlanReviewStatus,
   planHashEntriesForSubjectWeek,
   planReviewKey,
+  planCellManualReason,
   DAILY_CAPACITY_HOURS,
   type CapacityFlag,
   type PlanJobTask,
@@ -78,6 +79,7 @@ import {
   isSameDay,
   isToday,
   isWeekend,
+  parseISO,
 } from 'date-fns';
 
 // Red ring on hour cells where a resource's total across all projects exceeds daily capacity
@@ -2132,9 +2134,28 @@ export function PlanPanel({
         return resource?.name || resource?.displayName || resourceNo;
       },
       onRequest: (subjectNo, weekStart) => requestReview(reviewSubjectType, subjectNo, weekStart),
+      manualReason: (change: BCPlanReviewChange) => {
+        // The cell's lines as loaded (the grid shows lines with hours; Apply re-reads BC)
+        const weekStart = format(
+          startOfWeek(parseISO(change.planningDate), { weekStartsOn: 1 }),
+          'yyyy-MM-dd'
+        );
+        const lines = (loadedWeeks?.get(weekStart) ?? []).filter(
+          (a) =>
+            a.projectNumber === change.jobNo &&
+            (a.taskNumber ?? '') === change.jobTaskNo &&
+            a.resourceNumber === change.resourceNo &&
+            a.startDate.slice(0, 10) === change.planningDate
+        );
+        return planCellManualReason(lines);
+      },
       onApply: async (changes) => {
         const result = await applyReviewChanges(changes, uomConversionMap);
-        if (result.status === 'applied') await handlePlanSavedRef.current();
+        // Refresh after any attempted write, whether it worked or was rolled back (not after
+        // a company switch: the grid is already loading the other company)
+        if (result.attempted && result.status !== 'companyChanged') {
+          await handlePlanSavedRef.current();
+        }
         return result;
       },
     };
@@ -2150,6 +2171,7 @@ export function PlanPanel({
     requestReview,
     applyReviewChanges,
     uomConversionMap,
+    loadedWeeks,
   ]);
 
   const showLoading = isLoading || (!!projectCode && !hasLoaded);

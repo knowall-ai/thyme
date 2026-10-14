@@ -42,6 +42,7 @@ import {
   getPlanReviewCheckLabel,
   getPlanVerdictDisplay,
   isOpenPlanReviewRequest,
+  planCellManualMessage,
   planReviewRequestText,
   sortPlanReviewLines,
   summarizePlanReviewWeek,
@@ -63,6 +64,11 @@ export interface PlanReviewContextValue {
   canRequest: (subjectNo: string) => boolean;
   /** Whether the signed-in user may write this change's planning lines */
   canApply: (change: BCPlanReviewChange) => boolean;
+  /**
+   * Why a change's cell must be edited by hand (see planCellManualReason), from the plan on
+   * screen, or undefined. Apply checks BC again before writing.
+   */
+  manualReason?: (change: BCPlanReviewChange) => string | undefined;
   projectName: (jobNo: string) => string;
   resourceName: (resourceNo: string) => string;
   onRequest: (subjectNo: string, weekStart: string) => Promise<void>;
@@ -82,6 +88,9 @@ export function PlanReviewProvider({
 }) {
   return <PlanReviewContext.Provider value={value}>{children}</PlanReviewContext.Provider>;
 }
+
+export const COMPANY_CHANGED_MESSAGE =
+  "The company changed while Poppie's change was being applied, so Thyme stopped. Check that week's plan in the company you started in.";
 
 export const STALE_CHANGE_MESSAGE = 'The plan changed since Poppie looked — ask her to re-review.';
 
@@ -485,7 +494,12 @@ function SubjectReview({
               ) : (
                 <ul className="space-y-1.5" aria-label={`Poppie's findings for ${subject.name}`}>
                   {lines.map((line) => (
-                    <Finding key={line.lineNo} line={line} subject={subject} context={context} />
+                    <Finding
+                      key={`${line.reviewEntryNo}-${line.lineNo}`}
+                      line={line}
+                      subject={subject}
+                      context={context}
+                    />
                   ))}
                 </ul>
               )}
@@ -514,24 +528,56 @@ function Finding({
   subject: PlanReviewSubjectWeek;
   context: PlanReviewContextValue;
 }) {
-  const [state, setState] = useState<'idle' | 'applying' | 'applied' | 'stale'>('idle');
+  const [state, setState] = useState<{
+    kind: 'idle' | 'applying' | 'applied' | 'stale' | 'manual' | 'failed';
+    message?: string;
+  }>({ kind: 'idle' });
   const changesState = subject.review ? context.changes[subject.review.entryNo] : undefined;
   const changes = Array.isArray(changesState) ? changesForLine(changesState, line) : [];
   const canApply = changes.length > 0 && changes.every(context.canApply);
+  // Decided up front from the plan on screen; Apply checks BC again before writing anything
+  const shownReason = canApply
+    ? changes.map((change) => context.manualReason?.(change)).find(Boolean)
+    : undefined;
 
   const apply = async () => {
-    setState('applying');
+    setState({ kind: 'applying' });
+    let result: ApplyPlanChangesResult;
     try {
-      const result = await context.onApply(changes);
-      if (result.status === 'stale') {
-        setState('stale');
-        return;
-      }
-      setState('applied');
-      toast.success(changes.length === 1 ? 'Change applied' : 'Changes applied');
+      result = await context.onApply(changes);
     } catch (error) {
-      setState('idle');
+      setState({ kind: 'idle' });
       toast.error(bcErrorText(error, "Couldn't apply the change. Please try again."));
+      return;
+    }
+    switch (result.status) {
+      case 'applied':
+        setState({ kind: 'applied' });
+        toast.success(changes.length === 1 ? 'Change applied' : 'Changes applied');
+        return;
+      case 'manual':
+        setState({ kind: 'manual', message: planCellManualMessage(result.reason) });
+        return;
+      case 'stale':
+        setState({
+          kind: 'stale',
+          message:
+            result.attempted && !result.rolledBack
+              ? `${STALE_CHANGE_MESSAGE} Part of the change was written and couldn't be undone, so check this week's plan.`
+              : STALE_CHANGE_MESSAGE,
+        });
+        return;
+      case 'companyChanged':
+        setState({ kind: 'failed', message: COMPANY_CHANGED_MESSAGE });
+        toast.error(COMPANY_CHANGED_MESSAGE);
+        return;
+      case 'failed': {
+        const message = result.rolledBack
+          ? `Couldn't apply the change, so nothing was changed: ${result.message}`
+          : `Couldn't apply the change, and undoing the part already written failed too. Check this week's plan: ${result.message}`;
+        setState({ kind: result.rolledBack ? 'idle' : 'failed', message });
+        toast.error(message);
+      }
     }
   };
 
@@ -576,24 +622,38 @@ function Finding({
               ))}
             </ul>
           )}
-          {canApply && state !== 'applied' && state !== 'stale' && (
+          {shownReason && state.kind === 'idle' && (
+            <p className="text-dark-300 mt-1 text-[11px]">{planCellManualMessage(shownReason)}</p>
+          )}
+          {canApply && !shownReason && (state.kind === 'idle' || state.kind === 'applying') && (
             <button
               type="button"
-              disabled={state === 'applying'}
+              disabled={state.kind === 'applying'}
               onClick={apply}
               className="bg-knowall-green/20 text-knowall-green hover:bg-knowall-green/30 focus-visible:ring-knowall-green mt-1 rounded px-2 py-0.5 text-[11px] font-medium focus:outline-none focus-visible:ring-2 disabled:opacity-50"
             >
-              {state === 'applying' ? 'Applying…' : 'Apply change'}
+              {state.kind === 'applying' ? 'Applying…' : 'Apply change'}
             </button>
           )}
-          {state === 'applied' && (
+          {state.kind === 'applied' && (
             <p className="text-thyme-400 mt-1 text-[11px]" role="status">
               Applied
             </p>
           )}
-          {state === 'stale' && (
-            <p className="mt-1 text-[11px] text-amber-300" role="alert">
-              {STALE_CHANGE_MESSAGE}
+          {state.kind === 'manual' && (
+            <p className="text-dark-300 mt-1 text-[11px]" role="alert">
+              {state.message}
+            </p>
+          )}
+          {state.kind !== 'manual' && state.message && (
+            <p
+              className={cn(
+                'mt-1 text-[11px]',
+                state.kind === 'stale' ? 'text-amber-300' : 'text-red-300'
+              )}
+              role="alert"
+            >
+              {state.message}
             </p>
           )}
         </div>

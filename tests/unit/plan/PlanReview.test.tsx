@@ -7,6 +7,7 @@ import {
   PlanReviewProvider,
   PlanReviewWeekChip,
   STALE_CHANGE_MESSAGE,
+  COMPANY_CHANGED_MESSAGE,
   type PlanReviewContextValue,
 } from '@/components/plan/PlanReview';
 
@@ -79,7 +80,7 @@ function context(
     projectName: (jobNo) => (jobNo === 'PR00090' ? 'Contoso Rollout' : jobNo),
     resourceName: (no) => no,
     onRequest: vi.fn(async () => {}),
-    onApply: vi.fn(async () => ({ status: 'applied' as const, written: 1 })),
+    onApply: vi.fn(async () => ({ status: 'applied' as const, written: 1, attempted: true })),
     ...overrides,
   };
 }
@@ -191,13 +192,83 @@ describe('PlanReview popover', () => {
   it('says the plan changed when a cell no longer matches, and stops offering the change', async () => {
     const value = context([subject()], {
       canApply: () => true,
-      onApply: vi.fn(async () => ({ status: 'stale' as const, change, actualHours: 7.5 })),
+      onApply: vi.fn(async () => ({
+        status: 'stale' as const,
+        change,
+        actualHours: 7.5,
+        attempted: false,
+        rolledBack: true,
+      })),
     });
     renderChip(value);
     openPopover();
     fireEvent.click(screen.getByRole('button', { name: 'Apply change' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(STALE_CHANGE_MESSAGE);
     expect(screen.queryByRole('button', { name: 'Apply change' })).not.toBeInTheDocument();
+  });
+
+  it('says to edit the cell by hand instead of offering Apply for a Billable or multi-line cell', () => {
+    renderChip(
+      context([subject()], {
+        canApply: () => true,
+        manualReason: () => "its planning line is Billable, part of the project's budget estimate",
+      })
+    );
+    const dialog = openPopover();
+    expect(screen.queryByRole('button', { name: 'Apply change' })).not.toBeInTheDocument();
+    expect(dialog).toHaveTextContent(
+      "Edit this cell by hand: its planning line is Billable, part of the project's budget estimate."
+    );
+  });
+
+  it('shows why Apply stopped when BC says the cell must be edited by hand', async () => {
+    renderChip(
+      context([subject()], {
+        canApply: () => true,
+        onApply: vi.fn(async () => ({
+          status: 'manual' as const,
+          change,
+          reason: 'this day has several planning lines for the task',
+          attempted: false as const,
+        })),
+      })
+    );
+    openPopover();
+    fireEvent.click(screen.getByRole('button', { name: 'Apply change' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Edit this cell by hand: this day has several planning lines for the task.'
+    );
+  });
+
+  it('reports a failed write, and whether it was undone', async () => {
+    renderChip(
+      context([subject()], {
+        canApply: () => true,
+        onApply: vi.fn(async () => ({
+          status: 'failed' as const,
+          message: 'BC API Error (500)',
+          attempted: true as const,
+          rolledBack: false,
+        })),
+      })
+    );
+    openPopover();
+    fireEvent.click(screen.getByRole('button', { name: 'Apply change' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /undoing the part already written failed too\. Check this week's plan/
+    );
+  });
+
+  it('stops and says so when the company changes while applying', async () => {
+    renderChip(
+      context([subject()], {
+        canApply: () => true,
+        onApply: vi.fn(async () => ({ status: 'companyChanged' as const, attempted: true })),
+      })
+    );
+    openPopover();
+    fireEvent.click(screen.getByRole('button', { name: 'Apply change' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(COMPANY_CHANGED_MESSAGE);
   });
 
   it('asks Poppie to review an unreviewed subject, and shows a request in progress', async () => {

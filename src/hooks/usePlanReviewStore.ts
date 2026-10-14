@@ -71,6 +71,14 @@ interface PlanReviewStore {
 // Bumped on reset (company switch) so late responses from before it are dropped
 let generation = 0;
 
+/**
+ * The company (environment + id) bcClient talks to, and the switch count. Captured when a
+ * write starts and checked before each BC write: after a switch, the client would send the
+ * rest of it to the other company.
+ */
+const companyKey = () =>
+  `${bcClient.environment}/${(bcClient.companyId || '').toLowerCase()}#${generation}`;
+
 function scopeKeys({ subjectType, subjectNos, weekStarts }: PlanReviewScope): string[] {
   return subjectNos.flatMap((no) => weekStarts.map((week) => planReviewKey(subjectType, no, week)));
 }
@@ -238,18 +246,20 @@ export const usePlanReviewStore = create<PlanReviewStore>((set, get) => ({
 
   requestReview: async (subjectType, subjectNo, weekStart) => {
     const key = planReviewKey(subjectType, subjectNo, weekStart);
-    const requestGeneration = generation;
+    const startedIn = companyKey();
+    const isCurrent = () => companyKey() === startedIn;
     try {
       const created = await bcClient.createPlanReviewRequest(subjectType, subjectNo, weekStart);
-      if (requestGeneration !== generation) return;
+      // Made in the company it was asked in; the other company's view mustn't show it
+      if (!isCurrent()) return;
       set((state) => ({ requests: { ...state.requests, [key]: created } }));
     } catch (error) {
-      if (requestGeneration !== generation) return;
+      if (!isCurrent()) return;
       // Someone (maybe in another tab) already asked: follow their request instead
       const open = await bcClient
         .getPlanReviewRequests(subjectType, [subjectNo], [weekStart])
         .catch(() => undefined);
-      if (requestGeneration !== generation) return;
+      if (!isCurrent()) return;
       const existing = open?.find(isOpenPlanReviewRequest);
       if (existing) {
         set((state) => ({ requests: { ...state.requests, [key]: existing } }));
@@ -264,12 +274,15 @@ export const usePlanReviewStore = create<PlanReviewStore>((set, get) => ({
   },
 
   applyChanges: async (changes, uomConversionMap) => {
+    const startedIn = companyKey();
+    const isCurrent = () => companyKey() === startedIn;
     // Writing needs the real units: an empty cached map is fetched strictly instead
     const uomMap =
       uomConversionMap.size > 0
         ? uomConversionMap
         : buildUOMConversionMap(await bcClient.getResourceUnitsOfMeasure({ strict: true }));
-    return applyPlanReviewChanges(changes, uomMap, bcCellWriter);
+    if (!isCurrent()) return { status: 'companyChanged', attempted: false };
+    return applyPlanReviewChanges(changes, uomMap, bcCellWriter, { isCurrent });
   },
 
   reset: () => {

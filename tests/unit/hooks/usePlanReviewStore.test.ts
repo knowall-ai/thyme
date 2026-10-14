@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { BCPlanReviewChange } from '@/types';
 
 const bc = vi.hoisted(() => ({
+  companyId: 'c1',
+  environment: 'sandbox',
   getPlanReviews: vi.fn(),
   getPlanReviewLines: vi.fn(),
   getPlanReviewChanges: vi.fn(),
@@ -41,6 +43,7 @@ const change: BCPlanReviewChange = {
 const cellLine = (quantity: number) => ({
   id: 'line-1',
   type: 'Resource',
+  lineType: 'Budget',
   quantity,
   '@odata.etag': 'W/"1"',
 });
@@ -48,6 +51,7 @@ const cellLine = (quantity: number) => ({
 describe('usePlanReviewStore', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    bc.companyId = 'c1';
     usePlanReviewStore.getState().reset();
     bc.getPlanReviewRequests.mockResolvedValue([]);
     bc.getPlanReviewLines.mockResolvedValue([]);
@@ -139,6 +143,25 @@ describe('usePlanReviewStore', () => {
     );
   });
 
+  it("drops a request made in a company that's no longer the active one", async () => {
+    bc.getPlanReviews.mockResolvedValue([]);
+    bc.createPlanReviewRequest.mockImplementation(async () => {
+      bc.companyId = 'c2';
+      return {
+        id: 'q1',
+        entryNo: 1,
+        subjectType: 'Resource',
+        subjectNo: 'R0010',
+        weekStart: '2026-10-19',
+        status: 'Requested',
+        progress: '',
+        errorMessage: '',
+      };
+    });
+    await usePlanReviewStore.getState().requestReview('Resource', 'R0010', '2026-10-19');
+    expect(usePlanReviewStore.getState().requests[KEY]).toBeUndefined();
+  });
+
   it('turns a refused request into a message to show', async () => {
     bc.createPlanReviewRequest.mockRejectedValue(new Error('BC API Error (403): not allowed'));
     bc.getPlanReviewRequests.mockResolvedValue([]);
@@ -162,7 +185,7 @@ describe('usePlanReviewStore', () => {
     it('updates the planning line when it still matches', async () => {
       bc.getPlanningLinesForCell.mockResolvedValue([cellLine(7.1666667)]);
       const result = await usePlanReviewStore.getState().applyChanges([change], uomMap);
-      expect(result).toEqual({ status: 'applied', written: 1 });
+      expect(result).toEqual({ status: 'applied', written: 1, attempted: true });
       expect(bc.updateJobPlanningLine).toHaveBeenCalledWith('line-1', { quantity: 7.25 }, 'W/"1"');
     });
 
@@ -170,6 +193,16 @@ describe('usePlanReviewStore', () => {
       bc.getPlanningLinesForCell.mockRejectedValue(new Error('BC API Error (500)'));
       await expect(usePlanReviewStore.getState().applyChanges([change], uomMap)).rejects.toThrow();
       expect(bc.createJobPlanningLine).not.toHaveBeenCalled();
+    });
+
+    it('stops before writing when the company changes during the pre-read', async () => {
+      bc.getPlanningLinesForCell.mockImplementation(async () => {
+        bc.companyId = 'c2';
+        return [cellLine(7.1666667)];
+      });
+      const result = await usePlanReviewStore.getState().applyChanges([change], uomMap);
+      expect(result).toEqual({ status: 'companyChanged', attempted: false });
+      expect(bc.updateJobPlanningLine).not.toHaveBeenCalled();
     });
 
     it('loads units of measure strictly when none are cached', async () => {

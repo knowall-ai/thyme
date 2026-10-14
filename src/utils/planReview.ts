@@ -470,42 +470,94 @@ export function sameHours(a: number, b: number): boolean {
 /** What applying needs from BC (bcClient in the app; a fake in tests) */
 export interface PlanCellWriter {
   /** The cell's planning lines as BC has them now. Throws if they can't be read. */
-  getCellLines(cell: {
-    jobNo: string;
-    jobTaskNo: string;
-    resourceNo: string;
-    planningDate: string;
-  }): Promise<BCJobPlanningLine[]>;
-  createLine(params: {
-    jobNo: string;
-    jobTaskNo: string;
-    resourceNo: string;
-    planningDate: string;
-    quantity: number;
-  }): Promise<unknown>;
-  updateLine(id: string, quantity: number, etag?: string): Promise<unknown>;
+  getCellLines(cell: PlanCell): Promise<BCJobPlanningLine[]>;
+  /** Adds a Budget line; resolves to the new line (its id and etag, for a rollback) */
+  createLine(
+    params: PlanCell & { quantity: number }
+  ): Promise<Pick<BCJobPlanningLine, 'id' | '@odata.etag'> | null>;
+  /** Resolves to the updated line (its new etag, for a rollback) */
+  updateLine(
+    id: string,
+    quantity: number,
+    etag?: string
+  ): Promise<Pick<BCJobPlanningLine, 'id' | '@odata.etag'> | null>;
   deleteLine(id: string, etag?: string): Promise<unknown>;
 }
 
+/** One planning-line cell: a project task for a person on a day */
+export interface PlanCell {
+  jobNo: string;
+  jobTaskNo: string;
+  resourceNo: string;
+  planningDate: string;
+}
+
 export type ApplyPlanChangesResult =
-  | { status: 'applied'; written: number }
-  /** A cell no longer holds what Poppie saw: nothing was written */
-  | { status: 'stale'; change: BCPlanReviewChange; actualHours: number };
+  /** Every change was written */
+  | { status: 'applied'; written: number; attempted: boolean }
+  /** A cell no longer holds what Poppie saw; anything written was rolled back */
+  | {
+      status: 'stale';
+      change: BCPlanReviewChange;
+      actualHours: number;
+      attempted: boolean;
+      rolledBack: boolean;
+    }
+  /** A cell Thyme mustn't change automatically (see planCellManualReason): nothing written */
+  | { status: 'manual'; change: BCPlanReviewChange; reason: string; attempted: false }
+  /** A write failed part-way; rolledBack says whether the cells already written were restored */
+  | { status: 'failed'; message: string; attempted: true; rolledBack: boolean }
+  /** The company changed while applying: stopped, and nothing more could be done in it */
+  | { status: 'companyChanged'; attempted: boolean };
 
 const cellLinesOf = (lines: BCJobPlanningLine[]) => lines.filter((l) => l.type === 'Resource');
 
 /**
- * Apply a finding's changes to the plan, all or nothing up front: every cell is read fresh
- * from BC first, and if any no longer holds the hours Poppie saw (currentHours), nothing is
- * written. Then each cell is set to its proposed hours (quarter hours, in the resource's base
- * unit): the first line is updated and any others removed, a new line is added to an empty
- * cell, and 0 removes the cell's lines.
+ * Why Thyme can't change a cell by itself, or undefined when it can. Apply only touches a cell
+ * that is empty or holds exactly one Budget line: a Billable or "Both Budget and Billable" line
+ * is part of the project's budget estimate, and several lines would have to be merged.
+ */
+export function planCellManualReason(
+  lines: Pick<BCJobPlanningLine, 'lineType'>[]
+): string | undefined {
+  if (lines.length > 1) return 'this day has several planning lines for the task';
+  if (lines.length === 1 && lines[0].lineType !== 'Budget') {
+    return "its planning line is Billable, part of the project's budget estimate";
+  }
+  return undefined;
+}
+
+/** The message shown instead of Apply change for a cell Thyme mustn't change by itself */
+export function planCellManualMessage(reason: string): string {
+  return `Edit this cell by hand: ${reason}.`;
+}
+
+const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+/** A write already made, and how to undo it */
+interface WrittenCell {
+  undo: () => Promise<unknown>;
+}
+
+/**
+ * Apply a finding's changes to the plan, all or nothing:
+ * 1. Every cell is read fresh from BC first. If any no longer holds the hours Poppie saw
+ *    (currentHours), or isn't one Thyme may change by itself (planCellManualReason), nothing
+ *    is written.
+ * 2. Each cell is then set to its proposed hours (quarter hours, in the resource's base unit):
+ *    its one Budget line is updated, or removed for 0, or a Budget line is added to an empty
+ *    cell (after re-reading it, in case someone planned it meanwhile).
+ * 3. If a write fails, or the company changes (`isCurrent` turns false), the cells already
+ *    written are restored to what they held, as far as possible. After a company change
+ *    nothing more is sent: the client now talks to the other company.
  */
 export async function applyPlanReviewChanges(
   changes: BCPlanReviewChange[],
   uomConversionMap: UOMConversionMap,
-  writer: PlanCellWriter
+  writer: PlanCellWriter,
+  options: { isCurrent?: () => boolean } = {}
 ): Promise<ApplyPlanChangesResult> {
+  const isCurrent = options.isCurrent ?? (() => true);
   for (const change of changes) {
     if (!Number.isFinite(change.proposedHours) || change.proposedHours < 0) {
       throw new Error('Poppie proposed hours that cannot be planned.');
@@ -515,59 +567,116 @@ export async function applyPlanReviewChanges(
     }
   }
 
+  const cellOf = (change: BCPlanReviewChange): PlanCell => ({
+    jobNo: change.jobNo,
+    jobTaskNo: change.jobTaskNo,
+    resourceNo: change.resourceNo,
+    planningDate: change.planningDate,
+  });
+  const hoursOf = (change: BCPlanReviewChange, lines: BCJobPlanningLine[]) =>
+    lines.reduce(
+      (sum, line) => sum + convertToHours(change.resourceNo, line.quantity, uomConversionMap),
+      0
+    );
+
+  // 1. Pre-read every cell and decide before writing anything
   const cells = await Promise.all(
     changes.map(async (change) => {
-      const lines = cellLinesOf(
-        await writer.getCellLines({
-          jobNo: change.jobNo,
-          jobTaskNo: change.jobTaskNo,
-          resourceNo: change.resourceNo,
-          planningDate: change.planningDate,
-        })
-      );
-      const hours = lines.reduce(
-        (sum, line) => sum + convertToHours(change.resourceNo, line.quantity, uomConversionMap),
-        0
-      );
-      return { change, lines, hours };
+      const lines = cellLinesOf(await writer.getCellLines(cellOf(change)));
+      return { change, lines, hours: hoursOf(change, lines) };
     })
   );
+  if (!isCurrent()) return { status: 'companyChanged', attempted: false };
 
   const stale = cells.find(({ change, hours }) => !sameHours(hours, change.currentHours));
-  if (stale) return { status: 'stale', change: stale.change, actualHours: stale.hours };
+  if (stale) {
+    return {
+      status: 'stale',
+      change: stale.change,
+      actualHours: stale.hours,
+      attempted: false,
+      rolledBack: true,
+    };
+  }
+  for (const { change, lines } of cells) {
+    const reason = planCellManualReason(lines);
+    if (reason) return { status: 'manual', change, reason, attempted: false };
+  }
 
-  let written = 0;
+  // 2. Write, remembering how to undo each cell
+  const written: WrittenCell[] = [];
+  let attempted = false;
+
+  const rollBack = async (): Promise<boolean> => {
+    let ok = true;
+    for (const cell of [...written].reverse()) {
+      // A different company now: the client can't reach the original one any more
+      if (!isCurrent()) return false;
+      try {
+        await cell.undo();
+      } catch (error) {
+        console.error('[Plan] Rolling back a planning-line change failed:', error);
+        ok = false;
+      }
+    }
+    return ok;
+  };
+
   for (const { change, lines, hours } of cells) {
     const proposed = roundToQuarterHour(change.proposedHours);
-    if (sameHours(hours, proposed) && lines.length <= 1) continue;
+    if (sameHours(hours, proposed)) continue;
+    if (!isCurrent()) return { status: 'companyChanged', attempted };
 
-    if (proposed <= 0) {
-      for (const line of lines) {
-        await writer.deleteLine(line.id, line['@odata.etag']);
-        written += 1;
-      }
-      continue;
-    }
-
+    const [line] = lines; // at most one Budget line (checked above)
+    const originalQuantity = line?.quantity ?? 0;
     const quantity = convertFromHours(change.resourceNo, proposed, uomConversionMap);
-    const [first, ...extras] = lines;
-    // Remove duplicates first, so the cell never briefly holds more than proposed
-    for (const extra of extras) {
-      await writer.deleteLine(extra.id, extra['@odata.etag']);
-      written += 1;
+    try {
+      if (line && proposed <= 0) {
+        attempted = true;
+        await writer.deleteLine(line.id, line['@odata.etag']);
+        written.push({
+          undo: () => writer.createLine({ ...cellOf(change), quantity: originalQuantity }),
+        });
+      } else if (line) {
+        attempted = true;
+        const updated = await writer.updateLine(line.id, quantity, line['@odata.etag']);
+        written.push({
+          undo: () =>
+            writer.updateLine(line.id, originalQuantity, updated?.['@odata.etag'] ?? undefined),
+        });
+      } else if (proposed > 0) {
+        // The cell was empty at the pre-read: make sure nobody planned it since. (A small
+        // window remains between this read and the POST, and BC's POST is an upsert, so a
+        // line added in that instant could be merged into; the hash then shows the review
+        // out of date.)
+        const now = cellLinesOf(await writer.getCellLines(cellOf(change)));
+        if (now.length > 0) {
+          const rolledBack = await rollBack();
+          if (!isCurrent()) return { status: 'companyChanged', attempted };
+          return {
+            status: 'stale',
+            change,
+            actualHours: hoursOf(change, now),
+            attempted,
+            rolledBack,
+          };
+        }
+        if (!isCurrent()) return { status: 'companyChanged', attempted };
+        attempted = true;
+        const created = await writer.createLine({ ...cellOf(change), quantity });
+        written.push({
+          undo: async () => {
+            const id = created?.id ?? cellLinesOf(await writer.getCellLines(cellOf(change)))[0]?.id;
+            if (!id) throw new Error('The added planning line could not be found to remove it.');
+            await writer.deleteLine(id, created?.['@odata.etag'] ?? undefined);
+          },
+        });
+      }
+    } catch (error) {
+      const rolledBack = await rollBack();
+      if (!isCurrent()) return { status: 'companyChanged', attempted: true };
+      return { status: 'failed', message: errorText(error), attempted: true, rolledBack };
     }
-    if (first) {
-      await writer.updateLine(first.id, quantity, first['@odata.etag']);
-    } else {
-      await writer.createLine({
-        jobNo: change.jobNo,
-        jobTaskNo: change.jobTaskNo,
-        resourceNo: change.resourceNo,
-        planningDate: change.planningDate,
-        quantity,
-      });
-    }
-    written += 1;
   }
-  return { status: 'applied', written };
+  return { status: 'applied', written: written.length, attempted };
 }
