@@ -52,14 +52,16 @@ Poppie works alongside you. She proposes; you decide.
 
 ## Screenshots
 
-|                                                                                    |                                                                                 |
-| :--------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------: |
-| [![Timesheet](public/screenshots/timesheet.png)](public/screenshots/timesheet.png) | [![Projects](public/screenshots/projects.png)](public/screenshots/projects.png) |
-|             **Timesheet** - Weekly time entry with billable % per day              |         **Projects** - Estimate, spend, plan and forecast for a project         |
-|        [![Team](public/screenshots/team.png)](public/screenshots/team.png)         |       [![Plan](public/screenshots/plan.png)](public/screenshots/plan.png)       |
-|           **Team** - Hours by stage, timesheet completion and billable %           |        **Plan** - Allocations by person, project and task, with capacity        |
-| [![Approvals](public/screenshots/approvals.png)](public/screenshots/approvals.png) |  [![Reports](public/screenshots/reports.png)](public/screenshots/reports.png)   |
-|           **Approvals** - Each entry on its own row, with Poppie's notes           |         **Reports** - Periods, filters, hours by project and CSV export         |
+|                                                                                                                 |                                                                                                   |
+| :-------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------: |
+|               [![Timesheet](public/screenshots/timesheet.png)](public/screenshots/timesheet.png)                |          [![Projects](public/screenshots/projects.png)](public/screenshots/projects.png)          |
+|                            **Timesheet** - Weekly time entry with billable % per day                            |                  **Projects** - Estimate, spend, plan and forecast for a project                  |
+|                       [![Team](public/screenshots/team.png)](public/screenshots/team.png)                       |                [![Plan](public/screenshots/plan.png)](public/screenshots/plan.png)                |
+|                         **Team** - Hours by stage, timesheet completion and billable %                          |                 **Plan** - Allocations by person, project and task, with capacity                 |
+|               [![Approvals](public/screenshots/approvals.png)](public/screenshots/approvals.png)                |           [![Reports](public/screenshots/reports.png)](public/screenshots/reports.png)            |
+|                         **Approvals** - Each entry on its own row, with Poppie's notes                          |                  **Reports** - Periods, filters, hours by project and CSV export                  |
+| [![Poppie's suggestions](public/screenshots/poppie-suggestions.png)](public/screenshots/poppie-suggestions.png) | [![Poppie's plan review](public/screenshots/plan-review.png)](public/screenshots/plan-review.png) |
+|            **Poppie's suggestions** - Time entries suggested from calendars, GitHub and Azure DevOps            |           **Plan review** - Poppie's verdict for each week, with changes you can apply            |
 
 ## Tech Stack
 
