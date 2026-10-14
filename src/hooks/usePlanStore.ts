@@ -34,6 +34,11 @@ export interface AllocationBlock {
   endDate: string; // YYYY-MM-DD
   hoursPerDay: number;
   totalHours: number;
+  /**
+   * The line's hours before quarter-hour rounding (hoursPerDay is rounded for the grid).
+   * Poppie's plan hash is built from these, so Thyme can tell whether her review is current.
+   */
+  rawHours: number;
   color: string;
   lineType:
     | 'Budget'
@@ -496,9 +501,8 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
               for (const line of resourceLines) {
                 // Planned hours are kept to quarter hours, whatever unit BC stores them in
-                const hours = roundToQuarterHour(
-                  convertToHours(line.number, line.quantity, uomConversionMap)
-                );
+                const rawHours = convertToHours(line.number, line.quantity, uomConversionMap);
+                const hours = roundToQuarterHour(rawHours);
                 const allocation: AllocationBlock = {
                   id: `${line.jobNo}-${line.jobTaskNo}-${line.lineNo}`,
                   resourceId: resourceIdMap.get(line.number) || line.number,
@@ -514,6 +518,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
                   endDate: line.planningDate,
                   hoursPerDay: hours,
                   totalHours: hours,
+                  rawHours,
                   color: projectColorMap.get(line.jobNo) || '#6b7280',
                   lineType: line.lineType,
                   planningLineNo: line.lineNo,

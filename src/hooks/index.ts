@@ -18,3 +18,5 @@ export { useCompanyPath, useUrlCompany } from './useCompanyPath';
 export { switchCompany, confirmDiscardRunningTimer } from './companySwitch';
 export { useResourcePhotos } from './useResourcePhotos';
 export { useDayNotesStore } from './useDayNotesStore';
+export { usePlanReviewStore, usePlanReviews } from './usePlanReviewStore';
+export type { PlanReviewScope } from './usePlanReviewStore';
