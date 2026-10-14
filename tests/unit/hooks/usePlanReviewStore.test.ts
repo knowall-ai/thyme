@@ -178,6 +178,65 @@ describe('usePlanReviewStore', () => {
     expect(usePlanReviewStore.getState().requests[KEY]).toBeUndefined();
   });
 
+  it('re-fetches reviews when a request finishes during a full refresh', async () => {
+    bc.getPlanReviews.mockResolvedValue([]);
+    bc.createPlanReviewRequest.mockResolvedValue({
+      id: 'q1',
+      entryNo: 1,
+      subjectType: 'Resource',
+      subjectNo: 'R0010',
+      weekStart: '2026-10-19',
+      status: 'Requested',
+      progress: '',
+      errorMessage: '',
+    });
+    await usePlanReviewStore.getState().load(scope);
+    await usePlanReviewStore.getState().requestReview('Resource', 'R0010', '2026-10-19');
+
+    // The full refresh reads reviews first (none yet); then the request turns out to be done,
+    // and Poppie's review has landed in between
+    const newReview = {
+      id: 'r1',
+      entryNo: 7,
+      subjectType: 'Resource',
+      subjectNo: 'R0010',
+      weekStart: '2026-10-19',
+      planHash: 'h1',
+      verdict: 'Approve',
+      reviewedAt: '2026-10-15T09:00:00Z',
+    };
+    bc.getPlanReviews.mockReset();
+    bc.getPlanReviews.mockResolvedValueOnce([]).mockResolvedValueOnce([newReview]);
+    bc.getPlanReviewRequests.mockResolvedValue([]);
+    bc.getPlanReviewRequest.mockResolvedValue({
+      id: 'q1',
+      entryNo: 1,
+      subjectType: 'Resource',
+      subjectNo: 'R0010',
+      weekStart: '2026-10-19',
+      status: 'Done',
+      progress: '',
+      errorMessage: '',
+    });
+    await usePlanReviewStore.getState().load(scope);
+    expect(bc.getPlanReviews).toHaveBeenCalledTimes(2);
+    expect(usePlanReviewStore.getState().reviews[KEY]?.entryNo).toBe(7);
+    expect(usePlanReviewStore.getState().requests[KEY]).toBeUndefined();
+  });
+
+  it("doesn't retry failed changes by itself, only when asked to", async () => {
+    bc.getPlanReviewChanges.mockRejectedValue(new Error('BC API Error (500)'));
+    await usePlanReviewStore.getState().loadChanges([1]);
+    expect(usePlanReviewStore.getState().changes[1]).toBe('error');
+    await usePlanReviewStore.getState().loadChanges([1]);
+    expect(bc.getPlanReviewChanges).toHaveBeenCalledTimes(1);
+
+    bc.getPlanReviewChanges.mockResolvedValue([]);
+    await usePlanReviewStore.getState().loadChanges([1], { retry: true });
+    expect(bc.getPlanReviewChanges).toHaveBeenCalledTimes(2);
+    expect(usePlanReviewStore.getState().changes[1]).toEqual([]);
+  });
+
   it('turns a refused request into a message to show', async () => {
     bc.createPlanReviewRequest.mockRejectedValue(new Error('BC API Error (403): not allowed'));
     bc.getPlanReviewRequests.mockResolvedValue([]);

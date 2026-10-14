@@ -43,8 +43,11 @@ interface PlanReviewStore {
 
   /** Load the reviews (and open requests) for the subjects and weeks on screen */
   load: (scope: PlanReviewScope, options?: { requestsOnly?: boolean }) => Promise<void>;
-  /** Load reviews' proposed changes, unless they're loaded or loading */
-  loadChanges: (entryNos: number[]) => Promise<void>;
+  /**
+   * Load reviews' proposed changes, unless they're loaded or loading. Ones that failed are
+   * left alone unless `retry` is set.
+   */
+  loadChanges: (entryNos: number[], options?: { retry?: boolean }) => Promise<void>;
   /** Ask Poppie to (re-)review a subject-week. Throws with a message to show. */
   requestReview: (
     subjectType: PlanReviewSubjectType,
@@ -157,7 +160,9 @@ export const usePlanReviewStore = create<PlanReviewStore>((set, get) => ({
       );
       if (isStale()) return;
 
-      if (!latest && finished.length > 0) {
+      // A request finished: its review may have landed after the reviews read above (or
+      // there was none, in a requests-only refresh), so read them again
+      if (finished.length > 0) {
         const result = await fetchReviews();
         if (result === null) return;
         if (result === false) {
@@ -202,10 +207,11 @@ export const usePlanReviewStore = create<PlanReviewStore>((set, get) => ({
     }
   },
 
-  loadChanges: async (entryNos) => {
+  loadChanges: async (entryNos, options) => {
+    // A failed load is only tried again when asked to (Retry), never in a loop
     const wanted = entryNos.filter((entryNo) => {
       const state = get().changes[entryNo];
-      return state === undefined || state === 'error';
+      return state === undefined || (state === 'error' && options?.retry === true);
     });
     if (wanted.length === 0) return;
     const loadGeneration = generation;

@@ -2114,7 +2114,8 @@ export function PlanPanel({
       weeks: reviewWeeks,
       lines: planReviewLines,
       changes: planReviewChanges,
-      loadChanges: (entryNos) => void loadPlanReviewChanges(entryNos),
+      // The store's own action: stable, so opening a popover loads its changes once
+      loadChanges: loadPlanReviewChanges,
       // Asking for a review needs permission to change plans (the subject's own flag when BC
       // gives one)
       canRequest: (subjectNo) =>

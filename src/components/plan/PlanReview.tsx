@@ -58,7 +58,8 @@ export interface PlanReviewContextValue {
   weeks: Map<string, PlanReviewSubjectWeek[]>;
   lines: Record<number, BCPlanReviewLine[]>;
   changes: Record<number, PlanReviewChangesState>;
-  loadChanges: (entryNos: number[]) => void;
+  /** Load reviews' proposed changes once; `retry` tries failed ones again */
+  loadChanges: (entryNos: number[], options?: { retry?: boolean }) => unknown;
   /** Whether the signed-in user may ask Poppie to review this subject */
   canRequest: (subjectNo: string) => boolean;
   /** Whether the signed-in user may write this change's planning lines */
@@ -589,8 +590,17 @@ function Finding({
           {changesState === 'loading' && (
             <p className="text-dark-500 mt-0.5 text-[10px]">Loading changes…</p>
           )}
-          {changesState === 'error' && (
-            <p className="text-dark-500 mt-0.5 text-[10px]">Changes couldn&apos;t be loaded.</p>
+          {changesState === 'error' && subject.review && (
+            <p className="text-dark-400 mt-0.5 text-[10px]">
+              Couldn&apos;t load the proposed changes.{' '}
+              <button
+                type="button"
+                onClick={() => context.loadChanges([subject.review!.entryNo], { retry: true })}
+                className="text-knowall-green focus-visible:ring-knowall-green rounded font-medium hover:underline focus:outline-none focus-visible:ring-2"
+              >
+                Retry
+              </button>
+            </p>
           )}
           {changes.length > 0 && (
             <ul className="mt-1 space-y-0.5" aria-label="Proposed changes">

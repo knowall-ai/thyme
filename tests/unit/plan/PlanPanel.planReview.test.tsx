@@ -31,6 +31,7 @@ const planningLine = {
 let reviewedHash = '';
 let canEdit = false;
 const applyPlanReviewFinding = vi.fn();
+let changesFail = false;
 
 vi.mock('@/services/bc', () => ({
   ExtensionNotInstalledError: class ExtensionNotInstalledError extends Error {},
@@ -82,19 +83,22 @@ vi.mock('@/services/bc', () => ({
         note: "7.17h isn't a quarter hour.",
       },
     ]),
-    getPlanReviewChanges: vi.fn(async () => [
-      {
-        reviewEntryNo: 1,
-        reviewLineNo: 10000,
-        changeNo: 10000,
-        jobNo: 'PR001',
-        jobTaskNo: '100',
-        resourceNo: 'RES02',
-        planningDate: wednesday,
-        currentHours: 7.17,
-        proposedHours: 7.25,
-      },
-    ]),
+    getPlanReviewChanges: vi.fn(async () => {
+      if (changesFail) throw new Error('BC API Error (500)');
+      return [
+        {
+          reviewEntryNo: 1,
+          reviewLineNo: 10000,
+          changeNo: 10000,
+          jobNo: 'PR001',
+          jobTaskNo: '100',
+          resourceNo: 'RES02',
+          planningDate: wednesday,
+          currentHours: 7.17,
+          proposedHours: 7.25,
+        },
+      ];
+    }),
     applyPlanReviewFinding: (...args: unknown[]) => applyPlanReviewFinding(...args),
     getPlanReviewRequests: vi.fn(async () => []),
   },
@@ -126,6 +130,8 @@ const samsWeekHash = () =>
 describe('PlanPanel plan reviews', () => {
   beforeEach(() => {
     canEdit = false;
+    changesFail = false;
+    vi.mocked(bcClient.getPlanReviewChanges).mockClear();
     applyPlanReviewFinding.mockReset();
     usePlanStore.setState({ cache: null, viewMode: 'team', projects: [], teamMembers: [] });
     useDayNotesStore.getState().reset();
@@ -177,5 +183,22 @@ describe('PlanPanel plan reviews', () => {
     await waitFor(() =>
       expect(vi.mocked(bcClient.getJobPlanningLines).mock.calls.length).toBeGreaterThan(loadsBefore)
     );
+  });
+
+  it('asks for changes once per opening when they fail to load, and retries on request', async () => {
+    changesFail = true;
+    reviewedHash = await samsWeekHash();
+    render(<PlanPanel />);
+    fireEvent.click(await screen.findByTestId('plan-review-week-chip'));
+    const retry = await screen.findByRole('button', { name: 'Retry' });
+    expect(screen.getByText(/Couldn't load the proposed changes/)).toBeInTheDocument();
+    // Give a retry loop the chance to show itself
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(bcClient.getPlanReviewChanges).toHaveBeenCalledTimes(1);
+
+    changesFail = false;
+    fireEvent.click(retry);
+    await waitFor(() => expect(bcClient.getPlanReviewChanges).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText(/7\.17h → 7\.25h/)).toBeInTheDocument();
   });
 });
