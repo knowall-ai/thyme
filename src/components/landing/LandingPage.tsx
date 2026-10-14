@@ -6,60 +6,79 @@ import {
   ClockIcon,
   ChartBarIcon,
   ArrowPathIcon,
-  BuildingOfficeIcon,
+  CalendarDaysIcon,
   CheckCircleIcon,
   ArrowRightIcon,
+  ArrowTrendingUpIcon,
   BoltIcon,
-  BuildingOffice2Icon,
-  DevicePhoneMobileIcon,
   SparklesIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { Header, PublicFooter } from '@/components/layout';
 import { QuoteDisplay } from '@/components/ui';
 import { ScreenshotCarousel } from './ScreenshotCarousel';
 
+// Ordered for the three-column grid: each Poppie card sits beside the feature it supports
 const features = [
   {
     icon: ClockIcon,
     title: 'Effortless Time Tracking',
     description:
-      'Track your time with an intuitive weekly timesheet view or real-time timer. Log hours quickly and accurately.',
+      "Log hours in a weekly grid or with a timer, and see each day's billable % against your target. Hover over or tap an entry for its details.",
   },
   {
     icon: SparklesIcon,
-    title: 'AI Timesheet Suggestions',
+    title: "Poppie's Time Suggestions",
     description:
-      'An AI assistant suggests entries from your calendar, GitHub and Azure DevOps activity, matched to the right project. Review each one, then add it to your timesheet.',
+      'Poppie, the AI assistant, suggests entries from your calendar, GitHub and Azure DevOps activity, matched to the right project. Review each one before you add it.',
   },
   {
     icon: ArrowPathIcon,
     title: 'Business Central Sync',
     description:
-      'Automatically sync time entries to Microsoft Dynamics 365 Business Central Jobs and Job Journal Lines.',
+      'Time goes straight into your Business Central projects and timesheets. Switch between companies, and share links that open the same company and page.',
   },
   {
     icon: CheckCircleIcon,
     title: 'Timesheet Approvals',
     description:
-      'Managers can review and approve team timesheets with a single click. Track submission status across your team.',
+      'Review each submitted entry on its own row with its day, the daily hours and billable % against target, then approve the week in one click.',
   },
   {
     icon: SparklesIcon,
-    title: 'AI Approval Recommendations',
+    title: "Poppie's Timesheet Review",
     description:
-      'Submitted timesheets can get an AI review before approval, flagging missing comments, short days, the billable mix and budget overruns.',
+      'Before you approve, Poppie flags missing comments, short days, the billable mix and budget overruns, with notes against the entries concerned.',
   },
   {
     icon: ChartBarIcon,
-    title: 'Budget Tracking & Reports',
+    title: 'Reports & Export',
     description:
-      'Monitor project budgets in real-time. View weekly summaries, track progress, and export data for analysis.',
+      'Report on year to date, last year or any range, by client and project, with hours split by stage. Print it or export to CSV.',
   },
   {
-    icon: BuildingOfficeIcon,
-    title: 'Planning & Forecasting',
+    icon: UserGroupIcon,
+    title: 'Team Capacity & Targets',
     description:
-      'Plan and schedule resources across projects with a visual timeline. Forecast team capacity and utilization.',
+      "Set each person's billable target and weekly capacity, including flexible working days, and see how complete everyone's timesheets are.",
+  },
+  {
+    icon: CalendarDaysIcon,
+    title: 'Resource Planning',
+    description:
+      'Plan quarter-hour allocations by person, project and task. Over-capacity days show in red, under-capacity days in amber, and day notes mark off-sites.',
+  },
+  {
+    icon: SparklesIcon,
+    title: "Poppie's Plan Review",
+    description:
+      "Poppie checks each week's plan for billable targets, holidays, capacity and budget burn. If you can edit plans, apply her proposed changes in one click.",
+  },
+  {
+    icon: ArrowTrendingUpIcon,
+    title: 'Project Forecasting',
+    description:
+      'Track spend against the quoted estimate, forecast the outcome and finish date from planned hours, and break the time down by task.',
   },
   {
     icon: BoltIcon,
@@ -72,32 +91,30 @@ const features = [
     icon: BoltIcon,
     title: 'Zaps for Submissions',
     description:
-      'Incentivize timely timesheet submissions with optional Zaps (micro-Bitcoin payments via Lightning Network).',
+      'Encourage on-time timesheet submissions with optional Zaps (micro-Bitcoin payments via Lightning Network).',
     iconColor: 'text-amber-400',
-  },
-  {
-    icon: BuildingOffice2Icon,
-    title: 'Multi-Company Support',
-    description:
-      'Switch between Business Central companies seamlessly. Manage timesheets across different entities.',
-  },
-  {
-    icon: DevicePhoneMobileIcon,
-    title: 'Mobile Responsive',
-    description:
-      'Track time from anywhere on any device. Works great on desktop, tablet, and phone.',
   },
 ];
 
 const benefits = [
   { title: 'Accurate client billing', description: 'Every hour tracked means every hour billed' },
-  { title: 'Real-time project profitability', description: 'Know margins before it is too late' },
+  {
+    title: 'Fewer forgotten hours',
+    description: 'Poppie suggests entries from the work you have already done',
+  },
+  {
+    title: 'Real-time project profitability',
+    description: 'See spend against the estimate before it is too late',
+  },
   {
     title: 'No more timesheet chasing',
-    description: 'Approvals and Zaps drive on-time submissions',
+    description: 'Approvals and Zaps encourage on-time submissions',
   },
-  { title: 'Better resource forecasting', description: 'Plan capacity and avoid over-utilization' },
-  { title: 'Reduced admin overhead', description: 'Auto-sync eliminates double-entry' },
+  {
+    title: 'Better resource forecasting',
+    description: "Plan against each person's capacity and spot overbooked days",
+  },
+  { title: 'Reduced admin overhead', description: 'Auto-sync eliminates double entry' },
   { title: 'Compliance-ready audit trail', description: 'Full history of entries and approvals' },
   {
     title: 'Enterprise-grade security',
@@ -107,7 +124,7 @@ const benefits = [
     title: 'Your data, your tenant',
     description: 'Time entries stay in your Business Central environment',
   },
-  { title: 'Track time anywhere', description: 'Mobile-friendly for on-site or remote teams' },
+  { title: 'Track time anywhere', description: 'Works on desktop, tablet and phone' },
 ];
 
 export function LandingPage() {
@@ -152,9 +169,9 @@ export function LandingPage() {
             </h1>
 
             <p className="text-dark-300 mx-auto mb-10 max-w-2xl text-lg sm:text-xl">
-              Thyme is a modern time tracking application that integrates seamlessly with Microsoft
-              Dynamics 365 Business Central. Track time, manage projects, and keep your data in
-              sync.
+              Thyme is time tracking for Microsoft Dynamics 365 Business Central. Log your time,
+              plan your team and keep projects on budget, with Poppie, the AI assistant, suggesting
+              entries and reviewing timesheets and plans.
             </p>
 
             <div className="flex flex-col justify-center gap-4 sm:flex-row">
@@ -192,8 +209,8 @@ export function LandingPage() {
               Everything You Need for Time Tracking
             </h2>
             <p className="text-dark-400 mx-auto max-w-2xl text-lg">
-              Built specifically for Business Central users who need a modern, efficient way to
-              track and sync their time.
+              Built for Business Central users who need a modern, efficient way to track, plan and
+              approve their time.
             </p>
           </div>
 

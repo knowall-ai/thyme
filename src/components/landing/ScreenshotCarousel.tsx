@@ -11,43 +11,63 @@ interface Screenshot {
   description: string;
 }
 
+// Captured with scripts/capture-screenshots.mjs; a missing image shows a placeholder slide
 const screenshots: Screenshot[] = [
   {
     src: '/screenshots/timesheet.png',
-    alt: 'Weekly timesheet view with time entries',
+    alt: 'Weekly timesheet with time entries and billable % for each day',
     title: 'Weekly Timesheet',
-    description: 'Enter time against projects and tasks with an intuitive weekly grid view.',
+    description:
+      "Enter time against projects and tasks in a weekly grid, and see each day's billable % against your target.",
+  },
+  {
+    src: '/screenshots/poppie-suggestions.png',
+    alt: "Poppie's suggested time entries for the week, grouped by day, with Add and Edit buttons",
+    title: "Poppie's Suggestions",
+    description:
+      'Poppie suggests entries from your calendar, GitHub and Azure DevOps. Add each one, edit it first or dismiss it.',
   },
   {
     src: '/screenshots/projects.png',
-    alt: 'Project details with estimate, time spent by stage, plan, forecast and cost cards',
+    alt: 'Project details with estimate, time spent by stage, forecast and Spend vs Budget chart',
     title: 'Projects',
     description:
-      "Track every project's estimate, time spent, plan and costs from Business Central.",
+      'Track spend against the quoted estimate, forecast the finish date from planned hours, and break time down by task.',
   },
   {
     src: '/screenshots/team.png',
-    alt: 'Team overview with hours by timesheet stage and timesheet completion',
+    alt: 'Team overview with hours by timesheet stage, timesheet completion and billable % against target',
     title: 'Team',
-    description: "See your team's hours, timesheet completion and billable % at a glance.",
+    description:
+      "See your team's hours, timesheet completion and billable % against each person's target.",
   },
   {
     src: '/screenshots/plan.png',
     alt: 'Resource plan with a person expanded to show daily allocations by project and task',
     title: 'Plan',
-    description: 'Plan and schedule resources across projects with a visual timeline.',
+    description:
+      'Plan people across projects and tasks, with over-capacity days in red and under-capacity days in amber.',
+  },
+  {
+    src: '/screenshots/plan-review.png',
+    alt: "Plan grid with Poppie's verdict in the week header and her review open, showing a proposed change",
+    title: "Poppie's Plan Review",
+    description:
+      "Poppie checks each week's plan for targets, capacity, holidays and budget burn, and proposes changes you can apply.",
   },
   {
     src: '/screenshots/approvals.png',
-    alt: 'Submitted timesheet expanded with daily hours and lines by project',
+    alt: 'Submitted timesheet expanded with one row per entry, its day, and daily hours',
     title: 'Approvals',
-    description: 'Managers can review and approve team timesheets with one click.',
+    description:
+      "Review each entry with its day, the daily hours, billable % against target and Poppie's notes, then approve.",
   },
   {
     src: '/screenshots/reports.png',
-    alt: 'Time reports and analytics',
+    alt: 'Reports with a period picker, client and project filters, and hours by project split by stage',
     title: 'Reports',
-    description: 'Generate reports and export your time data to CSV.',
+    description:
+      'Report on any period by client and project, with a Team table, then print or export to CSV.',
   },
 ];
 
