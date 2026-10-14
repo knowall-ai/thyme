@@ -37,7 +37,7 @@ interface PlanReviewStore {
   loaded: Record<string, true>;
   /** The latest request per subject-week: an open one, or one that failed */
   requests: Record<string, BCPlanReviewRequest>;
-  /** Each loaded review's findings, by entry no. (a review never changes) */
+  /** Each loaded review's findings, by entry no. (re-read on each refresh, for appliedAt) */
   lines: Record<number, BCPlanReviewLine[]>;
   changes: Record<number, PlanReviewChangesState>;
 
@@ -98,16 +98,15 @@ export const usePlanReviewStore = create<PlanReviewStore>((set, get) => ({
       if (reviews === undefined) return false;
       const latest = pickLatestPlanReviews(reviews);
 
-      // Findings drive the day-cell dots, so load them with the reviews (once per review)
-      const missing = [...new Set(Object.values(latest).map((review) => review.entryNo))].filter(
-        (entryNo) => !(entryNo in get().lines)
-      );
-      if (missing.length > 0) {
-        const lines = await bcClient.getPlanReviewLines(missing);
+      // Findings drive the day-cell dots, so load them with the reviews. Re-read on every
+      // refresh, not just once: someone else applying a finding stamps appliedAt/appliedBy
+      const entryNos = [...new Set(Object.values(latest).map((review) => review.entryNo))];
+      if (entryNos.length > 0) {
+        const lines = await bcClient.getPlanReviewLines(entryNos);
         if (isStale()) return null;
         if (lines === undefined) return false;
         const byEntry: Record<number, BCPlanReviewLine[]> = {};
-        for (const entryNo of missing) byEntry[entryNo] = [];
+        for (const entryNo of entryNos) byEntry[entryNo] = [];
         for (const line of lines) byEntry[line.reviewEntryNo]?.push(line);
         set((state) => ({ lines: { ...state.lines, ...byEntry } }));
       }

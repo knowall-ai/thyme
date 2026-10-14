@@ -82,6 +82,47 @@ describe('usePlanReviewStore', () => {
     expect(state.lines[2]).toHaveLength(1);
   });
 
+  it('re-reads findings on each refresh, so one applied by someone else shows as applied', async () => {
+    const reviewRow = {
+      id: 'a',
+      entryNo: 1,
+      subjectType: 'Resource',
+      subjectNo: 'R0010',
+      weekStart: '2026-10-19',
+      planHash: 'h1',
+      verdict: 'Check',
+      reviewedAt: '2026-10-15T09:00:00Z',
+    };
+    const findingRow = {
+      id: '00000000-0000-0000-0000-00000000f001',
+      reviewEntryNo: 1,
+      lineNo: 10000,
+      severity: 'Warning',
+      check: 'ROUNDING',
+      planningDate: '2026-10-22',
+      jobNo: 'PR00090',
+      resourceNo: 'R0010',
+      note: 'Odd hours',
+      appliedAt: '',
+      appliedBy: '',
+    };
+    bc.getPlanReviews.mockResolvedValue([reviewRow]);
+    bc.getPlanReviewLines.mockResolvedValue([findingRow]);
+    await usePlanReviewStore.getState().load(scope);
+    expect(usePlanReviewStore.getState().lines[1][0].appliedAt).toBe('');
+
+    // Sam applies it in another browser; the next periodic refresh picks that up
+    bc.getPlanReviewLines.mockResolvedValue([
+      { ...findingRow, appliedAt: '2026-10-22T13:05:00Z', appliedBy: 'Sam Contoso' },
+    ]);
+    await usePlanReviewStore.getState().load(scope);
+    expect(bc.getPlanReviewLines).toHaveBeenCalledTimes(2);
+    expect(bc.getPlanReviewLines).toHaveBeenLastCalledWith([1]);
+    expect(usePlanReviewStore.getState().lines[1][0]).toEqual(
+      expect.objectContaining({ appliedAt: '2026-10-22T13:05:00Z', appliedBy: 'Sam Contoso' })
+    );
+  });
+
   it('follows a request until it ends, then fetches the new review', async () => {
     bc.getPlanReviews.mockResolvedValue([]);
     bc.createPlanReviewRequest.mockResolvedValue({
