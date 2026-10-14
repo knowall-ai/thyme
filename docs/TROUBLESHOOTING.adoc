@@ -173,6 +173,18 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | A Plan cell has a red outline
 | The person is over-allocated that day across *all* projects, not just the one shown. Hover the cell for the total planned hours, how many projects they span, the person's daily capacity and a per-project breakdown. Capacity is the person's hours per day from their units of measure in Business Central (e.g. 7.5h), or 8h when none is set; see the DAY/HOUR unit-of-measure entry above to set it. People with their own weekly capacity (e.g. 15h for two days a week) are also flagged from the day their week so far goes over it. Move or reduce some of that day's allocations to clear the outline.
 
+| Day notes don't appear on the Plan, or clicking a date does nothing
+| Day notes need Thyme BC Extension 1.22.0.0 or later (the `dayNotes` API); with older versions they're hidden and the dates in the Plan header aren't clickable. Upgrade the extension from https://github.com/knowall-ai/thyme-bc-extension, then reload the Plan.
+
+| The day notes popover has no *Add note*, edit or delete buttons, or saving a note says "You don't have permission to change day notes."
+| Only people who can write planning lines (Job Planning Line) in Business Central, Thyme administrators and the AI agent can change day notes; everyone else sees them read-only. Ask a BC administrator to give the user permission to modify Job Planning Lines (or the `THYME ADMIN` permission set). Thyme reads this from `canEditPlan` on the projects and resources APIs, so reload the Plan after the permission changes.
+
+| A Plan cell has a red outline on a hatched day, though the hours are within the person's day
+| The day has a *No project work* note (for everyone, or that person), e.g. an off-site, so any hours planned on it count as over capacity. Hover the cell for the note. Move the allocation to another day, or edit the note in the date's popover and untick *No project work* if the day is available after all.
+
+| Saving a day note says "This note changed since you opened it — reload to see the latest."
+| Someone else changed or deleted the note while you were editing it. Click *Reload* to see the latest version, then make your change again.
+
 | A task is missing from a project's Planned dialog
 | The dialog lists every *Posting* task on the project. Heading and total tasks can't hold plan lines, so they're left out. If a Posting task is missing, check its Job Task Type in Business Central, then close and reopen the dialog to reload.
 

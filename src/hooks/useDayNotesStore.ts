@@ -103,8 +103,9 @@ export const useDayNotesStore = create<DayNotesStore>((set, get) => {
     const { range, notes } = get();
     const others = notes.filter((n) => n.id !== id);
     const next = saved && inRange(saved, range) ? [...others, saved] : others;
+    // Shown, but not cached: only a successful read is, so if the re-read below fails, the
+    // next load of these dates asks BC again rather than trusting this local copy
     set({ notes: next, isLoading: false });
-    if (range) cache.set(rangeKey(range.from, range.to), next);
     if (!range) return { revalidated: true };
 
     const outcome = await fetchRange(range.from, range.to);

@@ -208,4 +208,30 @@ describe('useDayNotesStore', () => {
     save.reject(new Error('BC API Error (409): changed'));
     await expect(pending).rejects.toThrow('409');
   });
+
+  it("doesn't cache dates whose re-read failed, so the next load asks BC again", async () => {
+    const original = note({});
+    vi.mocked(bcClient.getDayNotes).mockResolvedValueOnce([original]);
+    await useDayNotesStore.getState().load(FROM, TO);
+
+    const updated = note({ note: 'Changed', '@odata.etag': 'W/"2"' });
+    vi.mocked(bcClient.updateDayNote).mockResolvedValue(updated);
+    vi.mocked(bcClient.getDayNotes).mockRejectedValueOnce(new Error('offline'));
+    await expect(useDayNotesStore.getState().updateNote(original, input)).resolves.toEqual({
+      revalidated: false,
+    });
+
+    const latest = [note({ note: 'Changed again', '@odata.etag': 'W/"3"' })];
+    vi.mocked(bcClient.getDayNotes).mockResolvedValueOnce(latest);
+    await useDayNotesStore.getState().load(FROM, TO);
+    expect(bcClient.getDayNotes).toHaveBeenCalledTimes(3);
+    expect(useDayNotesStore.getState().notes).toEqual(latest);
+  });
+
+  it('serves a range from the cache once it has been read successfully', async () => {
+    vi.mocked(bcClient.getDayNotes).mockResolvedValueOnce([note({})]);
+    await useDayNotesStore.getState().load(FROM, TO);
+    await useDayNotesStore.getState().load(FROM, TO);
+    expect(bcClient.getDayNotes).toHaveBeenCalledTimes(1);
+  });
 });
