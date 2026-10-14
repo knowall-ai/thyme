@@ -166,4 +166,46 @@ describe('useDayNotesStore', () => {
     await expect(useDayNotesStore.getState().deleteNote(original)).rejects.toThrow('403');
     expect(useDayNotesStore.getState().notes).toEqual([original]);
   });
+
+  it("doesn't apply a save from the previous company after a company switch", async () => {
+    // Company A's notes, and a save sent while A is selected
+    const original = note({});
+    vi.mocked(bcClient.getDayNotes).mockResolvedValueOnce([original]);
+    await useDayNotesStore.getState().load(FROM, TO);
+    const save = deferred<BCDayNote>();
+    vi.mocked(bcClient.updateDayNote).mockReturnValue(save.promise);
+    const pending = useDayNotesStore.getState().updateNote(original, input);
+
+    // Switch to company B, whose read is still in flight when A's save answers
+    useDayNotesStore.getState().reset();
+    const companyBNotes = [note({ id: 'b1', note: 'Contoso Day' })];
+    const readB = deferred<BCDayNote[] | undefined>();
+    vi.mocked(bcClient.getDayNotes).mockReturnValueOnce(readB.promise);
+    const loadB = useDayNotesStore.getState().load(FROM, TO);
+
+    save.resolve(note({ note: 'Changed in A', '@odata.etag': 'W/"2"' }));
+    // The save still reports its own success
+    await expect(pending).resolves.toEqual({ revalidated: true });
+    // ...without touching B's notes or re-reading for A
+    expect(useDayNotesStore.getState().notes).toEqual([]);
+    expect(bcClient.getDayNotes).toHaveBeenCalledTimes(2);
+
+    // B's pending read isn't superseded by A's save
+    readB.resolve(companyBNotes);
+    await loadB;
+    expect(useDayNotesStore.getState().notes).toEqual(companyBNotes);
+  });
+
+  it('still reports a failed save from the previous company', async () => {
+    const original = note({});
+    vi.mocked(bcClient.getDayNotes).mockResolvedValueOnce([original]);
+    await useDayNotesStore.getState().load(FROM, TO);
+    const save = deferred<void>();
+    vi.mocked(bcClient.deleteDayNote).mockReturnValue(save.promise);
+    const pending = useDayNotesStore.getState().deleteNote(original);
+
+    useDayNotesStore.getState().reset();
+    save.reject(new Error('BC API Error (409): changed'));
+    await expect(pending).rejects.toThrow('409');
+  });
 });

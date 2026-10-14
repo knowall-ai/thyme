@@ -87,11 +87,17 @@ export const useDayNotesStore = create<DayNotesStore>((set, get) => {
    * Show a saved change at once - `saved` replaces the note with its id (with its new ETag),
    * or null removes it - then re-read the visible dates. Applying it supersedes any read
    * still in flight, which may have started before the change.
+   *
+   * `startGeneration` is the company generation when the change was sent: if the company has
+   * switched since, the change belongs to the old company, so the new company's notes, cache
+   * and reads are left alone (the save itself still succeeded, so the caller is told so).
    */
   async function applyAndRevalidate(
+    startGeneration: number,
     id: string,
     saved: BCDayNote | null
   ): Promise<DayNoteMutationResult> {
+    if (startGeneration !== generation) return { revalidated: true };
     requestSeq += 1;
     cache = new Map();
     const { range, notes } = get();
@@ -128,25 +134,28 @@ export const useDayNotesStore = create<DayNotesStore>((set, get) => {
     },
 
     createNote: async (input) => {
+      const startGeneration = generation;
       const created = savedRecord(await bcClient.createDayNote(input));
       if (!created) {
         // Nothing to show yet: the re-read picks it up
-        return applyAndRevalidate('', null);
+        return applyAndRevalidate(startGeneration, '', null);
       }
-      return applyAndRevalidate(created.id, created);
+      return applyAndRevalidate(startGeneration, created.id, created);
     },
 
     updateNote: async (note, input) => {
+      const startGeneration = generation;
       const updated = savedRecord(
         await bcClient.updateDayNote(note.id, input, note['@odata.etag'])
       );
       // Without the updated record, drop the old one rather than keep its stale ETag
-      return applyAndRevalidate(note.id, updated ?? null);
+      return applyAndRevalidate(startGeneration, note.id, updated ?? null);
     },
 
     deleteNote: async (note) => {
+      const startGeneration = generation;
       await bcClient.deleteDayNote(note.id, note['@odata.etag']);
-      return applyAndRevalidate(note.id, null);
+      return applyAndRevalidate(startGeneration, note.id, null);
     },
 
     reset: () => {
