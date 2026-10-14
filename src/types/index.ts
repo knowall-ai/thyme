@@ -482,6 +482,7 @@ export interface BCPlanReview {
 
 /** A finding in a plan review */
 export interface BCPlanReviewLine {
+  id: string; // SystemId: the applyChanges action is bound to it
   reviewEntryNo: number;
   lineNo: number;
   severity: TimesheetReviewSeverity;
@@ -490,6 +491,9 @@ export interface BCPlanReviewLine {
   jobNo: string;
   resourceNo: string;
   note: string;
+  // When (and by whom) the finding's changes were applied; '' until then
+  appliedAt: string;
+  appliedBy: string;
 }
 
 /** A proposed change to one planning-line cell; a finding's changes are applied together */

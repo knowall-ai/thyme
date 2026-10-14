@@ -47,7 +47,6 @@ import {
   sortPlanReviewLines,
   summarizePlanReviewWeek,
   worstPlanReviewSeverity,
-  type ApplyPlanChangesResult,
   type PlanReviewSubjectWeek,
 } from '@/utils';
 import { bcErrorText } from '@/utils/projectSourceLinks';
@@ -73,7 +72,11 @@ export interface PlanReviewContextValue {
   resourceName: (resourceNo: string) => string;
   onRequest: (subjectNo: string, weekStart: string) => Promise<void>;
   /** Apply a finding's changes and refresh the grid */
-  onApply: (changes: BCPlanReviewChange[]) => Promise<ApplyPlanChangesResult>;
+  /**
+   * Apply a finding's changes (BC does it in one go) and refresh the grid. Throws with BC's
+   * message when it refuses; companyChanged when the company switched while it ran.
+   */
+  onApply: (finding: BCPlanReviewLine) => Promise<{ companyChanged: boolean }>;
 }
 
 /** Null when plan reviews are unavailable (the extension has no planReviews API) */
@@ -90,9 +93,7 @@ export function PlanReviewProvider({
 }
 
 export const COMPANY_CHANGED_MESSAGE =
-  "The company changed while Poppie's change was being applied, so Thyme stopped. Check that week's plan in the company you started in.";
-
-export const STALE_CHANGE_MESSAGE = 'The plan changed since Poppie looked — ask her to re-review.';
+  "The company changed while Poppie's change was being applied. Check that week's plan in the company you started in.";
 
 const SEVERITY_DOT_CLASS: Record<TimesheetReviewSeverity, string> = {
   Issue: 'bg-red-400',
@@ -528,56 +529,34 @@ function Finding({
   subject: PlanReviewSubjectWeek;
   context: PlanReviewContextValue;
 }) {
-  const [state, setState] = useState<{
-    kind: 'idle' | 'applying' | 'applied' | 'stale' | 'manual' | 'failed';
-    message?: string;
-  }>({ kind: 'idle' });
+  const [state, setState] = useState<{ kind: 'idle' | 'applying'; message?: string }>({
+    kind: 'idle',
+  });
   const changesState = subject.review ? context.changes[subject.review.entryNo] : undefined;
   const changes = Array.isArray(changesState) ? changesForLine(changesState, line) : [];
-  const canApply = changes.length > 0 && changes.every(context.canApply);
-  // Decided up front from the plan on screen; Apply checks BC again before writing anything
+  const isApplied = !!line.appliedAt;
+  const canApply = !isApplied && changes.length > 0 && changes.every(context.canApply);
+  // Decided up front from the plan on screen, for quick feedback; BC checks again
   const shownReason = canApply
     ? changes.map((change) => context.manualReason?.(change)).find(Boolean)
     : undefined;
 
   const apply = async () => {
     setState({ kind: 'applying' });
-    let result: ApplyPlanChangesResult;
     try {
-      result = await context.onApply(changes);
-    } catch (error) {
-      setState({ kind: 'idle' });
-      toast.error(bcErrorText(error, "Couldn't apply the change. Please try again."));
-      return;
-    }
-    switch (result.status) {
-      case 'applied':
-        setState({ kind: 'applied' });
-        toast.success(changes.length === 1 ? 'Change applied' : 'Changes applied');
+      const { companyChanged } = await context.onApply(line);
+      if (companyChanged) {
+        setState({ kind: 'idle', message: COMPANY_CHANGED_MESSAGE });
         return;
-      case 'manual':
-        setState({ kind: 'manual', message: planCellManualMessage(result.reason) });
-        return;
-      case 'stale':
-        setState({
-          kind: 'stale',
-          message:
-            result.attempted && !result.rolledBack
-              ? `${STALE_CHANGE_MESSAGE} Part of the change was written and couldn't be undone, so check this week's plan.`
-              : STALE_CHANGE_MESSAGE,
-        });
-        return;
-      case 'companyChanged':
-        setState({ kind: 'failed', message: COMPANY_CHANGED_MESSAGE });
-        toast.error(COMPANY_CHANGED_MESSAGE);
-        return;
-      case 'failed': {
-        const message = result.rolledBack
-          ? `Couldn't apply the change, so nothing was changed: ${result.message}`
-          : `Couldn't apply the change, and undoing the part already written failed too. Check this week's plan: ${result.message}`;
-        setState({ kind: result.rolledBack ? 'idle' : 'failed', message });
-        toast.error(message);
       }
+      setState({ kind: 'idle' });
+      toast.success(changes.length === 1 ? 'Change applied' : 'Changes applied');
+    } catch (error) {
+      // BC's own words, e.g. "The plan changed since Poppie looked. Ask her to re-review."
+      setState({
+        kind: 'idle',
+        message: bcErrorText(error, "Couldn't apply the change. Please try again."),
+      });
     }
   };
 
@@ -622,10 +601,10 @@ function Finding({
               ))}
             </ul>
           )}
-          {shownReason && state.kind === 'idle' && (
+          {shownReason && (
             <p className="text-dark-300 mt-1 text-[11px]">{planCellManualMessage(shownReason)}</p>
           )}
-          {canApply && !shownReason && (state.kind === 'idle' || state.kind === 'applying') && (
+          {canApply && !shownReason && (
             <button
               type="button"
               disabled={state.kind === 'applying'}
@@ -635,24 +614,13 @@ function Finding({
               {state.kind === 'applying' ? 'Applying…' : 'Apply change'}
             </button>
           )}
-          {state.kind === 'applied' && (
+          {isApplied && (
             <p className="text-thyme-400 mt-1 text-[11px]" role="status">
-              Applied
+              {appliedText(line)}
             </p>
           )}
-          {state.kind === 'manual' && (
-            <p className="text-dark-300 mt-1 text-[11px]" role="alert">
-              {state.message}
-            </p>
-          )}
-          {state.kind !== 'manual' && state.message && (
-            <p
-              className={cn(
-                'mt-1 text-[11px]',
-                state.kind === 'stale' ? 'text-amber-300' : 'text-red-300'
-              )}
-              role="alert"
-            >
+          {state.message && !isApplied && (
+            <p className="mt-1 text-[11px] text-red-300" role="alert">
               {state.message}
             </p>
           )}
@@ -660,6 +628,13 @@ function Finding({
       </div>
     </li>
   );
+}
+
+/** "Applied 22 Oct, 14:05 by Alex Contoso" */
+function appliedText(line: Pick<BCPlanReviewLine, 'appliedAt' | 'appliedBy'>): string {
+  const time = Date.parse(line.appliedAt);
+  const when = Number.isNaN(time) ? '' : ` ${format(time, 'd MMM, HH:mm')}`;
+  return `Applied${when}${line.appliedBy ? ` by ${line.appliedBy}` : ''}`;
 }
 
 function RequestReview({

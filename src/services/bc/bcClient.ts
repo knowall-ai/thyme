@@ -1877,22 +1877,30 @@ class BusinessCentralClient {
   }
 
   /**
-   * One planning-line cell (a project task for a person on a day) as BC has it now. Unlike
-   * getJobPlanningLinesForWeek this throws when the lines can't be read, so a change is never
-   * applied to a cell whose contents aren't known.
+   * Apply a plan-review finding's changes. BC checks the caller may change the plan,
+   * re-checks every cell (empty or a single Budget line, still holding the hours Poppie saw)
+   * and writes them all in one transaction, so it's all or nothing. Its refusals come back as
+   * errors with BC's message (e.g. "The plan changed since Poppie looked. Ask her to
+   * re-review."): show them with bcErrorText.
+   *
+   * The company URL is taken once, when this is called, so a company switch while it runs
+   * can't send it elsewhere.
+   * @throws Error "Update the Thyme BC Extension to apply changes" when the action is missing
    */
-  async getPlanningLinesForCell(cell: {
-    jobNo: string;
-    jobTaskNo: string;
-    resourceNo: string;
-    planningDate: string;
-  }): Promise<BCJobPlanningLine[]> {
-    const date = this.sanitizeDateInput(cell.planningDate);
-    const filter = `jobNo eq '${this.sanitizeODataString(cell.jobNo)}' and jobTaskNo eq '${this.sanitizeODataString(cell.jobTaskNo)}' and number eq '${this.sanitizeODataString(cell.resourceNo)}' and planningDate eq ${date}`;
-    const lines = await this.customApiFetchAll<BCJobPlanningLine>(
-      `/jobPlanningLines?$filter=${encodeURIComponent(filter)}`
-    );
-    return this.normalizePlanningLines(lines);
+  async applyPlanReviewFinding(findingId: string): Promise<void> {
+    const baseUrl = this.customApiBaseUrl;
+    try {
+      await this.customApiFetch<void>(
+        `/planReviewLines(${requireSystemId(findingId, 'plan review finding')})/Microsoft.NAV.applyChanges`,
+        { method: 'POST' },
+        baseUrl
+      );
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('BC API Error (404)')) {
+        throw new Error('Update the Thyme BC Extension to apply changes');
+      }
+      throw error;
+    }
   }
 
   /** Re-read one suggestion request (progress polling). */

@@ -5,8 +5,10 @@ vi.mock('@/services/auth', () => ({
 }));
 
 import { bcClient } from '@/services/bc/bcClient';
+import { bcErrorText } from '@/utils/projectSourceLinks';
 
 const REQUEST_ID = '00000000-0000-0000-0000-00000000e001';
+const FINDING_ID = '00000000-0000-0000-0000-00000000f001';
 
 type Respond = (url: string, init?: RequestInit) => { status: number; body: unknown };
 
@@ -227,18 +229,42 @@ describe('bcClient plan reviews', () => {
     );
   });
 
-  it("reads a cell's planning lines, failing loudly rather than returning nothing", async () => {
-    const fetchMock = stubFetch(() => ({ status: 500, body: 'Server error' }));
-    await expect(
-      bcClient.getPlanningLinesForCell({
-        jobNo: 'PR00090',
-        jobTaskNo: '100',
-        resourceNo: 'R0010',
-        planningDate: '2026-10-22',
-      })
-    ).rejects.toThrow();
-    expect(urlOf(fetchMock)).toContain(
-      "/jobPlanningLines?$filter=jobNo eq 'PR00090' and jobTaskNo eq '100' and number eq 'R0010' and planningDate eq 2026-10-22"
+  it("applies a finding through BC's bound action, in the company it started in", async () => {
+    const fetchMock = stubFetch(() => ({ status: 204, body: '' }));
+    await bcClient.applyPlanReviewFinding(FINDING_ID);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toMatch(
+      /\/sandbox\/api\/knowall\/thyme\/v1\.0\/companies\(00000000-0000-0000-0000-0000000000c3\)\/planReviewLines\(00000000-0000-0000-0000-00000000f001\)\/Microsoft\.NAV\.applyChanges$/
     );
+    expect(init?.method).toBe('POST');
+    expect(init?.body).toBeUndefined();
+  });
+
+  it("passes BC's refusal through as BC's own message", async () => {
+    stubFetch(() => ({
+      status: 400,
+      body: JSON.stringify({
+        error: {
+          code: 'Application_DialogException',
+          message:
+            'The plan changed since Poppie looked. Ask her to re-review.  CorrelationId: abc',
+        },
+      }),
+    }));
+    const error = await bcClient.applyPlanReviewFinding(FINDING_ID).catch((e) => e);
+    expect(bcErrorText(error)).toBe('The plan changed since Poppie looked. Ask her to re-review.');
+  });
+
+  it('asks for an extension update when the action is missing (404)', async () => {
+    stubFetch(() => ({ status: 404, body: 'No HTTP resource was found' }));
+    await expect(bcClient.applyPlanReviewFinding(FINDING_ID)).rejects.toThrow(
+      'Update the Thyme BC Extension to apply changes'
+    );
+  });
+
+  it('refuses an id that is not a SystemId', async () => {
+    const fetchMock = stubFetch(() => ({ status: 204, body: '' }));
+    await expect(bcClient.applyPlanReviewFinding("x')/delete")).rejects.toThrow();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

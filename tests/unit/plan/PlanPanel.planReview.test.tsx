@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { addDays, format, startOfWeek } from 'date-fns';
 import { computePlanHash } from '@/utils';
+import { bcClient } from '@/services/bc';
 
 // Monday this week, so it's inside the grid's visible range
 const monday = startOfWeek(new Date(), { weekStartsOn: 1 });
@@ -28,13 +29,15 @@ const planningLine = {
 };
 
 let reviewedHash = '';
+let canEdit = false;
+const applyPlanReviewFinding = vi.fn();
 
 vi.mock('@/services/bc', () => ({
   ExtensionNotInstalledError: class ExtensionNotInstalledError extends Error {},
   bcClient: {
     getResources: vi.fn(async () => [
-      { id: 'r1', number: 'RES01', name: 'Alex Contoso', canEditPlan: false },
-      { id: 'r2', number: 'RES02', name: 'Sam Contoso', canEditPlan: false },
+      { id: 'r1', number: 'RES01', name: 'Alex Contoso', canEditPlan: canEdit },
+      { id: 'r2', number: 'RES02', name: 'Sam Contoso', canEditPlan: canEdit },
     ]),
     getProjects: vi.fn(async () => [
       { id: 'p1', number: 'PR001', displayName: 'Contoso Website', billToCustomerName: 'Contoso' },
@@ -66,6 +69,9 @@ vi.mock('@/services/bc', () => ({
     ),
     getPlanReviewLines: vi.fn(async () => [
       {
+        id: '00000000-0000-0000-0000-00000000f001',
+        appliedAt: '',
+        appliedBy: '',
         reviewEntryNo: 1,
         lineNo: 10000,
         severity: 'Warning',
@@ -76,7 +82,20 @@ vi.mock('@/services/bc', () => ({
         note: "7.17h isn't a quarter hour.",
       },
     ]),
-    getPlanReviewChanges: vi.fn(async () => []),
+    getPlanReviewChanges: vi.fn(async () => [
+      {
+        reviewEntryNo: 1,
+        reviewLineNo: 10000,
+        changeNo: 10000,
+        jobNo: 'PR001',
+        jobTaskNo: '100',
+        resourceNo: 'RES02',
+        planningDate: wednesday,
+        currentHours: 7.17,
+        proposedHours: 7.25,
+      },
+    ]),
+    applyPlanReviewFinding: (...args: unknown[]) => applyPlanReviewFinding(...args),
     getPlanReviewRequests: vi.fn(async () => []),
   },
 }));
@@ -106,6 +125,8 @@ const samsWeekHash = () =>
 
 describe('PlanPanel plan reviews', () => {
   beforeEach(() => {
+    canEdit = false;
+    applyPlanReviewFinding.mockReset();
     usePlanStore.setState({ cache: null, viewMode: 'team', projects: [], teamMembers: [] });
     useDayNotesStore.getState().reset();
     usePlanReviewStore.getState().reset();
@@ -127,5 +148,34 @@ describe('PlanPanel plan reviews', () => {
     render(<PlanPanel />);
     const chip = await screen.findByTestId('plan-review-week-chip');
     await vi.waitFor(() => expect(chip).toHaveAccessibleName(/out of date/i));
+  });
+
+  it.each([
+    ['applied', () => applyPlanReviewFinding.mockResolvedValue(undefined)],
+    [
+      'refused',
+      () =>
+        applyPlanReviewFinding.mockRejectedValue(
+          new Error(
+            'BC API Error (400): {"error":{"message":"The plan changed since Poppie looked. Ask her to re-review."}}'
+          )
+        ),
+    ],
+  ])('applies through BC and refreshes the grid when %s', async (_name, arrange) => {
+    arrange();
+    canEdit = true;
+    reviewedHash = await samsWeekHash();
+    render(<PlanPanel />);
+    fireEvent.click(await screen.findByTestId('plan-review-week-chip'));
+    const applyButton = await screen.findByRole('button', { name: 'Apply change' });
+    const loadsBefore = vi.mocked(bcClient.getJobPlanningLines).mock.calls.length;
+    fireEvent.click(applyButton);
+    await waitFor(() =>
+      expect(applyPlanReviewFinding).toHaveBeenCalledWith('00000000-0000-0000-0000-00000000f001')
+    );
+    // The grid reloads the plan whether BC applied the change or refused it
+    await waitFor(() =>
+      expect(vi.mocked(bcClient.getJobPlanningLines).mock.calls.length).toBeGreaterThan(loadsBefore)
+    );
   });
 });

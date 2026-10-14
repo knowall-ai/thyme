@@ -6,7 +6,6 @@ import {
   PlanReviewDayMarker,
   PlanReviewProvider,
   PlanReviewWeekChip,
-  STALE_CHANGE_MESSAGE,
   COMPANY_CHANGED_MESSAGE,
   type PlanReviewContextValue,
 } from '@/components/plan/PlanReview';
@@ -31,6 +30,7 @@ const review = (partial: Partial<BCPlanReview> = {}): BCPlanReview => ({
 });
 
 const finding: BCPlanReviewLine = {
+  id: '00000000-0000-0000-0000-00000000f001',
   reviewEntryNo: 1,
   lineNo: 10000,
   severity: 'Warning',
@@ -39,6 +39,8 @@ const finding: BCPlanReviewLine = {
   jobNo: 'PR00090',
   resourceNo: 'R0010',
   note: "7.17h isn't a quarter hour.",
+  appliedAt: '',
+  appliedBy: '',
 };
 
 const change: BCPlanReviewChange = {
@@ -80,7 +82,7 @@ function context(
     projectName: (jobNo) => (jobNo === 'PR00090' ? 'Contoso Rollout' : jobNo),
     resourceName: (no) => no,
     onRequest: vi.fn(async () => {}),
-    onApply: vi.fn(async () => ({ status: 'applied' as const, written: 1, attempted: true })),
+    onApply: vi.fn(async () => ({ companyChanged: false })),
     ...overrides,
   };
 }
@@ -180,31 +182,76 @@ describe('PlanReview popover', () => {
     expect(screen.getByRole('button', { name: 'Ask Poppie to re-review' })).toBeInTheDocument();
   });
 
-  it("applies a finding's changes", async () => {
+  it('applies a finding through one call', async () => {
     const value = context([subject()], { canApply: () => true });
     renderChip(value);
     openPopover();
     fireEvent.click(screen.getByRole('button', { name: 'Apply change' }));
-    expect(value.onApply).toHaveBeenCalledWith([change]);
-    expect(await screen.findByText('Applied')).toBeInTheDocument();
+    await waitFor(() => expect(value.onApply).toHaveBeenCalledWith(finding));
   });
 
-  it('says the plan changed when a cell no longer matches, and stops offering the change', async () => {
-    const value = context([subject()], {
-      canApply: () => true,
-      onApply: vi.fn(async () => ({
-        status: 'stale' as const,
-        change,
-        actualHours: 7.5,
-        attempted: false,
-        rolledBack: true,
-      })),
-    });
-    renderChip(value);
+  it('shows an applied finding with when and by whom, and no Apply button', () => {
+    renderChip(
+      context([subject()], {
+        canApply: () => true,
+        lines: {
+          1: [{ ...finding, appliedAt: '2026-10-22T13:05:00Z', appliedBy: 'Alex Contoso' }],
+        },
+      })
+    );
+    const dialog = openPopover();
+    expect(within(dialog).getByRole('status')).toHaveTextContent(
+      /^Applied 22 Oct, \d\d:05 by Alex Contoso$/
+    );
+    expect(screen.queryByRole('button', { name: 'Apply change' })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    'The plan changed since Poppie looked. Ask her to re-review.',
+    "Edit this cell by hand: its planning line is Billable, part of the project's budget estimate.",
+    "You don't have permission to change the plan.",
+  ])("shows BC's refusal as it is: %s", async (message) => {
+    renderChip(
+      context([subject()], {
+        canApply: () => true,
+        onApply: vi.fn(async () => {
+          throw new Error(
+            `BC API Error (400): ${JSON.stringify({ error: { code: 'Application_DialogException', message } })}`
+          );
+        }),
+      })
+    );
     openPopover();
     fireEvent.click(screen.getByRole('button', { name: 'Apply change' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(STALE_CHANGE_MESSAGE);
-    expect(screen.queryByRole('button', { name: 'Apply change' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent(message);
+  });
+
+  it('asks for an extension update when BC has no apply action yet', async () => {
+    renderChip(
+      context([subject()], {
+        canApply: () => true,
+        onApply: vi.fn(async () => {
+          throw new Error('Update the Thyme BC Extension to apply changes');
+        }),
+      })
+    );
+    openPopover();
+    fireEvent.click(screen.getByRole('button', { name: 'Apply change' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Update the Thyme BC Extension to apply changes'
+    );
+  });
+
+  it('says so when the company changes while applying', async () => {
+    renderChip(
+      context([subject()], {
+        canApply: () => true,
+        onApply: vi.fn(async () => ({ companyChanged: true })),
+      })
+    );
+    openPopover();
+    fireEvent.click(screen.getByRole('button', { name: 'Apply change' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(COMPANY_CHANGED_MESSAGE);
   });
 
   it('says to edit the cell by hand instead of offering Apply for a Billable or multi-line cell', () => {
@@ -219,56 +266,6 @@ describe('PlanReview popover', () => {
     expect(dialog).toHaveTextContent(
       "Edit this cell by hand: its planning line is Billable, part of the project's budget estimate."
     );
-  });
-
-  it('shows why Apply stopped when BC says the cell must be edited by hand', async () => {
-    renderChip(
-      context([subject()], {
-        canApply: () => true,
-        onApply: vi.fn(async () => ({
-          status: 'manual' as const,
-          change,
-          reason: 'this day has several planning lines for the task',
-          attempted: false as const,
-        })),
-      })
-    );
-    openPopover();
-    fireEvent.click(screen.getByRole('button', { name: 'Apply change' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Edit this cell by hand: this day has several planning lines for the task.'
-    );
-  });
-
-  it('reports a failed write, and whether it was undone', async () => {
-    renderChip(
-      context([subject()], {
-        canApply: () => true,
-        onApply: vi.fn(async () => ({
-          status: 'failed' as const,
-          message: 'BC API Error (500)',
-          attempted: true as const,
-          rolledBack: false,
-        })),
-      })
-    );
-    openPopover();
-    fireEvent.click(screen.getByRole('button', { name: 'Apply change' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /undoing the part already written failed too\. Check this week's plan/
-    );
-  });
-
-  it('stops and says so when the company changes while applying', async () => {
-    renderChip(
-      context([subject()], {
-        canApply: () => true,
-        onApply: vi.fn(async () => ({ status: 'companyChanged' as const, attempted: true })),
-      })
-    );
-    openPopover();
-    fireEvent.click(screen.getByRole('button', { name: 'Apply change' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(COMPANY_CHANGED_MESSAGE);
   });
 
   it('asks Poppie to review an unreviewed subject, and shows a request in progress', async () => {

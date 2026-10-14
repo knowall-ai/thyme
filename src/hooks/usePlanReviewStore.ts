@@ -10,16 +10,7 @@ import type {
   PlanReviewSubjectType,
 } from '@/types';
 import { bcClient } from '@/services/bc';
-import {
-  applyPlanReviewChanges,
-  buildUOMConversionMap,
-  isOpenPlanReviewRequest,
-  pickLatestPlanReviews,
-  planReviewKey,
-  type ApplyPlanChangesResult,
-  type PlanCellWriter,
-  type UOMConversionMap,
-} from '@/utils';
+import { isOpenPlanReviewRequest, pickLatestPlanReviews, planReviewKey } from '@/utils';
 import { useCompanyStore } from './useCompanyStore';
 
 // Poppie sweeps changed plans on Thursdays; every couple of minutes is plenty to pick that up
@@ -60,11 +51,12 @@ interface PlanReviewStore {
     subjectNo: string,
     weekStart: string
   ) => Promise<void>;
-  /** Apply a finding's changes (see applyPlanReviewChanges). Throws on BC errors. */
-  applyChanges: (
-    changes: BCPlanReviewChange[],
-    uomConversionMap: UOMConversionMap
-  ) => Promise<ApplyPlanChangesResult>;
+  /**
+   * Apply a finding's changes: BC does it in one transaction (bcClient.applyPlanReviewFinding).
+   * Throws with BC's message when it refuses. `companyChanged`: the company switched while it
+   * ran, so the result (in the company it started in) isn't shown here.
+   */
+  applyFinding: (finding: BCPlanReviewLine) => Promise<{ companyChanged: boolean }>;
   reset: () => void;
 }
 
@@ -73,8 +65,8 @@ let generation = 0;
 
 /**
  * The company (environment + id) bcClient talks to, and the switch count. Captured when a
- * write starts and checked before each BC write: after a switch, the client would send the
- * rest of it to the other company.
+ * request starts, so a result that arrives after a company switch isn't shown in the other
+ * company.
  */
 const companyKey = () =>
   `${bcClient.environment}/${(bcClient.companyId || '').toLowerCase()}#${generation}`;
@@ -82,14 +74,6 @@ const companyKey = () =>
 function scopeKeys({ subjectType, subjectNos, weekStarts }: PlanReviewScope): string[] {
   return subjectNos.flatMap((no) => weekStarts.map((week) => planReviewKey(subjectType, no, week)));
 }
-
-// Planning lines written with the user's own credentials, through the Plan's usual calls
-const bcCellWriter: PlanCellWriter = {
-  getCellLines: (cell) => bcClient.getPlanningLinesForCell(cell),
-  createLine: (params) => bcClient.createJobPlanningLine(params),
-  updateLine: (id, quantity, etag) => bcClient.updateJobPlanningLine(id, { quantity }, etag),
-  deleteLine: (id, etag) => bcClient.deleteJobPlanningLine(id, etag),
-};
 
 export const usePlanReviewStore = create<PlanReviewStore>((set, get) => ({
   available: null,
@@ -273,16 +257,31 @@ export const usePlanReviewStore = create<PlanReviewStore>((set, get) => ({
     }
   },
 
-  applyChanges: async (changes, uomConversionMap) => {
+  applyFinding: async (finding) => {
     const startedIn = companyKey();
     const isCurrent = () => companyKey() === startedIn;
-    // Writing needs the real units: an empty cached map is fetched strictly instead
-    const uomMap =
-      uomConversionMap.size > 0
-        ? uomConversionMap
-        : buildUOMConversionMap(await bcClient.getResourceUnitsOfMeasure({ strict: true }));
-    if (!isCurrent()) return { status: 'companyChanged', attempted: false };
-    return applyPlanReviewChanges(changes, uomMap, bcCellWriter, { isCurrent });
+    await bcClient.applyPlanReviewFinding(finding.id);
+    if (!isCurrent()) return { companyChanged: true };
+
+    // Show when (and by whom) it was applied: BC stamps the finding
+    const stamp = (applied: Pick<BCPlanReviewLine, 'appliedAt' | 'appliedBy'>) =>
+      set((state) => ({
+        lines: {
+          ...state.lines,
+          [finding.reviewEntryNo]: (state.lines[finding.reviewEntryNo] ?? []).map((line) =>
+            line.lineNo === finding.lineNo ? { ...line, ...applied } : line
+          ),
+        },
+      }));
+    stamp({ appliedAt: new Date().toISOString(), appliedBy: finding.appliedBy });
+    try {
+      const fresh = await bcClient.getPlanReviewLines([finding.reviewEntryNo]);
+      const line = fresh?.find((l) => l.lineNo === finding.lineNo);
+      if (isCurrent() && line?.appliedAt) stamp(line);
+    } catch {
+      // The local stamp will do until the next load
+    }
+    return { companyChanged: false };
   },
 
   reset: () => {

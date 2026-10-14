@@ -2008,7 +2008,7 @@ export function PlanPanel({
     changes: planReviewChanges,
     loadChanges: loadPlanReviewChanges,
     requestReview,
-    applyChanges: applyReviewChanges,
+    applyFinding: applyReviewFinding,
   } = usePlanReviewStore();
 
   // Each reviewed subject-week's plan hash now, from the plan as loaded (before quarter-hour
@@ -2149,14 +2149,16 @@ export function PlanPanel({
         );
         return planCellManualReason(lines);
       },
-      onApply: async (changes) => {
-        const result = await applyReviewChanges(changes, uomConversionMap);
-        // Refresh after any attempted write, whether it worked or was rolled back (not after
-        // a company switch: the grid is already loading the other company)
-        if (result.attempted && result.status !== 'companyChanged') {
-          await handlePlanSavedRef.current();
+      onApply: async (finding) => {
+        let companyChanged = false;
+        try {
+          ({ companyChanged } = await applyReviewFinding(finding));
+          return { companyChanged };
+        } finally {
+          // Refresh after any attempt, applied or refused (not after a company switch: the
+          // grid is already loading the other company)
+          if (!companyChanged) await handlePlanSavedRef.current();
         }
-        return result;
       },
     };
   }, [
@@ -2169,8 +2171,7 @@ export function PlanPanel({
     planReviewChanges,
     loadPlanReviewChanges,
     requestReview,
-    applyReviewChanges,
-    uomConversionMap,
+    applyReviewFinding,
     loadedWeeks,
   ]);
 
