@@ -10,48 +10,17 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import type { BCTimesheetReviewLine, Project, TimeEntry } from '@/types';
-import { cn, formatDateForDisplay, formatTime, TIMESHEET_STATUS_COLORS } from '@/utils';
+import {
+  cn,
+  computePopoverPosition,
+  formatDateForDisplay,
+  formatTime,
+  TIMESHEET_STATUS_COLORS,
+} from '@/utils';
 import { PoppieLineNotes } from '@/components/review';
 
-/** Space kept between the popover and the card, and between the popover and the screen edge */
-const GAP = 6;
-const EDGE = 8;
-
-interface Size {
-  width: number;
-  height: number;
-}
-
-interface AnchorRect {
-  top: number;
-  bottom: number;
-  left: number;
-  right: number;
-}
-
-/**
- * Where to put a popover anchored to a card, in viewport coordinates: below the card and
- * lined up with its left edge, flipping to line up with its right edge when it would run
- * off the right of the screen (the Sat/Sun columns), and above the card when there's no
- * room below. Always kept inside the screen.
- */
-export function computePopoverPosition(
-  anchor: AnchorRect,
-  popover: Size,
-  viewport: Size
-): { top: number; left: number; placement: 'top' | 'bottom' } {
-  let left = anchor.left;
-  if (left + popover.width > viewport.width - EDGE) left = anchor.right - popover.width;
-  left = Math.max(EDGE, Math.min(left, viewport.width - EDGE - popover.width));
-
-  const spaceBelow = viewport.height - anchor.bottom - GAP - EDGE;
-  const spaceAbove = anchor.top - GAP - EDGE;
-  const placement = popover.height > spaceBelow && spaceAbove > spaceBelow ? 'top' : 'bottom';
-  let top = placement === 'bottom' ? anchor.bottom + GAP : anchor.top - GAP - popover.height;
-  top = Math.max(EDGE, Math.min(top, viewport.height - EDGE - popover.height));
-
-  return { top, left, placement };
-}
+// Re-exported from its old home, where its tests import it
+export { computePopoverPosition };
 
 /** Lookups for an entry's project and task, shared by the card and its popover */
 export function describeEntry(entry: TimeEntry, projects: Project[]) {

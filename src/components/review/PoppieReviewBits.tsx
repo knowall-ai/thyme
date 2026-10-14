@@ -1,12 +1,24 @@
 'use client';
 
 import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FocusEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react';
+import { createPortal } from 'react-dom';
+import {
   ExclamationCircleIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
 } from '@heroicons/react/24/outline';
 import type { BCTimesheetReviewLine, TimesheetReviewSeverity } from '@/types';
-import { cn, type VerdictTone } from '@/utils';
+import { cn, computePopoverPosition, type VerdictTone } from '@/utils';
 import type { TimesheetReviewResult } from '@/hooks';
 import { useReviewerPhoto } from '@/services/auth/reviewerIdentity';
 
@@ -93,6 +105,214 @@ export function PoppieLineNotes({
         </li>
       ))}
     </ul>
+  );
+}
+
+const SEVERITY_RANK: Record<TimesheetReviewSeverity, number> = { Issue: 2, Warning: 1, Info: 0 };
+
+/**
+ * Poppie's notes for one timesheet line as a compact icon, marked with the most serious note's
+ * severity, that opens the notes in a popover on hover, focus or click (for touch).
+ */
+export function PoppieLineNotesPopover({
+  notes,
+  reviewer,
+  className,
+}: {
+  notes: BCTimesheetReviewLine[] | undefined;
+  reviewer?: string | null;
+  className?: string;
+}) {
+  // Hover or focus peeks at the notes and a click pins them open. Clicking a pinned popover or
+  // pressing Escape dismisses it until the pointer leaves or focus moves on.
+  const [isHovered, setIsHovered] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Set when the popover is pinned from the keyboard, so focus moves into it to scroll long notes
+  const focusOnPin = useRef(false);
+  const popoverId = useId();
+  const isOpen = isPinned || ((isHovered || isFocused) && !isDismissed);
+
+  const clearLeaveTimer = () => {
+    if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    leaveTimer.current = null;
+  };
+  // Hovering the icon or the popover keeps it open, with a short grace period to move between them
+  const hoverOn = () => {
+    clearLeaveTimer();
+    setIsHovered(true);
+  };
+  const hoverOff = () => {
+    clearLeaveTimer();
+    leaveTimer.current = setTimeout(() => {
+      setIsHovered(false);
+      // A dismissal holds while the icon keeps focus; blurring it clears the dismissal
+      if (document.activeElement !== buttonRef.current) setIsDismissed(false);
+    }, 150);
+  };
+  useEffect(() => clearLeaveTimer, []);
+
+  const dismiss = useCallback(() => {
+    setIsPinned(false);
+    setIsDismissed(true);
+  }, []);
+  // Focus leaving clears focus, pinning and dismissal; hover is left to the pointer events
+  const reset = () => {
+    setIsFocused(false);
+    setIsPinned(false);
+    setIsDismissed(false);
+  };
+  // Focus moving between the icon and its popover doesn't count as leaving
+  const handleBlur = (e: FocusEvent<HTMLElement>) => {
+    const next = e.relatedTarget as Node | null;
+    if (next && (buttonRef.current?.contains(next) || popoverRef.current?.contains(next))) return;
+    reset();
+  };
+
+  useEffect(() => {
+    if (isPinned && focusOnPin.current) popoverRef.current?.focus({ preventScroll: true });
+    focusOnPin.current = false;
+  }, [isPinned]);
+
+  // Escape closes the popover wherever focus is, returning focus to the icon if it was inside
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (popoverRef.current?.contains(document.activeElement)) buttonRef.current?.focus();
+      dismiss();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, dismiss]);
+
+  if (!notes || notes.length === 0) return null;
+
+  const worst = notes.reduce((a, b) =>
+    (SEVERITY_RANK[b.severity] ?? 0) > (SEVERITY_RANK[a.severity] ?? 0) ? b : a
+  );
+  const name = reviewer?.trim() || 'Poppie';
+
+  return (
+    <span className={cn('inline-flex', className)}>
+      <button
+        ref={buttonRef}
+        type="button"
+        onMouseEnter={hoverOn}
+        onMouseLeave={hoverOff}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (isPinned) dismiss();
+          else {
+            // detail is 0 for a click made with Enter or Space
+            focusOnPin.current = e.detail === 0;
+            setIsPinned(true);
+            setIsDismissed(false);
+          }
+        }}
+        onFocus={() => setIsFocused(true)}
+        onBlur={handleBlur}
+        aria-label={`${name}'s ${notes.length === 1 ? 'note' : `${notes.length} notes`} on this entry (${getSeverityStyle(worst.severity).label})`}
+        aria-expanded={isOpen}
+        aria-describedby={isOpen ? popoverId : undefined}
+        className="hover:bg-dark-700 inline-flex items-center gap-0.5 rounded-md p-1"
+      >
+        <SeverityIcon severity={worst.severity} />
+        {notes.length > 1 && (
+          <span className="text-dark-300 text-[10px] font-medium tabular-nums">{notes.length}</span>
+        )}
+      </button>
+      {isOpen && (
+        <FloatingPopover
+          id={popoverId}
+          anchorRef={buttonRef}
+          popoverRef={popoverRef}
+          onMouseEnter={hoverOn}
+          onMouseLeave={hoverOff}
+          onBlur={handleBlur}
+        >
+          <p className="mb-2 flex items-center gap-2 text-xs font-medium text-white">
+            <PoppieAvatar reviewer={reviewer} className="h-5 w-5 text-[9px]" />
+            {name}&apos;s {notes.length === 1 ? 'note' : 'notes'}
+          </p>
+          <PoppieLineNotes notes={notes} className="mt-0 space-y-1.5" />
+        </FloatingPopover>
+      )}
+    </span>
+  );
+}
+
+/**
+ * A popover rendered into the document body, so cards that clip their overflow don't cut it
+ * off, and kept on screen next to its anchor as the page scrolls or resizes.
+ */
+function FloatingPopover({
+  id,
+  anchorRef,
+  popoverRef,
+  onMouseEnter,
+  onMouseLeave,
+  onBlur,
+  children,
+}: {
+  id: string;
+  anchorRef: RefObject<HTMLElement | null>;
+  popoverRef: RefObject<HTMLDivElement | null>;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+  onBlur?: (e: FocusEvent<HTMLElement>) => void;
+  children: ReactNode;
+}) {
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+
+  const reposition = useCallback(() => {
+    const anchor = anchorRef.current;
+    const popover = popoverRef.current;
+    if (!anchor || !popover) return;
+    const { top, left } = computePopoverPosition(
+      anchor.getBoundingClientRect(),
+      { width: popover.offsetWidth, height: popover.offsetHeight },
+      { width: window.innerWidth, height: window.innerHeight }
+    );
+    setPosition({ top, left });
+  }, [anchorRef, popoverRef]);
+
+  // Measure before paint so it never shows in the wrong place
+  useLayoutEffect(() => {
+    reposition();
+    window.addEventListener('scroll', reposition, true);
+    window.addEventListener('resize', reposition);
+    return () => {
+      window.removeEventListener('scroll', reposition, true);
+      window.removeEventListener('resize', reposition);
+    };
+  }, [reposition]);
+
+  return createPortal(
+    <div
+      ref={popoverRef}
+      id={id}
+      role="tooltip"
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      onBlur={onBlur}
+      // Focusable (not in the tab order) so a long note can be scrolled from the keyboard, and
+      // clicking in it doesn't count as leaving the icon
+      tabIndex={-1}
+      className="border-dark-600 bg-dark-800 fixed z-50 max-h-[calc(100vh-16px)] w-80 max-w-[calc(100vw-16px)] overflow-y-auto rounded-lg border p-3 shadow-lg focus:outline-none"
+      style={{
+        top: position?.top ?? 0,
+        left: position?.left ?? 0,
+        visibility: position ? 'visible' : 'hidden',
+      }}
+    >
+      {children}
+    </div>,
+    document.body
   );
 }
 
