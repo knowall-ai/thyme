@@ -269,3 +269,58 @@ describe('editing a note someone else changes', () => {
     expect(value.onUpdate).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('while a save is in flight', () => {
+  it("can't be cancelled, so a new draft can't be started and then discarded by the save", async () => {
+    let finishSave!: () => void;
+    const value = context([note({})], {
+      canEdit: true,
+      onUpdate: vi.fn(
+        () =>
+          new Promise<{ revalidated: boolean }>((resolve) => {
+            finishSave = () => resolve({ revalidated: true });
+          })
+      ),
+    });
+    renderHeader(value);
+    fireEvent.click(screen.getByRole('button', { name: /Wednesday 14 October/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit note "Company Off-Site"' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled());
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('button', { name: '+ Add note' })).not.toBeInTheDocument();
+
+    finishSave();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: '+ Add note' })).not.toBeDisabled()
+    );
+  });
+
+  it('disables Add, Edit and Delete until a delete finishes', async () => {
+    let finishDelete!: () => void;
+    const value = context([note({}), note({ id: 'n2', entryNo: 2, note: 'Release day' })], {
+      canEdit: true,
+      onDelete: vi.fn(
+        () =>
+          new Promise<{ revalidated: boolean }>((resolve) => {
+            finishDelete = () => resolve({ revalidated: true });
+          })
+      ),
+    });
+    renderHeader(value);
+    fireEvent.click(screen.getByRole('button', { name: /Wednesday 14 October/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete note "Company Off-Site"' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: '+ Add note' })).toBeDisabled());
+    expect(screen.getByRole('button', { name: 'Edit note "Release day"' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Delete note "Release day"' })).toBeDisabled();
+
+    finishDelete();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: '+ Add note' })).not.toBeDisabled()
+    );
+  });
+});

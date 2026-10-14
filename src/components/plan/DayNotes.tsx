@@ -441,17 +441,20 @@ function DayNotesPopover({
                   <div className="flex shrink-0 gap-1">
                     <button
                       type="button"
+                      // No new edit while a save is in flight: its completion closes the form
+                      disabled={isBusy}
                       onClick={() => startEditing(note)}
                       aria-label={`Edit note "${note.note}"`}
-                      className="text-dark-400 hover:text-knowall-green focus-visible:ring-knowall-green rounded p-0.5 focus:outline-none focus-visible:ring-2"
+                      className="text-dark-400 hover:text-knowall-green focus-visible:ring-knowall-green rounded p-0.5 focus:outline-none focus-visible:ring-2 disabled:opacity-50"
                     >
                       <PencilSquareIcon className="h-4 w-4" />
                     </button>
                     <button
                       type="button"
+                      disabled={isBusy}
                       onClick={() => setConfirmingDelete(note.id)}
                       aria-label={`Delete note "${note.note}"`}
-                      className="text-dark-400 focus-visible:ring-knowall-green rounded p-0.5 hover:text-red-400 focus:outline-none focus-visible:ring-2"
+                      className="text-dark-400 focus-visible:ring-knowall-green rounded p-0.5 hover:text-red-400 focus:outline-none focus-visible:ring-2 disabled:opacity-50"
                     >
                       <TrashIcon className="h-4 w-4" />
                     </button>
@@ -471,8 +474,9 @@ function DayNotesPopover({
                   </button>
                   <button
                     type="button"
+                    disabled={isBusy}
                     onClick={() => setConfirmingDelete(null)}
-                    className="text-dark-300 hover:text-dark-100 px-1"
+                    className="text-dark-300 hover:text-dark-100 px-1 disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -498,11 +502,12 @@ function DayNotesPopover({
           editing === null && (
             <button
               type="button"
+              disabled={isBusy}
               onClick={() => {
                 setConfirmingDelete(null);
                 setEditing('new');
               }}
-              className="text-knowall-green focus-visible:ring-knowall-green mt-2 rounded text-xs font-medium hover:underline focus:outline-none focus-visible:ring-2"
+              className="text-knowall-green focus-visible:ring-knowall-green mt-2 rounded text-xs font-medium hover:underline focus:outline-none focus-visible:ring-2 disabled:opacity-50"
             >
               + Add note
             </button>
@@ -610,8 +615,10 @@ function DayNoteForm({
       <div className="flex justify-end gap-2">
         <button
           type="button"
+          // Cancelling mid-save would let a new draft start that the save then closes
+          disabled={isBusy}
           onClick={onCancel}
-          className="text-dark-300 hover:text-dark-100 px-2 py-1 text-xs"
+          className="text-dark-300 hover:text-dark-100 px-2 py-1 text-xs disabled:opacity-50"
         >
           Cancel
         </button>
