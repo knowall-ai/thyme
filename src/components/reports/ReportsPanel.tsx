@@ -648,19 +648,6 @@ export function ReportsPanel() {
 
         {/* Period, and the client, project and resource filters (hidden in print) */}
         <ReportPeriodPicker period={period} onChange={setPeriod} actions={<PrintButton />}>
-          {(filterActive || resourceNos.length > 0) && (
-            <button
-              type="button"
-              onClick={() => {
-                setFilter(NO_REPORT_FILTER);
-                setResourceNos([]);
-              }}
-              className="text-dark-300 hover:text-thyme-400 flex h-10 items-center gap-1 rounded-lg px-2 text-sm transition-colors"
-            >
-              <XMarkIcon className="h-4 w-4" />
-              Clear filters
-            </button>
-          )}
           <FilterMenu
             label="Client"
             allLabel="All Clients"
@@ -757,6 +744,20 @@ export function ReportsPanel() {
             isLoading={false}
             emptyMessage="No statuses"
           />
+          {/* Last, after the filters it clears (not the period) */}
+          {(filterActive || resourceNos.length > 0) && (
+            <button
+              type="button"
+              onClick={() => {
+                setFilter(NO_REPORT_FILTER);
+                setResourceNos([]);
+              }}
+              className="text-dark-300 hover:text-thyme-400 flex h-10 items-center gap-1 rounded-lg px-2 text-sm transition-colors"
+            >
+              <XMarkIcon className="h-4 w-4" />
+              Clear filters
+            </button>
+          )}
         </ReportPeriodPicker>
 
         {!isLoading && projectsUnavailable && <ProjectsUnavailableWarning />}
