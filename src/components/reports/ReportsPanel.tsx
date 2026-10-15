@@ -308,6 +308,9 @@ export function ReportsPanel() {
     [reportProjects, filter.clientIds]
   );
   const filterActive = isReportFilterActive(filter);
+  // Every internal project's client, named for the company, e.g. "KnowAll AI Ltd (Internal)"
+  const companyName = selectedCompany?.displayName?.trim() || selectedCompany?.name?.trim();
+  const internalClientName = companyName ? `${companyName} (Internal)` : INTERNAL_CLIENT.name;
 
   // Every client's name by id, including clients without time in this period (the
   // options' names win, as they have the period's projects)
@@ -316,9 +319,12 @@ export function ReportsPanel() {
       [...projectsByNumber].map(([number, project]) => getReportProject(number, project))
     ).clients;
     return new Map(
-      [INTERNAL_CLIENT, UNKNOWN_CLIENT, ...all, ...filterOptions.clients].map((c) => [c.id, c.name])
+      [INTERNAL_CLIENT, UNKNOWN_CLIENT, ...all, ...filterOptions.clients].map((c) => [
+        c.id,
+        c.id === INTERNAL_CLIENT.id ? internalClientName : c.name,
+      ])
     );
-  }, [projectsByNumber, filterOptions.clients]);
+  }, [projectsByNumber, filterOptions.clients, internalClientName]);
 
   // The picked clients, projects and people by name, even in a period without their time
   const filterNames: ReportFilterNames = useMemo(
@@ -645,7 +651,7 @@ export function ReportsPanel() {
               ).length;
               return {
                 value: client.id,
-                label: client.name,
+                label: client.id === INTERNAL_CLIENT.id ? internalClientName : client.name,
                 description: `${count} project${count === 1 ? '' : 's'}`,
               };
             })}
