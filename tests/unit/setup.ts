@@ -10,7 +10,8 @@ vi.mock('next/navigation', () => ({
   }),
   usePathname: () => '/',
   useParams: () => ({}),
-  useSearchParams: () => new URLSearchParams(),
+  // The address's query, as the router would give it
+  useSearchParams: () => new URLSearchParams(window.location.search),
 }));
 
 // Mock MSAL

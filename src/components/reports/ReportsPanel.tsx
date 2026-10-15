@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useId, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Card,
   ExtensionPreviewWrapper,
@@ -108,11 +109,6 @@ const VIEWS: { id: ReportView; label: string }[] = [
   { id: 'entries', label: 'Entries' },
 ];
 
-// The report the URL asks for (this week's summary for everyone when it asks for none)
-function readReportQuery(): ReportQuery {
-  return parseReportQuery(typeof window === 'undefined' ? '' : window.location.search);
-}
-
 interface BreakdownRow {
   key: string;
   label: string;
@@ -175,7 +171,15 @@ const weeklyOf = (person: PersonHours): WeeklyCapacity =>
 
 export function ReportsPanel() {
   // The view, period and filters start from the URL, and are kept in it (below)
-  const [initialQuery] = useState(readReportQuery);
+  // From the router rather than window.location: following a link in the app renders
+  // this page before the address bar changes. Outside the router (tests), the address.
+  const searchParams = useSearchParams();
+  const [initialQuery] = useState(
+    (): ReportQuery =>
+      parseReportQuery(
+        searchParams?.toString() ?? (typeof window === 'undefined' ? '' : window.location.search)
+      )
+  );
   const [view, setView] = useState<ReportView>(initialQuery.view);
   const [period, setPeriod] = useState<ReportPeriod>(initialQuery.period);
   const [people, setPeople] = useState<PersonHours[]>([]);
