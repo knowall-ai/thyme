@@ -586,6 +586,7 @@ function ProjectRow({
               <StageBar
                 segments={getStageSegments(stages)}
                 max={Math.max(isInternal ? 0 : (project.estimateHours ?? 0), stages.total, 1)}
+                estimate={isInternal ? undefined : project.estimateHours}
                 className="w-20"
               />
               <span className="sr-only">{stageSummary}</span>
