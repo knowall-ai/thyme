@@ -37,6 +37,8 @@ interface ProjectDetailsStore {
   isLoading: boolean;
   isLoadingAnalytics: boolean;
   error: string | null;
+  /** What failed to load, for the error's heading */
+  errorTitle: string | null;
 
   // UI State
   chartView: 'weekly' | 'progress';
@@ -69,6 +71,7 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
   isLoading: false,
   isLoadingAnalytics: false,
   error: null,
+  errorTitle: null,
   chartView: 'weekly',
   tableGroupBy: 'task',
   hiddenKpis: [...DEFAULT_HIDDEN_KPIS], // Internal costs masked by default; reset on each page open, never persisted
@@ -123,16 +126,22 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
           if (isStale()) return;
           // Surface the failure rather than showing zero hours/costs that look real
           console.error('Failed to load analytics:', analyticsError);
-          const reason = analyticsError instanceof Error ? `: ${analyticsError.message}` : '';
           set({
-            error: `Failed to load project time and cost data${reason}`,
+            error:
+              analyticsError instanceof Error ? analyticsError.message : String(analyticsError),
+            errorTitle: "Couldn't load this project's time and cost figures",
             isLoadingAnalytics: false,
           });
         }
       } catch (error) {
         if (isStale()) return;
         const message = error instanceof Error ? error.message : 'Failed to fetch project';
-        set({ error: message, isLoading: false, isLoadingAnalytics: false });
+        set({
+          error: message,
+          errorTitle: "Couldn't load this project",
+          isLoading: false,
+          isLoadingAnalytics: false,
+        });
       }
     })().finally(() => {
       if (inFlight.get(loadKey) === promise) inFlight.delete(loadKey);
@@ -205,6 +214,7 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
       isLoading: false,
       isLoadingAnalytics: false,
       error: null,
+      errorTitle: null,
       hiddenKpis: [...DEFAULT_HIDDEN_KPIS],
     }),
 }));

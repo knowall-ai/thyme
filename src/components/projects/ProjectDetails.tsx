@@ -7,6 +7,7 @@ import { ProjectKPICards } from './ProjectKPICards';
 import { ProjectCharts } from './ProjectCharts';
 import { ProjectTasksTable } from './ProjectTasksTable';
 import { ProjectSourceLinksCard } from './ProjectSourceLinksCard';
+import { BcErrorCard } from '@/components/ui';
 
 interface ProjectDetailsProps {
   params: { projectNumber: string };
@@ -14,7 +15,7 @@ interface ProjectDetailsProps {
 
 export function ProjectDetails({ params }: ProjectDetailsProps) {
   const { projectNumber } = params;
-  const { project, isLoading, error, fetchProjectDetails } = useProjectDetailsStore();
+  const { project, isLoading, error, errorTitle, fetchProjectDetails } = useProjectDetailsStore();
 
   useEffect(() => {
     fetchProjectDetails(projectNumber);
@@ -30,9 +31,12 @@ export function ProjectDetails({ params }: ProjectDetailsProps) {
 
   if (error) {
     return (
-      <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-6 text-center">
-        <p className="text-red-400">{error}</p>
-      </div>
+      <BcErrorCard
+        title={errorTitle ?? "Couldn't load this project"}
+        error={error}
+        // Load it all again (a forced reload, as the failed part may be all that's missing)
+        onRetry={() => fetchProjectDetails(projectNumber, { force: true })}
+      />
     );
   }
 
