@@ -40,9 +40,9 @@ const navButtonClass =
 export interface ReportPeriodPickerProps {
   period: ReportPeriod;
   onChange: (period: ReportPeriod) => void;
-  /** Other controls shown beside the period dropdown, e.g. the resource filter */
+  /** Filters, on their own row under the period, e.g. the resource filter */
   children?: ReactNode;
-  /** Shown after the period dropdown, e.g. the Print button */
+  /** Shown top right after the period dropdown, e.g. the Print button */
   actions?: ReactNode;
 }
 
