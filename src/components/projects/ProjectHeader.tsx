@@ -26,6 +26,7 @@ import {
   getBCJobUrl,
 } from '@/utils';
 import type { BillingMode } from '@/services/bc/projectDetailsService';
+import { ProjectStatusNote } from './ProjectStatusNote';
 
 /**
  * Format a date string for display (e.g., "15 Jan 2025").
@@ -384,6 +385,8 @@ export function ProjectHeader() {
                 {endDatePassed && <span className="sr-only"> ({endDatePassed})</span>}
               </div>
             </div>
+            {/* Where things stand: the latest of the project's Notes in Business Central */}
+            <ProjectStatusNote jobNo={project.code} />
           </div>
         </div>
 
