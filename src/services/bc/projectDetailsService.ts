@@ -12,6 +12,7 @@ import {
   getBillingModeFromLines,
   collectProjectTimeRows,
   sumHoursByStatus,
+  getPostedHours,
   type BillingMode,
   isBillableEntry,
   isInternalProject,
@@ -70,6 +71,8 @@ export interface ProjectAnalytics {
   forecastEndDate?: string; // When the future planned work finishes: the latest planningDate (YYYY-MM-DD)
   hoursThisWeek: number;
   hoursPosted: number; // From timeEntries (Job Ledger Entry) - posted to ledger
+  /** Posted hours by the timesheets (getPostedHours): the Posted stage everywhere */
+  timesheetPostedHours: number;
   hoursUnposted: number; // hoursSpent - hoursPosted (in timesheets but not posted)
   approvedHours: number; // Hours on Approved timesheet lines (posted time stays Approved)
   pendingHours: number; // Hours on Open or Submitted timesheet lines
@@ -101,6 +104,9 @@ export interface ProjectAnalytics {
   weeklyData: WeeklyDataPoint[];
   taskBreakdown: TaskBreakdownItem[];
   teamBreakdown: TeamBreakdownItem[];
+  /** The first and last days with time (YYYY-MM-DD), for linking to the time on Reports */
+  firstEntryDate?: string;
+  lastEntryDate?: string;
 }
 
 interface WeeklyDataPoint {
@@ -260,6 +266,7 @@ export const projectDetailsService = {
       hoursThisWeek: 0,
       hoursPosted: 0,
       hoursUnposted: 0,
+      timesheetPostedHours: 0,
       approvedHours: 0,
       pendingHours: 0,
       submittedHours: 0,
@@ -364,8 +371,19 @@ export const projectDetailsService = {
       new Set(resourcesByNumber.keys()),
       projectNumber
     );
+    // Posted hours by task and resource for the breakdowns, and in all for the Time Spent
+    // card: from the timesheets, by the same rule as Team and Reports (getPostedHours).
+    // The Job Ledger is still what cost and invoiced figures come from.
+    const postedByTaskResource = new Map<string, number>(); // key: "taskNo|resourceNo"
+    let timesheetPostedHours = 0;
     for (const { line, detail, resourceNo } of timeRows) {
       const resource = resourcesByNumber.get(resourceNo)!;
+      const posted = getPostedHours(line, detail);
+      if (posted > 0) {
+        const key = `${line.jobTaskNo || 'no-task'}|${resourceNo}`;
+        postedByTaskResource.set(key, (postedByTaskResource.get(key) ?? 0) + posted);
+        timesheetPostedHours += posted;
+      }
 
       teamMembersSet.add(resource.number);
       timeEntries.push({
@@ -381,6 +399,11 @@ export const projectDetailsService = {
         isBillable: !isInternal && isBillableEntry(line, undefined),
       });
     }
+
+    // ISO dates compare as strings
+    const entryDates = timeEntries.map((e) => e.date).sort();
+    const firstEntryDate = entryDates[0];
+    const lastEntryDate = entryDates[entryDates.length - 1];
 
     // Status totals (shared with the Projects list): posting needs approval first, so
     // posted time is a subset of approved
@@ -672,8 +695,6 @@ export const projectDetailsService = {
     let actualCost = 0;
     let invoicedPrice = 0;
     let hoursPosted = 0;
-    // Track posted hours by task and resource for breakdown
-    const postedByTaskResource = new Map<string, number>(); // key: "taskNo|resourceNo"
     try {
       const postedEntries = await postedEntriesPromise;
       hoursPosted = postedEntries.reduce(
@@ -689,23 +710,13 @@ export const projectDetailsService = {
         (sum: number, entry: BCTimeEntry) => sum + timeEntryPriceProjectCurrency(entry),
         0
       );
-      // Build posted hours maps for breakdowns
-      for (const entry of postedEntries) {
-        const taskKey = entry.jobTaskNo || 'no-task';
-        const resourceKey = entry.resourceNo;
-        const taskResourceKey = `${taskKey}|${resourceKey}`;
-        postedByTaskResource.set(
-          taskResourceKey,
-          (postedByTaskResource.get(taskResourceKey) || 0) + entry.quantity
-        );
-      }
     } catch {
       // If time entries can't be fetched, leave values as 0
     }
 
     // Breakdowns by task and by team member, each split by timesheet stage (matches the
     // Time Spent card). Timesheet lines stay Approved once posted, so a row's posted hours
-    // (from the Job Ledger) are taken out of its approved hours, capped at what was approved.
+    // (from its timesheets) are taken out of its approved hours, capped at what was approved.
     const emptyStatus = () => ({
       hours: 0,
       approvedHours: 0,
@@ -878,6 +889,7 @@ export const projectDetailsService = {
       forecastEndDate,
       hoursPosted,
       hoursUnposted,
+      timesheetPostedHours,
       approvedHours,
       pendingHours,
       submittedHours,
@@ -904,6 +916,8 @@ export const projectDetailsService = {
       weeklyData,
       taskBreakdown,
       teamBreakdown,
+      firstEntryDate,
+      lastEntryDate,
     };
   },
 

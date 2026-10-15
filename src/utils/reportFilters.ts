@@ -77,28 +77,55 @@ export function getReportProjects(
   return projects;
 }
 
+/** A timesheet stage, as in StageHours */
+export type ReportStage = Exclude<keyof StageHours, 'total'>;
+
+/** The stages in the order time moves through them */
+export const REPORT_STAGES: { id: ReportStage; label: string }[] = [
+  { id: 'unsubmitted', label: 'Unsubmitted' },
+  { id: 'submitted', label: 'Submitted' },
+  { id: 'approved', label: 'Approved' },
+  { id: 'posted', label: 'Posted' },
+];
+
 /**
- * The report's client and project filter. An entry matches when it's on any of the
- * picked clients and any of the picked projects; an empty list matches everything.
+ * The report's filter. An entry matches when it's on any of the picked clients, any of
+ * the picked projects and any of the picked tasks; an empty list matches everything.
+ * Stages don't pick entries but hours: only the picked stages' hours count (see
+ * restrictToStages), so an entry that's partly posted counts for its posted part.
  */
 export interface ReportFilter {
   clientIds: readonly string[];
   projectNos: readonly string[];
+  /** Job task numbers, on any of the picked projects */
+  taskNos: readonly string[];
+  stages: readonly ReportStage[];
 }
 
-export const NO_REPORT_FILTER: ReportFilter = { clientIds: [], projectNos: [] };
+export const NO_REPORT_FILTER: ReportFilter = {
+  clientIds: [],
+  projectNos: [],
+  taskNos: [],
+  stages: [],
+};
 
 export function isReportFilterActive(filter: ReportFilter): boolean {
-  return filter.clientIds.length > 0 || filter.projectNos.length > 0;
+  return (
+    filter.clientIds.length > 0 ||
+    filter.projectNos.length > 0 ||
+    filter.taskNos.length > 0 ||
+    filter.stages.length > 0
+  );
 }
 
-/** Whether an entry is on one of the filter's clients and one of its projects */
+/** Whether an entry is on one of the filter's clients, projects and tasks */
 export function matchesReportFilter(
-  entry: Pick<TimeEntry, 'projectId'>,
+  entry: Pick<TimeEntry, 'projectId' | 'taskId'>,
   filter: ReportFilter,
   projects: ReadonlyMap<string, ReportProject>
 ): boolean {
   if (filter.projectNos.length > 0 && !filter.projectNos.includes(entry.projectId)) return false;
+  if (filter.taskNos.length > 0 && !filter.taskNos.includes(entry.taskId)) return false;
   if (filter.clientIds.length > 0) {
     const clientId = projects.get(entry.projectId)?.client.id ?? UNKNOWN_CLIENT.id;
     if (!filter.clientIds.includes(clientId)) return false;
@@ -130,7 +157,39 @@ export function selectReportClients(
           const clientId = projects.get(number)?.client.id ?? UNKNOWN_CLIENT.id;
           return clientIds.includes(clientId);
         });
-  return { clientIds: [...clientIds], projectNos };
+  return { ...filter, clientIds: [...clientIds], projectNos };
+}
+
+/**
+ * An entry cut down to the picked stages' hours (all of it when none are picked), or
+ * null when it has none in them. Its hours, and so its billable hours, follow.
+ */
+export function restrictToStages(
+  entry: StagedTimeEntry,
+  stages: readonly ReportStage[]
+): StagedTimeEntry | null {
+  if (stages.length === 0) return entry;
+  const kept = emptyStageHours();
+  for (const stage of stages) kept[stage] = entry.stages[stage];
+  kept.total = kept.posted + kept.approved + kept.submitted + kept.unsubmitted;
+  if (kept.total <= 0) return null;
+  if (kept.total === entry.hours) return { ...entry, stages: kept };
+  return { ...entry, hours: kept.total, stages: kept };
+}
+
+/** A person's hours restricted to the filter: its entries, cut down to its stages */
+export function filterPersonHoursBy<T extends PersonHours>(
+  person: T,
+  filter: ReportFilter,
+  projects: ReadonlyMap<string, ReportProject>
+): T {
+  const entries: StagedTimeEntry[] = [];
+  for (const entry of person.entries) {
+    if (!matchesReportFilter(entry, filter, projects)) continue;
+    const kept = restrictToStages(entry, filter.stages);
+    if (kept) entries.push(kept);
+  }
+  return { ...person, entries, ...sumEntryHours(entries) };
 }
 
 /**
@@ -153,6 +212,8 @@ export interface ReportFilterNames {
   clients: readonly string[];
   projects: readonly string[];
   resources: readonly string[];
+  tasks?: readonly string[];
+  stages?: readonly string[];
 }
 
 /**
@@ -161,13 +222,16 @@ export interface ReportFilterNames {
  * how many are picked
  */
 export function describeReportFilters(
-  { clients, projects, resources }: ReportFilterNames,
+  { clients, projects, resources, tasks = [], stages = [] }: ReportFilterNames,
   maxNames = 2
 ): string {
   return [
     describeFilterSelection(clients, 'All clients', 'clients', maxNames),
     describeFilterSelection(projects, 'All projects', 'projects', maxNames),
+    // Tasks and stages only when picked: "All tasks" adds nothing to the heading
+    ...(tasks.length > 0 ? [describeFilterSelection(tasks, '', 'tasks', maxNames)] : []),
     describeFilterSelection(resources, 'All resources', 'resources', maxNames),
+    ...(stages.length > 0 ? [describeFilterSelection(stages, '', 'stages', maxNames)] : []),
   ].join(' · ');
 }
 
@@ -266,4 +330,29 @@ export function getHoursByProject(entries: readonly StagedTimeEntry[]): ProjectS
     byProject.set(entry.projectId, row);
   }
   return [...byProject.values()].sort((a, b) => b.hours - a.hours);
+}
+
+/** Where an entry's time has got to: its latest stage, or Rejected */
+export type EntryStatus = ReportStage | 'partlyPosted' | 'rejected';
+
+export const ENTRY_STATUS_LABELS: Record<EntryStatus, string> = {
+  unsubmitted: 'Unsubmitted',
+  submitted: 'Submitted',
+  approved: 'Approved',
+  partlyPosted: 'Partly posted',
+  posted: 'Posted',
+  rejected: 'Rejected',
+};
+
+/**
+ * An entry's status from its stages: a rejected line's hours are in no stage, and an
+ * approved one can be posted in part
+ */
+export function getEntryStatus(entry: Pick<StagedTimeEntry, 'stages'>): EntryStatus {
+  const { posted, approved, submitted, unsubmitted } = entry.stages;
+  if (posted > 0) return approved > 0 ? 'partlyPosted' : 'posted';
+  if (approved > 0) return 'approved';
+  if (submitted > 0) return 'submitted';
+  if (unsubmitted > 0) return 'unsubmitted';
+  return 'rejected';
 }

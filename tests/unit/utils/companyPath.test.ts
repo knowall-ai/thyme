@@ -151,6 +151,15 @@ describe('pathForCompanySwitch', () => {
     expect(pathForCompanySwitch('/time', '?resource=R0070')).toBe('/time');
   });
 
+  it("drops a report's clients, projects and tasks, keeping its view, period and stages", () => {
+    expect(
+      pathForCompanySwitch(
+        '/reports',
+        '?view=entries&from=2026-04-01&to=2026-10-15&client=customer:C10000&project=PR00100&task=1000&resource=R0070&stage=approved'
+      )
+    ).toBe('/reports?view=entries&from=2026-04-01&to=2026-10-15&stage=approved');
+  });
+
   it('sends detail pages to their list page', () => {
     expect(pathForCompanySwitch('/projects/PR00100', '?x=1')).toBe('/projects');
   });

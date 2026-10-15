@@ -8,7 +8,14 @@ import {
   PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 import { BillableTargetBadge } from '@/components/targets';
-import { Card, GitHubIcon, StageBar, getStageSegments, getStageSummary } from '@/components/ui';
+import {
+  Card,
+  GitHubIcon,
+  StageBar,
+  StageLegend,
+  getStageSegments,
+  getStageSummary,
+} from '@/components/ui';
 import { bcClient } from '@/services/bc';
 import {
   cn,
@@ -19,6 +26,8 @@ import {
   getBillableTargetGap,
   formatTargetGap,
   TARGET_GAP_DESCRIPTION,
+  addStageHours,
+  emptyStageHours,
 } from '@/utils';
 import type { StageHours, BillableTarget, WeeklyCapacity } from '@/utils';
 import {
@@ -185,6 +194,13 @@ export function TeamTable({
     setOwnSort(next);
     onSortChange?.(next);
   };
+
+  // Everyone's hours by stage for the legend, and the most anyone has for the bars' scale
+  const stageTotals = useMemo(
+    () => rows.reduce((sum, row) => addStageHours(sum, row.stages), emptyStageHours()),
+    [rows]
+  );
+  const maxHours = Math.max(...rows.map((row) => row.totalHours), 0);
 
   const sortedRows = useMemo(() => {
     const result = [...rows];
@@ -369,13 +385,14 @@ export function TeamTable({
                     title={member.totalHours > 0 ? getStageSummary(member.stages) : undefined}
                   >
                     <span className="text-dark-100">{member.totalHours.toFixed(1)}</span>
-                    {/* The member's hours by stage; full width = their total */}
+                    {/* The member's hours by stage; the most hours fill the bar, so the
+                        column reads as a chart */}
                     {member.totalHours > 0 && (
                       <>
                         <StageBar
                           segments={getStageSegments(member.stages)}
-                          max={member.totalHours}
-                          className="h-1 w-16"
+                          max={maxHours}
+                          className="bg-dark-700 h-1.5 w-28"
                         />
                         <span className="sr-only">{getStageSummary(member.stages)}</span>
                       </>
@@ -503,6 +520,14 @@ export function TeamTable({
           </tbody>
         </table>
       </div>
+      {/* The bars' colours, with everyone's hours in each stage */}
+      {stageTotals.total > 0 && (
+        <StageLegend
+          segments={getStageSegments(stageTotals)}
+          formatHours={(hours) => `${hours.toFixed(1)}h`}
+          className="border-dark-700 border-t px-4 py-3"
+        />
+      )}
     </Card>
   );
 }

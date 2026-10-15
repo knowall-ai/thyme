@@ -14,9 +14,13 @@ import {
   describeFilterSelection,
   describeReportFilters,
   NO_REPORT_FILTER,
+  filterPersonHoursBy,
+  getEntryStatus,
+  restrictToStages,
 } from '@/utils/reportFilters';
 import { getPersonHours } from '@/utils/teamHours';
 import type { BCResource, BCTimeSheetDetail, BCTimeSheetLine } from '@/types';
+import type { ReportFilter } from '@/utils/reportFilters';
 
 // CRONUS UK Ltd.-style demo projects
 const projectsByNumber = new Map([
@@ -197,8 +201,10 @@ describe('getHoursByProject', () => {
 describe('filtering', () => {
   const projects = getReportProjects(alex.entries, projectsByNumber);
 
-  const matching = (filter: { clientIds: string[]; projectNos: string[] }) =>
-    alex.entries.filter((e) => matchesReportFilter(e, filter, projects)).map((e) => e.projectId);
+  const matching = (filter: Partial<ReportFilter>) =>
+    alex.entries
+      .filter((e) => matchesReportFilter(e, { ...NO_REPORT_FILTER, ...filter }, projects))
+      .map((e) => e.projectId);
 
   it('matches entries by client and by project', () => {
     expect(matching({ clientIds: ['customer:C20000'], projectNos: [] })).toHaveLength(2);
@@ -207,7 +213,8 @@ describe('filtering', () => {
     expect(matching(project)).toHaveLength(3);
     expect(matching({ clientIds: [], projectNos: [] })).toHaveLength(alex.entries.length);
     expect(isReportFilterActive(NO_REPORT_FILTER)).toBe(false);
-    expect(isReportFilterActive(project)).toBe(true);
+    expect(isReportFilterActive({ ...NO_REPORT_FILTER, ...project })).toBe(true);
+    expect(isReportFilterActive({ ...NO_REPORT_FILTER, stages: ['approved'] })).toBe(true);
   });
 
   it('matches any picked client or project, and both filters together', () => {
@@ -245,22 +252,26 @@ describe('filtering', () => {
   });
 
   it("keeps the projects of the clients picked, and drops other clients'", () => {
-    const filter = { clientIds: [], projectNos: ['PR-CONTOSO', 'PR-FABRIKAM'] };
+    const filter = { ...NO_REPORT_FILTER, projectNos: ['PR-CONTOSO', 'PR-FABRIKAM'] };
     expect(selectReportClients(filter, ['customer:C10000'], projects)).toEqual({
+      ...NO_REPORT_FILTER,
       clientIds: ['customer:C10000'],
       projectNos: ['PR-CONTOSO'],
     });
     expect(selectReportClients(filter, ['customer:C20000'], projects)).toEqual({
+      ...NO_REPORT_FILTER,
       clientIds: ['customer:C20000'],
       projectNos: ['PR-FABRIKAM'],
     });
     // Both clients: both projects stay
     expect(selectReportClients(filter, ['customer:C10000', 'customer:C20000'], projects)).toEqual({
+      ...NO_REPORT_FILTER,
       clientIds: ['customer:C10000', 'customer:C20000'],
       projectNos: filter.projectNos,
     });
     // Dropping a client drops its projects
     const both = {
+      ...NO_REPORT_FILTER,
       clientIds: ['customer:C10000', 'customer:C20000'],
       projectNos: filter.projectNos,
     };
@@ -363,5 +374,55 @@ describe('filtering', () => {
     expect(describeReportFilters(names, Infinity)).toBe(
       'Adatum Corporation, Contoso Ltd., Trey Research · All projects · All resources'
     );
+  });
+});
+
+describe('task and stage filters', () => {
+  const projects = getReportProjects(alex.entries, projectsByNumber);
+  const by = (filter: Partial<ReportFilter>) =>
+    filterPersonHoursBy(alex, { ...NO_REPORT_FILTER, ...filter }, projects);
+
+  it('gives each entry the status its time has reached', () => {
+    expect(alex.entries.map(getEntryStatus)).toEqual([
+      'unsubmitted',
+      'partlyPosted',
+      'posted',
+      'submitted',
+      'approved',
+      'rejected',
+    ]);
+  });
+
+  it("counts only the picked stages' hours, so a partly posted entry counts in part", () => {
+    const posted = by({ stages: ['posted'] });
+    expect(posted.entries.map((e) => [e.date, e.hours])).toEqual([
+      ['2026-10-06', 2],
+      ['2026-10-07', 1.5],
+    ]);
+    expect(posted.stages).toMatchObject({ total: 3.5, posted: 3.5, approved: 0 });
+    expect(posted.billableHours).toBe(3.5);
+
+    // Contoso's unposted 3h, and Admin's 2h (internal: not billable)
+    const approved = by({ stages: ['approved'] });
+    expect(approved.stages.total).toBe(5);
+    expect(approved.billableHours).toBe(3);
+
+    // Rejected time is in no stage
+    expect(by({ stages: ['unsubmitted', 'submitted', 'approved', 'posted'] }).stages.total).toBe(
+      alex.stages.total - 1
+    );
+  });
+
+  it('keeps an entry whole when all of it is in the picked stages', () => {
+    const [unsubmitted] = alex.entries;
+    expect(restrictToStages(unsubmitted, [])).toBe(unsubmitted);
+    expect(restrictToStages(unsubmitted, ['unsubmitted'])?.hours).toBe(3);
+    expect(restrictToStages(unsubmitted, ['posted'])).toBeNull();
+  });
+
+  it('matches entries by task, along with the project', () => {
+    expect(by({ taskNos: ['1000'] }).entries).toHaveLength(alex.entries.length);
+    expect(by({ taskNos: ['2000'] }).entries).toHaveLength(0);
+    expect(by({ projectNos: ['PR-CONTOSO'], taskNos: ['1000'] }).stages.total).toBe(9.5);
   });
 });

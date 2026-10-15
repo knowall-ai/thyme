@@ -1,10 +1,21 @@
 'use client';
 
-import { useState, useEffect, useMemo, Fragment } from 'react';
+import { useState, useEffect, useMemo, useCallback, Fragment } from 'react';
+import Link from 'next/link';
 import { flushSync } from 'react-dom';
+import { parseISO } from 'date-fns';
 import { useProjectDetailsStore } from '@/hooks/useProjectDetailsStore';
+import { useCompanyPath } from '@/hooks/useCompanyPath';
 import { Card } from '@/components/ui';
-import { cn, getBCResourceUrl, getBCJobTaskUrl } from '@/utils';
+import {
+  cn,
+  getBCResourceUrl,
+  getBCJobTaskUrl,
+  buildReportQuery,
+  customPeriod,
+  NO_REPORT_FILTER,
+} from '@/utils';
+import type { ReportStage } from '@/utils';
 import {
   ChevronDownIcon,
   ChevronRightIcon,
@@ -42,6 +53,24 @@ const STATUS_COLUMNS: { key: StatusKey; label: string; text: string; subText: st
   // The stages add up to this, so it comes last
   { key: 'hours', label: 'Total Hours', text: 'text-white', subText: 'text-gray-400' },
 ];
+
+// The Reports stage each column's hours are (none for the total: every stage)
+const COLUMN_STAGES: Record<StatusKey, ReportStage | null> = {
+  postedHours: 'posted',
+  approvedHours: 'approved',
+  submittedHours: 'submitted',
+  unsubmittedHours: 'unsubmitted',
+  hours: null,
+};
+
+/** Who and what a row's hours are for: its task, its person, or both */
+interface EntriesScope {
+  taskNo?: string;
+  resourceNo?: string;
+}
+
+/** The Reports link listing the entries behind a cell, or null for none */
+type EntriesHref = (scope: EntriesScope, key: StatusKey) => string | null;
 
 // null = BC's own order (Job Task No. / Resource No.); otherwise a column, highest or lowest first
 type SortState = { key: StatusKey; dir: 'desc' | 'asc' } | null;
@@ -118,22 +147,49 @@ function SortableHeaders({
   );
 }
 
-function StatusCells({ row, variant }: { row: StatusRow; variant: 'row' | 'sub' | 'total' }) {
+function StatusCells({
+  row,
+  variant,
+  scope,
+  entriesHref,
+}: {
+  row: StatusRow;
+  variant: 'row' | 'sub' | 'total';
+  /** Which entries the row's hours are, for the links to them on Reports */
+  scope?: EntriesScope;
+  entriesHref?: EntriesHref;
+}) {
   return (
     <>
-      {STATUS_COLUMNS.map((col) => (
-        <td
-          key={col.key}
-          className={cn(
-            'px-3 text-right',
-            variant === 'sub' ? cn('py-2 text-sm', col.subText) : cn('py-3', col.text),
-            variant === 'total' && 'font-bold',
-            variant === 'row' && col.key === 'hours' && 'font-medium'
-          )}
-        >
-          {formatHours(row[col.key], col.key)}
-        </td>
-      ))}
+      {STATUS_COLUMNS.map((col) => {
+        const text = formatHours(row[col.key], col.key);
+        // Hours link to the entries behind them; a dash (none) doesn't
+        const href = scope && entriesHref && row[col.key] > 0 ? entriesHref(scope, col.key) : null;
+        return (
+          <td
+            key={col.key}
+            className={cn(
+              'px-3 text-right',
+              variant === 'sub' ? cn('py-2 text-sm', col.subText) : cn('py-3', col.text),
+              variant === 'total' && 'font-bold',
+              variant === 'row' && col.key === 'hours' && 'font-medium'
+            )}
+          >
+            {href ? (
+              <Link
+                href={href}
+                onClick={(e) => e.stopPropagation()}
+                className="focus-visible:ring-thyme-500 rounded underline-offset-4 hover:underline focus:outline-none focus-visible:ring-1 print:no-underline"
+                title={`List the ${col.key === 'hours' ? '' : `${col.label.toLowerCase()} `}entries on Reports`}
+              >
+                {text}
+              </Link>
+            ) : (
+              text
+            )}
+          </td>
+        );
+      })}
     </>
   );
 }
@@ -180,6 +236,35 @@ export function ProjectTasksTable() {
   }, []);
   const companyName = selectedCompany?.name;
   const projectNumber = project?.code;
+  const companyPath = useCompanyPath();
+  const firstEntryDate = analytics?.firstEntryDate;
+  const lastEntryDate = analytics?.lastEntryDate;
+
+  // Reports' list of the entries behind a figure: this project's time from its first
+  // day to its last (the table covers all of it), for the row's task and person and
+  // the column's stage
+  const entriesHref = useCallback<EntriesHref>(
+    ({ taskNo, resourceNo }, key) => {
+      // Time on no task can't be picked by task on Reports
+      if (!projectNumber || !firstEntryDate || !lastEntryDate || taskNo === 'no-task') {
+        return null;
+      }
+      const stage = COLUMN_STAGES[key];
+      const query = buildReportQuery({
+        view: 'entries',
+        period: customPeriod(parseISO(firstEntryDate), parseISO(lastEntryDate)),
+        filter: {
+          ...NO_REPORT_FILTER,
+          projectNos: [projectNumber],
+          taskNos: taskNo ? [taskNo] : [],
+          stages: stage ? [stage] : [],
+        },
+        resourceNos: resourceNo ? [resourceNo] : [],
+      });
+      return companyPath(`/reports?${query}`);
+    },
+    [projectNumber, firstEntryDate, lastEntryDate, companyPath]
+  );
 
   const toggleExpanded = (key: string) => {
     setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -334,6 +419,7 @@ export function ProjectTasksTable() {
           printExpandAll={isPrinting}
           sort={sort}
           onSort={setSort}
+          entriesHref={entriesHref}
         />
       ) : (
         <TeamBreakdownTable
@@ -347,6 +433,7 @@ export function ProjectTasksTable() {
           companyName={companyName}
           projectNumber={projectNumber}
           printExpandAll={isPrinting}
+          entriesHref={entriesHref}
         />
       )}
 
@@ -448,6 +535,7 @@ function TaskBreakdownTable({
   printExpandAll = false,
   sort,
   onSort,
+  entriesHref,
 }: {
   data: TaskBreakdownItem[];
   tasks: TaskFromStore[];
@@ -459,6 +547,7 @@ function TaskBreakdownTable({
   printExpandAll?: boolean;
   sort: SortState;
   onSort: (sort: SortState) => void;
+  entriesHref: EntriesHref;
 }) {
   if (data.length === 0) {
     return (
@@ -525,7 +614,12 @@ function TaskBreakdownTable({
                       </div>
                     </div>
                   </td>
-                  <StatusCells row={item} variant="row" />
+                  <StatusCells
+                    row={item}
+                    variant="row"
+                    scope={{ taskNo: item.taskNo }}
+                    entriesHref={entriesHref}
+                  />
                 </tr>
                 {/* Expanded details - always render but hide/show with CSS for print support */}
                 {item.teamMembers?.map((member) => (
@@ -553,7 +647,12 @@ function TaskBreakdownTable({
                         </a>
                       </div>
                     </td>
-                    <StatusCells row={member} variant="sub" />
+                    <StatusCells
+                      row={member}
+                      variant="sub"
+                      scope={{ taskNo: item.taskNo, resourceNo: member.resourceNo }}
+                      entriesHref={entriesHref}
+                    />
                   </tr>
                 ))}
               </Fragment>
@@ -563,7 +662,7 @@ function TaskBreakdownTable({
         <tfoot className="bg-dark-700">
           <tr>
             <td className="px-4 py-3 font-medium text-white">Total</td>
-            <StatusCells row={totals} variant="total" />
+            <StatusCells row={totals} variant="total" scope={{}} entriesHref={entriesHref} />
           </tr>
         </tfoot>
       </table>
@@ -591,6 +690,7 @@ function TeamBreakdownTable({
   companyName,
   projectNumber,
   printExpandAll = false,
+  entriesHref,
 }: {
   data: TeamBreakdownItem[];
   tasks: TaskFromStore[];
@@ -602,6 +702,7 @@ function TeamBreakdownTable({
   companyName?: string;
   projectNumber?: string;
   printExpandAll?: boolean;
+  entriesHref: EntriesHref;
 }) {
   if (data.length === 0) {
     return (
@@ -668,7 +769,12 @@ function TeamBreakdownTable({
                       </a>
                     </div>
                   </td>
-                  <StatusCells row={item} variant="row" />
+                  <StatusCells
+                    row={item}
+                    variant="row"
+                    scope={{ resourceNo: item.resourceNo }}
+                    entriesHref={entriesHref}
+                  />
                 </tr>
                 {/* Expanded details, in BC's task order */}
                 {isExpanded &&
@@ -696,7 +802,12 @@ function TeamBreakdownTable({
                             )}
                           </div>
                         </td>
-                        <StatusCells row={task} variant="sub" />
+                        <StatusCells
+                          row={task}
+                          variant="sub"
+                          scope={{ taskNo: task.taskNo, resourceNo: item.resourceNo }}
+                          entriesHref={entriesHref}
+                        />
                       </tr>
                     ))}
               </Fragment>
@@ -706,7 +817,7 @@ function TeamBreakdownTable({
         <tfoot className="bg-dark-700">
           <tr>
             <td className="px-4 py-3 font-medium text-white">Total</td>
-            <StatusCells row={totals} variant="total" />
+            <StatusCells row={totals} variant="total" scope={{}} entriesHref={entriesHref} />
           </tr>
         </tfoot>
       </table>

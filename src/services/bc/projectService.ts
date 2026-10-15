@@ -11,7 +11,6 @@ import {
   isInternalProject,
   sumEstimateHours,
   sumPlannedHours,
-  sumPostedHoursByProject,
   withoutAbsenceLines,
   type BillingMode,
   type StageHours,
@@ -250,16 +249,14 @@ export const projectService = {
     const figures = new Map<string, ProjectFigures>();
     if (projects.length === 0) return figures;
 
-    const [resources, timesheets, jobLines, jobDetails, postedEntries, planningLines, uoms] =
-      await Promise.all([
-        bcClient.getResources(),
-        bcClient.getTimeSheetsFrom(),
-        bcClient.getAllJobTimeSheetLines(),
-        bcClient.getAllJobTimeSheetDetails(),
-        bcClient.getAllTimeEntries().catch(() => []),
-        bcClient.getAllJobPlanningLines().catch(() => []),
-        bcClient.getResourceUnitsOfMeasure(),
-      ]);
+    const [resources, timesheets, jobLines, jobDetails, planningLines, uoms] = await Promise.all([
+      bcClient.getResources(),
+      bcClient.getTimeSheetsFrom(),
+      bcClient.getAllJobTimeSheetLines(),
+      bcClient.getAllJobTimeSheetDetails(),
+      bcClient.getAllJobPlanningLines().catch(() => []),
+      bcClient.getResourceUnitsOfMeasure(),
+    ]);
 
     // Time Spent by stage, by the project page's rules
     const resourceNoByTimesheet = new Map(timesheets.map((ts) => [ts.number, ts.resourceNo]));
@@ -269,10 +266,7 @@ export const projectService = {
       resourceNoByTimesheet,
       new Set(resources.map((r) => r.number))
     );
-    const stagesByProject = getStageHoursByProject(
-      timeRows,
-      sumPostedHoursByProject(postedEntries)
-    );
+    const stagesByProject = getStageHoursByProject(timeRows);
 
     // Estimate and Plan from each project's planning lines, less planned absence on
     // non-internal projects (internal ones have no budget; their plan is kept as is)

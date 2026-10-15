@@ -51,6 +51,8 @@ const timesheetDetails: BCTimeSheetDetail[] = timesheetLines.map((l) => ({
   date: '2026-10-05',
   quantity: l.totalQuantity,
   jobNo: l.jobNo,
+  // 6 of TS001's 10 approved hours have been posted
+  postedQuantity: l.id === 'TS001-10000' ? 6 : 0,
 }));
 
 const timeEntries = [
@@ -186,7 +188,7 @@ const detailStages = (analytics: ProjectAnalytics) =>
       submitted: analytics.submittedHours,
       unsubmitted: analytics.unsubmittedHours,
     },
-    analytics.hoursPosted
+    analytics.timesheetPostedHours
   );
 
 describe('Projects list figures match the project page', () => {

@@ -129,7 +129,19 @@ export function pathForCompanySwitch(rest: string, search: string = ''): string 
   if (segments.length === 0) return DEFAULT_COMPANY_PATH;
   if (segments.length > 1) return `/${segments[0]}`;
   // Resource numbers are per company: the other company's could be someone else, or nobody
-  return `/${segments[0]}${withResourceParam(search, null)}`;
+  const query = withResourceParam(search, null);
+  // So are a report's clients, projects and tasks; its view, period and stages carry over
+  return `/${segments[0]}${segments[0] === 'reports' ? withoutParams(query, COMPANY_REPORT_PARAMS) : query}`;
+}
+
+/** Reports parameters naming one company's records (see reportQuery) */
+const COMPANY_REPORT_PARAMS = ['client', 'project', 'task'];
+
+function withoutParams(search: string, names: readonly string[]): string {
+  const params = new URLSearchParams(search);
+  for (const name of names) params.delete(name);
+  const text = params.toString();
+  return text ? `?${text}` : '';
 }
 
 /** Next.js page `searchParams`, resolved */
