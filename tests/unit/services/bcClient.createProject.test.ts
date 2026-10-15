@@ -114,4 +114,15 @@ describe('bcClient.createProject', () => {
     ).rejects.toThrow(/YYYY-MM-DD/);
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
   });
+
+  it('refuses a blank name, or one over 100 characters, without calling Business Central', async () => {
+    const fetchMock = stubFetch({ status: 201, body: created });
+    await expect(bcClient.createProject({ displayName: '   ' })).rejects.toThrow(
+      'Project name cannot be empty'
+    );
+    await expect(bcClient.createProject({ displayName: 'x'.repeat(101) })).rejects.toThrow(
+      'cannot be longer than 100 characters'
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

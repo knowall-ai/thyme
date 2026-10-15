@@ -51,6 +51,7 @@ import {
   PLAN_REVIEW_PENDING_HASH,
   BC_UNREACHABLE_EVENT,
   getBcRetryDelay,
+  getProjectNameError,
 } from '@/utils';
 
 const BC_BASE_URL =
@@ -661,6 +662,9 @@ class BusinessCentralClient {
    * company's Project Nos. series, and BC permissions decide whether the user may.
    */
   async createProject(input: BCProjectInput): Promise<BCProject> {
+    // Checked here too, not just in the dialog: BC would only refuse it less clearly
+    const nameError = getProjectNameError(input.displayName);
+    if (nameError) throw new Error(nameError);
     // Leave out what isn't set: a blank customer is an internal project, and BC keeps
     // its own defaults for anything omitted
     const body: Record<string, string> = { displayName: input.displayName.trim() };
