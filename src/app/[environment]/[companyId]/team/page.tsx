@@ -1,7 +1,7 @@
 'use client';
 
 import { Layout } from '@/components/layout';
-import { TeamList } from '@/components/team';
+import { LicencesPanel, TeamList } from '@/components/team';
 
 // Sign-in and company sync are handled by the [environment]/[companyId] layout
 export default function TeamPage() {
@@ -13,6 +13,8 @@ export default function TeamPage() {
           <p className="text-dark-400 mt-1">View your team&apos;s timesheet progress</p>
         </div>
         <TeamList />
+        {/* Microsoft 365 admins only (hidden for anyone else) */}
+        <LicencesPanel />
       </div>
     </Layout>
   );

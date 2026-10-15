@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { Card } from '@/components/ui';
 import { CompanyBillableTargetSettings } from '@/components/targets';
 import { ConnectedAccountsSettings } from './ConnectedAccountsSettings';
+import { LicenceAccessSettings } from './LicenceAccessSettings';
 import { bcClient } from '@/services/bc/bcClient';
 import { useAuth, useProfilePhoto } from '@/services/auth';
 import { useCompanyStore, useSettingsStore } from '@/hooks';
@@ -268,6 +269,8 @@ export function SettingsPanel() {
 
       {/* Company default billable target (hidden on older Thyme BC Extensions) */}
       <CompanyBillableTargetSettings />
+
+      <LicenceAccessSettings />
 
       {/* Connection Status */}
       <Card variant="bordered" className="p-6">
