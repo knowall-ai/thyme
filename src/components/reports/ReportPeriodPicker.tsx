@@ -98,8 +98,8 @@ export function ReportPeriodPicker({
             {formatPeriod(period)}
           </span>
         </div>
-        <div className="flex flex-wrap items-center gap-4">
-          {children}
+        {/* The period's kind, then actions such as Print: always top right */}
+        <div className="ml-auto flex items-center gap-4">
           <label className="sr-only" htmlFor="report-period">
             Period
           </label>
@@ -109,7 +109,7 @@ export function ReportPeriodPicker({
               id="report-period"
               value={selectValue}
               onChange={(e) => handleSelect(e.target.value)}
-              // Styled like the filter buttons beside it: their icon and chevron, not the
+              // Styled like the filter buttons: their icon and chevron, not the
               // browser's own arrow (which sits hard against the edge)
               className="border-dark-600 bg-dark-700 hover:border-dark-500 hover:bg-dark-600 focus:border-thyme-500 focus:ring-thyme-500 text-dark-200 h-10 cursor-pointer appearance-none rounded-lg border pr-9 pl-9 text-sm transition-colors focus:ring-1 focus:outline-none"
             >
@@ -131,6 +131,9 @@ export function ReportPeriodPicker({
           {actions}
         </div>
       </div>
+
+      {/* Filters on their own row, so adding them never moves Print */}
+      {children && <div className="mt-4 flex flex-wrap items-center gap-4">{children}</div>}
 
       {isCustom && (
         <div className="border-dark-700 mt-4 flex flex-wrap items-end gap-4 border-t pt-4">
