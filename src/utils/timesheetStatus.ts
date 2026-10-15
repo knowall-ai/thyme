@@ -81,6 +81,19 @@ export function addStageHours(a: StageHours, b: StageHours): StageHours {
  * project page; posting needs approval first, so a day's posted quantity only counts on
  * an Approved line and never exceeds the hours logged that day.
  */
+/**
+ * A day's posted hours: what's been posted of an approved line's quantity (lines stay
+ * Approved once posted). The one rule for posted time on every page, from the
+ * timesheet itself rather than the Job Ledger.
+ */
+export function getPostedHours(
+  line: Pick<BCTimeSheetLine, 'status'>,
+  detail: Pick<BCTimeSheetDetail, 'quantity' | 'postedQuantity'>
+): number {
+  if (line.status !== 'Approved' || !(detail.quantity > 0)) return 0;
+  return Math.min(Math.max(detail.postedQuantity ?? 0, 0), detail.quantity);
+}
+
 export function getStageHours(lines: BCTimeSheetLine[], details: BCTimeSheetDetail[]): StageHours {
   const linesByNo = new Map(lines.map((line) => [line.lineNo, line]));
   const stages = emptyStageHours();
@@ -92,7 +105,7 @@ export function getStageHours(lines: BCTimeSheetLine[], details: BCTimeSheetDeta
     stages.total += detail.quantity;
     switch (line.status) {
       case 'Approved': {
-        const posted = Math.min(Math.max(detail.postedQuantity ?? 0, 0), detail.quantity);
+        const posted = getPostedHours(line, detail);
         stages.posted += posted;
         stages.approved += detail.quantity - posted;
         break;

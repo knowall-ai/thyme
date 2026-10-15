@@ -187,7 +187,8 @@ export function ProjectKPICards() {
 
   // Calculate percentages and status
   const hoursSpent = analytics?.hoursSpent ?? 0;
-  const hoursPosted = analytics?.hoursPosted ?? 0;
+  // Posted by the timesheets, as on Team and Reports (not the Job Ledger's hours)
+  const hoursPosted = analytics?.timesheetPostedHours ?? 0;
   // Time Spent by stage, each counted once: Unsubmitted → Submitted → Approved (not yet
   // posted) → Posted. Same split as the Projects list's bar.
   const timeByStage = toStageHours(

@@ -66,6 +66,8 @@ Open → Submitted → Approved → Posted (to Job Ledger Entry)
 
 After approval, someone (usually finance/admin) must run the **"Post Time Sheets"** batch job or post individually from the Time Sheet Administrator page.
 
+**Where Thyme's Posted stage comes from:** every page that splits time by stage (Time Spent, the project Breakdown, the Projects list, Team and Reports) takes posted hours from the timesheet itself: each approved day's `postedQuantity` on `/timeSheetDetails`. So a figure on one page and the entries it links to on Reports always agree. Cost and invoiced figures still come from the Job Ledger (`/timeEntries`), which is why Hours Posted below can differ from the Posted stage.
+
 === Why Hours May Show £0 Cost
 
 If you see hours logged but £0 Actual Cost, this is because:
@@ -100,8 +102,13 @@ Thyme shows this as:
 
 | Hours Posted
 | `quantity`
-| Hours that have been posted to Job Ledger Entry
+| Hours that have been posted to Job Ledger Entry (behind the cost estimates)
 | `/timeEntries`
+
+| Posted (stage)
+| `postedQuantity`
+| An approved day's hours that the timesheet records as posted
+| `/timeSheetDetails`
 
 | Hours Unposted
 | (calculated)

@@ -146,18 +146,22 @@ describe('getStageHoursByProject', () => {
         line({ lineNo: 3, jobNo: 'PR00020', status: 'Approved' }),
       ],
       [
-        detail({ timeSheetLineNo: 1, quantity: 6 }),
-        detail({ timeSheetLineNo: 2, quantity: 2 }),
+        // Posted by the timesheet: 4 of the 6 approved hours
+        detail({ timeSheetLineNo: 1, quantity: 6, postedQuantity: 4 }),
+        // Only an approved line's time counts as posted
+        detail({ timeSheetLineNo: 2, quantity: 2, postedQuantity: 2 }),
         detail({ timeSheetLineNo: 3, quantity: 5 }),
       ],
       resourceNoByTimesheet,
       people
     );
-    const posted = sumPostedHoursByProject([
-      { jobNo: 'PR00010', quantity: 2.5 },
-      { jobNo: 'PR00010', quantity: 1.5 },
-    ]);
-    const stages = getStageHoursByProject(rows, posted);
+    expect(sumPostedHoursByProject(rows)).toEqual(
+      new Map([
+        ['PR00010', 4],
+        ['PR00020', 0],
+      ])
+    );
+    const stages = getStageHoursByProject(rows);
     expect(stages.get('PR00010')).toEqual({
       posted: 4,
       approved: 2,

@@ -4,7 +4,7 @@
  */
 
 import type { BCTimeSheetDetail, BCTimeSheetLine } from '@/types';
-import type { StageHours } from './timesheetStatus';
+import { getPostedHours, type StageHours } from './timesheetStatus';
 
 /** One day's hours on a project, with the timesheet line they were logged on */
 export interface ProjectTimeRow {
@@ -69,7 +69,7 @@ export function sumHoursByStatus(
 
 /**
  * Split time spent into stages, each hour counted once. Timesheet lines stay Approved
- * once posted, so the posted hours (from the Job Ledger) come out of the approved hours,
+ * once posted, so the posted hours (see getPostedHours) come out of the approved hours,
  * capped at what was approved.
  */
 export function toStageHours(totals: StatusTotals, postedHours: number): StageHours {
@@ -84,10 +84,8 @@ export function toStageHours(totals: StatusTotals, postedHours: number): StageHo
 }
 
 /** Time spent by stage for every project with time, keyed by project number */
-export function getStageHoursByProject(
-  rows: ProjectTimeRow[],
-  postedHoursByProject: ReadonlyMap<string, number>
-): Map<string, StageHours> {
+export function getStageHoursByProject(rows: ProjectTimeRow[]): Map<string, StageHours> {
+  const postedHoursByProject = sumPostedHoursByProject(rows);
   const entriesByProject = new Map<
     string,
     { hours: number; status: BCTimeSheetLine['status'] }[]
@@ -108,13 +106,11 @@ export function getStageHoursByProject(
   return stagesByProject;
 }
 
-/** Posted hours by project number, from Job Ledger (time) entries */
-export function sumPostedHoursByProject(
-  entries: { jobNo: string; quantity: number }[]
-): Map<string, number> {
+/** Posted hours by project number, from the timesheets (see getPostedHours) */
+export function sumPostedHoursByProject(rows: ProjectTimeRow[]): Map<string, number> {
   const posted = new Map<string, number>();
-  for (const entry of entries) {
-    posted.set(entry.jobNo, (posted.get(entry.jobNo) ?? 0) + entry.quantity);
+  for (const { jobNo, line, detail } of rows) {
+    posted.set(jobNo, (posted.get(jobNo) ?? 0) + getPostedHours(line, detail));
   }
   return posted;
 }
