@@ -31,13 +31,27 @@ export interface StageBarProps {
   segments: StageSegment[];
   /** Hours that fill the whole bar; segments are drawn as a share of it */
   max: number;
+  /**
+   * The estimate, in hours: when the hours have gone past it, a white line marks where
+   * (none when they haven't, as the bar then ends at the estimate anyway)
+   */
+  estimate?: number;
   className?: string;
 }
 
 /** Stacked bar of hours by timesheet stage */
-export function StageBar({ segments, max, className }: StageBarProps) {
-  return (
-    <div className={cn('bg-dark-600 flex h-1.5 w-full overflow-hidden rounded-full', className)}>
+export function StageBar({ segments, max, estimate, className }: StageBarProps) {
+  const total = segments.reduce((sum, seg) => sum + seg.hours, 0);
+  const overEstimate = estimate !== undefined && estimate > 0 && total > estimate && max > 0;
+  // With a marker, className goes on the box around the bar (it may set width or
+  // margins), so the bar fills it and the marker can stand out above and below
+  const bar = (
+    <div
+      className={cn(
+        'bg-dark-600 flex h-1.5 w-full overflow-hidden rounded-full',
+        !overEstimate && className
+      )}
+    >
       {segments.map((seg) => (
         <div
           key={seg.label}
@@ -45,6 +59,19 @@ export function StageBar({ segments, max, className }: StageBarProps) {
           style={{ width: `${max > 0 ? (seg.hours / max) * 100 : 0}%` }}
         />
       ))}
+    </div>
+  );
+  if (!overEstimate) return bar;
+  return (
+    <div className={cn('relative', className)}>
+      {bar}
+      <div
+        className="absolute -top-1 -bottom-1 w-0.5 -translate-x-1/2 rounded-full bg-white shadow-[0_0_2px_rgba(0,0,0,0.8)]"
+        style={{ left: `${(Math.min(estimate, max) / max) * 100}%` }}
+        title={`Estimate: ${estimate.toFixed(1)}h`}
+        aria-hidden="true"
+        data-testid="estimate-marker"
+      />
     </div>
   );
 }

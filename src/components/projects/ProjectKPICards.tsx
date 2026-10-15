@@ -540,6 +540,7 @@ export function ProjectKPICards() {
                         <StageBar
                           segments={kpi.segments}
                           max={Math.max(estimateHours, hoursSpent, 1)}
+                          estimate={estimateHours}
                           className="mt-2"
                         />
                         <StageLegend
