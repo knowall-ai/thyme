@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import {
   ChevronUpDownIcon,
   ArrowTopRightOnSquareIcon,
@@ -350,17 +350,7 @@ export function TeamTable({
                         )}
                         {member.isCurrentUser && <span className="text-knowall-green">(you)</span>}
                         {licenceTags?.[member.id] && (
-                          <span
-                            className={cn(
-                              'rounded px-1.5 py-0.5 text-xs font-normal',
-                              licenceTags[member.id].warn
-                                ? 'bg-amber-500/15 text-amber-300'
-                                : 'bg-dark-600 text-gray-300'
-                            )}
-                            title={licenceTags[member.id].title}
-                          >
-                            {licenceTags[member.id].label}
-                          </span>
+                          <LicenceTagButton tag={licenceTags[member.id]} name={member.name} />
                         )}
                       </p>
                       {member.email && <p className="text-dark-400 text-xs">{member.email}</p>}
@@ -595,5 +585,52 @@ function MemberGitHub({
         </button>
       )}
     </div>
+  );
+}
+
+/**
+ * A person's licence tag: a button that shows their licences and any flags on hover,
+ * keyboard focus or a tap, so the details don't depend on a mouse
+ */
+function LicenceTagButton({ tag, name }: { tag: LicenceTag; name: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const detailsId = useId();
+  return (
+    // Hover is tracked on the wrapper so the pointer can move onto the details
+    <span
+      className="relative inline-flex"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
+      <button
+        type="button"
+        onClick={() => setIsOpen((open) => !open)}
+        onBlur={() => setIsOpen(false)}
+        onKeyDown={(e) => e.key === 'Escape' && setIsOpen(false)}
+        aria-expanded={isOpen}
+        aria-describedby={detailsId}
+        aria-label={`${name}'s licence: ${tag.label}`}
+        className={cn(
+          'focus-visible:ring-thyme-500 rounded px-1.5 py-0.5 text-xs font-normal focus:outline-none focus-visible:ring-1',
+          tag.warn ? 'bg-amber-500/15 text-amber-300' : 'bg-dark-600 text-gray-300'
+        )}
+      >
+        {tag.label}
+      </button>
+      {/* Always rendered (hidden when closed) so aria-describedby can read it */}
+      <span
+        id={detailsId}
+        role="tooltip"
+        className={cn('absolute top-full left-0 z-20 pt-1', !isOpen && 'hidden')}
+      >
+        <span className="bg-dark-700 block w-max max-w-sm rounded px-3 py-2 text-xs font-normal whitespace-normal text-gray-200 shadow-lg">
+          {tag.details.map((line) => (
+            <span key={line} className="block">
+              {line}
+            </span>
+          ))}
+        </span>
+      </span>
+    </span>
   );
 }

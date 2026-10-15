@@ -27,19 +27,27 @@ export type LicenceData =
       counts: LicenceCount[];
     };
 
-// One load per session, shared by every caller (the Team page's tags and dialog)
-let loaded: Promise<{ skus: SubscribedSku[]; users: LicensedUser[] } | null> | null = null;
+type Loaded = { skus: SubscribedSku[]; users: LicensedUser[] } | null;
 
-function loadLicences() {
-  loaded ??= (async () => {
-    const token = await getLicenceToken();
-    if (!token || !(await isLicenceAdmin(token))) return null;
-    const [skus, users] = await Promise.all([getSubscribedSkus(token), getLicensedUsers(token)]);
-    return { skus, users };
-  })();
-  // A failure isn't kept, so a reload of the page can try again
-  loaded.catch(() => (loaded = null));
-  return loaded;
+// One load per account per session, shared by every caller (the Team page's tags and
+// dialog). Keyed by account, so another account signing in on the tab never gets the
+// previous one's directory data
+const loaded = new Map<string, Promise<Loaded>>();
+
+function loadLicences(accountId: string): Promise<Loaded> {
+  let load = loaded.get(accountId);
+  if (!load) {
+    load = (async () => {
+      const token = await getLicenceToken();
+      if (!token || !(await isLicenceAdmin(token))) return null;
+      const [skus, users] = await Promise.all([getSubscribedSkus(token), getLicensedUsers(token)]);
+      return { skus, users };
+    })();
+    loaded.set(accountId, load);
+    // A failure isn't kept, so a reload of the page can try again
+    load.catch(() => loaded.delete(accountId));
+  }
+  return load;
 }
 
 /**
@@ -52,7 +60,10 @@ export function useLicences(): LicenceData {
 
   useEffect(() => {
     let cancelled = false;
-    loadLicences()
+    const accountId = account?.homeAccountId;
+    // Not signed in: nothing to load (it stays 'loading', which shows nothing)
+    if (!accountId) return;
+    loadLicences(accountId)
       .then((result) => {
         if (cancelled) return;
         setData(

@@ -72,6 +72,8 @@ async function graphGetAll<T>(token: string, url: string): Promise<T[]> {
     // Only follow links back to Graph (the request carries the token)
     next = body['@odata.nextLink']?.startsWith(`${GRAPH}/`) ? body['@odata.nextLink'] : undefined;
   }
+  // Partial data would show wrong licence warnings (people past the cap as unlicensed)
+  if (next) throw new Error(`Microsoft Graph: more than ${MAX_PAGES} pages of results`);
   return items;
 }
 

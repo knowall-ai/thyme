@@ -118,6 +118,14 @@ describe('getPeopleLicences', () => {
     expect(person('alex').flags).toEqual([]);
   });
 
+  it('flags an attach whose base subscription has lapsed (no seats enabled)', () => {
+    const lapsed = getPeopleLicences(
+      [...skus, sku('sales', 'DYN365_ENTERPRISE_SALES', 0, 1)],
+      [user('sam', 'Sam Contoso', ['e3', 'att', 'sales'])]
+    );
+    expect(lapsed.get('sam@contoso.com')!.flags).toEqual(['attachWithoutBase']);
+  });
+
   it("doesn't flag an attach or Dynamics Team Members when the org has a paid base app", () => {
     const withSales = getPeopleLicences(
       [...skus, sku('sales', 'DYN365_ENTERPRISE_SALES', 1, 1)],
@@ -159,8 +167,8 @@ describe('getLicenceTag', () => {
     });
     const sam = getLicenceTag(people.get('sam@contoso.com')!);
     expect(sam).toMatchObject({ label: 'BC Essentials Attach', warn: true });
-    expect(sam.title).toContain('Microsoft 365: Office 365 E3');
-    expect(sam.title).toContain('Essentials Attach without a qualifying base licence');
+    expect(sam.details).toContain('Microsoft 365: Office 365 E3');
+    expect(sam.details.join('\n')).toContain('Essentials Attach without a qualifying base licence');
   });
 
   it('warns about a team member without a Business Central licence, or any licence', () => {

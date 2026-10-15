@@ -204,9 +204,14 @@ export function getPeopleLicences(
   const skuById = new Map(skus.map((sku) => [sku.skuId, sku]));
   // A Dynamics 365 app the org has bought: what Essentials Attach needs, and what makes
   // Dynamics 365 Team Members a sensible licence
-  const hasAttachBase = skus.some(
-    (s) => isAttachBaseSku(s.skuPartNumber) && s.prepaidUnits.enabled > 0
+  // Bases with active seats: a lapsed subscription (none enabled) is no base, even if
+  // someone still holds it
+  const activeBaseSkuIds = new Set(
+    skus
+      .filter((s) => isAttachBaseSku(s.skuPartNumber) && s.prepaidUnits.enabled > 0)
+      .map((s) => s.skuId)
   );
+  const hasAttachBase = activeBaseSkuIds.size > 0;
 
   const people = new Map<string, PersonLicences>();
   for (const user of users) {
@@ -221,7 +226,7 @@ export function getPeopleLicences(
       .sort((a, b) => (b.bcRank ?? 0) - (a.bcRank ?? 0));
     const parts = held.map((s) => s.skuPartNumber);
     const flags: LicenceFlag[] = [];
-    if (parts.some(isEssentialsAttach) && !parts.some(isAttachBaseSku)) {
+    if (parts.some(isEssentialsAttach) && !held.some((s) => activeBaseSkuIds.has(s.skuId))) {
       flags.push('attachWithoutBase');
     }
     if (parts.some((p) => p.toUpperCase() === 'DYN365_TEAM_MEMBERS') && !hasAttachBase) {
@@ -302,8 +307,8 @@ export const LICENCE_ADMIN_ROLE_TEMPLATE_IDS = new Set([
 export interface LicenceTag {
   /** e.g. "BC Essentials", or "No BC licence" */
   label: string;
-  /** Every licence and flag, for the hover text */
-  title: string;
+  /** Every licence and flag, one per line, for the tag's details */
+  details: string[];
   /** Something looks wrong (a flag, or no Business Central licence) */
   warn: boolean;
 }
@@ -317,7 +322,7 @@ export function getLicenceTag(person: PersonLicences | null): LicenceTag {
   if (!person) {
     return {
       label: 'No licence',
-      title: 'No Business Central or Microsoft 365 licence',
+      details: ['No Business Central or Microsoft 365 licence'],
       warn: true,
     };
   }
@@ -330,7 +335,7 @@ export function getLicenceTag(person: PersonLicences | null): LicenceTag {
   ];
   return {
     label: bc ? (bc.shortName ?? bc.name) : 'No BC licence',
-    title: lines.join('\n'),
+    details: lines,
     warn: !bc || person.flags.length > 0,
   };
 }

@@ -37,7 +37,10 @@ export function LicenceAccessSettings() {
       </p>
       <div className="mt-4">
         {granted ? (
-          <p className="text-thyme-400 text-sm">Granted: the licence view is on the Team page.</p>
+          <p className="text-thyme-400 text-sm">
+            Directory access is granted. The licence tags and the Licences button show on the Team
+            page for the administrators listed above.
+          </p>
         ) : (
           <Button
             size="sm"
