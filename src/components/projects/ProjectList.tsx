@@ -10,6 +10,7 @@ import {
   ChevronDownIcon,
   ChevronUpDownIcon,
   XMarkIcon,
+  PlusIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import {
@@ -37,6 +38,7 @@ import {
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import { useCompanyPath, useCompanyStore } from '@/hooks';
 import { ProjectStatusFilter } from './ProjectStatusFilter';
+import { NewProjectModal } from './NewProjectModal';
 import {
   DEFAULT_PROJECT_STATUSES,
   filterProjectsByStatus,
@@ -111,6 +113,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
   const [sortBy, setSortBy] = useState<SortOption>('name');
   const [customerFilter, setCustomerFilter] = useState<CustomerFilter>('all');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
 
   // Helper to toggle sort for a column
   const handleColumnSort = (column: 'billing' | 'estimate' | 'spent' | 'remaining') => {
@@ -283,7 +286,13 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
             Customers
             <ArrowTopRightOnSquareIcon className="h-4 w-4" />
           </a>
+          <Button size="sm" className="ml-auto" onClick={() => setIsNewProjectOpen(true)}>
+            <PlusIcon className="mr-1 h-4 w-4" />
+            New project
+          </Button>
         </div>
+
+        <NewProjectModal isOpen={isNewProjectOpen} onClose={() => setIsNewProjectOpen(false)} />
 
         {/* Search and Filter/Sort Controls */}
         <div className="space-y-3">

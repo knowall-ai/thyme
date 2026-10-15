@@ -7,8 +7,10 @@ import { usePlanStore } from './usePlanStore';
 import { activeCompanyKey } from './companyScope';
 import { getProjectCurrencyCode, isForeignCurrency } from '@/utils/currency';
 
-// BC Job Description is Text[100]
-export const PROJECT_NAME_MAX_LENGTH = 100;
+import { getProjectNameError } from '@/utils/projectName';
+
+// Still exported from here for the components that use it
+export { PROJECT_NAME_MAX_LENGTH } from '@/utils/projectName';
 
 // KPI cards whose amounts start masked every time a project page opens: the internal cost cards.
 // Customer-facing price cards and time cards stay visible. The user can reveal them with the Eye toggle.
@@ -154,11 +156,9 @@ export const useProjectDetailsStore = create<ProjectDetailsStore>((set, get) => 
     const project = get().project;
     if (!project) return;
 
+    const nameError = getProjectNameError(name);
+    if (nameError) throw new Error(nameError);
     const trimmed = name.trim();
-    if (!trimmed) throw new Error('Project name cannot be empty');
-    if (trimmed.length > PROJECT_NAME_MAX_LENGTH) {
-      throw new Error(`Project name cannot be longer than ${PROJECT_NAME_MAX_LENGTH} characters`);
-    }
     if (trimmed === project.name) return;
 
     let saved: string;
