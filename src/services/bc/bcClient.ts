@@ -58,8 +58,10 @@ import {
   getProjectNameError,
 } from '@/utils';
 
-const BC_BASE_URL =
-  process.env.NEXT_PUBLIC_BC_BASE_URL || 'https://api.businesscentral.dynamics.com/v2.0';
+// Business Central API calls go through Thyme's server (src/app/api/bc), which forwards
+// them with the user's token: Business Central rejects browsers' CORS preflights, and
+// server-to-server calls need none. The server knows the real API URL.
+const BC_BASE_URL = '/api/bc';
 const BC_TENANT_ID = process.env.NEXT_PUBLIC_AZURE_TENANT_ID || '';
 const BC_DEFAULT_ENVIRONMENT =
   (process.env.NEXT_PUBLIC_BC_ENVIRONMENT as BCEnvironmentType) || 'production';
@@ -1508,12 +1510,16 @@ class BusinessCentralClient {
       const nextLink = response['@odata.nextLink'];
       if (!nextLink) break;
       // Resolve relative links against the current page, and only follow links back into
-      // the same custom API (the request carries the BC bearer token)
-      const resolved: string = new URL(nextLink, `${this.customApiBaseUrl}${next}`).href;
-      if (!resolved.startsWith(this.customApiBaseUrl)) {
+      // the same custom API (the request carries the BC bearer token). The base is a path
+      // on Thyme's origin (the relay rewrites BC's links to it), so resolve against that
+      const origin = typeof window === 'undefined' ? 'http://localhost' : window.location.origin;
+      const base = new URL(this.customApiBaseUrl, origin).href;
+      const resolved: string = new URL(nextLink, new URL(`${this.customApiBaseUrl}${next}`, origin))
+        .href;
+      if (!resolved.startsWith(base)) {
         throw new Error('Unexpected @odata.nextLink outside the Business Central API');
       }
-      next = resolved.slice(this.customApiBaseUrl.length);
+      next = resolved.slice(base.length);
     }
     return items;
   }
