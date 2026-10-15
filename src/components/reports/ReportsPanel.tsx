@@ -24,6 +24,7 @@ import {
   XMarkIcon,
   ListBulletIcon,
   CheckCircleIcon,
+  TableCellsIcon,
 } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import {
@@ -104,9 +105,9 @@ const NO_PROJECTS: ReadonlyMap<string, BCProject> = new Map();
 // Task names are loaded for at most this many picked projects (a request each)
 const MAX_TASK_NAME_PROJECTS = 10;
 
-const VIEWS: { id: ReportView; label: string }[] = [
-  { id: 'summary', label: 'Summary' },
-  { id: 'entries', label: 'Entries' },
+const VIEWS: { id: ReportView; label: string; icon: typeof ChartBarIcon }[] = [
+  { id: 'summary', label: 'Summary', icon: ChartBarIcon },
+  { id: 'entries', label: 'Entries', icon: TableCellsIcon },
 ];
 
 interface BreakdownRow {
@@ -608,6 +609,28 @@ export function ReportsPanel() {
   const maxRowHours = Math.max(...breakdown.map((row) => Math.max(row.hours, row.capacity)), 1);
 
   const hasHours = summary.totalHours > 0;
+  // The cards' figures for the view shown. Entries lists everyone's time (people not
+  // counted in the totals too), so its cards add up the entries listed, matching the
+  // table's footer
+  const cardStats = useMemo(() => {
+    if (view === 'summary') {
+      return {
+        totalHours: summary.totalHours,
+        billableHours: summary.billableHours,
+        billablePercent: summary.billablePercent,
+        projects: uniqueProjects,
+      };
+    }
+    const listed = entryRows.map((row) => row.entry);
+    const totalHours = listed.reduce((sum, e) => sum + e.hours, 0);
+    const billableHours = listed.reduce((sum, e) => sum + (e.isBillable ? e.hours : 0), 0);
+    return {
+      totalHours,
+      billableHours,
+      billablePercent: totalHours > 0 ? (billableHours / totalHours) * 100 : 0,
+      projects: new Set(listed.map((e) => e.projectId)).size,
+    };
+  }, [view, summary, uniqueProjects, entryRows]);
 
   // The printed report's heading: its period and filters, as the filter bar is hidden
   // Every picked name, not a count: the printout has no filter bar to show them
@@ -738,9 +761,95 @@ export function ReportsPanel() {
 
         {!isLoading && projectsUnavailable && <ProjectsUnavailableWarning />}
 
-        {/* Summary or every entry (the printout is whichever is shown) */}
-        <div role="tablist" aria-label="Report view" className="flex gap-2 print:hidden">
-          {VIEWS.map(({ id, label }) => (
+        {/* Totals for what's shown: the summary's people, or every listed entry */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4 print:grid-cols-4">
+          <Card variant="bordered" className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-thyme-500/20 rounded-lg p-2">
+                <ClockIcon className="text-thyme-500 h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-dark-400 text-sm">Total Hours</p>
+                <p className="text-dark-100 text-xl font-bold">
+                  {isLoading ? '...' : formatTime(cardStats.totalHours)}
+                </p>
+              </div>
+            </div>
+          </Card>
+          <Card variant="bordered" className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-blue-500/20 p-2">
+                <ChartBarIcon className="h-5 w-5 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-dark-400 flex items-center gap-1 text-sm">
+                  Billable Hours
+                  <BillableInfo label="Billable Hours" />
+                </p>
+                <p className="text-dark-100 text-xl font-bold">
+                  {isLoading ? '...' : formatTime(cardStats.billableHours)}
+                </p>
+              </div>
+            </div>
+          </Card>
+          <Card variant="bordered" className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-purple-500/20 p-2">
+                <ChartBarIcon className="h-5 w-5 text-purple-500" />
+              </div>
+              <div>
+                <p className="text-dark-400 text-sm">Projects</p>
+                <p className="text-dark-100 text-xl font-bold">
+                  {isLoading ? '...' : cardStats.projects}
+                </p>
+              </div>
+            </div>
+          </Card>
+          <Card variant="bordered" className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-amber-500/20 p-2">
+                <ChartBarIcon className="h-5 w-5 text-amber-500" />
+              </div>
+              <div>
+                <p className="text-dark-400 flex items-center gap-1 text-sm">
+                  Billable %
+                  <BillableInfo label="Billable %" />
+                </p>
+                <p className="text-dark-100 text-xl font-bold">
+                  {isLoading
+                    ? '...'
+                    : cardStats.totalHours > 0
+                      ? `${cardStats.billablePercent.toFixed(0)}%`
+                      : '–'}
+                </p>
+                {/* Coloured by the unrounded %, as on the Team page */}
+                {view === 'summary' && billableTarget && billableBand && !isLoading && (
+                  <p
+                    className={cn(
+                      'mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
+                      BILLABLE_TARGET_BAND_COLORS[billableBand]
+                    )}
+                    title={
+                      selectedPerson
+                        ? BILLABLE_TARGET_BAND_LABELS[billableBand]
+                        : `${BILLABLE_TARGET_BAND_LABELS[billableBand]}. The ${billableTargetName} is ${resourceNos.length === 0 ? "the team's" : "the selected people's"} targets, weighted by capacity.`
+                    }
+                  >
+                    {billableTarget.percent.toFixed(0)}% {billableTargetName}
+                  </p>
+                )}
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Summary or every entry: one switch (the printout is whichever is shown) */}
+        <div
+          role="tablist"
+          aria-label="Report view"
+          className="border-dark-600 bg-dark-800 inline-flex rounded-lg border p-1 print:hidden"
+        >
+          {VIEWS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               type="button"
@@ -748,12 +857,13 @@ export function ReportsPanel() {
               aria-selected={view === id}
               onClick={() => setView(id)}
               className={cn(
-                'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                'focus-visible:ring-thyme-500 flex items-center gap-2 rounded-md px-4 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-1',
                 view === id
-                  ? 'bg-thyme-600 text-white'
-                  : 'bg-dark-600 text-gray-400 hover:text-white'
+                  ? 'bg-thyme-600 text-white shadow-sm'
+                  : 'hover:bg-dark-700 text-gray-400 hover:text-white'
               )}
             >
+              <Icon className="h-4 w-4" />
               {label}
             </button>
           ))}
@@ -795,88 +905,6 @@ export function ReportsPanel() {
           </Card>
         ) : (
           <>
-            {/* Summary Stats */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-4 print:grid-cols-4">
-              <Card variant="bordered" className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="bg-thyme-500/20 rounded-lg p-2">
-                    <ClockIcon className="text-thyme-500 h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-dark-400 text-sm">Total Hours</p>
-                    <p className="text-dark-100 text-xl font-bold">
-                      {isLoading ? '...' : formatTime(summary.totalHours)}
-                    </p>
-                  </div>
-                </div>
-              </Card>
-              <Card variant="bordered" className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-blue-500/20 p-2">
-                    <ChartBarIcon className="h-5 w-5 text-blue-500" />
-                  </div>
-                  <div>
-                    <p className="text-dark-400 flex items-center gap-1 text-sm">
-                      Billable Hours
-                      <BillableInfo label="Billable Hours" />
-                    </p>
-                    <p className="text-dark-100 text-xl font-bold">
-                      {isLoading ? '...' : formatTime(summary.billableHours)}
-                    </p>
-                  </div>
-                </div>
-              </Card>
-              <Card variant="bordered" className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-purple-500/20 p-2">
-                    <ChartBarIcon className="h-5 w-5 text-purple-500" />
-                  </div>
-                  <div>
-                    <p className="text-dark-400 text-sm">Projects</p>
-                    <p className="text-dark-100 text-xl font-bold">
-                      {isLoading ? '...' : uniqueProjects}
-                    </p>
-                  </div>
-                </div>
-              </Card>
-              <Card variant="bordered" className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-amber-500/20 p-2">
-                    <ChartBarIcon className="h-5 w-5 text-amber-500" />
-                  </div>
-                  <div>
-                    <p className="text-dark-400 flex items-center gap-1 text-sm">
-                      Billable %
-                      <BillableInfo label="Billable %" />
-                    </p>
-                    <p className="text-dark-100 text-xl font-bold">
-                      {isLoading
-                        ? '...'
-                        : hasHours
-                          ? `${summary.billablePercent.toFixed(0)}%`
-                          : '–'}
-                    </p>
-                    {/* Coloured by the unrounded %, as on the Team page */}
-                    {billableTarget && billableBand && !isLoading && (
-                      <p
-                        className={cn(
-                          'mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
-                          BILLABLE_TARGET_BAND_COLORS[billableBand]
-                        )}
-                        title={
-                          selectedPerson
-                            ? BILLABLE_TARGET_BAND_LABELS[billableBand]
-                            : `${BILLABLE_TARGET_BAND_LABELS[billableBand]}. The ${billableTargetName} is ${resourceNos.length === 0 ? "the team's" : "the selected people's"} targets, weighted by capacity.`
-                        }
-                      >
-                        {billableTarget.percent.toFixed(0)}% {billableTargetName}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            </div>
-
             {/* One person under a client or project filter: there's no People table to carry
             the note, so say here why their target isn't shown */}
             {selectedPerson && filterDescription && !isLoading && !error && (

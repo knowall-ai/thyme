@@ -643,4 +643,15 @@ describe('ReportsPanel client and project filters', () => {
     // Sam's 3h posted and Alex's 2h approved
     expect(cardValue('Total Hours')).toBe('5h');
   });
+
+  it("totals the listed entries on the cards in the Entries view, the agent's too", async () => {
+    render(<ReportsPanel />);
+    await screen.findByRole('table');
+    // Summary: counted people only (the agent's 5h left out)
+    expect(cardValue('Total Hours')).toBe('19h');
+    fireEvent.click(screen.getByRole('tab', { name: 'Entries' }));
+    await screen.findByText(/^\d+ entries$/);
+    expect(cardValue('Total Hours')).toBe('24h');
+    expect(screen.queryByText(/team target$/)).not.toBeInTheDocument();
+  });
 });
