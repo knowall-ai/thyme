@@ -1,8 +1,23 @@
 /**
- * Licences: who holds which Business Central and Microsoft 365 licence, what they
- * cost, and what looks wrong. Pure functions over Microsoft Graph's subscribedSkus
+ * Licences: who holds which Business Central and Microsoft 365 licence, and what
+ * looks wrong. Pure functions over Microsoft Graph's subscribedSkus
  * and users' assignedLicenses, so they can be tested without Graph.
  */
+
+import licencePrices from '@/config/licencePrices.json';
+
+/** The estimated prices' currency, basis and when they were checked (see the JSON) */
+export const LICENCE_PRICES = {
+  currency: licencePrices.currency,
+  basis: licencePrices.basis,
+  checked: licencePrices.checked,
+};
+const PRICES: Record<string, number> = licencePrices.prices;
+
+/** A licence's estimated price a month, or null when src/config/licencePrices.json has none */
+export function getEstimatedPrice(skuPartNumber: string): number | null {
+  return PRICES[skuPartNumber] ?? null;
+}
 
 /** What a licence is for, which decides where it shows */
 export type LicenceCategory = 'businessCentral' | 'dynamics' | 'microsoft365' | 'other';
@@ -11,12 +26,8 @@ export interface LicenceSku {
   skuPartNumber: string;
   name: string;
   category: LicenceCategory;
-  /**
-   * Estimated monthly list price per licence, GBP ex VAT on an annual term (UK list
-   * prices as reported in 2025-2026; Microsoft's own price list, a partner's and any
-   * discount will differ). Undefined when there's no estimate. Admins can override.
-   */
-  monthlyPrice?: number;
+  /** Short name for a tag, e.g. "BC Essentials" */
+  shortName?: string;
   /** Business Central licences by rank: the highest is a person's BC licence */
   bcRank?: number;
 }
@@ -25,80 +36,72 @@ export interface LicenceSku {
 const CATALOGUE: LicenceSku[] = [
   {
     skuPartNumber: 'DYN365_BUSCENTRAL_PREMIUM',
+    shortName: 'BC Premium',
     name: 'Business Central Premium',
     category: 'businessCentral',
-    monthlyPrice: 82.2,
     bcRank: 4,
   },
   {
     skuPartNumber: 'DYN365_BUSCENTRAL_ESSENTIAL',
+    shortName: 'BC Essentials',
     name: 'Business Central Essentials',
     category: 'businessCentral',
-    monthlyPrice: 57.5,
     bcRank: 3,
   },
   {
     skuPartNumber: 'Dynamics_365_Business_Central_Essentials_Attach',
+    shortName: 'BC Essentials Attach',
     name: 'Business Central Essentials Attach',
     category: 'businessCentral',
-    monthlyPrice: 16.4,
     bcRank: 2,
   },
   {
     skuPartNumber: 'DYN365_BUSCENTRAL_TEAM_MEMBER',
+    shortName: 'BC Team Member',
     name: 'Business Central Team Member',
     category: 'businessCentral',
-    monthlyPrice: 6.6,
     bcRank: 1,
   },
   {
     skuPartNumber: 'DYN365_TEAM_MEMBERS',
     name: 'Dynamics 365 Team Members',
     category: 'dynamics',
-    monthlyPrice: 6.6,
   },
   {
     skuPartNumber: 'O365_BUSINESS_ESSENTIALS',
     name: 'Microsoft 365 Business Basic',
     category: 'microsoft365',
-    monthlyPrice: 5.75,
   },
   {
     skuPartNumber: 'O365_BUSINESS_PREMIUM',
     name: 'Microsoft 365 Business Standard',
     category: 'microsoft365',
-    monthlyPrice: 11.55,
   },
   {
     skuPartNumber: 'SPB',
     name: 'Microsoft 365 Business Premium',
     category: 'microsoft365',
-    monthlyPrice: 18.1,
   },
   { skuPartNumber: 'STANDARDPACK', name: 'Office 365 E1', category: 'microsoft365' },
   {
     skuPartNumber: 'ENTERPRISEPACK',
     name: 'Office 365 E3',
     category: 'microsoft365',
-    monthlyPrice: 23.3,
   },
   {
     skuPartNumber: 'ENTERPRISEPREMIUM',
     name: 'Office 365 E5',
     category: 'microsoft365',
-    monthlyPrice: 36.8,
   },
   {
     skuPartNumber: 'SPE_E3',
     name: 'Microsoft 365 E3',
     category: 'microsoft365',
-    monthlyPrice: 33.5,
   },
   {
     skuPartNumber: 'SPE_E5',
     name: 'Microsoft 365 E5',
     category: 'microsoft365',
-    monthlyPrice: 51.6,
   },
 ];
 const CATALOGUE_BY_PART = new Map(CATALOGUE.map((sku) => [sku.skuPartNumber.toUpperCase(), sku]));
@@ -183,80 +186,50 @@ export interface PersonLicences {
   user: LicensedUser;
   /** Their Business Central licence: the highest they hold, if any */
   businessCentral: LicenceSku | null;
-  /** Every licence they hold that's shown (trials only when asked for), by category */
+  /** Every paid licence they hold, by category */
   microsoft365: LicenceSku[];
   dynamics: LicenceSku[];
   other: LicenceSku[];
   flags: LicenceFlag[];
 }
 
-export interface LicenceTotal {
-  sku: LicenceSku;
-  skuId: string;
-  assigned: number;
-  purchased: number;
-  /** Purchased but not assigned */
-  unassigned: number;
-  /** Monthly cost of what's purchased, at the given price; null without a price */
-  monthlyCost: number | null;
-  /** The price used: an admin's override, else the estimate */
-  monthlyPrice: number | null;
-  freeOrTrial: boolean;
-}
-
-export interface LicenceSummary {
-  people: PersonLicences[];
-  totals: LicenceTotal[];
-  /** Every purchased licence's monthly cost (those with a price) */
-  monthlyTotal: number;
-  /** Whether the organisation has a Dynamics 365 app an Attach licence could attach to */
-  hasAttachBase: boolean;
-}
-
 /**
- * Who holds what, the totals per licence and their monthly cost, and the flags.
- * `prices` are admins' overrides by SKU part number; `includeTrials` shows free and
- * trial SKUs too.
+ * Each licensed user's licences, keyed by user principal name (lower case), with the
+ * flags. Free and trial licences are left out (nobody pays for them).
  */
-export function summariseLicences(
+export function getPeopleLicences(
   skus: readonly SubscribedSku[],
-  users: readonly LicensedUser[],
-  prices: Readonly<Record<string, number>> = {},
-  includeTrials = false
-): LicenceSummary {
+  users: readonly LicensedUser[]
+): Map<string, PersonLicences> {
   const skuById = new Map(skus.map((sku) => [sku.skuId, sku]));
-  const shown = (part: string) => includeTrials || !isFreeOrTrialSku(part);
   // A Dynamics 365 app the org has bought: what Essentials Attach needs, and what makes
   // Dynamics 365 Team Members a sensible licence
   const hasAttachBase = skus.some(
     (s) => isAttachBaseSku(s.skuPartNumber) && s.prepaidUnits.enabled > 0
   );
-  const priceOf = (sku: LicenceSku) => prices[sku.skuPartNumber] ?? sku.monthlyPrice ?? null;
 
-  const people: PersonLicences[] = [];
+  const people = new Map<string, PersonLicences>();
   for (const user of users) {
     const held = user.assignedLicenses
       .map((l) => skuById.get(l.skuId))
       .filter((s): s is SubscribedSku => !!s);
-    const visible = held
-      .filter((s) => shown(s.skuPartNumber))
-      .map((s) => getLicenceSku(s.skuPartNumber));
-    if (visible.length === 0) continue;
+    const paid = held.filter((s) => !isFreeOrTrialSku(s.skuPartNumber));
+    const visible = paid.map((s) => getLicenceSku(s.skuPartNumber));
 
     const bc = visible
       .filter((s) => s.category === 'businessCentral')
       .sort((a, b) => (b.bcRank ?? 0) - (a.bcRank ?? 0));
     const parts = held.map((s) => s.skuPartNumber);
     const flags: LicenceFlag[] = [];
-    if (parts.some(isEssentialsAttach) && !parts.some(isAttachBaseSku))
+    if (parts.some(isEssentialsAttach) && !parts.some(isAttachBaseSku)) {
       flags.push('attachWithoutBase');
+    }
     if (parts.some((p) => p.toUpperCase() === 'DYN365_TEAM_MEMBERS') && !hasAttachBase) {
       flags.push('dynamicsTeamMembersInBcOnlyOrg');
     }
-    const paid = held.some((s) => !isFreeOrTrialSku(s.skuPartNumber));
-    if (!user.accountEnabled && paid) flags.push('licensedButDisabled');
+    if (!user.accountEnabled && paid.length > 0) flags.push('licensedButDisabled');
 
-    people.push({
+    people.set(user.userPrincipalName.toLowerCase(), {
       user,
       businessCentral: bc[0] ?? null,
       microsoft365: visible.filter((s) => s.category === 'microsoft365'),
@@ -265,39 +238,51 @@ export function summariseLicences(
       flags,
     });
   }
-  people.sort((a, b) => a.user.displayName.localeCompare(b.user.displayName));
+  return people;
+}
 
-  const categoryOrder: LicenceCategory[] = ['businessCentral', 'dynamics', 'microsoft365', 'other'];
-  const totals: LicenceTotal[] = skus
-    .filter((s) => shown(s.skuPartNumber) && (s.prepaidUnits.enabled > 0 || s.consumedUnits > 0))
+export interface LicenceCount {
+  sku: LicenceSku;
+  skuId: string;
+  assigned: number;
+  purchased: number;
+  /** Purchased but not given to anyone */
+  unassigned: number;
+  /** Estimated price a month, and of everything purchased; null without an estimate */
+  monthlyPrice: number | null;
+  monthlyCost: number | null;
+}
+
+/**
+ * How many of each paid licence the organisation has bought and assigned: Business
+ * Central first (highest first), then Dynamics 365, then Microsoft 365 and the rest,
+ * with estimated prices (src/config/licencePrices.json).
+ */
+export function getLicenceCounts(skus: readonly SubscribedSku[]): LicenceCount[] {
+  const order: LicenceCategory[] = ['businessCentral', 'dynamics', 'microsoft365', 'other'];
+  return skus
+    .filter(
+      (s) =>
+        !isFreeOrTrialSku(s.skuPartNumber) && (s.prepaidUnits.enabled > 0 || s.consumedUnits > 0)
+    )
     .map((s) => {
-      const sku = getLicenceSku(s.skuPartNumber);
-      const price = priceOf(sku);
-      const purchased = s.prepaidUnits.enabled;
+      const monthlyPrice = getEstimatedPrice(s.skuPartNumber);
       return {
-        sku,
+        sku: getLicenceSku(s.skuPartNumber),
         skuId: s.skuId,
         assigned: s.consumedUnits,
-        purchased,
-        unassigned: Math.max(0, purchased - s.consumedUnits),
-        monthlyPrice: price,
-        monthlyCost: price === null ? null : price * purchased,
-        freeOrTrial: isFreeOrTrialSku(s.skuPartNumber),
+        purchased: s.prepaidUnits.enabled,
+        unassigned: Math.max(0, s.prepaidUnits.enabled - s.consumedUnits),
+        monthlyPrice,
+        monthlyCost: monthlyPrice === null ? null : monthlyPrice * s.prepaidUnits.enabled,
       };
     })
     .sort(
       (a, b) =>
-        categoryOrder.indexOf(a.sku.category) - categoryOrder.indexOf(b.sku.category) ||
+        order.indexOf(a.sku.category) - order.indexOf(b.sku.category) ||
         (b.sku.bcRank ?? 0) - (a.sku.bcRank ?? 0) ||
         a.sku.name.localeCompare(b.sku.name)
     );
-
-  return {
-    people,
-    totals,
-    monthlyTotal: totals.reduce((sum, t) => sum + (t.monthlyCost ?? 0), 0),
-    hasAttachBase,
-  };
 }
 
 /**
@@ -313,3 +298,39 @@ export const LICENCE_ADMIN_ROLE_TEMPLATE_IDS = new Set([
   'b0f54661-2d74-4c50-afa3-1ec803f12efe',
   '44367163-eba1-44c3-98af-f5787879f96a',
 ]);
+
+export interface LicenceTag {
+  /** e.g. "BC Essentials", or "No BC licence" */
+  label: string;
+  /** Every licence and flag, for the hover text */
+  title: string;
+  /** Something looks wrong (a flag, or no Business Central licence) */
+  warn: boolean;
+}
+
+/**
+ * A team member's licence tag: their Business Central licence, amber when they have
+ * none (they need one to keep a time sheet) or something looks wrong. `person` null:
+ * matched to a directory user with no licences at all.
+ */
+export function getLicenceTag(person: PersonLicences | null): LicenceTag {
+  if (!person) {
+    return {
+      label: 'No licence',
+      title: 'No Business Central or Microsoft 365 licence',
+      warn: true,
+    };
+  }
+  const bc = person.businessCentral;
+  const lines = [
+    `Business Central: ${bc?.name ?? 'none'}`,
+    `Microsoft 365: ${person.microsoft365.map((s) => s.name).join(', ') || 'none'}`,
+    ...[...person.dynamics, ...person.other].map((s) => `Also: ${s.name}`),
+    ...person.flags.map((flag) => `⚠ ${LICENCE_FLAG_LABELS[flag]}`),
+  ];
+  return {
+    label: bc ? (bc.shortName ?? bc.name) : 'No BC licence',
+    title: lines.join('\n'),
+    warn: !bc || person.flags.length > 0,
+  };
+}

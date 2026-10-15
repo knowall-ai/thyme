@@ -3,7 +3,10 @@ import {
   getLicenceSku,
   isAttachBaseSku,
   isFreeOrTrialSku,
-  summariseLicences,
+  getEstimatedPrice,
+  getLicenceCounts,
+  getLicenceTag,
+  getPeopleLicences,
   type LicensedUser,
   type SubscribedSku,
 } from '@/utils/licences';
@@ -89,51 +92,82 @@ describe('licence catalogue', () => {
   });
 });
 
-describe('summariseLicences', () => {
-  const summary = summariseLicences(skus, users);
-  const person = (name: string) => summary.people.find((p) => p.user.displayName === name)!;
+describe('getPeopleLicences', () => {
+  const people = getPeopleLicences(skus, users);
+  const person = (id: string) => people.get(`${id}@contoso.com`)!;
 
   it('gives each person their highest Business Central licence and their Microsoft 365 plan', () => {
-    expect(person('Alex Contoso').businessCentral?.name).toBe('Business Central Essentials');
-    expect(person('Alex Contoso').microsoft365.map((s) => s.name)).toEqual(['Office 365 E3']);
-    expect(person('Jo Contoso').businessCentral?.name).toBe('Business Central Team Member');
-    expect(person('Lee Contoso').businessCentral).toBeNull();
+    expect(person('alex').businessCentral?.name).toBe('Business Central Essentials');
+    expect(person('alex').microsoft365.map((s) => s.name)).toEqual(['Office 365 E3']);
+    expect(person('jo').businessCentral?.name).toBe('Business Central Team Member');
+    expect(person('lee').businessCentral).toBeNull();
   });
 
-  it('hides free and trial licences, and people with only those, unless asked', () => {
-    expect(summary.people.map((p) => p.user.displayName)).not.toContain('Kim Contoso');
-    expect(summary.totals.map((t) => t.sku.skuPartNumber)).not.toContain('FLOW_FREE');
-    const withTrials = summariseLicences(skus, users, {}, true);
-    expect(withTrials.people.map((p) => p.user.displayName)).toContain('Kim Contoso');
+  it('leaves out free and trial licences', () => {
+    expect(person('kim').microsoft365).toEqual([]);
+    expect(person('kim').other).toEqual([]);
+    expect(person('sam').other.map((s) => s.skuPartNumber)).not.toContain(
+      'Dynamics_365_Sales_Premium_Viral_Trial'
+    );
   });
 
   it('flags an attach without a paid base (a trial is no base), Dynamics Team Members in a BC-only org, and disabled accounts', () => {
-    expect(summary.hasAttachBase).toBe(false);
-    expect(person('Sam Contoso').flags).toEqual(['attachWithoutBase']);
-    expect(person('Jo Contoso').flags).toEqual(['dynamicsTeamMembersInBcOnlyOrg']);
-    expect(person('Lee Contoso').flags).toEqual(['licensedButDisabled']);
-    expect(person('Alex Contoso').flags).toEqual([]);
+    expect(person('sam').flags).toEqual(['attachWithoutBase']);
+    expect(person('jo').flags).toEqual(['dynamicsTeamMembersInBcOnlyOrg']);
+    expect(person('lee').flags).toEqual(['licensedButDisabled']);
+    expect(person('alex').flags).toEqual([]);
   });
 
   it("doesn't flag an attach or Dynamics Team Members when the org has a paid base app", () => {
-    const withSales = summariseLicences(
+    const withSales = getPeopleLicences(
       [...skus, sku('sales', 'DYN365_ENTERPRISE_SALES', 1, 1)],
       [user('sam', 'Sam Contoso', ['e3', 'att', 'sales']), user('jo', 'Jo Contoso', ['d365tm'])]
     );
-    expect(withSales.people.every((p) => p.flags.length === 0)).toBe(true);
+    expect([...withSales.values()].every((p) => p.flags.length === 0)).toBe(true);
+  });
+});
+
+describe('getLicenceCounts', () => {
+  const counts = getLicenceCounts(skus);
+
+  it('counts each paid licence, Business Central first, without free and trial ones', () => {
+    expect(counts.map((c) => c.sku.name)).toEqual([
+      'Business Central Essentials',
+      'Business Central Essentials Attach',
+      'Business Central Team Member',
+      'Dynamics 365 Team Members',
+      'Office 365 E3',
+    ]);
+    expect(counts[1]).toMatchObject({ assigned: 1, purchased: 4, unassigned: 3 });
   });
 
-  it('totals each licence: assigned, purchased, unassigned, and the monthly cost of what is purchased', () => {
-    const attach = summary.totals.find((t) => t.sku.skuPartNumber.includes('Attach'))!;
-    expect(attach).toMatchObject({ assigned: 1, purchased: 4, unassigned: 3, monthlyPrice: 16.4 });
-    expect(attach.monthlyCost).toBeCloseTo(65.6);
-    // Business Central first, Essentials above Team Member
-    expect(summary.totals[0].sku.name).toBe('Business Central Essentials');
+  it('prices each at the estimate in licencePrices.json, for everything purchased', () => {
+    const attach = counts[1];
+    expect(attach.monthlyPrice).toBe(getEstimatedPrice(attach.sku.skuPartNumber));
+    expect(attach.monthlyCost).toBeCloseTo(4 * (attach.monthlyPrice ?? 0));
+    expect(getEstimatedPrice('SOMETHING_ELSE')).toBeNull();
+  });
+});
+
+describe('getLicenceTag', () => {
+  const people = getPeopleLicences(skus, users);
+
+  it('shows the Business Central licence, amber when something looks wrong', () => {
+    expect(getLicenceTag(people.get('alex@contoso.com')!)).toMatchObject({
+      label: 'BC Essentials',
+      warn: false,
+    });
+    const sam = getLicenceTag(people.get('sam@contoso.com')!);
+    expect(sam).toMatchObject({ label: 'BC Essentials Attach', warn: true });
+    expect(sam.title).toContain('Microsoft 365: Office 365 E3');
+    expect(sam.title).toContain('Essentials Attach without a qualifying base licence');
   });
 
-  it("uses an admin's own price over the estimate, and totals the month", () => {
-    const own = summariseLicences(skus, users, { ENTERPRISEPACK: 20 });
-    expect(own.totals.find((t) => t.sku.skuPartNumber === 'ENTERPRISEPACK')!.monthlyCost).toBe(120);
-    expect(own.monthlyTotal).toBeCloseTo(120 + 57.5 + 2 * 6.6 + 4 * 16.4 + 3 * 6.6);
+  it('warns about a team member without a Business Central licence, or any licence', () => {
+    expect(getLicenceTag(people.get('lee@contoso.com')!)).toMatchObject({
+      label: 'No BC licence',
+      warn: true,
+    });
+    expect(getLicenceTag(null)).toMatchObject({ label: 'No licence', warn: true });
   });
 });

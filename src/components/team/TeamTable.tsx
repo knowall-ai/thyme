@@ -29,7 +29,7 @@ import {
   addStageHours,
   emptyStageHours,
 } from '@/utils';
-import type { StageHours, BillableTarget, WeeklyCapacity } from '@/utils';
+import type { StageHours, BillableTarget, WeeklyCapacity, LicenceTag } from '@/utils';
 import {
   teamConfig,
   getTimesheetCompletionColor,
@@ -161,6 +161,8 @@ export interface TeamTableProps {
    */
   sort?: TeamTableSort;
   onSortChange?: (sort: TeamTableSort) => void;
+  /** Each person's licence tag by row id (Team page, Microsoft 365 admins only) */
+  licenceTags?: Record<string, LicenceTag>;
 }
 
 /**
@@ -182,6 +184,7 @@ export function TeamTable({
   onSelect,
   sort: controlledSort,
   onSortChange,
+  licenceTags,
 }: TeamTableProps) {
   const [ownSort, setOwnSort] = useState<TeamTableSort>(DEFAULT_TEAM_TABLE_SORT);
   const activeSort = controlledSort ?? ownSort;
@@ -346,6 +349,19 @@ export function TeamTable({
                         )}
                         {member.isCurrentUser && (
                           <span className="text-knowall-green ml-2">(you)</span>
+                        )}
+                        {licenceTags?.[member.id] && (
+                          <span
+                            className={cn(
+                              'ml-2 inline-block rounded px-1.5 py-0.5 align-middle text-xs font-normal whitespace-nowrap',
+                              licenceTags[member.id].warn
+                                ? 'bg-amber-500/15 text-amber-300'
+                                : 'bg-dark-600 text-gray-300'
+                            )}
+                            title={licenceTags[member.id].title}
+                          >
+                            {licenceTags[member.id].label}
+                          </span>
                         )}
                       </p>
                       {member.email && <p className="text-dark-400 text-xs">{member.email}</p>}
