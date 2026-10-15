@@ -200,4 +200,7 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | *Apply change* says "Update the Thyme BC Extension to apply changes"
 | This environment's Thyme BC Extension doesn't have the plan-review apply action yet. Update the extension in Business Central; until then, make Poppie's changes by hand.
 
+
+| Projects, Reports, the Time tab or the company switcher are blank, or show "Failed to load company information" / "Failed to load report data", for everyone at once
+| Business Central's API has been seen rejecting browsers' CORS preflight requests (`OPTIONS` returns 401 with no `Access-Control-Allow-Origin`), which blocks every call a browser makes to it. Thyme sends its Business Central calls through its own server (`/api/bc/…`) to avoid this, so it should keep working. To check whether Business Central is doing this: `curl -s -o /dev/null -w "%{http_code}" -X OPTIONS -H "Origin: https://thyme.knowall.ai" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: authorization" https://api.businesscentral.dynamics.com/v2.0/<tenant>/production/api/v2.0/companies` (200 is healthy). If Thyme is blank while that returns 200, check the browser console (F12) for the failing request.
 |===
