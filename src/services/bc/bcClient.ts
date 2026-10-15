@@ -48,6 +48,7 @@ import {
   normalizePlanReviewLine,
   normalizePlanReviewRequest,
   PLAN_REVIEW_PENDING_HASH,
+  BC_UNREACHABLE_EVENT,
 } from '@/utils';
 
 const BC_BASE_URL =
@@ -56,6 +57,20 @@ const BC_TENANT_ID = process.env.NEXT_PUBLIC_AZURE_TENANT_ID || '';
 const BC_DEFAULT_ENVIRONMENT =
   (process.env.NEXT_PUBLIC_BC_ENVIRONMENT as BCEnvironmentType) || 'production';
 const BC_DEFAULT_COMPANY_ID = process.env.NEXT_PUBLIC_BC_COMPANY_ID || '';
+
+/**
+ * fetch for Business Central calls. One that never gets a response (fetch throws: the
+ * network, or a CORS preflight Business Central refused) is announced, so the app can
+ * check whether Business Central itself is the problem (see BcHealthBanner).
+ */
+async function bcFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch (error) {
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event(BC_UNREACHABLE_EVENT));
+    throw error;
+  }
+}
 
 // localStorage keys for persisting selection
 const COMPANY_STORAGE_KEY = 'thyme_selected_company_id';
@@ -266,7 +281,7 @@ class BusinessCentralClient {
 
     const tenantPath = BC_TENANT_ID ? `${BC_TENANT_ID}/` : '';
     const url = `${BC_BASE_URL}/${tenantPath}${environment}/api/v2.0/companies`;
-    const response = await fetch(url, {
+    const response = await bcFetch(url, {
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: 'application/json',
@@ -370,7 +385,7 @@ class BusinessCentralClient {
 
       // Try to access the custom API endpoint
       const url = `${this.customApiBaseUrl}/projects?$top=1`;
-      const response = await fetch(url, {
+      const response = await bcFetch(url, {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: 'application/json',
@@ -452,7 +467,7 @@ class BusinessCentralClient {
     }
 
     const url = `${baseUrl}${endpoint}`;
-    const response = await fetch(url, {
+    const response = await bcFetch(url, {
       ...options,
       headers: {
         Authorization: `Bearer ${token}`,
@@ -491,7 +506,7 @@ class BusinessCentralClient {
     }
 
     const url = `${baseUrl}${endpoint}`;
-    const response = await fetch(url, {
+    const response = await bcFetch(url, {
       ...options,
       headers: {
         Authorization: `Bearer ${token}`,
@@ -652,7 +667,7 @@ class BusinessCentralClient {
       const escapedJobNumber = jobNumber.replace(/'/g, "''");
       const filter = `jobNo eq '${escapedJobNumber}'`;
       const url = `${this.customApiBaseUrl}/jobTasks?$filter=${encodeURIComponent(filter)}`;
-      const response = await fetch(url, {
+      const response = await bcFetch(url, {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: 'application/json',
@@ -740,7 +755,7 @@ class BusinessCentralClient {
       }
 
       const url = `${this.customApiBaseUrl}/resourceUnitsOfMeasure`;
-      const response = await fetch(url, {
+      const response = await bcFetch(url, {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: 'application/json',
@@ -796,7 +811,7 @@ class BusinessCentralClient {
       const filter = `jobNo eq '${escapedJobNo}' and jobTaskNo eq '${escapedTaskNo}' and number eq '${escapedResourceNo}' and planningDate ge ${weekStart} and planningDate le ${weekEnd}`;
 
       const url = `${this.customApiBaseUrl}/jobPlanningLines?$filter=${encodeURIComponent(filter)}`;
-      const response = await fetch(url, {
+      const response = await bcFetch(url, {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: 'application/json',
@@ -843,7 +858,7 @@ class BusinessCentralClient {
       const filter = `number eq '${escapedResourceNo}' and planningDate ge ${weekStart} and planningDate le ${weekEnd}`;
 
       const url = `${this.customApiBaseUrl}/jobPlanningLines?$filter=${encodeURIComponent(filter)}`;
-      const response = await fetch(url, {
+      const response = await bcFetch(url, {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: 'application/json',
@@ -898,7 +913,7 @@ class BusinessCentralClient {
       }
 
       const url = `${this.customApiBaseUrl}/jobPlanningLines`;
-      const response = await fetch(url, {
+      const response = await bcFetch(url, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -984,7 +999,7 @@ class BusinessCentralClient {
         headers['If-Match'] = etag;
       }
 
-      const response = await fetch(url, {
+      const response = await bcFetch(url, {
         method: 'PATCH',
         headers,
         body: JSON.stringify(updateBody),
@@ -1040,7 +1055,7 @@ class BusinessCentralClient {
         headers['If-Match'] = etag;
       }
 
-      const response = await fetch(url, {
+      const response = await bcFetch(url, {
         method: 'DELETE',
         headers,
       });
@@ -1420,7 +1435,7 @@ class BusinessCentralClient {
       console.log('[BC API] POST/PATCH body:', options.body);
     }
 
-    const response = await fetch(url, {
+    const response = await bcFetch(url, {
       ...options,
       headers: {
         Authorization: `Bearer ${token}`,

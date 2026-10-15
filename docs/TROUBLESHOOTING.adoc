@@ -200,4 +200,7 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | *Apply change* says "Update the Thyme BC Extension to apply changes"
 | This environment's Thyme BC Extension doesn't have the plan-review apply action yet. Update the extension in Business Central; until then, make Poppie's changes by hand.
 
+
+| Yellow banner: "Business Central isn't accepting requests from browsers right now" (or "is rejecting some requests" / "isn't responding"), and pages are empty
+| Business Central's API is failing, which Thyme confirms from its own server (`/api/health/bc`, which sends the same CORS preflight a browser does). It has been seen rejecting every browser's preflight (401 on `OPTIONS`, for every website), which blocks all browser calls to it. Nothing needs fixing in Thyme: the banner clears itself (it checks every minute) once Microsoft fixes it. Admins can check Health > Service health in the Microsoft 365 admin center. To check by hand: `curl -s -o /dev/null -w "%{http_code}" -X OPTIONS -H "Origin: https://getthyme.ai" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: authorization" https://api.businesscentral.dynamics.com/v2.0/production/api/v2.0/companies` (200 is healthy).
 |===

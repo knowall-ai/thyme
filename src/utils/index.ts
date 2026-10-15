@@ -21,6 +21,7 @@ export * from './teamHours';
 export * from './reportPeriod';
 export * from './reportFilters';
 export * from './reportQuery';
+export * from './bcHealth';
 export * from './dayNotes';
 export * from './popoverPosition';
 export * from './planReview';

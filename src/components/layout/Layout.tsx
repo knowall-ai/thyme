@@ -4,6 +4,7 @@ import { ReactNode } from 'react';
 import Image from 'next/image';
 import { Header } from './Header';
 import { SignInExpiredBanner } from './SignInExpiredBanner';
+import { BcHealthBanner } from './BcHealthBanner';
 
 interface LayoutProps {
   children: ReactNode;
@@ -22,6 +23,7 @@ export function Layout({ children, hideSignInBanner = false }: LayoutProps) {
       <div className="relative z-10 flex flex-1 flex-col">
         <Header />
         {!hideSignInBanner && <SignInExpiredBanner />}
+        <BcHealthBanner />
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
           {children}
         </main>
