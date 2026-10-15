@@ -334,7 +334,8 @@ export function TeamTable({
                       </div>
                     )}
                     <div>
-                      <p className="text-dark-100 font-medium">
+                      {/* Name, "(you)" and licence tag on one line: the column widens rather than wrap */}
+                      <p className="text-dark-100 flex items-center gap-2 font-medium whitespace-nowrap">
                         {onSelect ? (
                           <button
                             type="button"
@@ -347,13 +348,11 @@ export function TeamTable({
                         ) : (
                           member.name
                         )}
-                        {member.isCurrentUser && (
-                          <span className="text-knowall-green ml-2">(you)</span>
-                        )}
+                        {member.isCurrentUser && <span className="text-knowall-green">(you)</span>}
                         {licenceTags?.[member.id] && (
                           <span
                             className={cn(
-                              'ml-2 inline-block rounded px-1.5 py-0.5 align-middle text-xs font-normal whitespace-nowrap',
+                              'rounded px-1.5 py-0.5 text-xs font-normal',
                               licenceTags[member.id].warn
                                 ? 'bg-amber-500/15 text-amber-300'
                                 : 'bg-dark-600 text-gray-300'
