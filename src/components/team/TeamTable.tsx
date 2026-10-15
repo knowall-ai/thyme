@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import {
   ChevronUpDownIcon,
   ArrowTopRightOnSquareIcon,
@@ -29,7 +29,7 @@ import {
   addStageHours,
   emptyStageHours,
 } from '@/utils';
-import type { StageHours, BillableTarget, WeeklyCapacity } from '@/utils';
+import type { StageHours, BillableTarget, WeeklyCapacity, LicenceTag } from '@/utils';
 import {
   teamConfig,
   getTimesheetCompletionColor,
@@ -161,6 +161,8 @@ export interface TeamTableProps {
    */
   sort?: TeamTableSort;
   onSortChange?: (sort: TeamTableSort) => void;
+  /** Each person's licence tag by row id (Team page, Microsoft 365 admins only) */
+  licenceTags?: Record<string, LicenceTag>;
 }
 
 /**
@@ -182,6 +184,7 @@ export function TeamTable({
   onSelect,
   sort: controlledSort,
   onSortChange,
+  licenceTags,
 }: TeamTableProps) {
   const [ownSort, setOwnSort] = useState<TeamTableSort>(DEFAULT_TEAM_TABLE_SORT);
   const activeSort = controlledSort ?? ownSort;
@@ -331,7 +334,8 @@ export function TeamTable({
                       </div>
                     )}
                     <div>
-                      <p className="text-dark-100 font-medium">
+                      {/* Name, "(you)" and licence tag on one line: the column widens rather than wrap */}
+                      <p className="text-dark-100 flex items-center gap-2 font-medium whitespace-nowrap">
                         {onSelect ? (
                           <button
                             type="button"
@@ -344,8 +348,9 @@ export function TeamTable({
                         ) : (
                           member.name
                         )}
-                        {member.isCurrentUser && (
-                          <span className="text-knowall-green ml-2">(you)</span>
+                        {member.isCurrentUser && <span className="text-knowall-green">(you)</span>}
+                        {licenceTags?.[member.id] && (
+                          <LicenceTagButton tag={licenceTags[member.id]} name={member.name} />
                         )}
                       </p>
                       {member.email && <p className="text-dark-400 text-xs">{member.email}</p>}
@@ -580,5 +585,60 @@ function MemberGitHub({
         </button>
       )}
     </div>
+  );
+}
+
+/**
+ * A person's licence tag: a button that shows their licences and any flags on hover,
+ * keyboard focus or a tap, so the details don't depend on a mouse
+ */
+function LicenceTagButton({ tag, name }: { tag: LicenceTag; name: string }) {
+  // Open while hovered, or once clicked (pinned): separate, so the hover that comes
+  // before a click doesn't make the click close it
+  const [isHovered, setIsHovered] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
+  const isOpen = isHovered || isPinned;
+  const detailsId = useId();
+  const close = () => {
+    setIsHovered(false);
+    setIsPinned(false);
+  };
+  return (
+    // Hover is tracked on the wrapper so the pointer can move onto the details
+    <span
+      className="relative inline-flex"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <button
+        type="button"
+        onClick={() => setIsPinned((pinned) => !pinned)}
+        onBlur={() => setIsPinned(false)}
+        onKeyDown={(e) => e.key === 'Escape' && close()}
+        aria-expanded={isOpen}
+        aria-describedby={detailsId}
+        aria-label={`${name}'s licence: ${tag.label}`}
+        className={cn(
+          'focus-visible:ring-thyme-500 rounded px-1.5 py-0.5 text-xs font-normal focus:outline-none focus-visible:ring-1',
+          tag.warn ? 'bg-amber-500/15 text-amber-300' : 'bg-dark-600 text-gray-300'
+        )}
+      >
+        {tag.label}
+      </button>
+      {/* Always rendered (hidden when closed) so aria-describedby can read it */}
+      <span
+        id={detailsId}
+        role="tooltip"
+        className={cn('absolute top-full left-0 z-20 pt-1', !isOpen && 'hidden')}
+      >
+        <span className="bg-dark-700 block w-max max-w-sm rounded px-3 py-2 text-xs font-normal whitespace-normal text-gray-200 shadow-lg">
+          {tag.details.map((line) => (
+            <span key={line} className="block">
+              {line}
+            </span>
+          ))}
+        </span>
+      </span>
+    </span>
   );
 }

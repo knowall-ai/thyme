@@ -8,6 +8,7 @@ import {
   MagnifyingGlassIcon,
   ExclamationTriangleIcon,
   ArrowTopRightOnSquareIcon,
+  IdentificationIcon,
 } from '@heroicons/react/24/outline';
 import { BillableTargetEditor } from '@/components/targets';
 import { WeeklyCapacityEditor } from './WeeklyCapacityEditor';
@@ -15,6 +16,8 @@ import { TeamTable, DEFAULT_TEAM_TABLE_SORT } from './TeamTable';
 import type { TeamTableRow, TeamTableSort } from './TeamTable';
 import { GitHubUsernameEditor } from './GitHubUsernameEditor';
 import { ProjectsUnavailableWarning } from './ProjectsUnavailableWarning';
+import { LicencesDialog } from './LicencesDialog';
+import { useLicences, useResourceLicences } from '@/hooks/useLicences';
 import {
   Card,
   WeekNavigation,
@@ -27,6 +30,7 @@ import { bcClient, loadTeamHours, ExtensionNotInstalledError } from '@/services/
 import { useCompanyStore, useBillableTargetStore, usePlanStore, useResourcePhotos } from '@/hooks';
 import { useAuth } from '@/services/auth';
 import {
+  getLicenceTag,
   getWeekStart,
   getBCResourcesListUrl,
   BILLABLE_RULE_DESCRIPTION,
@@ -97,6 +101,17 @@ export function TeamList() {
   // The members' BC resources, for their profile photos
   const [resources, setResources] = useState<BCResource[]>([]);
   const photos = useResourcePhotos(resources, userEmail);
+  // Licences, for Microsoft 365 admins only: a tag per person and the Licences dialog
+  const licences = useLicences();
+  const resourceLicences = useResourceLicences(resources, userEmail, licences);
+  const [isLicencesOpen, setIsLicencesOpen] = useState(false);
+  const licenceTags = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(resourceLicences).map(([id, person]) => [id, getLicenceTag(person)])
+      ),
+    [resourceLicences]
+  );
   // Projects didn't load, so internal time can't be told apart from billable
   const [projectsUnavailable, setProjectsUnavailable] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -410,7 +425,26 @@ export function TeamList() {
             Resources
             <ArrowTopRightOnSquareIcon className="h-4 w-4" />
           </a>
+          {licences.status === 'ready' && (
+            <button
+              type="button"
+              onClick={() => setIsLicencesOpen(true)}
+              className="text-thyme-400 hover:text-thyme-300 ml-auto flex items-center gap-1"
+            >
+              <IdentificationIcon className="h-4 w-4" />
+              Licences
+            </button>
+          )}
         </div>
+
+        <LicencesDialog
+          isOpen={isLicencesOpen}
+          onClose={() => setIsLicencesOpen(false)}
+          licences={licences}
+          withoutBusinessCentral={resources
+            .filter((r) => r.id in resourceLicences && !resourceLicences[r.id]?.businessCentral)
+            .map((r) => r.name || r.number)}
+        />
 
         {/* Week Navigation */}
         <WeekNavigation
@@ -605,6 +639,7 @@ export function TeamList() {
               onEditGitHub={(row) => setEditingGitHubMemberId(row.id)}
               sort={sort}
               onSortChange={setSort}
+              licenceTags={licenceTags}
             />
           </>
         )}

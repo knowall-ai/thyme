@@ -15,6 +15,10 @@ export interface ModalProps {
   className?: string;
 }
 
+// What Tab can reach inside a dialog
+const FOCUSABLE =
+  'a[href], button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])';
+
 // Open modals in the order they opened, so Escape closes only the top one when a
 // modal opens another (e.g. the Plan grid's edit dialog inside the Planned dialog)
 const openModals: RefObject<HTMLDivElement | null>[] = [];
@@ -68,11 +72,61 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', className
     };
   }, [isOpen]);
 
-  // Focus trap
+  // What had focus outside the dialog while it was closed: its opener. Remembered as it
+  // happens, because a field inside that focuses itself on open (autoFocus) does so before
+  // the open effect below runs
+  const openerRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
-    if (isOpen && modalRef.current) {
-      modalRef.current.focus();
-    }
+    if (isOpen) return;
+    const remember = (target: EventTarget | null) => {
+      // Not inside this dialog, found by its title (its ref isn't set yet when a child
+      // focuses itself on mount)
+      if (target instanceof HTMLElement && !target.closest(`[aria-labelledby="${titleId}"]`)) {
+        openerRef.current = target;
+      }
+    };
+    remember(document.activeElement);
+    const onFocusIn = (event: FocusEvent) => remember(event.target);
+    document.addEventListener('focusin', onFocusIn);
+    return () => document.removeEventListener('focusin', onFocusIn);
+  }, [isOpen, titleId]);
+
+  // Focus: moved into the dialog when it opens (unless a field in it took focus itself),
+  // kept inside it while it's the top modal, and given back to what had it (e.g. the
+  // button that opened it) when it closes
+  useEffect(() => {
+    if (!isOpen) return;
+    const opener = openerRef.current;
+    const modal = modalRef.current;
+    if (modal && !modal.contains(document.activeElement)) modal.focus();
+
+    const handleTab = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab' || !modalRef.current || !isTopModal(modalRef)) return;
+      const focusable = [...modalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+        (el) => !el.hasAttribute('disabled') && !el.closest('[hidden], .hidden')
+      );
+      if (focusable.length === 0) {
+        event.preventDefault();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      const inside = modalRef.current.contains(active);
+      if (event.shiftKey && (active === first || !inside || active === modalRef.current)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (active === last || !inside)) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', handleTab);
+    return () => {
+      document.removeEventListener('keydown', handleTab);
+      // Back to the opener, if it's still on the page
+      if (opener?.isConnected) opener.focus();
+    };
   }, [isOpen]);
 
   if (!isOpen) return null;

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { useState } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { Modal } from '@/components/ui/Modal';
 
@@ -66,5 +67,37 @@ describe('Modal', () => {
     const dialog = screen.getByRole('dialog', { name: 'Plan' });
     expect(dialog).toHaveClass('h-full', 'max-w-none');
     expect(dialog).not.toHaveClass('max-w-lg');
+  });
+
+  it('keeps Tab inside the dialog, and gives focus back to its opener when it closes, even when a field in it focused itself', () => {
+    function Harness() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>Open licences</button>
+          <Modal isOpen={open} onClose={() => setOpen(false)} title="Licences">
+            {/* Focuses itself on open, before the dialog's own effects run */}
+            <input aria-label="Search" autoFocus />
+            <button>Last</button>
+          </Modal>
+        </>
+      );
+    }
+    render(<Harness />);
+    const opener = screen.getByRole('button', { name: 'Open licences' });
+    opener.focus();
+    fireEvent.click(opener);
+    // The field that focused itself keeps focus, rather than the dialog taking it
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Search' }));
+    // The dialog's own Close button comes first, then its content
+    const close = screen.getByRole('button', { name: 'Close' });
+    const last = screen.getByRole('button', { name: 'Last' });
+    last.focus();
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(document.activeElement).toBe(close);
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(last);
+    fireEvent.click(close);
+    expect(document.activeElement).toBe(opener);
   });
 });
