@@ -143,6 +143,12 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | "You don't have permission to rename projects in Business Central" when renaming a project
 | Renaming saves the project's Description to the BC Job, so your BC user needs Modify permission on the Job table. Ask your BC administrator to assign a permission set that allows editing projects (e.g. one that includes `JOBS-ALL` or a custom set with Modify on TableData Job), then try again. The name stays as it was until the save succeeds.
 
+| "You don't have permission to create projects in Business Central" when creating a project from the Projects page
+| *New project* creates a BC Job, so your BC user needs Insert permission on the Job table. Ask your BC administrator to assign a permission set that allows creating projects (e.g. one that includes `JOBS-ALL` or a custom set with Insert on TableData Job), then try again. Nothing is created until the save succeeds.
+
+| Creating a project fails with an error about the number series
+| BC numbers new projects from the *Project Nos.* series on *Projects Setup*. In BC, open *Projects Setup*, make sure *Project Nos.* is set and that its number series has *Default Nos.* turned on and numbers left, then try again.
+
 | A project priced in another currency (e.g. EUR) shows the company currency (e.g. £) on Billable Price, Invoiced Price or the Spend vs Budget chart
 | Thyme shows customer prices in the project's *Currency Code* (from the BC Project card) and internal costs (Budget Cost, Actual Cost) in the company's currency. It reads the project currency from Thyme BC Extension 1.14.0.0 or later; with an older extension every amount is labelled with the company currency, as before. Use 1.14.0.1 or later: on 1.14.0.0, planning lines created through the API (e.g. from Thyme's Plan) on a project in another currency are priced in the company currency but labelled with the project's, so recreate any such lines after updating. Update the extension in BC, then reload the project. If the project should be in the company currency, clear *Currency Code* on the Project card.
 
