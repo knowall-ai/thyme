@@ -69,14 +69,15 @@ describe('Modal', () => {
     expect(dialog).not.toHaveClass('max-w-lg');
   });
 
-  it('keeps Tab inside the dialog, and gives focus back to its opener when it closes', () => {
+  it('keeps Tab inside the dialog, and gives focus back to its opener when it closes, even when a field in it focused itself', () => {
     function Harness() {
       const [open, setOpen] = useState(false);
       return (
         <>
           <button onClick={() => setOpen(true)}>Open licences</button>
           <Modal isOpen={open} onClose={() => setOpen(false)} title="Licences">
-            <button>First</button>
+            {/* Focuses itself on open, before the dialog's own effects run */}
+            <input aria-label="Search" autoFocus />
             <button>Last</button>
           </Modal>
         </>
@@ -86,6 +87,8 @@ describe('Modal', () => {
     const opener = screen.getByRole('button', { name: 'Open licences' });
     opener.focus();
     fireEvent.click(opener);
+    // The field that focused itself keeps focus, rather than the dialog taking it
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Search' }));
     // The dialog's own Close button comes first, then its content
     const close = screen.getByRole('button', { name: 'Close' });
     const last = screen.getByRole('button', { name: 'Last' });

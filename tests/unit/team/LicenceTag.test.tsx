@@ -21,7 +21,7 @@ const row = {
 } as unknown as TeamTableRow;
 
 describe('licence tag', () => {
-  it('shows its details on a click or keyboard, not just hover, and reads them out', () => {
+  it('shows its details on hover, a click or the keyboard, and reads them out', () => {
     render(
       <TeamTable
         rows={[row]}
@@ -44,11 +44,36 @@ describe('licence tag', () => {
     expect(tag).toHaveAttribute('aria-describedby', details.id);
     expect(tag).toHaveAttribute('aria-expanded', 'false');
 
+    // A mouse enters before it clicks: the click keeps the details open
+    fireEvent.mouseEnter(tag.parentElement!);
+    expect(tag).toHaveAttribute('aria-expanded', 'true');
     fireEvent.click(tag);
+    expect(tag).toHaveAttribute('aria-expanded', 'true');
+    // Pinned by the click: still open once the pointer leaves
+    fireEvent.mouseLeave(tag.parentElement!);
     expect(tag).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('tooltip')).toHaveTextContent('Microsoft 365: Office 365 E3');
 
     fireEvent.keyDown(tag, { key: 'Escape' });
     expect(tag).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('opens with the keyboard alone (no hover)', () => {
+    render(
+      <TeamTable
+        rows={[row]}
+        targetsEnabled={false}
+        licenceTags={{
+          r1: {
+            label: 'BC Essentials',
+            details: ['Business Central: Business Central Essentials'],
+            warn: false,
+          },
+        }}
+      />
+    );
+    const tag = screen.getByRole('button', { name: /licence: BC Essentials/ });
+    fireEvent.click(tag, { detail: 0 });
+    expect(tag).toHaveAttribute('aria-expanded', 'true');
   });
 });

@@ -593,20 +593,28 @@ function MemberGitHub({
  * keyboard focus or a tap, so the details don't depend on a mouse
  */
 function LicenceTagButton({ tag, name }: { tag: LicenceTag; name: string }) {
-  const [isOpen, setIsOpen] = useState(false);
+  // Open while hovered, or once clicked (pinned): separate, so the hover that comes
+  // before a click doesn't make the click close it
+  const [isHovered, setIsHovered] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
+  const isOpen = isHovered || isPinned;
   const detailsId = useId();
+  const close = () => {
+    setIsHovered(false);
+    setIsPinned(false);
+  };
   return (
     // Hover is tracked on the wrapper so the pointer can move onto the details
     <span
       className="relative inline-flex"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <button
         type="button"
-        onClick={() => setIsOpen((open) => !open)}
-        onBlur={() => setIsOpen(false)}
-        onKeyDown={(e) => e.key === 'Escape' && setIsOpen(false)}
+        onClick={() => setIsPinned((pinned) => !pinned)}
+        onBlur={() => setIsPinned(false)}
+        onKeyDown={(e) => e.key === 'Escape' && close()}
         aria-expanded={isOpen}
         aria-describedby={detailsId}
         aria-label={`${name}'s licence: ${tag.label}`}
