@@ -49,6 +49,7 @@ import {
   normalizePlanReviewRequest,
   PLAN_REVIEW_PENDING_HASH,
   BC_UNREACHABLE_EVENT,
+  getBcRetryDelay,
 } from '@/utils';
 
 const BC_BASE_URL =
@@ -59,16 +60,31 @@ const BC_DEFAULT_ENVIRONMENT =
 const BC_DEFAULT_COMPANY_ID = process.env.NEXT_PUBLIC_BC_COMPANY_ID || '';
 
 /**
- * fetch for Business Central calls. One that never gets a response (fetch throws: the
- * network, or a CORS preflight Business Central refused) is announced, so the app can
- * check whether Business Central itself is the problem (see BcHealthBanner).
+ * fetch for Business Central calls.
+ *
+ * - A read BC answers with a timeout, "busy" or throttling status is retried after a
+ *   short wait (see getBcRetryDelay), as the same query moments later usually works.
+ * - One that never gets a response (fetch throws: the network, or a CORS preflight
+ *   Business Central refused) is announced, so the app can check whether Business
+ *   Central itself is the problem (see BcHealthBanner).
  */
 async function bcFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  try {
-    return await fetch(input, init);
-  } catch (error) {
-    if (typeof window !== 'undefined') window.dispatchEvent(new Event(BC_UNREACHABLE_EVENT));
-    throw error;
+  for (let attempt = 0; ; attempt++) {
+    let response: Response;
+    try {
+      response = await fetch(input, init);
+    } catch (error) {
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event(BC_UNREACHABLE_EVENT));
+      throw error;
+    }
+    const delay = getBcRetryDelay(
+      init?.method,
+      response.status,
+      response.headers?.get('retry-after') ?? null,
+      attempt
+    );
+    if (delay === null) return response;
+    await new Promise((resolve) => setTimeout(resolve, delay));
   }
 }
 

@@ -36,3 +36,4 @@ export { StageBar, StageLegend, getStageSegments, getStageSummary } from './Stag
 export type { StageBarProps, StageLegendProps, StageSegment } from './StageBar';
 
 export { GitHubIcon } from './GitHubIcon';
+export { BcErrorCard } from './BcErrorCard';
