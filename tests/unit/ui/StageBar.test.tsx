@@ -21,5 +21,17 @@ describe('StageBar estimate marker', () => {
     expect(screen.queryByTestId('estimate-marker')).toBeNull();
     rerender(<StageBar segments={stages(42)} max={42.5} estimate={0} />);
     expect(screen.queryByTestId('estimate-marker')).toBeNull();
+    // Exactly on the estimate, though 0.1 + 0.2 sums a hair over 0.3
+    rerender(
+      <StageBar
+        segments={stages(0.2).map((s, i) => (i === 0 ? { ...s, hours: 0.1 } : s))}
+        max={0.3}
+        estimate={0.3}
+      />
+    );
+    expect(screen.queryByTestId('estimate-marker')).toBeNull();
+    // A genuine small overrun still shows
+    rerender(<StageBar segments={stages(0.25)} max={0.75} estimate={0.7} />);
+    expect(screen.getByTestId('estimate-marker')).toBeInTheDocument();
   });
 });

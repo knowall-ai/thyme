@@ -27,6 +27,9 @@ export function getStageSummary(
     .join(' · ');
 }
 
+// Hours closer than this are the same (floating-point rounding, far below a minute)
+const HOURS_EPSILON = 1e-6;
+
 export interface StageBarProps {
   segments: StageSegment[];
   /** Hours that fill the whole bar; segments are drawn as a share of it */
@@ -42,7 +45,9 @@ export interface StageBarProps {
 /** Stacked bar of hours by timesheet stage */
 export function StageBar({ segments, max, estimate, className }: StageBarProps) {
   const total = segments.reduce((sum, seg) => sum + seg.hours, 0);
-  const overEstimate = estimate !== undefined && estimate > 0 && total > estimate && max > 0;
+  // Past the estimate by more than rounding (0.1 + 0.2 hours sums a hair over 0.3)
+  const overEstimate =
+    estimate !== undefined && estimate > 0 && total - estimate > HOURS_EPSILON && max > 0;
   // With a marker, className goes on the box around the bar (it may set width or
   // margins), so the bar fills it and the marker can stand out above and below
   const bar = (
