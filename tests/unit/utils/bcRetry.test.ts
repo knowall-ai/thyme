@@ -31,4 +31,12 @@ describe('getBcRetryDelay', () => {
     expect(getBcRetryDelay('GET', 429, '120', 0)).toBe(10_000);
     expect(getBcRetryDelay('GET', 429, 'Wed, 21 Oct 2026 07:28:00 GMT', 0)).toBe(1000);
   });
+
+  it('reads Retry-After strictly, and only real attempt numbers', () => {
+    expect(getBcRetryDelay('GET', 429, '0x2', 0)).toBe(1000);
+    expect(getBcRetryDelay('GET', 429, '1.5', 0)).toBe(1000);
+    expect(getBcRetryDelay('GET', 429, ' 3 ', 0)).toBe(3000);
+    expect(getBcRetryDelay('GET', 504, null, -1)).toBeNull();
+    expect(getBcRetryDelay('GET', 504, null, 0.5)).toBeNull();
+  });
 });

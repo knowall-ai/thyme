@@ -2,15 +2,28 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { checkBcHealth, resetBcHealthCache } from '@/services/health/bcHealthCheck';
 import { describeBcHealth, getBcHealthStatus } from '@/utils/bcHealth';
 
-/** Preflight answers in turn: 'pass', 'reject' (401, no CORS header) or 'throw' */
-function stubPreflights(...answers: ('pass' | 'reject' | 'throw')[]) {
+type Answer = 'pass' | 'reject' | 'throw' | 'otherOrigin' | 'noHeaders';
+
+/**
+ * Preflight answers in turn: 'pass' (allowed for the origin and headers), 'reject' (401,
+ * no CORS headers), 'throw' (no answer), 'otherOrigin' or 'noHeaders' (allowed, but not
+ * as Thyme's calls need)
+ */
+function stubPreflights(...answers: Answer[]) {
   let i = 0;
-  const fetchMock = vi.fn(async () => {
+  const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
     const answer = answers[i++ % answers.length];
     if (answer === 'throw') throw new TypeError('fetch failed');
-    return answer === 'pass'
-      ? new Response(null, { status: 200, headers: { 'access-control-allow-origin': '*' } })
-      : new Response('Unauthorized', { status: 401 });
+    if (answer === 'reject') return new Response('Unauthorized', { status: 401 });
+    const origin = (init?.headers as Record<string, string>).Origin;
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'access-control-allow-origin': answer === 'otherOrigin' ? 'https://example.com' : origin,
+        'access-control-allow-headers':
+          answer === 'noHeaders' ? 'authorization' : 'authorization, Content-Type',
+      },
+    });
   });
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
@@ -59,6 +72,20 @@ describe('checkBcHealth', () => {
     resetBcHealthCache();
     stubPreflights('throw');
     expect((await checkBcHealth('https://getthyme.ai')).status).toBe('unreachable');
+  });
+
+  it("counts a preflight allowed for another origin, or without Thyme's headers, as refused", async () => {
+    stubPreflights('otherOrigin');
+    expect((await checkBcHealth('https://getthyme.ai')).status).toBe('down');
+    resetBcHealthCache();
+    stubPreflights('noHeaders');
+    expect((await checkBcHealth('https://getthyme.ai')).status).toBe('down');
+  });
+
+  it('shares one round of checks between people asking at the same time', async () => {
+    const fetchMock = stubPreflights('pass');
+    await Promise.all([checkBcHealth('https://getthyme.ai'), checkBcHealth('https://getthyme.ai')]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it('keeps the answer for a minute, so Business Central is asked rarely', async () => {

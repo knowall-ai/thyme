@@ -25,10 +25,11 @@ export function getBcRetryDelay(
   attempt: number
 ): number | null {
   const isRead = !method || ['GET', 'HEAD'].includes(method.toUpperCase());
+  if (!Number.isInteger(attempt) || attempt < 0) return null;
   if (!isRead || !RETRY_STATUSES.has(status) || attempt >= BC_MAX_RETRIES) return null;
   const fallback = BACKOFF_MS[Math.min(attempt, BACKOFF_MS.length - 1)];
-  // Retry-After is seconds (or an HTTP date, which we don't bother with)
-  const seconds = retryAfter ? Number(retryAfter) : NaN;
-  const wait = Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : fallback;
+  // Retry-After as whole seconds; anything else (an HTTP date, "0x2") gets the fallback
+  const value = retryAfter?.trim() ?? '';
+  const wait = /^\d+$/.test(value) ? Number.parseInt(value, 10) * 1000 : fallback;
   return Math.min(wait, MAX_WAIT_MS);
 }

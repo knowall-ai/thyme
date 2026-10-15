@@ -59,22 +59,51 @@ const BC_DEFAULT_ENVIRONMENT =
   (process.env.NEXT_PUBLIC_BC_ENVIRONMENT as BCEnvironmentType) || 'production';
 const BC_DEFAULT_COMPANY_ID = process.env.NEXT_PUBLIC_BC_COMPANY_ID || '';
 
+// A call with no response at all after this long is given up (BC's own gateway answers
+// 504 well before; this only catches a connection left hanging)
+const BC_FETCH_TIMEOUT_MS = 90_000;
+
+/**
+ * One attempt at a Business Central call, given up after BC_FETCH_TIMEOUT_MS. The
+ * caller's own signal still cancels it.
+ */
+async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(new DOMException('Business Central did not answer', 'TimeoutError')),
+    BC_FETCH_TIMEOUT_MS
+  );
+  const callerSignal = init?.signal;
+  const onCallerAbort = () => controller.abort(callerSignal?.reason);
+  if (callerSignal?.aborted) onCallerAbort();
+  else callerSignal?.addEventListener('abort', onCallerAbort, { once: true });
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+    callerSignal?.removeEventListener('abort', onCallerAbort);
+  }
+}
+
 /**
  * fetch for Business Central calls.
  *
  * - A read BC answers with a timeout, "busy" or throttling status is retried after a
  *   short wait (see getBcRetryDelay), as the same query moments later usually works.
- * - One that never gets a response (fetch throws: the network, or a CORS preflight
- *   Business Central refused) is announced, so the app can check whether Business
- *   Central itself is the problem (see BcHealthBanner).
+ * - One that never gets a response (the network, a CORS preflight Business Central
+ *   refused, or no answer within BC_FETCH_TIMEOUT_MS) is announced, so the app can
+ *   check whether Business Central itself is the problem (see BcHealthBanner). One the
+ *   caller cancelled isn't.
  */
 async function bcFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   for (let attempt = 0; ; attempt++) {
     let response: Response;
     try {
-      response = await fetch(input, init);
+      response = await fetchWithTimeout(input, init);
     } catch (error) {
-      if (typeof window !== 'undefined') window.dispatchEvent(new Event(BC_UNREACHABLE_EVENT));
+      if (typeof window !== 'undefined' && !init?.signal?.aborted) {
+        window.dispatchEvent(new Event(BC_UNREACHABLE_EVENT));
+      }
       throw error;
     }
     const delay = getBcRetryDelay(

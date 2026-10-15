@@ -22,13 +22,18 @@ const SERVICE_HEALTH_URL = 'https://admin.microsoft.com/#/servicehealth';
 export function BcHealthBanner() {
   const [health, setHealth] = useState<BcHealth | null>(null);
   const lastCheck = useRef(0);
+  // The latest check: an older one answering last mustn't overwrite it
+  const latestRequest = useRef(0);
 
   const check = useCallback(async (force = false) => {
     if (!force && Date.now() - lastCheck.current < MIN_CHECK_INTERVAL_MS) return;
     lastCheck.current = Date.now();
+    const requestId = ++latestRequest.current;
     try {
       const response = await fetch('/api/health/bc', { cache: 'no-store' });
-      if (response.ok) setHealth((await response.json()) as BcHealth);
+      if (!response.ok) return;
+      const health = (await response.json()) as BcHealth;
+      if (requestId === latestRequest.current) setHealth(health);
     } catch {
       // Thyme's own server can't be reached either: nothing useful to say about BC
     }
