@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
@@ -60,11 +60,28 @@ export function EntriesTable({ rows }: { rows: EntryRow[] }) {
   const [shown, setShown] = useState(PAGE_SIZE);
 
   // A printout has every entry, not just those shown so far. flushSync commits them
-  // before the browser captures the page for the print preview
+  // before the browser captures the page for the print preview; afterwards, back to
+  // the rows shown before, as a year of entries is thousands of rows
+  const shownBeforePrint = useRef<number | null>(null);
   useEffect(() => {
-    const showAll = () => flushSync(() => setShown(Infinity));
+    const showAll = () =>
+      flushSync(() =>
+        setShown((current) => {
+          shownBeforePrint.current ??= current;
+          return Infinity;
+        })
+      );
+    const restore = () => {
+      if (shownBeforePrint.current === null) return;
+      setShown(shownBeforePrint.current);
+      shownBeforePrint.current = null;
+    };
     window.addEventListener('beforeprint', showAll);
-    return () => window.removeEventListener('beforeprint', showAll);
+    window.addEventListener('afterprint', restore);
+    return () => {
+      window.removeEventListener('beforeprint', showAll);
+      window.removeEventListener('afterprint', restore);
+    };
   }, []);
 
   const sorted = useMemo(() => {

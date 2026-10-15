@@ -230,7 +230,7 @@ export function ProjectKPICards() {
     },
     'Time Spent': {
       title: 'Time Spent',
-      description: `Total hours logged in timesheets for this project${hasEstimate ? ', shown against the Estimate' : ''}. Hours are split by stage: Unsubmitted (Open timesheets), Submitted (awaiting approval), Approved (awaiting "Post Time Sheets" in BC) and Posted (in the Job Ledger Entry). Days = hours ÷ ${hoursPerDayLabel}.`,
+      description: `Total hours logged in timesheets for this project${hasEstimate ? ', shown against the Estimate' : ''}. Hours are split by stage: Unsubmitted (Open timesheets), Submitted (awaiting approval), Approved (awaiting "Post Time Sheets" in BC) and Posted (recorded as posted on the timesheet). Days = hours ÷ ${hoursPerDayLabel}.`,
       formula: 'Posted + Approved + Submitted + Unsubmitted = Time Spent',
       source: 'BC API: /timeSheetDetails → quantity',
     },

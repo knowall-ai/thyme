@@ -42,6 +42,14 @@ describe('parseReportQuery', () => {
     );
   });
 
+  it('falls back to this week for a period longer than ten years', () => {
+    expect(parseReportQuery('?from=1926-01-01&to=2026-10-15', today).period).toEqual(
+      getPresetPeriod('thisWeek', today)
+    );
+    // Nine years: a long-lived project's whole life
+    expect(parseReportQuery('?from=2017-10-15&to=2026-10-15', today).period.unit).toBe('custom');
+  });
+
   it("ignores what it can't read", () => {
     const query = parseReportQuery('?view=nope&from=2026-13-45&stage=done,approved&task=', today);
     expect(query.view).toBe('summary');

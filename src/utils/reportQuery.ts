@@ -7,7 +7,7 @@
  * period, this week); anything that can't be read is ignored rather than failing.
  */
 
-import { format, isValid, parseISO } from 'date-fns';
+import { differenceInCalendarDays, format, isValid, parseISO } from 'date-fns';
 import { customPeriod, getPresetPeriod, periodOf, type ReportPeriod } from './reportPeriod';
 import {
   NO_REPORT_FILTER,
@@ -46,6 +46,12 @@ const STAGE_IDS = new Set<string>(REPORT_STAGES.map((s) => s.id));
 // BC codes (project, task and resource numbers) are Code[20]; a customer's is too
 const MAX_VALUES = 50;
 const MAX_VALUE_LENGTH = 40;
+/**
+ * The longest period a link can ask for: ten years, which covers any project's life
+ * (the project page links to a project's time from its first day to its last), but
+ * stops a URL from making Reports load decades of every timesheet
+ */
+export const MAX_REPORT_PERIOD_DAYS = 3653;
 
 const dateParam = (date: Date) => format(date, 'yyyy-MM-dd');
 
@@ -73,6 +79,9 @@ function parsePeriod(params: URLSearchParams, today: Date): ReportPeriod {
   const from = parseDate(params.get(PARAMS.from));
   const to = parseDate(params.get(PARAMS.to)) ?? from;
   if (!from || !to) return getPresetPeriod('thisWeek', today);
+  if (Math.abs(differenceInCalendarDays(to, from)) >= MAX_REPORT_PERIOD_DAYS) {
+    return getPresetPeriod('thisWeek', today);
+  }
 
   const unit = params.get(PARAMS.unit);
   if (unit === 'yearToDate') {
