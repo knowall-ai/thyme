@@ -101,6 +101,9 @@ export interface ProjectAnalytics {
   weeklyData: WeeklyDataPoint[];
   taskBreakdown: TaskBreakdownItem[];
   teamBreakdown: TeamBreakdownItem[];
+  /** The first and last days with time (YYYY-MM-DD), for linking to the time on Reports */
+  firstEntryDate?: string;
+  lastEntryDate?: string;
 }
 
 interface WeeklyDataPoint {
@@ -381,6 +384,11 @@ export const projectDetailsService = {
         isBillable: !isInternal && isBillableEntry(line, undefined),
       });
     }
+
+    // ISO dates compare as strings
+    const entryDates = timeEntries.map((e) => e.date).sort();
+    const firstEntryDate = entryDates[0];
+    const lastEntryDate = entryDates[entryDates.length - 1];
 
     // Status totals (shared with the Projects list): posting needs approval first, so
     // posted time is a subset of approved
@@ -904,6 +912,8 @@ export const projectDetailsService = {
       weeklyData,
       taskBreakdown,
       teamBreakdown,
+      firstEntryDate,
+      lastEntryDate,
     };
   },
 

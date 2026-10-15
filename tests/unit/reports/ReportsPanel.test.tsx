@@ -117,7 +117,19 @@ vi.mock('@/services/bc', async () => {
         }),
       });
     },
-    bcClient: { tenantId: 'tenant', environment: 'Sandbox' },
+    bcClient: {
+      tenantId: 'tenant',
+      environment: 'Sandbox',
+      getJobTasks: vi.fn(async (jobNo: string) => [
+        {
+          id: `${jobNo}-1000`,
+          jobNo,
+          jobTaskNo: '1000',
+          description: 'Build',
+          jobTaskType: 'Posting',
+        },
+      ]),
+    },
   };
 });
 
@@ -174,6 +186,8 @@ describe('ReportsPanel', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    // The report keeps its period and filters in the URL: start the next test without them
+    window.history.replaceState(null, '', '/');
   });
 
   it('colours the billable % against target by the unrounded %, as the Team page does', async () => {
@@ -288,6 +302,8 @@ describe('ReportsPanel client and project filters', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    // The report keeps its period and filters in the URL: start the next test without them
+    window.history.replaceState(null, '', '/');
   });
 
   /** A summary card's figure, by its label */
@@ -581,5 +597,50 @@ describe('ReportsPanel client and project filters', () => {
     expect(
       screen.getByText('Posted 0m · Approved 0m · Submitted 0m · Unsubmitted 10h')
     ).toBeInTheDocument();
+  });
+
+  it('opens the view and filters a link asks for, listing just those entries', async () => {
+    window.history.replaceState(null, '', '/?view=entries&project=PR-FABRIKAM&stage=submitted');
+    render(<ReportsPanel />);
+    const table = await screen.findByRole('table');
+    expect(screen.getByRole('tab', { name: 'Entries' })).toHaveAttribute('aria-selected', 'true');
+    // Alex's 4h submitted on Fabrikam Rollout; not Sam's posted time on its other project
+    expect(within(table).getByText('Alex Contoso')).toBeInTheDocument();
+    expect(within(table).queryByText('Sam Contoso')).not.toBeInTheDocument();
+    expect(within(table).getByText('1 entry')).toBeInTheDocument();
+    expect(within(table).getAllByText('Submitted')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /^Status:/ })).toHaveTextContent('Submitted');
+  });
+
+  it("lists everyone's entries, including people not counted in the totals", async () => {
+    window.history.replaceState(null, '', '/?view=entries');
+    render(<ReportsPanel />);
+    const table = await screen.findByRole('table');
+    // The agent (capacity 0) isn't in the totals, but their time is still logged
+    expect(within(table).getAllByText('Contoso Agent').length).toBeGreaterThan(0);
+    expect(within(table).getAllByText('Sam Contoso').length).toBeGreaterThan(0);
+  });
+
+  it('keeps the view and filters in the URL, so the link can be shared', async () => {
+    render(<ReportsPanel />);
+    await screen.findByRole('table');
+    // This week's summary for everyone: nothing in the URL
+    expect(window.location.search).toBe('');
+    fireEvent.click(screen.getByRole('tab', { name: 'Entries' }));
+    pick('Project', /Fabrikam Rollout/);
+    pick('Status', /^Approved/);
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get('view')).toBe('entries');
+    expect(params.get('project')).toBe('PR-FABRIKAM');
+    expect(params.get('stage')).toBe('approved');
+    expect(params.get('from')).toBeNull();
+  });
+
+  it("cuts entries down to the picked stages' hours", async () => {
+    render(<ReportsPanel />);
+    await screen.findByRole('table');
+    pick('Status', /^Posted/, /^Approved/);
+    // Sam's 3h posted and Alex's 2h approved
+    expect(cardValue('Total Hours')).toBe('5h');
   });
 });
