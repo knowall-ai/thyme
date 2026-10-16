@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { format, isSameYear } from 'date-fns';
 import { formatHours } from '@/utils';
-import { sumPlannedHours, type PlannedDays, type PlannedHours } from '@/hooks/usePlanStore';
+import { sumPlannedHours, type PlannedDays } from '@/hooks/usePlanStore';
 
 // Same width as before, so the grid's day columns keep theirs
 const CELL_CLASS = 'text-dark-300 w-16 shrink-0 px-2 text-right text-sm';
@@ -27,8 +27,8 @@ interface PlanTotalCellProps {
 interface OpenNote {
   top: number;
   left: number;
-  /** Worked out as it opens, so "from today" is today's even on a Plan left open overnight */
-  planned: PlannedHours;
+  /** The date as it opened, so "from today" is today's even on a Plan left open overnight */
+  today: string;
 }
 
 const formatRange = (from: Date, to: Date) =>
@@ -72,7 +72,7 @@ export function PlanTotalCell({
     const below = rect.bottom + 6;
     const top = below + 140 > window.innerHeight ? Math.max(8, rect.top - 146) : below;
     const left = Math.max(8, Math.min(rect.right - NOTE_WIDTH, window.innerWidth - NOTE_WIDTH - 8));
-    setNote({ top, left, planned: sumPlannedHours(plannedDays, format(new Date(), 'yyyy-MM-dd')) });
+    setNote({ top, left, today: format(new Date(), 'yyyy-MM-dd') });
   }, [cancelHide, plannedDays]);
 
   // A fixed note would drift from its cell on scroll, and Escape dismisses it
@@ -94,11 +94,13 @@ export function PlanTotalCell({
   const inView = hours > 0 ? `${formatHours(hours)}h` : '';
   if (!plannedDays) return <div className={CELL_CLASS}>{inView}</div>;
 
-  const rows: [string, number][] = note
+  // From the latest planned days, so an open note follows a reload of the plan
+  const planned = note && sumPlannedHours(plannedDays, note.today);
+  const rows: [string, number][] = planned
     ? [
         [`In view · ${formatRange(from, to)}`, hours],
-        ['From today', note.planned.fromToday],
-        ['All weeks', note.planned.all],
+        ['From today', planned.fromToday],
+        ['All weeks', planned.all],
       ]
     : [];
 

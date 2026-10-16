@@ -62,6 +62,27 @@ describe('PlanTotalCell', () => {
     expect(screen.getByRole('tooltip')).toHaveTextContent('From today52h');
   });
 
+  it('follows a reload of the plan while the note is open', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 9, 16, 10));
+    const { rerender } = render(
+      <PlanTotalCell hours={114} plannedDays={days} from={from} to={to} />
+    );
+    fireEvent.mouseEnter(screen.getByRole('button', { name: '114h planned in view' }));
+    expect(screen.getByRole('tooltip')).toHaveTextContent('All weeks230h');
+
+    rerender(
+      <PlanTotalCell
+        hours={114}
+        plannedDays={new Map([...days, ['2026-12-01', 8]])}
+        from={from}
+        to={to}
+      />
+    );
+    expect(screen.getByRole('tooltip')).toHaveTextContent('From today160h');
+    expect(screen.getByRole('tooltip')).toHaveTextContent('All weeks238h');
+  });
+
   it('opens on focus, says a person is across projects, and closes on Escape', () => {
     render(<PlanTotalCell hours={0} plannedDays={days} from={from} to={to} isPerson />);
     fireEvent.focus(screen.getByRole('button', { name: '0h planned in view' }));
