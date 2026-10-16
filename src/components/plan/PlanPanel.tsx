@@ -18,6 +18,7 @@ import { Card, Button, ExtensionPreviewWrapper, WeekNavigation } from '@/compone
 import { PlanEntryModal } from './PlanEntryModal';
 import { PlanResourceModal } from './PlanResourceModal';
 import { PlanEditModal } from './PlanEditModal';
+import { PlanTotalCell } from './PlanTotalCell';
 import {
   DayHeaderNotes,
   DayNotesProvider,
@@ -383,10 +384,14 @@ function ResourceRow({
             ))}
           </div>
 
-          {/* Total Hours */}
-          <div className="text-dark-300 w-16 shrink-0 px-2 text-right text-sm">
-            {member.totalHours > 0 && `${formatHours(member.totalHours)}h`}
-          </div>
+          {/* In view total, with what's planned beyond it on hover */}
+          <PlanTotalCell
+            hours={member.totalHours}
+            plannedDays={member.plannedDays}
+            from={days[0]}
+            to={days[days.length - 1]}
+            isPerson
+          />
         </div>
 
         {/* Expanded Content: Projects list (grouped by project, expandable to show tasks) */}
@@ -1424,10 +1429,13 @@ function ProjectRow({
           ))}
         </div>
 
-        {/* Total Hours */}
-        <div className="text-dark-300 w-16 shrink-0 px-2 text-right text-sm">
-          {project.totalHours > 0 && `${formatHours(project.totalHours)}h`}
-        </div>
+        {/* In view total, with what's planned beyond it on hover */}
+        <PlanTotalCell
+          hours={project.totalHours}
+          plannedDays={project.plannedDays}
+          from={days[0]}
+          to={days[days.length - 1]}
+        />
       </div>
 
       {/* Expanded Content: Tasks list (grouped by task, expandable to show resources) */}
@@ -2325,8 +2333,11 @@ export function PlanPanel({
                     </div>
                   ))}
                 </div>
-                <div className="text-dark-500 flex w-16 shrink-0 items-center justify-end px-2 text-[10px]">
-                  Total
+                <div
+                  className="text-dark-500 flex w-16 shrink-0 items-center justify-end px-2 text-[10px]"
+                  title="Hours planned in the weeks in view. Hover a project's or person's total for more."
+                >
+                  In view
                 </div>
               </div>
 

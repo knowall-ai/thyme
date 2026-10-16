@@ -49,13 +49,36 @@ export interface AllocationBlock {
   planningLineId?: string; // BC SystemId (GUID) for PATCH/DELETE operations
 }
 
+/** Planned hours beyond the weeks in view: every week, and from today on */
+export interface PlannedHours {
+  all: number;
+  fromToday: number;
+}
+
+/** Hours planned on each date (YYYY-MM-DD), in every week */
+export type PlannedDays = Map<string, number>;
+
+/** Totals from planned days, from today (YYYY-MM-DD) as it is when they're shown */
+export function sumPlannedHours(days: PlannedDays, today: string): PlannedHours {
+  let all = 0;
+  let fromToday = 0;
+  for (const [date, hours] of days) {
+    all += hours;
+    if (date >= today) fromToday += hours;
+  }
+  return { all, fromToday };
+}
+
 export interface PlanTeamMember {
   id: string;
   number: string;
   name: string;
   timesheets: Map<string, BCTimeSheet>; // weekStart -> timesheet
   timesheetStatus: TimesheetDisplayStatus | 'No Timesheet';
+  /** Hours planned in the weeks in view */
   totalHours: number;
+  /** Hours by date across every project on the Plan; undefined until loaded */
+  plannedDays?: PlannedDays;
   isSelected: boolean;
   photoUrl: string | null;
   userPrincipalName: string | null;
@@ -69,7 +92,10 @@ export interface PlanProject {
   customerName: string;
   color: string;
   allocations: AllocationBlock[];
+  /** Hours planned in the weeks in view */
   totalHours: number;
+  /** Hours by date; undefined until loaded, or if its planning lines couldn't be */
+  plannedDays?: PlannedDays;
 }
 
 export type ViewMode = 'team' | 'projects';
@@ -102,6 +128,14 @@ interface CachedData {
   loadedWeeks: Map<string, AllocationBlock[]>; // weekStart (YYYY-MM-DD) -> allocations
   resourceTimesheets: Map<string, Map<string, BCTimeSheet>>; // resourceNumber -> (weekStart -> timesheet)
   uomConversionMap: UOMConversionMap; // Cached UOM conversion map for modals
+  /**
+   * projectNumber -> (resourceNumber -> (date -> hours)), over all of the project's lines,
+   * not just the weeks loaded: for the In view total's note. Kept by date, so "from today"
+   * is worked out on each rebuild, not frozen at the day it loaded.
+   */
+  plannedDays: Map<string, Map<string, Map<string, number>>>;
+  /** Projects whose lines couldn't be loaded, with no earlier count to fall back on */
+  plannedUnavailable: Set<string>;
   lastUpdated: number;
 }
 
@@ -208,6 +242,28 @@ function rebuildFromCache(
 
   const { resources, projects: projectsData, loadedWeeks, resourceTimesheets } = cache;
 
+  // Hours planned by date in every week, per project and per person (across projects).
+  // Kept by date, so the note works out "from today" when it opens, even a day later.
+  const plannedByProject = new Map<string, PlannedDays>();
+  const plannedByResource = new Map<string, PlannedDays>();
+  const addDay = (totals: Map<string, PlannedDays>, key: string, date: string, hours: number) => {
+    const days = totals.get(key) ?? new Map<string, number>();
+    days.set(date, (days.get(date) ?? 0) + hours);
+    totals.set(key, days);
+  };
+  for (const [projectNumber, byResource] of cache.plannedDays) {
+    plannedByProject.set(projectNumber, new Map());
+    for (const [resourceNumber, byDate] of byResource) {
+      for (const [date, hours] of byDate) {
+        addDay(plannedByProject, projectNumber, date, hours);
+        addDay(plannedByResource, resourceNumber, date, hours);
+      }
+    }
+  }
+  // A person's total is only shown complete: not while any project's lines are missing.
+  // Someone with no lines on any project then has none planned, rather than unknown.
+  const peoplePlannedKnown = cache.plannedDays.size > 0 && cache.plannedUnavailable.size === 0;
+
   // Collect allocations for the visible range
   const allAllocations: AllocationBlock[] = [];
   const resourceAllocationsMap = new Map<string, AllocationBlock[]>();
@@ -268,6 +324,9 @@ function rebuildFromCache(
       timesheets,
       timesheetStatus: latestStatus,
       totalHours,
+      plannedDays: peoplePlannedKnown
+        ? (plannedByResource.get(resource.number) ?? new Map())
+        : undefined,
       isSelected: false,
       photoUrl: existingMember?.photoUrl || null,
       userPrincipalName,
@@ -286,6 +345,7 @@ function rebuildFromCache(
       color: getProjectColor(i),
       allocations: [],
       totalHours: 0,
+      plannedDays: plannedByProject.get(p.number),
     });
   });
 
@@ -470,6 +530,10 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
       // Fetch allocations only for weeks not in cache
       const newAllocations: AllocationBlock[] = [];
+      // Recounted from each load's lines; a project whose lines fail keeps its last count,
+      // or, with none (say after a plan change cleared the cache), is marked unavailable
+      const plannedDays = new Map(cache?.plannedDays);
+      const plannedUnavailable = new Set(cache?.plannedUnavailable);
 
       // Use cached UOM map or fetch fresh (hoisted so cache save can access it)
       let uomConversionMap: UOMConversionMap = cache?.uomConversionMap ?? new Map();
@@ -489,14 +553,30 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         await Promise.all(
           projectsData.map(async (project) => {
             try {
-              const planningLines = await bcClient.getJobPlanningLines(project.number);
+              const planningLines = await bcClient.getJobPlanningLines(project.number, {
+                throwOnError: true,
+              });
+              const allResourceLines = planningLines.filter(
+                (line: BCJobPlanningLine) => line.type === 'Resource' && line.quantity > 0
+              );
 
-              // Filter for Resource type lines within date range
-              const resourceLines = planningLines.filter(
-                (line: BCJobPlanningLine) =>
-                  line.type === 'Resource' &&
-                  line.quantity > 0 &&
-                  isWithinInterval(parseISO(line.planningDate), { start: loadStart, end: loadEnd })
+              // Every line counts towards the In view total's note, in any week
+              const projectDays = new Map<string, Map<string, number>>();
+              for (const line of allResourceLines) {
+                const hours = roundToQuarterHour(
+                  convertToHours(line.number, line.quantity, uomConversionMap)
+                );
+                const date = line.planningDate.slice(0, 10);
+                const byDate = projectDays.get(line.number) ?? new Map<string, number>();
+                byDate.set(date, (byDate.get(date) ?? 0) + hours);
+                projectDays.set(line.number, byDate);
+              }
+              plannedDays.set(project.number, projectDays);
+              plannedUnavailable.delete(project.number);
+
+              // Only lines within the weeks being loaded go on the grid
+              const resourceLines = allResourceLines.filter((line) =>
+                isWithinInterval(parseISO(line.planningDate), { start: loadStart, end: loadEnd })
               );
 
               for (const line of resourceLines) {
@@ -527,7 +607,8 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
                 newAllocations.push(allocation);
               }
             } catch {
-              // Skip projects without planning lines or if API fails
+              // Skip the project on the grid; its planned hours keep their last count, if any
+              if (!plannedDays.has(project.number)) plannedUnavailable.add(project.number);
             }
           })
         );
@@ -579,6 +660,8 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         loadedWeeks,
         resourceTimesheets,
         uomConversionMap,
+        plannedDays,
+        plannedUnavailable,
         lastUpdated: Date.now(),
       };
 

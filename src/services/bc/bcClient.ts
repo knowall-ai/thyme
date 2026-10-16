@@ -777,7 +777,11 @@ class BusinessCentralClient {
 
   // Job Planning Lines - requires Thyme BC Extension v1.6.0+
   // Provides budget/planned hours data for projects
-  async getJobPlanningLines(jobNumber: string): Promise<BCJobPlanningLine[]> {
+  async getJobPlanningLines(
+    jobNumber: string,
+    // Throw on failure rather than return [], so a caller can tell it from no lines
+    { throwOnError = false }: { throwOnError?: boolean } = {}
+  ): Promise<BCJobPlanningLine[]> {
     // Check if extension is installed
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
@@ -802,6 +806,7 @@ class BusinessCentralClient {
         return [];
       }
       console.error('[BC API] Error fetching job planning lines:', error);
+      if (throwOnError) throw error;
       return [];
     }
   }
