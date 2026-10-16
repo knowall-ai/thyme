@@ -22,6 +22,7 @@ import type {
   BCTimeSuggestion,
   BCTimeSuggestionUpdate,
   BCSuggestionRequest,
+  BCProjectNote,
   BCProjectSourceLink,
   BCProjectSourceLinkInput,
   BCAgentHeartbeat,
@@ -1705,6 +1706,36 @@ class BusinessCentralClient {
   }
 
   /** Add a linked source; BC normalises the value and checks the caller may. */
+  /**
+   * A project's Notes (Business Central's own, as on the Project card), newest first.
+   * Undefined when the Thyme extension is too old to have them (before 1.25).
+   */
+  async getProjectNotes(jobNo: string): Promise<BCProjectNote[] | undefined> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) return undefined;
+    const filter = `jobNo eq '${this.sanitizeODataString(jobNo)}'`;
+    try {
+      const notes = await this.customApiFetchAll<BCProjectNote>(
+        `/projectNotes?$filter=${encodeURIComponent(filter)}`
+      );
+      // Newest first, whatever order they come in
+      return notes.sort(
+        (a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '') || b.id - a.id
+      );
+    } catch (error) {
+      if (isEndpointMissing(error)) return undefined;
+      throw error;
+    }
+  }
+
+  /** Adds a note to the project, as the signed-in user; it shows in Business Central too */
+  async addProjectNote(jobNo: string, note: string): Promise<BCProjectNote> {
+    return this.customApiFetch<BCProjectNote>('/projectNotes', {
+      method: 'POST',
+      body: JSON.stringify({ jobNo, note }),
+    });
+  }
+
   async createProjectSourceLink(link: BCProjectSourceLinkInput): Promise<BCProjectSourceLink> {
     return this.customApiFetch<BCProjectSourceLink>('/projectSourceLinks', {
       method: 'POST',

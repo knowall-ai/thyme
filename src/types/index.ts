@@ -378,6 +378,21 @@ export type ProjectSourceLinkType =
   | 'MeetingKeyword'
   | 'AttendeeDomain';
 
+/**
+ * One of a project's Notes in Business Central (the Notes factbox on the Project card),
+ * from the Thyme extension's projectNotes API (1.25+). The latest is the project's status.
+ */
+export interface BCProjectNote {
+  /** The note's Record Link ID */
+  id: number;
+  jobNo: string;
+  note: string;
+  createdAt: string;
+  /** BC user name of who wrote it, and their full name */
+  createdBy: string;
+  createdByName: string;
+}
+
 export interface BCProjectSourceLink {
   id: string;
   jobNo: string;
