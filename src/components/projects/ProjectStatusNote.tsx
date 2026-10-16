@@ -134,10 +134,25 @@ export function ProjectStatusNote({ jobNo }: { jobNo: string }) {
             </li>
           ))}
         </ol>
-        <p className="mt-4 text-xs text-gray-500">
-          These are the project&apos;s Notes in Business Central, so they also show on the Project
-          card there.
-        </p>
+        <div className="mt-4 flex items-center justify-between gap-4">
+          <p className="text-xs text-gray-500">
+            These are the project&apos;s Notes in Business Central, so they also show on the Project
+            card there.
+          </p>
+          {/* One dialog at a time: the list closes and the new note opens */}
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              setIsHistoryOpen(false);
+              setIsEditing(true);
+            }}
+            className="shrink-0"
+          >
+            <PencilSquareIcon className="h-4 w-4" />
+            Update status
+          </Button>
+        </div>
       </Modal>
     </div>
   );

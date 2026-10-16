@@ -58,6 +58,27 @@ describe('ProjectStatusNote', () => {
     expect(screen.getByRole('button', { name: 'Earlier notes (1)' })).toBeInTheDocument();
   });
 
+  it('updates the status from the earlier notes list too', async () => {
+    getProjectNotes.mockResolvedValue([
+      note(2, 'Blocked on the Azure database', '2026-10-15T15:20:00Z'),
+      note(1, 'Design signed off', '2026-10-01T09:00:00Z'),
+    ]);
+    addProjectNote.mockResolvedValue(note(3, 'Unblocked', '2026-10-16T09:00:00Z'));
+    render(<ProjectStatusNote jobNo="PR00060" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Earlier notes (1)' }));
+    const list = await screen.findByRole('dialog', { name: 'Project notes' });
+    fireEvent.click(within(list).getByRole('button', { name: 'Update status' }));
+
+    const editor = await screen.findByRole('dialog', { name: 'Update project status' });
+    expect(screen.queryByRole('dialog', { name: 'Project notes' })).not.toBeInTheDocument();
+    fireEvent.change(within(editor).getByLabelText(/Where things stand/), {
+      target: { value: 'Unblocked' },
+    });
+    fireEvent.click(within(editor).getByRole('button', { name: 'Post' }));
+    await waitFor(() => expect(addProjectNote).toHaveBeenCalledWith('PR00060', 'Unblocked'));
+    expect(await screen.findByRole('button', { name: 'Earlier notes (2)' })).toBeInTheDocument();
+  });
+
   it('offers to add one when there are none, and shows nothing on an older extension', async () => {
     getProjectNotes.mockResolvedValue([]);
     const { unmount } = render(<ProjectStatusNote jobNo="PR00060" />);
