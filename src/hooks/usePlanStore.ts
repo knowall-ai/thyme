@@ -55,6 +55,20 @@ export interface PlannedHours {
   fromToday: number;
 }
 
+/** Hours planned on each date (YYYY-MM-DD), in every week */
+export type PlannedDays = Map<string, number>;
+
+/** Totals from planned days, from today (YYYY-MM-DD) as it is when they're shown */
+export function sumPlannedHours(days: PlannedDays, today: string): PlannedHours {
+  let all = 0;
+  let fromToday = 0;
+  for (const [date, hours] of days) {
+    all += hours;
+    if (date >= today) fromToday += hours;
+  }
+  return { all, fromToday };
+}
+
 export interface PlanTeamMember {
   id: string;
   number: string;
@@ -63,8 +77,8 @@ export interface PlanTeamMember {
   timesheetStatus: TimesheetDisplayStatus | 'No Timesheet';
   /** Hours planned in the weeks in view */
   totalHours: number;
-  /** Across every project on the Plan; undefined until loaded */
-  plannedHours?: PlannedHours;
+  /** Hours by date across every project on the Plan; undefined until loaded */
+  plannedDays?: PlannedDays;
   isSelected: boolean;
   photoUrl: string | null;
   userPrincipalName: string | null;
@@ -80,8 +94,8 @@ export interface PlanProject {
   allocations: AllocationBlock[];
   /** Hours planned in the weeks in view */
   totalHours: number;
-  /** Undefined until loaded, or if its planning lines couldn't be */
-  plannedHours?: PlannedHours;
+  /** Hours by date; undefined until loaded, or if its planning lines couldn't be */
+  plannedDays?: PlannedDays;
 }
 
 export type ViewMode = 'team' | 'projects';
@@ -124,11 +138,6 @@ interface CachedData {
   plannedUnavailable: Set<string>;
   lastUpdated: number;
 }
-
-const addPlannedHours = (totals: Map<string, PlannedHours>, key: string, hours: PlannedHours) => {
-  const current = totals.get(key) ?? { all: 0, fromToday: 0 };
-  totals.set(key, { all: current.all + hours.all, fromToday: current.fromToday + hours.fromToday });
-};
 
 interface PlanStore {
   // State
@@ -233,18 +242,21 @@ function rebuildFromCache(
 
   const { resources, projects: projectsData, loadedWeeks, resourceTimesheets } = cache;
 
-  // Planned hours in every week, per project and per person (across projects), from today
-  // as it is now: a Plan left open overnight, or back on loaded weeks, isn't a day behind
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const plannedByProject = new Map<string, PlannedHours>();
-  const plannedByResource = new Map<string, PlannedHours>();
+  // Hours planned by date in every week, per project and per person (across projects).
+  // Kept by date, so the note works out "from today" when it opens, even a day later.
+  const plannedByProject = new Map<string, PlannedDays>();
+  const plannedByResource = new Map<string, PlannedDays>();
+  const addDay = (totals: Map<string, PlannedDays>, key: string, date: string, hours: number) => {
+    const days = totals.get(key) ?? new Map<string, number>();
+    days.set(date, (days.get(date) ?? 0) + hours);
+    totals.set(key, days);
+  };
   for (const [projectNumber, byResource] of cache.plannedDays) {
-    plannedByProject.set(projectNumber, { all: 0, fromToday: 0 });
+    plannedByProject.set(projectNumber, new Map());
     for (const [resourceNumber, byDate] of byResource) {
       for (const [date, hours] of byDate) {
-        const planned = { all: hours, fromToday: date >= today ? hours : 0 };
-        addPlannedHours(plannedByProject, projectNumber, planned);
-        addPlannedHours(plannedByResource, resourceNumber, planned);
+        addDay(plannedByProject, projectNumber, date, hours);
+        addDay(plannedByResource, resourceNumber, date, hours);
       }
     }
   }
@@ -312,8 +324,8 @@ function rebuildFromCache(
       timesheets,
       timesheetStatus: latestStatus,
       totalHours,
-      plannedHours: peoplePlannedKnown
-        ? (plannedByResource.get(resource.number) ?? { all: 0, fromToday: 0 })
+      plannedDays: peoplePlannedKnown
+        ? (plannedByResource.get(resource.number) ?? new Map())
         : undefined,
       isSelected: false,
       photoUrl: existingMember?.photoUrl || null,
@@ -333,7 +345,7 @@ function rebuildFromCache(
       color: getProjectColor(i),
       allocations: [],
       totalHours: 0,
-      plannedHours: plannedByProject.get(p.number),
+      plannedDays: plannedByProject.get(p.number),
     });
   });
 

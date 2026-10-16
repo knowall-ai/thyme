@@ -387,7 +387,7 @@ function ResourceRow({
           {/* In view total, with what's planned beyond it on hover */}
           <PlanTotalCell
             hours={member.totalHours}
-            planned={member.plannedHours}
+            plannedDays={member.plannedDays}
             from={days[0]}
             to={days[days.length - 1]}
             isPerson
@@ -1432,7 +1432,7 @@ function ProjectRow({
         {/* In view total, with what's planned beyond it on hover */}
         <PlanTotalCell
           hours={project.totalHours}
-          planned={project.plannedHours}
+          plannedDays={project.plannedDays}
           from={days[0]}
           to={days[days.length - 1]}
         />

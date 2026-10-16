@@ -17,7 +17,7 @@ vi.mock('@/services/bc', () => ({
   },
 }));
 
-import { usePlanStore } from '@/hooks/usePlanStore';
+import { usePlanStore, sumPlannedHours, type PlannedDays } from '@/hooks/usePlanStore';
 
 const line = (planningDate: string) => ({
   id: planningDate,
@@ -149,6 +149,10 @@ describe("usePlanStore.fetchTeamData for a project's dialog", () => {
   });
 });
 
+// Totals as the note works them out, from today as it is
+const totals = (days?: PlannedDays) =>
+  days && sumPlannedHours(days, format(new Date(), 'yyyy-MM-dd'));
+
 describe('usePlanStore planned hours beyond the weeks in view', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -175,9 +179,9 @@ describe('usePlanStore planned hours beyond the weeks in view', () => {
 
     const { projects, teamMembers } = usePlanStore.getState();
     expect(projects[0].totalHours).toBe(4);
-    expect(projects[0].plannedHours).toEqual({ all: 18, fromToday: 10 });
+    expect(totals(projects[0].plannedDays)).toEqual({ all: 18, fromToday: 10 });
     expect(teamMembers[0].totalHours).toBe(4);
-    expect(teamMembers[0].plannedHours).toEqual({ all: 18, fromToday: 10 });
+    expect(totals(teamMembers[0].plannedDays)).toEqual({ all: 18, fromToday: 10 });
   });
 
   it('keeps the counts when moving to weeks already loaded', async () => {
@@ -188,30 +192,21 @@ describe('usePlanStore planned hours beyond the weeks in view', () => {
     await usePlanStore.getState().fetchTeamData(addWeeks(week, 2), 2);
 
     expect(getJobPlanningLines).toHaveBeenCalledTimes(1);
-    expect(usePlanStore.getState().projects[0].plannedHours).toEqual({ all: 8, fromToday: 8 });
+    expect(totals(usePlanStore.getState().projects[0].plannedDays)).toEqual({
+      all: 8,
+      fromToday: 8,
+    });
   });
 
-  it('moves "from today" on when the date changes, without loading again', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
-    try {
-      vi.setSystemTime(new Date(2026, 9, 14, 12));
-      const week = startOfWeek(new Date(), { weekStartsOn: 1 });
-      getJobPlanningLines.mockResolvedValue([lineOn(new Date(2026, 9, 14), 8, 1)]);
-      await usePlanStore.getState().fetchTeamData(week, 1);
-      expect(usePlanStore.getState().projects[0].plannedHours).toEqual({ all: 8, fromToday: 8 });
+  it('keeps hours by date, so "from today" can be worked out a day later', async () => {
+    const day = new Date(2026, 9, 14);
+    getJobPlanningLines.mockResolvedValue([lineOn(day, 8, 1), lineOn(day, 2, 2)]);
+    await usePlanStore.getState().fetchTeamData(startOfWeek(new Date(), { weekStartsOn: 1 }), 1);
 
-      vi.setSystemTime(new Date(2026, 9, 15, 9));
-      await usePlanStore.getState().fetchTeamData(week, 1);
-
-      expect(getJobPlanningLines).toHaveBeenCalledTimes(1);
-      expect(usePlanStore.getState().projects[0].plannedHours).toEqual({ all: 8, fromToday: 0 });
-      expect(usePlanStore.getState().teamMembers[0].plannedHours).toEqual({
-        all: 8,
-        fromToday: 0,
-      });
-    } finally {
-      vi.useRealTimers();
-    }
+    const days = usePlanStore.getState().teamMembers[0].plannedDays!;
+    expect(days).toEqual(new Map([['2026-10-14', 10]]));
+    expect(sumPlannedHours(days, '2026-10-14')).toEqual({ all: 10, fromToday: 10 });
+    expect(sumPlannedHours(days, '2026-10-15')).toEqual({ all: 10, fromToday: 0 });
   });
 
   it("shows no count, for the project or anyone, when a project's lines fail after a clear", async () => {
@@ -221,8 +216,8 @@ describe('usePlanStore planned hours beyond the weeks in view', () => {
     await usePlanStore.getState().fetchTeamData(week, 1);
 
     expect(getJobPlanningLines).toHaveBeenCalledWith('PR001', { throwOnError: true });
-    expect(usePlanStore.getState().projects[0].plannedHours).toBeUndefined();
-    expect(usePlanStore.getState().teamMembers[0].plannedHours).toBeUndefined();
+    expect(usePlanStore.getState().projects[0].plannedDays).toBeUndefined();
+    expect(usePlanStore.getState().teamMembers[0].plannedDays).toBeUndefined();
   });
 
   it('keeps the last count when a later load of the lines fails', async () => {
@@ -233,7 +228,13 @@ describe('usePlanStore planned hours beyond the weeks in view', () => {
     getJobPlanningLines.mockRejectedValueOnce(new Error('BC API Error (500)'));
     await usePlanStore.getState().fetchTeamData(addWeeks(week, 5), 1);
 
-    expect(usePlanStore.getState().projects[0].plannedHours).toEqual({ all: 8, fromToday: 8 });
-    expect(usePlanStore.getState().teamMembers[0].plannedHours).toEqual({ all: 8, fromToday: 8 });
+    expect(totals(usePlanStore.getState().projects[0].plannedDays)).toEqual({
+      all: 8,
+      fromToday: 8,
+    });
+    expect(totals(usePlanStore.getState().teamMembers[0].plannedDays)).toEqual({
+      all: 8,
+      fromToday: 8,
+    });
   });
 });
