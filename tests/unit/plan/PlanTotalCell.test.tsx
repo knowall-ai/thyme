@@ -11,7 +11,9 @@ const days = new Map([
   ['2026-11-20', 52],
 ]);
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('PlanTotalCell', () => {
   it("shows the in view total, and what's planned beyond it on hover", () => {
