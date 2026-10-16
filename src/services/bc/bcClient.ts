@@ -1683,7 +1683,9 @@ class BusinessCentralClient {
         `/projectNotes?$filter=${encodeURIComponent(filter)}`
       );
       // Newest first, whatever order they come in
-      return notes.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id);
+      return notes.sort(
+        (a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '') || b.id - a.id
+      );
     } catch (error) {
       if (isEndpointMissing(error)) return undefined;
       throw error;

@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { format, parseISO } from 'date-fns';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { format, isValid, parseISO } from 'date-fns';
 import { ChatBubbleLeftEllipsisIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
 import { Button, Modal } from '@/components/ui';
 import { bcClient } from '@/services/bc';
@@ -12,8 +12,12 @@ import type { BCProjectNote } from '@/types';
 // Notes are free text in Business Central; the API keeps up to this many characters
 const MAX_NOTE_LENGTH = 2048;
 
-const byline = (note: BCProjectNote) =>
-  `${note.createdByName || note.createdBy} · ${format(parseISO(note.createdAt), 'd MMM yyyy, HH:mm')}`;
+// Who wrote it and when; just who, if Business Central sent no usable date
+const byline = (note: BCProjectNote) => {
+  const who = note.createdByName || note.createdBy;
+  const at = note.createdAt ? parseISO(note.createdAt) : null;
+  return at && isValid(at) ? `${who} · ${format(at, 'd MMM yyyy, HH:mm')}` : who;
+};
 
 /**
  * The project's status: its latest Note in Business Central (the Notes factbox on the
@@ -28,26 +32,27 @@ export function ProjectStatusNote({ jobNo }: { jobNo: string }) {
   const [isEditing, setIsEditing] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
+  // The latest load, first or a Retry: an earlier one finishing late (say for the project
+  // or company before) changes nothing
+  const latestLoad = useRef(0);
   const load = useCallback(async () => {
+    const thisLoad = ++latestLoad.current;
+    setLoadError(false);
     try {
-      setNotes(await bcClient.getProjectNotes(jobNo));
-      setLoadError(false);
+      const loaded = await bcClient.getProjectNotes(jobNo);
+      if (thisLoad === latestLoad.current) setNotes(loaded);
     } catch {
-      setLoadError(true);
+      if (thisLoad === latestLoad.current) setLoadError(true);
     }
   }, [jobNo]);
 
   useEffect(() => {
-    let cancelled = false;
     setNotes(undefined);
-    bcClient
-      .getProjectNotes(jobNo)
-      .then((loaded) => !cancelled && setNotes(loaded))
-      .catch(() => !cancelled && setLoadError(true));
+    void load();
     return () => {
-      cancelled = true;
+      latestLoad.current++;
     };
-  }, [jobNo, companyVersion]);
+  }, [load, companyVersion]);
 
   // An older extension, or still loading: show nothing rather than an empty box
   if (!notes) {
@@ -106,7 +111,9 @@ export function ProjectStatusNote({ jobNo }: { jobNo: string }) {
         jobNo={jobNo}
         onClose={() => setIsEditing(false)}
         onAdded={(note) => {
-          setNotes((current) => [note, ...(current ?? [])]);
+          // An empty reply carries no note to show: read them back instead
+          if (note?.id) setNotes((current) => [note, ...(current ?? [])]);
+          else void load();
           setIsEditing(false);
         }}
       />

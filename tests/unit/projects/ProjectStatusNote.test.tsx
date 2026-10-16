@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import type { BCProjectNote } from '@/types';
 
 const getProjectNotes = vi.fn();
@@ -100,6 +100,48 @@ describe('ProjectStatusNote', () => {
     fireEvent.click(within(editor).getByRole('button', { name: 'Post' }));
     await waitFor(() => expect(addProjectNote).toHaveBeenCalledWith('PR00060', 'Unblocked'));
     expect(await screen.findByRole('button', { name: 'Earlier notes (2)' })).toBeInTheDocument();
+  });
+
+  it("shows who wrote a note without the date when it can't be read", async () => {
+    getProjectNotes.mockResolvedValue([{ ...note(1, 'Design signed off', 'not a date') }]);
+    render(<ProjectStatusNote jobNo="PR00060" />);
+    expect(await screen.findByText('Design signed off')).toBeInTheDocument();
+    expect(screen.getByText('Katherine Hull')).toBeInTheDocument();
+  });
+
+  it('reads the notes back when a post returns no note', async () => {
+    getProjectNotes.mockResolvedValueOnce([note(1, 'Design signed off', '2026-10-01T09:00:00Z')]);
+    getProjectNotes.mockResolvedValueOnce([
+      note(2, 'Live on Friday', '2026-10-15T16:00:00Z'),
+      note(1, 'Design signed off', '2026-10-01T09:00:00Z'),
+    ]);
+    addProjectNote.mockResolvedValue({});
+    render(<ProjectStatusNote jobNo="PR00060" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Update status' }));
+    fireEvent.change(screen.getByLabelText(/Where things stand/), {
+      target: { value: 'Live on Friday' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Post' }));
+    await waitFor(() => expect(getProjectNotes).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText('Live on Friday', { selector: 'p' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Earlier notes (1)' })).toBeInTheDocument();
+  });
+
+  it("ignores a Retry's reply once the project has changed", async () => {
+    let finishRetry: (value: BCProjectNote[]) => void = () => {};
+    getProjectNotes
+      .mockRejectedValueOnce(new Error('BC API Error (500)'))
+      // The Retry's reply is held back until after the switch to another project
+      .mockReturnValueOnce(new Promise<BCProjectNote[]>((resolve) => (finishRetry = resolve)))
+      .mockResolvedValueOnce([note(9, 'Other project note', '2026-10-15T16:00:00Z')]);
+    const { rerender } = render(<ProjectStatusNote jobNo="PR00060" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+    rerender(<ProjectStatusNote jobNo="PR00070" />);
+    expect(await screen.findByText('Other project note')).toBeInTheDocument();
+
+    await act(async () => finishRetry([note(1, 'Stale note', '2026-10-01T09:00:00Z')]));
+    expect(screen.queryByText('Stale note')).not.toBeInTheDocument();
+    expect(screen.getByText('Other project note')).toBeInTheDocument();
   });
 
   it('offers to add one when there are none, and shows nothing on an older extension', async () => {
