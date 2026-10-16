@@ -196,7 +196,14 @@ function NewNoteModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Update project status" size="md">
+    // Not closed while posting: a reopened editor would be closed, and its draft lost, when
+    // the earlier post finished
+    <Modal
+      isOpen={isOpen}
+      onClose={isSaving ? () => {} : onClose}
+      title="Update project status"
+      size="md"
+    >
       <form
         onSubmit={(e) => {
           e.preventDefault();

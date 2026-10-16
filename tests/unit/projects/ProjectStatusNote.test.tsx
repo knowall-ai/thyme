@@ -58,6 +58,29 @@ describe('ProjectStatusNote', () => {
     expect(screen.getByRole('button', { name: 'Earlier notes (1)' })).toBeInTheDocument();
   });
 
+  it("can't be closed while a note is posting", async () => {
+    getProjectNotes.mockResolvedValue([note(1, 'Design signed off', '2026-10-01T09:00:00Z')]);
+    let finish: (value: BCProjectNote) => void = () => {};
+    addProjectNote.mockReturnValue(new Promise<BCProjectNote>((resolve) => (finish = resolve)));
+    render(<ProjectStatusNote jobNo="PR00060" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Update status' }));
+    const editor = screen.getByRole('dialog', { name: 'Update project status' });
+    fireEvent.change(within(editor).getByLabelText(/Where things stand/), {
+      target: { value: 'Live on Friday' },
+    });
+    fireEvent.click(within(editor).getByRole('button', { name: 'Post' }));
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.getByRole('dialog', { name: 'Update project status' })).toBeInTheDocument();
+
+    finish(note(2, 'Live on Friday', '2026-10-15T16:00:00Z'));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: 'Update project status' })
+      ).not.toBeInTheDocument()
+    );
+  });
+
   it('updates the status from the earlier notes list too', async () => {
     getProjectNotes.mockResolvedValue([
       note(2, 'Blocked on the Azure database', '2026-10-15T15:20:00Z'),
