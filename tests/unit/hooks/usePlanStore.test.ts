@@ -190,4 +190,50 @@ describe('usePlanStore planned hours beyond the weeks in view', () => {
     expect(getJobPlanningLines).toHaveBeenCalledTimes(1);
     expect(usePlanStore.getState().projects[0].plannedHours).toEqual({ all: 8, fromToday: 8 });
   });
+
+  it('moves "from today" on when the date changes, without loading again', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date(2026, 9, 14, 12));
+      const week = startOfWeek(new Date(), { weekStartsOn: 1 });
+      getJobPlanningLines.mockResolvedValue([lineOn(new Date(2026, 9, 14), 8, 1)]);
+      await usePlanStore.getState().fetchTeamData(week, 1);
+      expect(usePlanStore.getState().projects[0].plannedHours).toEqual({ all: 8, fromToday: 8 });
+
+      vi.setSystemTime(new Date(2026, 9, 15, 9));
+      await usePlanStore.getState().fetchTeamData(week, 1);
+
+      expect(getJobPlanningLines).toHaveBeenCalledTimes(1);
+      expect(usePlanStore.getState().projects[0].plannedHours).toEqual({ all: 8, fromToday: 0 });
+      expect(usePlanStore.getState().teamMembers[0].plannedHours).toEqual({
+        all: 8,
+        fromToday: 0,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows no count, for the project or anyone, when a project's lines fail after a clear", async () => {
+    const week = startOfWeek(new Date(), { weekStartsOn: 1 });
+    getJobPlanningLines.mockRejectedValue(new Error('BC API Error (500)'));
+
+    await usePlanStore.getState().fetchTeamData(week, 1);
+
+    expect(getJobPlanningLines).toHaveBeenCalledWith('PR001', { throwOnError: true });
+    expect(usePlanStore.getState().projects[0].plannedHours).toBeUndefined();
+    expect(usePlanStore.getState().teamMembers[0].plannedHours).toBeUndefined();
+  });
+
+  it('keeps the last count when a later load of the lines fails', async () => {
+    const week = startOfWeek(new Date(), { weekStartsOn: 1 });
+    getJobPlanningLines.mockResolvedValueOnce([lineOn(addWeeks(new Date(), 1), 8, 1)]);
+    await usePlanStore.getState().fetchTeamData(week, 1);
+
+    getJobPlanningLines.mockRejectedValueOnce(new Error('BC API Error (500)'));
+    await usePlanStore.getState().fetchTeamData(addWeeks(week, 5), 1);
+
+    expect(usePlanStore.getState().projects[0].plannedHours).toEqual({ all: 8, fromToday: 8 });
+    expect(usePlanStore.getState().teamMembers[0].plannedHours).toEqual({ all: 8, fromToday: 8 });
+  });
 });
