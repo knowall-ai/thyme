@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { PlanTotalCell } from '@/components/plan/PlanTotalCell';
+import { Modal } from '@/components/ui/Modal';
 
 const from = new Date(2026, 9, 12);
 const to = new Date(2026, 10, 1);
@@ -90,6 +91,23 @@ describe('PlanTotalCell', () => {
 
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
+
+  it('closes only the note on Escape when the Plan is in a dialog', () => {
+    const onClose = vi.fn();
+    render(
+      <Modal isOpen onClose={onClose} title="Plan">
+        <PlanTotalCell hours={114} plannedDays={days} from={from} to={to} />
+      </Modal>
+    );
+    fireEvent.focus(screen.getByRole('button', { name: '114h planned in view' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+
+    // With the note gone, Escape closes the dialog as usual
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('is just the number until the totals have loaded', () => {

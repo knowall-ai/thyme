@@ -75,17 +75,20 @@ export function PlanTotalCell({
     setNote({ top, left, today: format(new Date(), 'yyyy-MM-dd') });
   }, [cancelHide, plannedDays]);
 
-  // A fixed note would drift from its cell on scroll, and Escape dismisses it
+  // A fixed note would drift from its cell on scroll, and Escape dismisses it. Escape is caught
+  // on the way down and stopped, so a dialog the Plan is in stays open.
   useEffect(() => {
     if (!note) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') hide();
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      hide();
     };
     window.addEventListener('scroll', hide, true);
-    document.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', onKeyDown, true);
     return () => {
       window.removeEventListener('scroll', hide, true);
-      document.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keydown', onKeyDown, true);
     };
   }, [note, hide]);
 
