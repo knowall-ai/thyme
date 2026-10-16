@@ -148,3 +148,46 @@ describe("usePlanStore.fetchTeamData for a project's dialog", () => {
     expect(getJobPlanningLines).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('usePlanStore planned hours beyond the weeks in view', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    usePlanStore.setState({ cache: null, allAllocations: [] });
+  });
+
+  const lineOn = (date: Date, quantity: number, lineNo: number) => ({
+    ...line(format(date, 'yyyy-MM-dd')),
+    id: `${lineNo}`,
+    lineNo,
+    quantity,
+  });
+
+  it("counts every week's lines, and those from today, for the project and the person", async () => {
+    const today = new Date();
+    const week = startOfWeek(today, { weekStartsOn: 1 });
+    getJobPlanningLines.mockResolvedValue([
+      lineOn(addWeeks(today, -10), 8, 1), // past, outside the view
+      lineOn(today, 4, 2), // today, in view
+      lineOn(addWeeks(today, 20), 6, 3), // future, outside the view
+    ]);
+
+    await usePlanStore.getState().fetchTeamData(week, 1);
+
+    const { projects, teamMembers } = usePlanStore.getState();
+    expect(projects[0].totalHours).toBe(4);
+    expect(projects[0].plannedHours).toEqual({ all: 18, fromToday: 10 });
+    expect(teamMembers[0].totalHours).toBe(4);
+    expect(teamMembers[0].plannedHours).toEqual({ all: 18, fromToday: 10 });
+  });
+
+  it('keeps the counts when moving to weeks already loaded', async () => {
+    const week = startOfWeek(new Date(), { weekStartsOn: 1 });
+    getJobPlanningLines.mockResolvedValue([lineOn(addWeeks(new Date(), 4), 8, 1)]);
+
+    await usePlanStore.getState().fetchTeamData(week, 6);
+    await usePlanStore.getState().fetchTeamData(addWeeks(week, 2), 2);
+
+    expect(getJobPlanningLines).toHaveBeenCalledTimes(1);
+    expect(usePlanStore.getState().projects[0].plannedHours).toEqual({ all: 8, fromToday: 8 });
+  });
+});
