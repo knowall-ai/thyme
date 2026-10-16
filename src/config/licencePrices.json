@@ -1,0 +1,24 @@
+{
+  "currency": "GBP",
+  "basis": "Estimated UK list price per licence a month, ex VAT, annual term. Microsoft has no public GBP price list, so these come from third-party price guides; your agreement may differ.",
+  "checked": "2026-10",
+  "sources": [
+    "https://thehbpgroup.co.uk/blog/how-much-is-business-central",
+    "https://www.microsoft.com/licensing/guidance/Dynamics-365-Business-Central",
+    "https://cobweb.com/content-hub/blogs/microsoft-price-changes-from-july-2026-what-businesses-need-to-know/"
+  ],
+  "prices": {
+    "DYN365_BUSCENTRAL_PREMIUM": 82.2,
+    "DYN365_BUSCENTRAL_ESSENTIAL": 57.5,
+    "Dynamics_365_Business_Central_Essentials_Attach": 16.4,
+    "DYN365_BUSCENTRAL_TEAM_MEMBER": 6.6,
+    "DYN365_TEAM_MEMBERS": 6.6,
+    "O365_BUSINESS_ESSENTIALS": 5.75,
+    "O365_BUSINESS_PREMIUM": 11.55,
+    "SPB": 18.1,
+    "ENTERPRISEPACK": 23.3,
+    "ENTERPRISEPREMIUM": 36.8,
+    "SPE_E3": 33.5,
+    "SPE_E5": 51.6
+  }
+}

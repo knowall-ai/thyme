@@ -105,6 +105,17 @@ export interface BCProject {
   canEditPlan?: boolean;
 }
 
+/** A new project to create in BC (see bcClient.createProject) */
+export interface BCProjectInput {
+  displayName: string;
+  /** Bill-to customer number; leave out for an internal project */
+  billToCustomerNo?: string;
+  /** YYYY-MM-DD */
+  startingDate?: string;
+  /** YYYY-MM-DD */
+  endingDate?: string;
+}
+
 export interface BCCustomer {
   id: string;
   number: string;

@@ -6,6 +6,7 @@ import type {
   BCEnvironmentType,
   BCJob,
   BCProject,
+  BCProjectInput,
   BCCustomer,
   BCEmployee,
   BCJobTask,
@@ -51,6 +52,7 @@ import {
   PLAN_REVIEW_PENDING_HASH,
   BC_UNREACHABLE_EVENT,
   getBcRetryDelay,
+  getProjectNameError,
 } from '@/utils';
 
 const BC_BASE_URL =
@@ -655,6 +657,35 @@ class BusinessCentralClient {
     return normalizeBCProject(project);
   }
 
+  /**
+   * Create a project (BC Job) through the Thyme extension's projects API, which, unlike
+   * the standard API, can set the bill-to customer and dates. BC numbers it from the
+   * company's Project Nos. series, and BC permissions decide whether the user may.
+   */
+  async createProject(input: BCProjectInput): Promise<BCProject> {
+    // Checked here too, not just in the dialog: BC would only refuse it less clearly
+    const nameError = getProjectNameError(input.displayName);
+    if (nameError) throw new Error(nameError);
+    // Leave out what isn't set: a blank customer is an internal project, and BC keeps
+    // its own defaults for anything omitted
+    const body: Record<string, string> = { displayName: input.displayName.trim() };
+    if (input.billToCustomerNo) body.billToCustomerNo = input.billToCustomerNo;
+    if (input.startingDate) body.startingDate = this.sanitizeDateInput(input.startingDate);
+    if (input.endingDate) body.endingDate = this.sanitizeDateInput(input.endingDate);
+
+    // One company for the new project and the names it's compared with
+    const customBase = this.customApiBaseUrl;
+    const [project, companyNames] = await Promise.all([
+      this.customApiFetch<BCProject>(
+        '/projects',
+        { method: 'POST', body: JSON.stringify(body) },
+        customBase
+      ),
+      this.getCompanyNames(),
+    ]);
+    return withBillToIsCompany(normalizeBCProject(project), companyNames);
+  }
+
   // Customers
   async getCustomers(filter?: string): Promise<BCCustomer[]> {
     let endpoint = '/customers';
@@ -747,7 +778,11 @@ class BusinessCentralClient {
 
   // Job Planning Lines - requires Thyme BC Extension v1.6.0+
   // Provides budget/planned hours data for projects
-  async getJobPlanningLines(jobNumber: string): Promise<BCJobPlanningLine[]> {
+  async getJobPlanningLines(
+    jobNumber: string,
+    // Throw on failure rather than return [], so a caller can tell it from no lines
+    { throwOnError = false }: { throwOnError?: boolean } = {}
+  ): Promise<BCJobPlanningLine[]> {
     // Check if extension is installed
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
@@ -772,6 +807,7 @@ class BusinessCentralClient {
         return [];
       }
       console.error('[BC API] Error fetching job planning lines:', error);
+      if (throwOnError) throw error;
       return [];
     }
   }

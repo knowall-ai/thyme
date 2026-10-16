@@ -24,6 +24,8 @@ export * from './reportQuery';
 export * from './bcHealth';
 export * from './bcRetry';
 export * from './bcErrors';
+export * from './projectName';
+export * from './licences';
 export * from './dayNotes';
 export * from './popoverPosition';
 export * from './planReview';
