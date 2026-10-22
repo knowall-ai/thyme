@@ -1,7 +1,8 @@
-import { useEffect, useMemo } from 'react';
-import type { BCTimesheetReview, BCTimesheetReviewLine } from '@/types';
+import { useCallback, useEffect, useMemo } from 'react';
+import type { BCTimesheetReview, BCTimesheetReviewLine, BCTimesheetReviewRequest } from '@/types';
 import {
   computeVersionStamp,
+  isOpenTimesheetReviewRequest,
   getReviewStatus,
   getVerdictDisplay,
   groupNotesByLine,
@@ -41,6 +42,12 @@ export interface TimesheetReviewResult {
   submitted: boolean;
   /** The timesheet's latest change as known here, compared with the review's versionStamp */
   currentStamp: string | null;
+  /** The latest "look again" request: an open one, or one that failed */
+  request: BCTimesheetReviewRequest | null;
+  /** Whether "Ask Poppie to look again" can be offered (the extension has requests, and there's a review) */
+  canRequestReview: boolean;
+  /** Ask Poppie to look again now. Throws a message fit to show. */
+  requestReview: () => Promise<void>;
 }
 
 /**
@@ -61,6 +68,11 @@ export function useTimesheetReview(
   const cached = useTimesheetReviewStore((s) => (timeSheetNo ? s.reviews[timeSheetNo] : undefined));
   const failed = useTimesheetReviewStore((s) => (timeSheetNo ? !!s.failed[timeSheetNo] : false));
   const requestReviews = useTimesheetReviewStore((s) => s.requestReviews);
+  const requestsAvailable = useTimesheetReviewStore((s) => s.requestsAvailable);
+  const cachedRequest = useTimesheetReviewStore((s) =>
+    timeSheetNo ? s.requests[timeSheetNo] : undefined
+  );
+  const askForReview = useTimesheetReviewStore((s) => s.requestReview);
 
   const active = enabled && !!timeSheetNo && available !== false;
   const isCached = !!cached;
@@ -85,6 +97,8 @@ export function useTimesheetReview(
   const status: TimesheetReviewStatus =
     fetchedStatus === 'current' && !versionReady ? 'loading' : fetchedStatus;
   const awaiting = needsReviewRefresh(status, submitted);
+  const request = active ? (cachedRequest ?? null) : null;
+  const requestOpen = !!request && isOpenTimesheetReviewRequest(request);
 
   // Fetch on first view (and again after a company switch clears the cache)
   useEffect(() => {
@@ -94,12 +108,16 @@ export function useTimesheetReview(
   // Join the shared focus/interval refresh while on screen
   useEffect(() => {
     if (!active || !timeSheetNo) return;
-    return watchTimesheetReview(timeSheetNo, awaiting);
-  }, [active, timeSheetNo, awaiting]);
+    return watchTimesheetReview(timeSheetNo, awaiting, requestOpen);
+  }, [active, timeSheetNo, awaiting, requestOpen]);
 
   const review = active ? (cached?.review ?? null) : null;
   const notes = useMemo(() => sortNotes(review ? (cached?.notes ?? []) : []), [review, cached]);
   const notesByLine = useMemo(() => groupNotesByLine(notes), [notes]);
+
+  const requestReview = useCallback(async () => {
+    if (timeSheetNo) await askForReview(timeSheetNo);
+  }, [timeSheetNo, askForReview]);
 
   return {
     status,
@@ -109,5 +127,8 @@ export function useTimesheetReview(
     verdict: review ? getVerdictDisplay(review.verdict) : null,
     submitted,
     currentStamp,
+    request,
+    canRequestReview: active && requestsAvailable === true && !!review,
+    requestReview,
   };
 }

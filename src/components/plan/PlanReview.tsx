@@ -31,6 +31,7 @@ import type { PlanReviewChangesState } from '@/hooks/usePlanReviewStore';
 import {
   PoppieAvatar,
   SeverityIcon,
+  Spinner,
   VERDICT_TONE_CLASSES,
 } from '@/components/review/PoppieReviewBits';
 import {
@@ -245,15 +246,6 @@ export function PlanReviewWeekChip({
         />
       )}
     </>
-  );
-}
-
-function Spinner() {
-  return (
-    <span
-      aria-hidden="true"
-      className="h-2.5 w-2.5 shrink-0 animate-spin rounded-full border border-current border-t-transparent"
-    />
   );
 }
 

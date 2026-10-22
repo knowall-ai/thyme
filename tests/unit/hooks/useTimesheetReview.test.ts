@@ -3,11 +3,17 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 
 const getTimesheetReviews = vi.fn();
 const getTimesheetReviewLines = vi.fn();
+const getTimesheetReviewRequests = vi.fn();
+const getTimesheetReviewRequest = vi.fn();
+const createTimesheetReviewRequest = vi.fn();
 
 vi.mock('@/services/bc/bcClient', () => ({
   bcClient: {
     getTimesheetReviews: (...args: unknown[]) => getTimesheetReviews(...args),
     getTimesheetReviewLines: (...args: unknown[]) => getTimesheetReviewLines(...args),
+    getTimesheetReviewRequests: (...args: unknown[]) => getTimesheetReviewRequests(...args),
+    getTimesheetReviewRequest: (...args: unknown[]) => getTimesheetReviewRequest(...args),
+    createTimesheetReviewRequest: (...args: unknown[]) => createTimesheetReviewRequest(...args),
     getCompanies: vi.fn(),
   },
 }));
@@ -15,6 +21,7 @@ vi.mock('@/services/bc/bcClient', () => ({
 import {
   useTimesheetReviewStore,
   REVIEW_REFRESH_INTERVAL_MS,
+  REVIEW_REQUEST_POLL_MS,
 } from '@/hooks/useTimesheetReviewStore';
 import { useTimesheetReview } from '@/hooks/useTimesheetReview';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
@@ -49,6 +56,7 @@ describe('useTimesheetReview', () => {
     useTimesheetReviewStore.getState().reset();
     getTimesheetReviews.mockResolvedValue([]);
     getTimesheetReviewLines.mockResolvedValue([]);
+    getTimesheetReviewRequests.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -269,5 +277,202 @@ describe('useTimesheetReview', () => {
     // Refetched for the new company, which has no review yet
     await waitFor(() => expect(result.current.status).toBe('awaiting'));
     expect(getTimesheetReviews).toHaveBeenCalledTimes(2);
+  });
+});
+
+const reviewRequest = (
+  status: 'Requested' | 'Running' | 'Done' | 'Failed',
+  overrides: Record<string, unknown> = {}
+) => ({
+  id: '00000000-0000-0000-0000-00000000e003',
+  entryNo: 3,
+  timeSheetNo: 'TS0001',
+  status,
+  progress: '',
+  errorMessage: '',
+  ...overrides,
+});
+
+describe('useTimesheetReview: asking Poppie to look again', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useTimesheetReviewStore.getState().reset();
+    getTimesheetReviews.mockResolvedValue([review('TS0001', 1)]);
+    getTimesheetReviewLines.mockResolvedValue([]);
+    getTimesheetReviewRequests.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('offers the request once the extension is known to have it and there is a review', async () => {
+    const { result } = renderHook(() =>
+      useTimesheetReview('TS0001', [], undefined, { submitted: false })
+    );
+    expect(result.current.canRequestReview).toBe(false);
+    await waitFor(() => expect(result.current.canRequestReview).toBe(true));
+    expect(getTimesheetReviewRequests).toHaveBeenCalledWith(['TS0001']);
+    expect(result.current.request).toBeNull();
+  });
+
+  it('hides the request on an extension without the endpoint, keeping the review', async () => {
+    getTimesheetReviewRequests.mockResolvedValue(null);
+    const { result } = renderHook(() =>
+      useTimesheetReview('TS0001', [], undefined, { submitted: false })
+    );
+    await waitFor(() => expect(result.current.status).toBe('current'));
+    await settle();
+    expect(result.current.canRequestReview).toBe(false);
+    expect(useTimesheetReviewStore.getState().requestsAvailable).toBe(false);
+  });
+
+  it('keeps the review when reading requests fails', async () => {
+    getTimesheetReviewRequests.mockRejectedValue(new Error('BC API Error (500)'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { result } = renderHook(() =>
+      useTimesheetReview('TS0001', [], undefined, { submitted: false })
+    );
+    await waitFor(() => expect(result.current.status).toBe('current'));
+    expect(result.current.canRequestReview).toBe(false);
+    warn.mockRestore();
+  });
+
+  it('does not offer it without a review', async () => {
+    getTimesheetReviews.mockResolvedValue([]);
+    const { result } = renderHook(() =>
+      useTimesheetReview('TS0001', [], undefined, { submitted: true })
+    );
+    await waitFor(() => expect(result.current.status).toBe('awaiting'));
+    await settle();
+    expect(result.current.canRequestReview).toBe(false);
+  });
+
+  it('shows an open request found on load', async () => {
+    getTimesheetReviewRequests.mockResolvedValue([
+      reviewRequest('Requested', { entryNo: 2 }),
+      reviewRequest('Running', { id: '00000000-0000-0000-0000-00000000e004', entryNo: 4 }),
+    ]);
+    const { result } = renderHook(() =>
+      useTimesheetReview('TS0001', [], undefined, { submitted: false })
+    );
+    await waitFor(() => expect(result.current.request?.status).toBe('Running'));
+  });
+
+  it('asks, follows the request every few seconds, and reloads the review when it is done', async () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() =>
+      useTimesheetReview('TS0001', [], undefined, { submitted: false })
+    );
+    await settle();
+    expect(result.current.canRequestReview).toBe(true);
+    expect(getTimesheetReviews).toHaveBeenCalledTimes(1);
+
+    createTimesheetReviewRequest.mockResolvedValue(reviewRequest('Requested'));
+    await act(async () => {
+      await result.current.requestReview();
+    });
+    expect(createTimesheetReviewRequest).toHaveBeenCalledWith('TS0001');
+    expect(result.current.request?.status).toBe('Requested');
+
+    // Poppie starts on it
+    getTimesheetReviewRequests.mockResolvedValue([
+      reviewRequest('Running', { progress: 'Checking the lines…' }),
+    ]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(REVIEW_REQUEST_POLL_MS);
+    });
+    expect(result.current.request?.progress).toBe('Checking the lines…');
+
+    // ...and finishes, with a fresh review
+    getTimesheetReviewRequests.mockResolvedValue([]);
+    getTimesheetReviewRequest.mockResolvedValue(reviewRequest('Done'));
+    getTimesheetReviews.mockResolvedValue([review('TS0001', 9)]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(REVIEW_REQUEST_POLL_MS);
+    });
+    await settle();
+    expect(result.current.request).toBeNull();
+    expect(result.current.review?.entryNo).toBe(9);
+    expect(getTimesheetReviews).toHaveBeenCalledTimes(2);
+
+    // Nothing open now: the fast polling stops
+    const requestReads = getTimesheetReviewRequests.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(REVIEW_REQUEST_POLL_MS * 5);
+    });
+    expect(getTimesheetReviewRequests).toHaveBeenCalledTimes(requestReads);
+  });
+
+  it('keeps a failed request to say why', async () => {
+    vi.useFakeTimers();
+    getTimesheetReviewRequests.mockResolvedValue([reviewRequest('Requested')]);
+    const { result } = renderHook(() =>
+      useTimesheetReview('TS0001', [], undefined, { submitted: false })
+    );
+    await settle();
+    expect(result.current.request?.status).toBe('Requested');
+
+    getTimesheetReviewRequests.mockResolvedValue([]);
+    getTimesheetReviewRequest.mockResolvedValue(
+      reviewRequest('Failed', { errorMessage: 'Poppie could not read the timesheet.' })
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(REVIEW_REQUEST_POLL_MS);
+    });
+    expect(result.current.request).toEqual(
+      expect.objectContaining({
+        status: 'Failed',
+        errorMessage: 'Poppie could not read the timesheet.',
+      })
+    );
+    expect(getTimesheetReviews).toHaveBeenCalledTimes(1);
+  });
+
+  it("follows someone else's open request when BC refuses a second one", async () => {
+    const { result } = renderHook(() =>
+      useTimesheetReview('TS0001', [], undefined, { submitted: false })
+    );
+    await waitFor(() => expect(result.current.canRequestReview).toBe(true));
+
+    createTimesheetReviewRequest.mockRejectedValue(new Error('BC API Error (400): already open'));
+    getTimesheetReviewRequests.mockResolvedValue([reviewRequest('Running')]);
+    await act(async () => {
+      await result.current.requestReview();
+    });
+    expect(result.current.request?.status).toBe('Running');
+  });
+
+  it('turns a refusal into words', async () => {
+    const { result } = renderHook(() =>
+      useTimesheetReview('TS0001', [], undefined, { submitted: false })
+    );
+    await waitFor(() => expect(result.current.canRequestReview).toBe(true));
+
+    createTimesheetReviewRequest.mockRejectedValue(
+      new Error('BC API Error (403): You are not allowed to do this')
+    );
+    await expect(result.current.requestReview()).rejects.toThrow(
+      "You can't ask Poppie to review this timesheet."
+    );
+    createTimesheetReviewRequest.mockRejectedValue(new Error('BC API Error (500)'));
+    await expect(result.current.requestReview()).rejects.toThrow(
+      "Couldn't ask Poppie to look again. Please try again."
+    );
+  });
+
+  it('drops requests when the company changes', async () => {
+    getTimesheetReviewRequests.mockResolvedValue([reviewRequest('Requested')]);
+    const { result, unmount } = renderHook(() =>
+      useTimesheetReview('TS0001', [], undefined, { submitted: false })
+    );
+    await waitFor(() => expect(result.current.request).not.toBeNull());
+    unmount();
+
+    act(() => {
+      useCompanyStore.setState((state) => ({ companyVersion: state.companyVersion + 1 }));
+    });
+    expect(useTimesheetReviewStore.getState().requests).toEqual({});
+    expect(useTimesheetReviewStore.getState().requestsAvailable).toBeNull();
   });
 });

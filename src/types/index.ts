@@ -476,6 +476,22 @@ export interface BCTimesheetReviewLine {
   note: string;
 }
 
+export type TimesheetReviewRequestStatus = 'Requested' | 'Running' | 'Done' | 'Failed';
+
+/** Someone asking Poppie to (re-)review a timesheet now (timesheetReviewRequests API) */
+export interface BCTimesheetReviewRequest {
+  id: string;
+  entryNo: number;
+  timeSheetNo: string;
+  status: TimesheetReviewRequestStatus;
+  progress: string;
+  errorMessage: string;
+  requestedBy?: string;
+  requestedAt?: string;
+  startedAt?: string;
+  finishedAt?: string;
+}
+
 // Poppie's plan reviews (Thyme BC Extension planReviews, planReviewLines, planReviewChanges and
 // planReviewRequests APIs). Poppie reviews the Plan one subject-week at a time - a person's
 // week (Resource) or a project's week (Project) - and stamps each review with the planHash of

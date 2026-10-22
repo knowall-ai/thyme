@@ -168,7 +168,13 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | The panel only shows when the Thyme BC Extension has the `timesheetReviews` and `timesheetReviewLines` API pages; on an older extension Thyme hides it (the browser console shows "timesheetReviews endpoint not found"). Update the extension in BC. If the panel says "Awaiting Poppie's review…" for more than about 10 minutes, check that Poppie's review job is running and can reach the company: Thyme only reads reviews, it doesn't create them.
 
 | Poppie's review says "Out of date"
-| The timesheet's lines or daily hours were changed after Poppie reviewed it (Thyme compares their latest modified time with the review's version stamp). Once the timesheet is submitted again, Poppie re-reviews it on her next pass and the panel updates by itself; no action is needed.
+| The timesheet's lines or daily hours were changed after Poppie reviewed it (Thyme compares their latest modified time with the review's version stamp). Once the timesheet is submitted again, Poppie re-reviews it on her next pass and the panel updates by itself; no action is needed. To have her look sooner, click *Ask Poppie to look again* in the panel.
+
+| There's no *Ask Poppie to look again* button in "Poppie's recommendation"
+| The button needs the Thyme BC Extension release with the `timesheetReviewRequests` API; on an older extension Thyme hides it. Update the extension in Business Central. It only shows once Poppie has reviewed the timesheet, and only to the timesheet's owner and its approvers (on the Time page and on the Approvals card). If clicking it says "You can't ask Poppie to review this timesheet.", BC didn't accept you as the owner or an approver.
+
+| *Ask Poppie to look again* stays on "Queued" or says "Poppie will pick this up when she's back online"
+| Poppie picks review requests up on her 10-minute round, so "Queued" for up to 10 minutes is normal. "Back online" means her heartbeat is more than 5 minutes old: her VM or its jobs aren't running. The request stays queued and runs when she's back; you don't need to ask again. If it never starts, ask an administrator to check Poppie's VM and its review cron job. If the request fails, the panel shows her reason and offers the button again.
 
 | A link opens with "You don't have access to that company in Business Central"
 | Thyme URLs include the environment and company (`/production/{companyId}/projects/...`), and the link points at a company your account can't see. This happens when the company is in an environment you don't have (e.g. a Sandbox), or your BC user hasn't been given access to that company. (1) Ask your Business Central administrator to give your user access to the company in that environment, then sign out of Thyme and back in. (2) Or click *Go to …* to open the same page in your current company instead.
