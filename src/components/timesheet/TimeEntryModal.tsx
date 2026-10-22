@@ -606,13 +606,15 @@ export function TimeEntryModal({
             {entry && (
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
+                size="icon"
                 onClick={handleDelete}
                 disabled={isSubmitting}
-                className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                aria-label="Delete entry"
+                title="Delete entry"
+                className="border-red-500/50 text-red-400 hover:border-red-500 hover:bg-red-500/10 hover:text-red-300"
               >
-                <TrashIcon className="mr-2 h-4 w-4" />
-                Delete
+                <TrashIcon className="h-5 w-5" />
               </Button>
             )}
           </div>
