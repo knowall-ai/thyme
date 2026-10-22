@@ -1,6 +1,7 @@
 import type {
   BCTimesheetReview,
   BCTimesheetReviewLine,
+  BCTimesheetReviewRequest,
   TimesheetReviewSeverity,
   TimesheetReviewVerdict,
 } from '@/types';
@@ -201,4 +202,54 @@ export function buildRejectionComment(
       return `- ${label ? `${label}: ` : ''}${note.note.trim()}`;
     });
   return [review.summary.trim(), points.join('\n')].filter(Boolean).join('\n\n');
+}
+
+// ============================================
+// Requests: asking Poppie to look again
+// ============================================
+
+const REQUEST_STATUSES: readonly BCTimesheetReviewRequest['status'][] = [
+  'Requested',
+  'Running',
+  'Done',
+  'Failed',
+];
+
+export function normalizeTimesheetReviewRequest(
+  raw: Partial<BCTimesheetReviewRequest> & { id: string }
+): BCTimesheetReviewRequest {
+  const entryNo = Number(raw.entryNo);
+  return {
+    id: raw.id,
+    entryNo: Number.isFinite(entryNo) ? entryNo : 0,
+    timeSheetNo: raw.timeSheetNo ?? '',
+    status: raw.status && REQUEST_STATUSES.includes(raw.status) ? raw.status : 'Requested',
+    progress: raw.progress ?? '',
+    errorMessage: raw.errorMessage ?? '',
+    requestedBy: raw.requestedBy,
+    requestedAt: raw.requestedAt,
+    startedAt: raw.startedAt,
+    finishedAt: raw.finishedAt,
+  };
+}
+
+/** Requested or Running: Poppie hasn't finished it yet */
+export function isOpenTimesheetReviewRequest(
+  request: Pick<BCTimesheetReviewRequest, 'status'>
+): boolean {
+  return request.status === 'Requested' || request.status === 'Running';
+}
+
+/**
+ * A request's state in a few words: Poppie's progress while she works, else that it's queued
+ * (she picks requests up on her 10-minute round, or when she's back online).
+ */
+export function timesheetReviewRequestText(
+  request: Pick<BCTimesheetReviewRequest, 'status' | 'progress'>,
+  // From Poppie's heartbeat; undefined when the extension doesn't have one
+  agentOnline?: boolean
+): string {
+  if (request.status === 'Running') return request.progress || 'Reviewing…';
+  if (agentOnline === false) return "Queued: Poppie will pick this up when she's back online.";
+  return 'Queued: Poppie will look within 10 minutes.';
 }

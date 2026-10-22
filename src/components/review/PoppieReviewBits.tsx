@@ -75,6 +75,16 @@ export function PoppieAvatar({
   );
 }
 
+/** A small spinner in the text colour, for "Poppie is on it" lines */
+export function Spinner() {
+  return (
+    <span
+      aria-hidden="true"
+      className="h-2.5 w-2.5 shrink-0 animate-spin rounded-full border border-current border-t-transparent"
+    />
+  );
+}
+
 export function SeverityIcon({ severity, className }: { severity: string; className?: string }) {
   const style = getSeverityStyle(severity);
   const Icon = style.icon;

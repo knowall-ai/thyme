@@ -10,6 +10,9 @@ import {
   latestStamp,
   needsReviewRefresh,
   pickLatestReviews,
+  isOpenTimesheetReviewRequest,
+  normalizeTimesheetReviewRequest,
+  timesheetReviewRequestText,
   worstSeverity,
 } from '@/utils/timesheetReview';
 
@@ -226,5 +229,47 @@ describe('buildRejectionComment', () => {
       note({ timeSheetLineNo: 30000, severity: 'Issue', note: 'Wrong project' }),
     ]);
     expect(comment).toBe('- Line 30000: Wrong project');
+  });
+});
+
+describe('timesheet review requests', () => {
+  it('normalizes a request off the wire', () => {
+    expect(normalizeTimesheetReviewRequest({ id: 'a', entryNo: '7' as unknown as number })).toEqual(
+      {
+        id: 'a',
+        entryNo: 7,
+        timeSheetNo: '',
+        status: 'Requested',
+        progress: '',
+        errorMessage: '',
+        requestedBy: undefined,
+        requestedAt: undefined,
+        startedAt: undefined,
+        finishedAt: undefined,
+      }
+    );
+  });
+
+  it('counts Requested and Running as open', () => {
+    expect(isOpenTimesheetReviewRequest({ status: 'Requested' })).toBe(true);
+    expect(isOpenTimesheetReviewRequest({ status: 'Running' })).toBe(true);
+    expect(isOpenTimesheetReviewRequest({ status: 'Done' })).toBe(false);
+    expect(isOpenTimesheetReviewRequest({ status: 'Failed' })).toBe(false);
+  });
+
+  it("says how far Poppie has got, or that it's queued", () => {
+    expect(timesheetReviewRequestText({ status: 'Running', progress: 'Checking lines…' })).toBe(
+      'Checking lines…'
+    );
+    expect(timesheetReviewRequestText({ status: 'Running', progress: '' })).toBe('Reviewing…');
+    expect(timesheetReviewRequestText({ status: 'Requested', progress: '' })).toBe(
+      'Queued: Poppie will look within 10 minutes.'
+    );
+    expect(timesheetReviewRequestText({ status: 'Requested', progress: '' }, true)).toBe(
+      'Queued: Poppie will look within 10 minutes.'
+    );
+    expect(timesheetReviewRequestText({ status: 'Requested', progress: '' }, false)).toBe(
+      "Queued: Poppie will pick this up when she's back online."
+    );
   });
 });

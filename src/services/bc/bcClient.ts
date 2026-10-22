@@ -32,6 +32,7 @@ import type {
   BCPlanReviewChange,
   BCPlanReviewLine,
   BCPlanReviewRequest,
+  BCTimesheetReviewRequest,
   PlanReviewSubjectType,
   BCTimesheetReview,
   BCTimesheetReviewLine,
@@ -49,6 +50,7 @@ import {
   normalizePlanReviewChange,
   normalizePlanReviewLine,
   normalizePlanReviewRequest,
+  normalizeTimesheetReviewRequest,
   PLAN_REVIEW_PENDING_HASH,
   BC_UNREACHABLE_EVENT,
   getBcRetryDelay,
@@ -2249,6 +2251,50 @@ class BusinessCentralClient {
       if (isEndpointMissing(error)) return null;
       throw error;
     }
+  }
+
+  /**
+   * Open (Requested or Running) "look again" requests for one or more timesheets. Null when
+   * the extension has no timesheetReviewRequests API yet, so the button can be hidden.
+   */
+  async getTimesheetReviewRequests(
+    timeSheetNos: string[]
+  ): Promise<BCTimesheetReviewRequest[] | null> {
+    const nos = [...new Set(timeSheetNos.filter(Boolean))];
+    if (nos.length === 0) return [];
+
+    const subjects = nos.map((no) => `timeSheetNo eq '${this.sanitizeODataString(no)}'`);
+    const filter = `(${subjects.join(' or ')}) and (status eq 'Requested' or status eq 'Running')`;
+    try {
+      const raw = await this.customApiFetchAll<BCTimesheetReviewRequest>(
+        `/timesheetReviewRequests?$filter=${encodeURIComponent(filter)}`
+      );
+      return raw.map(normalizeTimesheetReviewRequest);
+    } catch (error) {
+      if (isEndpointMissing(error)) return null;
+      throw error;
+    }
+  }
+
+  /** Re-read one timesheet review request (to see how a request that's no longer open ended) */
+  async getTimesheetReviewRequest(id: string): Promise<BCTimesheetReviewRequest> {
+    const raw = await this.customApiFetch<BCTimesheetReviewRequest>(
+      `/timesheetReviewRequests(${requireSystemId(id, 'timesheet review request')})`
+    );
+    return normalizeTimesheetReviewRequest(raw);
+  }
+
+  /**
+   * Ask Poppie to (re-)review a timesheet now. BC checks the caller is its owner or an
+   * approver and rejects a second open request for the same timesheet.
+   */
+  async createTimesheetReviewRequest(timeSheetNo: string): Promise<BCTimesheetReviewRequest> {
+    if (!timeSheetNo) throw new Error('BC API: a timesheet number is required');
+    const created = await this.customApiFetch<BCTimesheetReviewRequest>(
+      '/timesheetReviewRequests',
+      { method: 'POST', body: JSON.stringify({ timeSheetNo }) }
+    );
+    return normalizeTimesheetReviewRequest(created);
   }
 
   /**

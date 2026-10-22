@@ -10,8 +10,14 @@ import {
 } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui';
 import type { TimesheetReviewResult } from '@/hooks';
-import { buildRejectionComment, cn } from '@/utils';
-import { PoppieAvatar, SeverityIcon, VERDICT_TONE_CLASSES } from './PoppieReviewBits';
+import { useAgentPresence } from '@/hooks/useAgentPresence';
+import {
+  buildRejectionComment,
+  cn,
+  isOpenTimesheetReviewRequest,
+  timesheetReviewRequestText,
+} from '@/utils';
+import { PoppieAvatar, SeverityIcon, Spinner, VERDICT_TONE_CLASSES } from './PoppieReviewBits';
 
 interface PoppieReviewPanelProps {
   result: TimesheetReviewResult;
@@ -132,6 +138,7 @@ export function PoppieReviewPanel({
             Out of date
           </span>
         )}
+        <AskPoppieAgain result={result} />
         {collapsible && (
           <button
             type="button"
@@ -156,7 +163,9 @@ export function PoppieReviewPanel({
             <p className="rounded-md bg-amber-500/10 px-2 py-1 text-xs text-amber-300">
               {submitted
                 ? 'This timesheet changed after Poppie reviewed it. Poppie will re-review the changes shortly.'
-                : 'This timesheet changed after Poppie reviewed it. Poppie will take another look once it’s resubmitted.'}
+                : result.canRequestReview
+                  ? 'This timesheet changed after Poppie reviewed it. Ask her to look again, or she will once it’s resubmitted.'
+                  : 'This timesheet changed after Poppie reviewed it. Poppie will take another look once it’s resubmitted.'}
             </p>
           )}
 
@@ -206,6 +215,68 @@ export function PoppieReviewPanel({
             )}
           </div>
         </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * "Ask Poppie to look again", or while she's on it, how far she's got. A failed request says
+ * why and offers the button again. Hidden on extensions without review requests.
+ */
+function AskPoppieAgain({ result }: { result: TimesheetReviewResult }) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { request, canRequestReview, requestReview } = result;
+  const isOpen = !!request && isOpenTimesheetReviewRequest(request);
+  // Poppie's heartbeat: only worth reading while a request waits for her
+  const presence = useAgentPresence(isOpen && request.status === 'Requested');
+
+  if (!canRequestReview) return null;
+
+  if (isOpen) {
+    const agentOnline = presence.isAvailable ? presence.state === 'online' : undefined;
+    return (
+      <p className="flex items-center gap-1.5 text-xs text-purple-300" role="status">
+        <Spinner />
+        {timesheetReviewRequestText(request, agentOnline)}
+      </p>
+    );
+  }
+
+  const ask = async () => {
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await requestReview();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't ask Poppie to look again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const failed = request?.status === 'Failed';
+  return (
+    <>
+      <button
+        type="button"
+        disabled={isSubmitting}
+        onClick={ask}
+        className="text-knowall-green focus-visible:ring-knowall-green rounded text-xs font-medium hover:underline focus:outline-none focus-visible:ring-2 disabled:opacity-50"
+      >
+        {isSubmitting ? 'Asking…' : 'Ask Poppie to look again'}
+      </button>
+      {error ? (
+        <span className="basis-full pl-10 text-xs text-red-300" role="alert">
+          {error}
+        </span>
+      ) : (
+        failed && (
+          <span className="basis-full pl-10 text-xs text-red-300" role="alert">
+            {request.errorMessage || "Poppie couldn't review this timesheet."}
+          </span>
+        )
       )}
     </>
   );
