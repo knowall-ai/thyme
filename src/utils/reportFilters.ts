@@ -9,6 +9,7 @@
 
 import type { BCProject, TimeEntry } from '@/types';
 import { isInternalProject } from './billable';
+import { getProjectCustomer } from './projectCustomer';
 import { addStageHours, emptyStageHours, type StageHours } from './timesheetStatus';
 import type { PersonHours, StagedTimeEntry } from './teamHours';
 
@@ -34,7 +35,12 @@ export interface ReportProject {
 /** The fields of a BC project needed for its name and client */
 export type ReportProjectSource = Pick<
   BCProject,
-  'displayName' | 'billToCustomerNo' | 'billToCustomerName' | 'billToIsCompany'
+  | 'displayName'
+  | 'sellToCustomerNo'
+  | 'sellToCustomerName'
+  | 'billToCustomerNo'
+  | 'billToCustomerName'
+  | 'billToIsCompany'
 >;
 
 /**
@@ -49,14 +55,12 @@ export function getReportProject(
   const name = source?.displayName?.trim() || fallbackName?.trim() || number || 'Unknown Project';
   if (!source) return { number, name, client: UNKNOWN_CLIENT };
   if (isInternalProject(source)) return { number, name, client: INTERNAL_CLIENT };
-  const customerNo = source.billToCustomerNo?.trim() ?? '';
+  // The client the work is for (Sell-to, else Bill-to); internal still goes by Bill-to
+  const customer = getProjectCustomer(source);
   return {
     number,
     name,
-    client: {
-      id: `customer:${customerNo}`,
-      name: source.billToCustomerName?.trim() || customerNo,
-    },
+    client: { id: `customer:${customer.number}`, name: customer.name },
   };
 }
 

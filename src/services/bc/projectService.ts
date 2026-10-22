@@ -1,6 +1,7 @@
 import { bcClient } from './bcClient';
 import type { Project, Task, BCProject, BCJobTask, BCJobPlanningLine } from '@/types';
 import { compareProjectsByName } from '@/utils/projectSort';
+import { getProjectCustomerName } from '@/utils/projectCustomer';
 import {
   buildUOMConversionMap,
   collectProjectTimeRows,
@@ -63,7 +64,8 @@ function warnIfBlockedFieldMissing(bcProjects: BCProject[]): void {
   }
 }
 
-// The Thyme BC Extension API (v1.7+) returns displayName, billToCustomerName and status fields.
+// The Thyme BC Extension API (v1.7+) returns displayName, billToCustomerName and status fields,
+// and (v1.27+) sellToCustomerName.
 
 function mapBCProjectToProject(bcProject: BCProject, index: number, favorites: string[]): Project {
   // Map BC status to Thyme status — blocked projects are archived
@@ -78,7 +80,7 @@ function mapBCProjectToProject(bcProject: BCProject, index: number, favorites: s
     id: bcProject.id,
     code: bcProject.number,
     name: bcProject.displayName || bcProject.number,
-    customerName: bcProject.billToCustomerName || 'Unknown',
+    customerName: getProjectCustomerName(bcProject) || 'Unknown',
     isInternal: isInternalProject(bcProject),
     color: getProjectColor(index),
     status,
