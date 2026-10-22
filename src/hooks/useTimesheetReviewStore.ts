@@ -242,6 +242,14 @@ export const useTimesheetReviewStore = create<TimesheetReviewStore>((set, get) =
         set((state) => ({ requests: { ...state.requests, [timeSheetNo]: created } }));
       } catch (error) {
         if (!isCurrent()) return;
+        const message = error instanceof Error ? error.message : '';
+        if (!/already (been requested|open)/i.test(message)) {
+          throw new Error(
+            /not allowed|permission/i.test(message)
+              ? "You can't ask Poppie to review this timesheet."
+              : "Couldn't ask Poppie to look again. Please try again."
+          );
+        }
         // Someone (maybe in another tab) already asked: follow their request instead
         const open = await bcClient.getTimesheetReviewRequests([timeSheetNo]).catch(() => null);
         if (!isCurrent()) return;
@@ -250,11 +258,7 @@ export const useTimesheetReviewStore = create<TimesheetReviewStore>((set, get) =
           set((state) => ({ requests: { ...state.requests, [timeSheetNo]: existing } }));
           return;
         }
-        throw new Error(
-          error instanceof Error && /not allowed|permission/i.test(error.message)
-            ? "You can't ask Poppie to review this timesheet."
-            : "Couldn't ask Poppie to look again. Please try again."
-        );
+        throw new Error("Couldn't ask Poppie to look again. Please try again.");
       }
     },
 

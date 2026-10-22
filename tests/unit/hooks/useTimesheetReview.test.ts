@@ -435,7 +435,11 @@ describe('useTimesheetReview: asking Poppie to look again', () => {
     );
     await waitFor(() => expect(result.current.canRequestReview).toBe(true));
 
-    createTimesheetReviewRequest.mockRejectedValue(new Error('BC API Error (400): already open'));
+    createTimesheetReviewRequest.mockRejectedValue(
+      new Error(
+        'BC API Error (400): A review of time sheet TS0001 has already been requested (entry 1).'
+      )
+    );
     getTimesheetReviewRequests.mockResolvedValue([reviewRequest('Running')]);
     await act(async () => {
       await result.current.requestReview();
@@ -448,6 +452,7 @@ describe('useTimesheetReview: asking Poppie to look again', () => {
       useTimesheetReview('TS0001', [], undefined, { submitted: false })
     );
     await waitFor(() => expect(result.current.canRequestReview).toBe(true));
+    getTimesheetReviewRequests.mockClear();
 
     createTimesheetReviewRequest.mockRejectedValue(
       new Error('BC API Error (403): You are not allowed to do this')
@@ -459,6 +464,8 @@ describe('useTimesheetReview: asking Poppie to look again', () => {
     await expect(result.current.requestReview()).rejects.toThrow(
       "Couldn't ask Poppie to look again. Please try again."
     );
+    // Only a duplicate refusal goes looking for someone else's request
+    expect(getTimesheetReviewRequests).not.toHaveBeenCalledWith(['TS0001']);
   });
 
   it('drops requests when the company changes', async () => {
