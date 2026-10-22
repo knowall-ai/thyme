@@ -268,12 +268,12 @@ function AskPoppieAgain({ result }: { result: TimesheetReviewResult }) {
         {isSubmitting ? 'Asking…' : 'Ask Poppie to look again'}
       </button>
       {error ? (
-        <span className="text-xs text-red-300" role="alert">
+        <span className="basis-full pl-10 text-xs text-red-300" role="alert">
           {error}
         </span>
       ) : (
         failed && (
-          <span className="text-xs text-red-300">
+          <span className="basis-full pl-10 text-xs text-red-300">
             {request.errorMessage || "Poppie couldn't review this timesheet."}
           </span>
         )
