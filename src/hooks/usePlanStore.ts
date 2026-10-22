@@ -8,6 +8,7 @@ import type {
 } from '@/types';
 import { bcClient, ExtensionNotInstalledError } from '@/services/bc';
 import { activeCompanyKey } from './companyScope';
+import { getProjectCustomerName } from '@/utils/projectCustomer';
 import {
   getTimesheetDisplayStatus,
   buildUOMConversionMap,
@@ -113,7 +114,8 @@ interface CachedProject {
   id: string;
   number: string;
   displayName: string;
-  billToCustomerName: string;
+  /** The customer the work is for (see getProjectCustomer) */
+  customerName: string;
   startingDate?: string;
   endingDate?: string;
   /** Whether the signed-in user may change plans (see canEditPlan in utils/dayNotes) */
@@ -341,7 +343,7 @@ function rebuildFromCache(
       id: p.id,
       number: p.number,
       name: p.displayName || p.number,
-      customerName: p.billToCustomerName || '',
+      customerName: p.customerName,
       color: getProjectColor(i),
       allocations: [],
       totalHours: 0,
@@ -461,7 +463,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
           id: p.id,
           number: p.number,
           displayName: p.displayName || p.number,
-          billToCustomerName: p.billToCustomerName || '',
+          customerName: getProjectCustomerName(p),
           startingDate: p.startingDate,
           endingDate: p.endingDate,
           canEditPlan: p.canEditPlan,

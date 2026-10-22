@@ -172,6 +172,8 @@ Reports (Billable Hours, Billable %, per-project and per-day splits, CSV export)
 * the timesheet line isn't marked not chargeable (`chargeable` on `/timeSheetLines` is not `false`), and
 * its project isn't *internal*.
 
+A project has two customers in BC. The *Sell-to Customer* is who the work is for, and the *Bill-to Customer* who pays. They're usually the same; with work that comes through a partner, Sell-to is the end client and Bill-to the partner. Thyme shows and groups projects by the Sell-to customer (falling back to Bill-to when there's no Sell-to), so the client doesn't need to be in the project's name. Whether time is billable goes by the Bill-to customer.
+
 A project is internal when it has no bill-to customer (`billToCustomerNo` is empty), its bill-to customer's name contains "Internal" as a whole word (case-insensitive, e.g. "Contoso - Internal"; "Contoso International" doesn't count), or the bill-to customer is the company itself: its name matches the company's display name or its Company Information name, ignoring case, punctuation and spacing (e.g. a project in CRONUS UK Ltd. billed to the customer "CRONUS UK Ltd"). So an internal customer can carry the company's own name instead of "Internal".
 
 NOTE: BC defaults `chargeable` to true on every timesheet line, internal projects included, so the line flag alone can't separate internal time. If a project's details can't be loaded, its time is judged on the line's `chargeable` flag alone.

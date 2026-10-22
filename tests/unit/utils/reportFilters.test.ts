@@ -137,6 +137,35 @@ describe('getReportProject', () => {
     );
   });
 
+  it('uses the Sell-to customer as the client when the work comes through a partner', () => {
+    const partnerWork = {
+      displayName: 'Support Block 1',
+      sellToCustomerNo: 'C30000',
+      sellToCustomerName: 'Fabrikam, Inc.',
+      billToCustomerNo: 'C40000',
+      billToCustomerName: 'Northwind Partners',
+    };
+    expect(getReportProject('PR-PARTNER', partnerWork).client).toEqual({
+      id: 'customer:C30000',
+      name: 'Fabrikam, Inc.',
+    });
+    // Grouped with the client's direct projects, by customer number
+    expect(
+      getReportProject('PR-PARTNER', { ...partnerWork, sellToCustomerNo: 'C20000' }).client.id
+    ).toBe(getReportProject('PR-FABRIKAM', projectsByNumber.get('PR-FABRIKAM')).client.id);
+  });
+
+  it('still counts a project as internal by its Bill-to customer, whatever its Sell-to', () => {
+    expect(
+      getReportProject('INT-SELL', {
+        displayName: 'Admin',
+        sellToCustomerNo: 'C10000',
+        sellToCustomerName: 'Contoso Ltd.',
+        billToCustomerNo: '',
+      }).client
+    ).toBe(INTERNAL_CLIENT);
+  });
+
   it('groups internal projects under Internal, as the billable rule does', () => {
     for (const number of ['INT-ADMIN', 'INT-SELF', 'INT-NONE']) {
       expect(getReportProject(number, projectsByNumber.get(number)).client).toBe(INTERNAL_CLIENT);

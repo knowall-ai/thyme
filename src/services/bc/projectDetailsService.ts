@@ -1,5 +1,6 @@
 import { bcClient } from './bcClient';
 import type { Project, Task, BCJobPlanningLine, BCTimeEntry } from '@/types';
+import { getProjectCustomerName } from '@/utils/projectCustomer';
 import {
   getWeekStart,
   buildUOMConversionMap,
@@ -187,7 +188,7 @@ export const projectDetailsService = {
     const favorites = getFavorites();
 
     // Get customer name and dates from the project data (from extension's /projects endpoint)
-    const customerName = bcProject.billToCustomerName || 'Unknown';
+    const customerName = getProjectCustomerName(bcProject) || 'Unknown';
     const startDate = bcProject.startingDate;
     const endDate = bcProject.endingDate;
 

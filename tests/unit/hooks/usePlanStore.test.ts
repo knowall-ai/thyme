@@ -8,7 +8,16 @@ vi.mock('@/services/bc', () => ({
   bcClient: {
     getResources: vi.fn(async () => [{ id: 'r1', number: 'RES01', name: 'Alex Contoso' }]),
     getProjects: vi.fn(async () => [
-      { id: 'p1', number: 'PR001', displayName: 'Contoso Website', billToCustomerName: '' },
+      {
+        id: 'p1',
+        number: 'PR001',
+        displayName: 'Contoso Website',
+        // Partner work: the end client is Sell-to, the partner who pays is Bill-to
+        sellToCustomerNo: 'C10000',
+        sellToCustomerName: 'Contoso Ltd.',
+        billToCustomerNo: 'C40000',
+        billToCustomerName: 'Northwind Partners',
+      },
     ]),
     getJobTasks: vi.fn(async () => []),
     getJobPlanningLines: (...args: unknown[]) => getJobPlanningLines(...args),
@@ -182,6 +191,13 @@ describe('usePlanStore planned hours beyond the weeks in view', () => {
     expect(totals(projects[0].plannedDays)).toEqual({ all: 18, fromToday: 10 });
     expect(teamMembers[0].totalHours).toBe(4);
     expect(totals(teamMembers[0].plannedDays)).toEqual({ all: 18, fromToday: 10 });
+  });
+
+  it("shows a project's Sell-to customer, the client the work is for", async () => {
+    getJobPlanningLines.mockResolvedValue([]);
+    await usePlanStore.getState().fetchTeamData(startOfWeek(new Date(), { weekStartsOn: 1 }), 1);
+
+    expect(usePlanStore.getState().projects[0].customerName).toBe('Contoso Ltd.');
   });
 
   it('keeps the counts when moving to weeks already loaded', async () => {

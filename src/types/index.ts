@@ -87,6 +87,11 @@ export interface BCProject {
   id: string;
   number: string;
   displayName: string;
+  // Sell-to customer: who the work is for (the end client when it comes through a partner).
+  // Requires Thyme BC Extension 1.27.0.1+ (undefined on older versions); see getProjectCustomer
+  sellToCustomerNo?: string;
+  sellToCustomerName?: string;
+  // Bill-to customer: who pays (the partner, for partner work); decides whether time is billable
   billToCustomerNo?: string;
   billToCustomerName?: string;
   status?: 'Open' | 'Completed' | 'Planning';

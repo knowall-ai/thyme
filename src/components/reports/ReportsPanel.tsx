@@ -185,7 +185,7 @@ export function ReportsPanel() {
   const [period, setPeriod] = useState<ReportPeriod>(initialQuery.period);
   const [people, setPeople] = useState<PersonHours[]>([]);
   const [projectsUnavailable, setProjectsUnavailable] = useState(false);
-  // The period's projects (bill-to customers and names), from the same load
+  // The period's projects (customers and names), from the same load
   const [projectsByNumber, setProjectsByNumber] = useState(NO_PROJECTS);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -281,7 +281,7 @@ export function ReportsPanel() {
     fetchProjects();
   }, [fetchProjects]);
 
-  // Every project with time in the period, with its name and client (bill-to customer)
+  // Every project with time in the period, with its name and client (Sell-to, else Bill-to customer)
   const projectsByCode = useMemo(() => new Map(projects.map((p) => [p.code, p])), [projects]);
   const reportProjects = useMemo(
     () =>
