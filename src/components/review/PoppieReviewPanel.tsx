@@ -273,7 +273,7 @@ function AskPoppieAgain({ result }: { result: TimesheetReviewResult }) {
         </span>
       ) : (
         failed && (
-          <span className="basis-full pl-10 text-xs text-red-300">
+          <span className="basis-full pl-10 text-xs text-red-300" role="alert">
             {request.errorMessage || "Poppie couldn't review this timesheet."}
           </span>
         )
