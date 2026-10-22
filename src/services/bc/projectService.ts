@@ -65,7 +65,7 @@ function warnIfBlockedFieldMissing(bcProjects: BCProject[]): void {
 }
 
 // The Thyme BC Extension API (v1.7+) returns displayName, billToCustomerName and status fields,
-// and (v1.27+) sellToCustomerName.
+// and (v1.27.0.1+) sellToCustomerName.
 
 function mapBCProjectToProject(bcProject: BCProject, index: number, favorites: string[]): Project {
   // Map BC status to Thyme status — blocked projects are archived
