@@ -159,7 +159,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
 
   // Get unique customers for the filter dropdown
   const uniqueCustomers = useMemo(() => {
-    return uniqueCustomerOptions(filteredProjects).sort((a, b) => a.name.localeCompare(b.name));
+    return uniqueCustomerOptions(filteredProjects);
   }, [filteredProjects]);
 
   // Apply filter and sort

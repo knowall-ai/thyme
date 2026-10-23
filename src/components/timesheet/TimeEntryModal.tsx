@@ -8,7 +8,7 @@ import { useTimeEntriesStore, useProjectsStore, useSettingsStore } from '@/hooks
 import { useAuth } from '@/services/auth';
 import { bcClient } from '@/services/bc/bcClient';
 import type { TimeEntry, SelectOption, Project } from '@/types';
-import { customerOptionValue } from '@/utils/customerKey';
+import { getCustomerKey, uniqueCustomerOptions } from '@/utils/customerKey';
 import { formatDate, formatDateForDisplay, getWeekDays } from '@/utils';
 import { bcErrorText, type SourceLinkCandidate } from '@/utils/projectSourceLinks';
 
@@ -110,24 +110,19 @@ export function TimeEntryModal({
   }, [projects, entry]);
 
   // Get unique customers from available projects
-  const customerOptions: SelectOption[] = useMemo(() => {
-    const customers = new Map<string, string>();
-    availableProjects.forEach((p) => {
-      const key = customerOptionValue(p);
-      // Use the first occurrence's display name, but dedupe by customer number
-      if (!customers.has(key)) {
-        customers.set(key, (p.customerName || 'Unknown').trim());
-      }
-    });
-    return Array.from(customers, ([value, label]) => ({ value, label })).sort((a, b) =>
-      a.label.localeCompare(b.label)
-    );
-  }, [availableProjects]);
+  const customerOptions: SelectOption[] = useMemo(
+    () =>
+      uniqueCustomerOptions(availableProjects).map(({ key, name }) => ({
+        value: key,
+        label: key === 'none' ? 'Unknown' : name,
+      })),
+    [availableProjects]
+  );
 
   // Check if we should show customer dropdown (hide if only one customer or all "Unknown")
   const showCustomerDropdown =
     customerOptions.length > 1 ||
-    (customerOptions.length === 1 && customerOptions[0].label !== 'Unknown');
+    (customerOptions.length === 1 && customerOptions[0].value !== 'none');
 
   // Filter available projects by selected customer (or show all if customer dropdown is hidden)
   const filteredProjects = useMemo(() => {
@@ -137,7 +132,7 @@ export function TimeEntryModal({
     if (!customerId) {
       return [];
     }
-    return availableProjects.filter((p) => customerOptionValue(p) === customerId);
+    return availableProjects.filter((p) => getCustomerKey(p) === customerId);
   }, [availableProjects, customerId, showCustomerDropdown]);
 
   // Helper to find the matching customerOption value for a project's customer
@@ -147,7 +142,7 @@ export function TimeEntryModal({
       // No known customer (e.g. a new entry with no project chosen): leave it empty so the
       // person picks one, rather than defaulting to the first customer in the list
       if (!project?.customerNo?.trim() && !project?.customerName) return '';
-      const value = customerOptionValue(project);
+      const value = getCustomerKey(project);
       const matchingOption = customerOptions.find((opt) => opt.value === value);
       // Unknown customer: leave it empty too, never guess another customer
       return matchingOption?.value ?? '';
