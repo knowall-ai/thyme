@@ -46,6 +46,7 @@ import {
   type ProjectStatus,
 } from '@/utils/projectStatusFilter';
 import { compareProjectsByName } from '@/utils/projectSort';
+import { getCustomerKey, getCustomerLabel, uniqueCustomerOptions } from '@/utils/customerKey';
 
 type SortOption =
   | 'name-desc'
@@ -158,11 +159,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
 
   // Get unique customers for the filter dropdown
   const uniqueCustomers = useMemo(() => {
-    const customers = new Set<string>();
-    filteredProjects.forEach((p) => {
-      customers.add(p.customerName || 'No Customer');
-    });
-    return Array.from(customers).sort();
+    return uniqueCustomerOptions(filteredProjects).sort((a, b) => a.name.localeCompare(b.name));
   }, [filteredProjects]);
 
   // Apply filter and sort
@@ -171,7 +168,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
 
     // Apply customer filter
     if (customerFilter !== 'all') {
-      result = result.filter((p) => (p.customerName || 'No Customer') === customerFilter);
+      result = result.filter((p) => getCustomerKey(p) === customerFilter);
     }
 
     // Apply favorites filter
@@ -240,9 +237,10 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
       { key: string; customer: string; internal: boolean; projects: Project[] }
     >();
     for (const project of processedProjects) {
-      const customer = project.customerName || 'No Customer';
+      const customerKey = getCustomerKey(project);
+      const customer = getCustomerLabel(project);
       const internal = separateInternal && !!project.isInternal;
-      const key = internal ? `${customer}::internal` : customer;
+      const key = internal ? `${customerKey}::internal` : customerKey;
       const group = groups.get(key) ?? { key, customer, internal, projects: [] };
       group.projects.push(project);
       groups.set(key, group);
@@ -316,7 +314,10 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
                 className="w-48"
                 options={[
                   { value: 'all', label: 'All Customers' },
-                  ...uniqueCustomers.map((customer) => ({ value: customer, label: customer })),
+                  ...uniqueCustomers.map((customer) => ({
+                    value: customer.key,
+                    label: customer.name,
+                  })),
                 ]}
               />
             </div>

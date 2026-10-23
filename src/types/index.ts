@@ -604,6 +604,8 @@ export interface Project {
   id: string;
   code: string;
   name: string;
+  /** The BC customer number: the key. customerName is for display only. */
+  customerNo?: string;
   customerName?: string;
   isInternal?: boolean; // No bill-to customer, an "Internal" one, or the company itself: its time is never billable
   color: string;

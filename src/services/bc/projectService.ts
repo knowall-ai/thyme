@@ -1,7 +1,7 @@
 import { bcClient } from './bcClient';
 import type { Project, Task, BCProject, BCJobTask, BCJobPlanningLine } from '@/types';
 import { compareProjectsByName } from '@/utils/projectSort';
-import { getProjectCustomerName } from '@/utils/projectCustomer';
+import { getProjectCustomer, getProjectCustomerName } from '@/utils/projectCustomer';
 import {
   buildUOMConversionMap,
   collectProjectTimeRows,
@@ -80,6 +80,7 @@ function mapBCProjectToProject(bcProject: BCProject, index: number, favorites: s
     id: bcProject.id,
     code: bcProject.number,
     name: bcProject.displayName || bcProject.number,
+    customerNo: getProjectCustomer(bcProject).number || undefined,
     customerName: getProjectCustomerName(bcProject) || 'Unknown',
     isInternal: isInternalProject(bcProject),
     color: getProjectColor(index),
