@@ -7,7 +7,8 @@ import { Modal, Button, Input, Select } from '@/components/ui';
 import { useTimeEntriesStore, useProjectsStore, useSettingsStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
 import { bcClient } from '@/services/bc/bcClient';
-import type { TimeEntry, SelectOption } from '@/types';
+import type { TimeEntry, SelectOption, Project } from '@/types';
+import { getCustomerKey, uniqueCustomerOptions } from '@/utils/customerKey';
 import { formatDate, formatDateForDisplay, getWeekDays } from '@/utils';
 import { bcErrorText, type SourceLinkCandidate } from '@/utils/projectSourceLinks';
 
@@ -109,25 +110,19 @@ export function TimeEntryModal({
   }, [projects, entry]);
 
   // Get unique customers from available projects
-  const customerOptions: SelectOption[] = useMemo(() => {
-    const customers = new Map<string, string>();
-    availableProjects.forEach((p) => {
-      const customerName = (p.customerName || 'Unknown').trim();
-      const normalizedKey = customerName.toLowerCase();
-      // Use the first occurrence's display name, but dedupe by normalized key
-      if (!customers.has(normalizedKey)) {
-        customers.set(normalizedKey, customerName);
-      }
-    });
-    return Array.from(customers.values())
-      .sort()
-      .map((name) => ({ value: name, label: name }));
-  }, [availableProjects]);
+  const customerOptions: SelectOption[] = useMemo(
+    () =>
+      uniqueCustomerOptions(availableProjects).map(({ key, name }) => ({
+        value: key,
+        label: key === 'none' ? 'Unknown' : name,
+      })),
+    [availableProjects]
+  );
 
   // Check if we should show customer dropdown (hide if only one customer or all "Unknown")
   const showCustomerDropdown =
     customerOptions.length > 1 ||
-    (customerOptions.length === 1 && customerOptions[0].value !== 'Unknown');
+    (customerOptions.length === 1 && customerOptions[0].value !== 'none');
 
   // Filter available projects by selected customer (or show all if customer dropdown is hidden)
   const filteredProjects = useMemo(() => {
@@ -137,26 +132,19 @@ export function TimeEntryModal({
     if (!customerId) {
       return [];
     }
-    // Use case-insensitive, trimmed comparison for robustness
-    const normalizedCustomerId = customerId.trim().toLowerCase();
-    return availableProjects.filter((p) => {
-      const projectCustomer = (p.customerName || 'Unknown').trim().toLowerCase();
-      return projectCustomer === normalizedCustomerId;
-    });
+    return availableProjects.filter((p) => getCustomerKey(p) === customerId);
   }, [availableProjects, customerId, showCustomerDropdown]);
 
-  // Helper to find the matching customerOption value for a customer name
+  // Helper to find the matching customerOption value for a project's customer
   // This ensures the Select dropdown value matches exactly
   const findMatchingCustomerOption = useCallback(
-    (customerName: string | undefined): string => {
+    (project: Pick<Project, 'customerNo' | 'customerName'> | null | undefined): string => {
       // No known customer (e.g. a new entry with no project chosen): leave it empty so the
       // person picks one, rather than defaulting to the first customer in the list
-      if (!customerName) return '';
-      const normalizedName = customerName.trim().toLowerCase();
-      const matchingOption = customerOptions.find(
-        (opt) => opt.value.trim().toLowerCase() === normalizedName
-      );
-      // Unknown customer name: leave it empty too, never guess another customer
+      if (!project?.customerNo?.trim() && !project?.customerName) return '';
+      const value = getCustomerKey(project);
+      const matchingOption = customerOptions.find((opt) => opt.value === value);
+      // Unknown customer: leave it empty too, never guess another customer
       return matchingOption?.value ?? '';
     },
     [customerOptions]
@@ -182,7 +170,7 @@ export function TimeEntryModal({
       // Editing existing entry - entry.projectId is a job code (e.g., "PR00030"), not a GUID
       const project = projects.find((p) => p.code === entry.projectId);
       // Use matching customer option value to ensure Select works correctly
-      const matchedCustomer = findMatchingCustomerOption(project?.customerName);
+      const matchedCustomer = findMatchingCustomerOption(project);
       setCustomerId(matchedCustomer);
       // Use project.id (GUID) for form state since dropdown options use GUIDs
       setProjectId(project?.id || '');
@@ -202,7 +190,7 @@ export function TimeEntryModal({
         : undefined;
       // No project on the suggestion: leave the customer for the user to pick, rather than
       // defaulting to the first one (which would book the time to an unrelated customer)
-      setCustomerId(project ? findMatchingCustomerOption(project.customerName) : '');
+      setCustomerId(project ? findMatchingCustomerOption(project) : '');
       setProjectId(project?.id || '');
       const task = project?.tasks.find((t) => t.code === prefill.taskCode);
       setTaskId(task?.id || '');
@@ -221,7 +209,7 @@ export function TimeEntryModal({
       setLinkChoice(0);
     } else {
       // New entry - use matching customer option value
-      const matchedCustomer = findMatchingCustomerOption(selectedProject?.customerName);
+      const matchedCustomer = findMatchingCustomerOption(selectedProject);
       setCustomerId(matchedCustomer);
       setProjectId(selectedProject?.id || '');
       setTaskId(selectedTask?.id || '');

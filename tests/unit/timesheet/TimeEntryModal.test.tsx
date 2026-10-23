@@ -7,6 +7,7 @@ const projects = [
     id: 'p1',
     code: 'PR00010',
     name: 'Support',
+    customerNo: 'C00010',
     customerName: 'Adatum Corporation',
     status: 'active',
     tasks: [{ id: 't1', code: '100', name: 'Support' }],
@@ -15,9 +16,20 @@ const projects = [
     id: 'p2',
     code: 'PR00020',
     name: 'Portal',
+    customerNo: 'C00280',
     customerName: 'Contoso Ltd',
     status: 'active',
     tasks: [{ id: 't2', code: '200', name: 'Build' }],
+  },
+  {
+    // Same customer number as p2 under a different name: one customer, not two
+    id: 'p3',
+    code: 'PR00030',
+    name: 'Hosting',
+    customerNo: 'C00280',
+    customerName: 'Contoso Limited',
+    status: 'active',
+    tasks: [{ id: 't3', code: '300', name: 'Run' }],
   },
 ];
 
@@ -66,13 +78,20 @@ describe('TimeEntryModal from a suggestion', () => {
   it('leaves the customer unselected when the suggestion has no project', () => {
     open({ key: 's1', hours: 0.75, notes: 'Meeting: Contoso intro' });
     // Adatum sorts first: the old code picked it
-    expect([...customerSelect().options].map((o) => o.value)).toContain('Adatum Corporation');
+    expect([...customerSelect().options].map((o) => o.value)).toContain('no:C00010');
     expect(customerSelect().value).toBe('');
   });
 
   it("selects the project's customer when the suggestion has a project", () => {
     open({ key: 's2', projectCode: 'PR00020', taskCode: '200', hours: 1 });
-    expect(customerSelect().value).toBe('Contoso Ltd');
+    expect(customerSelect().value).toBe('no:C00280');
+  });
+
+  it('lists a customer number once even when its projects carry different names', () => {
+    open({ key: 's3', projectCode: 'PR00030', taskCode: '300', hours: 1 });
+    const options = [...customerSelect().options].filter((o) => o.value);
+    expect(options.map((o) => o.value)).toEqual(['no:C00010', 'no:C00280']);
+    expect(customerSelect().value).toBe('no:C00280');
   });
 });
 
@@ -87,7 +106,7 @@ describe('TimeEntryModal for a new manual entry', () => {
         weekStart={new Date('2026-10-05')}
       />
     );
-    expect([...customerSelect().options].map((o) => o.value)).toContain('Adatum Corporation');
+    expect([...customerSelect().options].map((o) => o.value)).toContain('no:C00010');
     expect(customerSelect().value).toBe('');
   });
 });

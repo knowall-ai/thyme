@@ -1,6 +1,6 @@
 import { bcClient } from './bcClient';
 import type { Project, Task, BCJobPlanningLine, BCTimeEntry } from '@/types';
-import { getProjectCustomerName } from '@/utils/projectCustomer';
+import { getProjectCustomer, getProjectCustomerName } from '@/utils/projectCustomer';
 import {
   getWeekStart,
   buildUOMConversionMap,
@@ -204,6 +204,7 @@ export const projectDetailsService = {
       id: bcProject.id,
       code: bcProject.number,
       name: bcProject.displayName || bcProject.number,
+      customerNo: getProjectCustomer(bcProject).number || undefined,
       customerName,
       isInternal: isInternalProject(bcProject),
       color: PROJECT_COLORS[bcProject.number.charCodeAt(0) % PROJECT_COLORS.length],
