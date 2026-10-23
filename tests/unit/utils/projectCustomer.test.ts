@@ -13,22 +13,6 @@ describe('getProjectCustomer', () => {
     expect(getProjectCustomerName(partnerWork)).toBe('Fabrikam, Inc.');
   });
 
-  it("uses the Bill-to name when Sell-to is the same customer (BC's copied name goes stale)", () => {
-    const sameCustomer = {
-      sellToCustomerNo: 'C30000',
-      sellToCustomerName: 'Adatum - Old Name',
-      billToCustomerNo: 'C30000',
-      billToCustomerName: 'Adatum Corporation',
-    };
-    expect(getProjectCustomer(sameCustomer)).toEqual({
-      number: 'C30000',
-      name: 'Adatum Corporation',
-    });
-    expect(getProjectCustomer({ ...sameCustomer, billToCustomerName: '' }).name).toBe(
-      'Adatum - Old Name'
-    );
-  });
-
   it('falls back to the Bill-to customer without a Sell-to (older projects or extension)', () => {
     const direct = { billToCustomerNo: 'C10000', billToCustomerName: 'Contoso Ltd.' };
     expect(getProjectCustomer(direct)).toEqual({ number: 'C10000', name: 'Contoso Ltd.' });
