@@ -21,13 +21,21 @@ export interface ProjectCustomer {
  * The two differ when the work comes through a partner: Sell-to is the end client and
  * Bill-to the partner who pays. Show and group projects by this customer; whether time is
  * billable still goes by the Bill-to customer (see isInternalProject).
+ *
+ * BC copies a customer's name onto the project when the project is created and doesn't
+ * refresh it when the customer is renamed. When Sell-to and Bill-to are the same customer,
+ * use the Bill-to name, so projects for one customer keep grouping under one name.
  */
 export function getProjectCustomer(project: ProjectCustomerSource): ProjectCustomer {
   const sellToNo = project.sellToCustomerNo?.trim() ?? '';
-  if (sellToNo) {
+  const billToNo = project.billToCustomerNo?.trim() ?? '';
+  if (sellToNo && sellToNo !== billToNo) {
     return { number: sellToNo, name: project.sellToCustomerName?.trim() || sellToNo };
   }
-  const billToNo = project.billToCustomerNo?.trim() ?? '';
+  if (sellToNo) {
+    const name = project.billToCustomerName?.trim() || project.sellToCustomerName?.trim();
+    return { number: sellToNo, name: name || sellToNo };
+  }
   return { number: billToNo, name: project.billToCustomerName?.trim() || billToNo };
 }
 
