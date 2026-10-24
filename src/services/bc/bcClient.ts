@@ -1233,7 +1233,7 @@ class BusinessCentralClient {
       // BC encodes "G/L Account" as "G_x002F_L_x0020_Account"
       return entries.map((entry) => ({ ...entry, type: decodeBCEnum(entry.type) }));
     } catch (error) {
-      if (error instanceof Error && error.message.includes('(404)')) {
+      if (error instanceof Error && error.message.startsWith('BC API Error (404)')) {
         // Expected until the extension is updated: use timeEntries, as before
         this._jobCostEntriesMissing = true;
         return null;
