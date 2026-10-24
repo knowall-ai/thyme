@@ -176,7 +176,7 @@ Timmie shows this as:
 
 AI agents are BC resources with a unit price only: their hours are what's charged, at no unit cost. Their real costs (AI tokens, compute) are posted to the client's project against a dedicated **Machine** resource, e.g. `AI-USAGE` (unit of measure in currency units, unit cost 1, unit price 0, non-chargeable), so its quantity is money, not hours.
 
-Thyme shows these as an **AI** line in the cost and price breakdowns, alongside Resource (now people's and agents' time only), Item and G/L Account. An entry or planning line is AI when its resource is a Machine (`resourceType` on `/jobCostEntries`, Thyme BC Extension 1.28+) or is one of `THYME_AI_RESOURCES` (comma-separated resource numbers, default `AI-USAGE`). AI usage never counts as hours: not in Time Spent, Hours Posted, Planned, Estimate, or the team and task breakdowns.
+Thyme shows these as an **AI** line in the cost and price breakdowns, alongside Resource (now people's and agents' time only), Item and G/L Account. A posted entry is AI when its resource is a Machine (`resourceType` on `/jobCostEntries`, Thyme BC Extension 1.28+) or is one of `THYME_AI_RESOURCES` (comma-separated resource numbers, default `AI-USAGE`). Planning lines and timesheets carry no resource type, so they're matched by `THYME_AI_RESOURCES` only: add any other Machine resource you plan against to it. AI usage never counts as hours: not in Time Spent, Hours Posted, Planned, Estimate, or the team and task breakdowns.
 
 === Billable Hours
 
