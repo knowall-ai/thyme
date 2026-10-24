@@ -29,3 +29,4 @@ export * from './licences';
 export * from './dayNotes';
 export * from './popoverPosition';
 export * from './planReview';
+export * from './aiResources';
