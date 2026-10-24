@@ -135,7 +135,7 @@ The redirect URI is determined dynamically using `window.location.origin`, so it
 - `http://localhost:3000` - Default Next.js port
 - `http://localhost:3101` - Local dev port (configured in package.json)
 - `https://gettimm.ie` - Production
-- `https://slot1-4.timmie.knowall.ai` - Staging slots
+- `https://slot1.timmie.knowall.ai`, `https://slot2.timmie.knowall.ai` - PR preview apps
 
 To check or update redirect URIs:
 

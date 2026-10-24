@@ -8,15 +8,13 @@ on:
         required: true
         type: number
       slot_name:
-        description: 'Target deployment slot'
+        description: 'Target preview app'
         required: false
         default: 'slot1'
         type: choice
         options:
           - slot1
           - slot2
-          - slot3
-          - slot4
 
 concurrency:
   group: deploy-pr-${{ github.event.inputs.slot_name }}
@@ -156,13 +154,18 @@ jobs:
               description: 'Deployment in progress'
             });
 
-      - name: Deploy to Azure App Service Slot
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # Each preview "slot" is its own app on the Basic plan (Basic has no deployment slots),
+      # named after the production app: timmie-knowall-slot1 serves slot1.timmie.knowall.ai
+      - name: Deploy to the preview app
         id: deploy
         uses: azure/webapps-deploy@v3
         with:
-          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
-          slot-name: ${{ inputs.slot_name }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}-${{ inputs.slot_name }}
           package: .next/standalone
           startup-command: 'node server.js'
 
@@ -200,7 +203,7 @@ jobs:
               core.summary.addHeading('Deployment Complete! 🚀', 2);
               core.summary.addRaw(`\n**Environment:** ${{ inputs.slot_name }}\n`);
               core.summary.addRaw(`**Deployment URL:** ${url}\n`);
-              core.summary.addRaw(`\nTest the PR at the deployment slot and verify functionality before merging.\n`);
+              core.summary.addRaw(`\nTest the PR on the preview app and verify functionality before merging.\n`);
               await core.summary.write();
 
               console.log(`✅ PR #${{ inputs.pr_number }} deployed to: ${url}`);
@@ -225,7 +228,7 @@ jobs:
 
             [View deployment details →](${{ github.server_url }}/${{ github.repository }}/deployments)
 
-            Please test the changes in the deployment slot before merging.`;
+            Please test the changes on the preview app before merging.`;
 
             if (previousPR) {
               comment += `\n\n> **Note:** This deployment replaced PR #${previousPR} in ${slotName}.`;

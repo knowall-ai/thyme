@@ -238,7 +238,7 @@ admin one-liner.
 |===
 | Action | Permission required | Notes
 
-| Deploy a PR to a staging slot (`slot1`–`slot4`)
+| Deploy a PR to a preview app (`slot1` or `slot2`)
 | Repo write
 | Run the *Deploy PR to Azure Slot* workflow from the Actions tab.
 
@@ -255,74 +255,47 @@ admin one-liner.
 | `deploy-production.yml` does not declare `environment: production` on its job, so adding required reviewers to the `production` Actions environment would not currently pause the workflow. To add an approval gate, set `environment: production` on the deploy job and configure required reviewers.
 |===
 
-== PR Testing with Deployment Slots
+== PR Testing with Preview Apps
 
 === Overview
 
-The repository includes a manual workflow that allows reviewers to deploy PRs to Azure App Service deployment slots for testing before merging. This enables testing in a production-like environment without affecting the main application.
+A manual workflow deploys a PR to one of two preview apps, so reviewers can test it in a production-like environment without affecting the live app. The workflow and its inputs still call them "slots" (`slot1`, `slot2`).
 
-=== Prerequisites
+Timmie runs on a Basic (B1) App Service plan, which has no deployment slots. Each preview is instead its own App Service on the same plan, named after the production app:
 
-1. **Azure App Service Plan**: Standard tier or higher (required for deployment slots)
-2. **Deployment Slot**: Create a staging slot for PR testing
+[cols="1,2"]
+|===
+| App Service | URL
 
-==== Create Deployment Slots
+| `timmie-knowall` | `https://timmie.knowall.ai` and `https://gettimm.ie` (production)
+| `timmie-knowall-slot1` | `https://slot1.timmie.knowall.ai`
+| `timmie-knowall-slot2` | `https://slot2.timmie.knowall.ai`
+|===
 
-Timmie uses 4 deployment slots (slot1-slot4) for PR testing:
+Extra apps on the same plan cost nothing; they share its memory. That's why there are only two previews and why Always On is off for them.
+
+==== Create a preview app
 
 [source,bash]
 ----
-# Create 4 deployment slots
-for i in {1..4}; do
-  az webapp deployment slot create \
-    --name timmie-knowall \
-    --resource-group <resource-group-name> \
-    --slot "slot${i}"
-done
-
-# You'll configure environment variables per slot in Azure App Service
-# Each slot should have its own redirect URI (e.g., https://slotN.timmie.knowall.ai)
+az webapp create --resource-group KnowAllAIRG --plan timmie-plan \
+  --name timmie-knowall-slot1 --runtime "NODE:24-lts" --startup-file "node server.js"
+az webapp update --resource-group KnowAllAIRG --name timmie-knowall-slot1 --https-only true
 ----
 
-==== Configure slot-specific environment variables
+Then give it its own settings (Configuration → Application settings), copying production's but with its own URLs:
 
-For each deployment slot (`slot1`–`slot4`), configure its own application settings (environment variables) in Azure App Service:
+* `NEXT_PUBLIC_APP_URL` = `https://slot1.timmie.knowall.ai`
+* `NEXT_PUBLIC_AZURE_REDIRECT_URI` = `https://slot1.timmie.knowall.ai`
 
-. In the Azure Portal, open your App Service (for example, `timmie-knowall`).
-. In the left menu, select *Deployment slots* and click the slot you want to configure (for example, `slot1`).
-. In the slot blade, select *Configuration* → *Application settings*.
-. Add or update the environment variables for this slot. For example:
-.. `NEXT_PUBLIC_APP_URL` = `https://slot1.timmie.knowall.ai`
-.. `NEXT_PUBLIC_AZURE_REDIRECT_URI` = `https://slot1.timmie.knowall.ai`
-.. Any other app-specific settings that should differ per slot
-. Click *Save* and allow the slot to restart if prompted.
-. Repeat these steps for `slot2`, `slot3`, and `slot4`, adjusting the values for each slot (e.g., `https://slot2.timmie.knowall.ai`, `https://slot3.timmie.knowall.ai`, etc.).
-
-These settings are *slot-specific*: when you swap slots, their configuration (including redirect URIs) stays with the slot, so each PR environment continues to work correctly.
-
-----
+Add the custom domain (a `slot1.timmie` CNAME to `timmie-knowall-slot1.azurewebsites.net` plus an `asuid.slot1.timmie` TXT record in the `knowall.ai` zone), a free managed certificate, and the URL as a SPA redirect URI on the Entra app registration.
 
 === GitHub Secrets Setup
 
-Configure these secrets in your GitHub repository (Settings → Secrets and variables → Actions):
+The PR workflow uses the same secrets as the production deploy (Settings → Secrets and variables → Actions):
 
-1. **AZURE_WEBAPP_NAME**: Your Azure App Service name (e.g., `timmie-knowall`)
-2. **AZURE_WEBAPP_PUBLISH_PROFILE**: Download from Azure Portal → App Service → Deployment Center → Manage publish profile for the production slot
-
-NOTE: Azure App Service publish profiles can be used across deployment slots when they share the same App Service. The production publish profile works for all slots (slot1-slot4) because they authenticate to the same App Service resource.
-
-To get the publish profile for the production slot:
-
-[source,bash]
-----
-# Download publish profile for the production slot
-az webapp deployment list-publishing-profiles \
-  --name timmie-knowall \
-  --resource-group <resource-group-name> \
-  --xml
-----
-
-Copy the XML output and add it as the `AZURE_WEBAPP_PUBLISH_PROFILE` secret in GitHub.
+1. **AZURE_WEBAPP_NAME**: the production App Service name, `timmie-knowall`. The workflow deploys to `<AZURE_WEBAPP_NAME>-<slot>`, e.g. `timmie-knowall-slot1`.
+2. **AZURE_CREDENTIALS**: the `timmie-github-deploy` service principal, which has Contributor on `timmie-knowall`, `timmie-knowall-slot1` and `timmie-knowall-slot2` only.
 
 === Using the Workflow
 
@@ -331,7 +304,7 @@ Copy the XML output and add it as the `AZURE_WEBAPP_PUBLISH_PROFILE` secret in G
 3. **Run Workflow**: Click "Run workflow" button
 4. **Enter Details**:
    - **PR number**: The pull request number to deploy
-   - **Slot name**: Target deployment slot (default: `slot1`, options: slot1-slot4)
+   - **Slot name**: Target preview app (default: `slot1`, options: `slot1`, `slot2`)
 5. **Monitor**: Watch the workflow execution in the Actions tab
 
 The workflow will:
@@ -384,29 +357,8 @@ After deployment completes:
    - Developer pushes fixes
    - Re-run the workflow to deploy updated code to the same slot
 
-**Available Deployment Slots:**
-- `slot1.timmie.knowall.ai` - Primary testing slot
-- `slot2.timmie.knowall.ai` - Secondary testing slot
-- `slot3.timmie.knowall.ai` - Additional slot for parallel testing
-- `slot4.timmie.knowall.ai` - Additional slot for parallel testing
-
 **Parallel Testing:**
-Multiple PRs can be deployed to different slots simultaneously, allowing reviewers to test several changes in parallel without conflicts.
-
-=== Cleanup
-
-Deployment slots persist until manually deleted. To clean up after testing:
-
-[source,bash]
-----
-# Delete a deployment slot (optional)
-az webapp deployment slot delete \
-  --name timmie-knowall \
-  --resource-group <resource-group-name> \
-  --slot slot1
-----
-
-NOTE: You typically keep the deployment slots (slot1–slot4) and reuse them for multiple PR deployments.
+Two PRs can be deployed at once, one to each preview app. Deploying to a busy preview replaces what's there, and both PRs get a comment saying so.
 
 == Manual Deployment
 
