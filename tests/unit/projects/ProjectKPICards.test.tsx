@@ -64,7 +64,7 @@ function setup({
 }
 
 const card = (label: string) =>
-  within(screen.getByText(label, { selector: 'p' }).closest('div.relative') as HTMLElement);
+  within(screen.getByTestId(`kpi-card-${label.toLowerCase().replace(/\s+/g, '-')}`));
 
 describe('financial KPI cards', () => {
   it('shows the AI line in the Actual Cost breakdown', () => {

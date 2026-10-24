@@ -595,7 +595,12 @@ export function ProjectKPICards() {
           const isHidden = hiddenCards.has(kpi.label);
           const breakdown = kpi.breakdown;
           return (
-            <Card key={kpi.label} variant="bordered" className="relative p-4">
+            <Card
+              key={kpi.label}
+              variant="bordered"
+              className="relative p-4"
+              data-testid={`kpi-card-${kpi.label.toLowerCase().replace(/\s+/g, '-')}`}
+            >
               <div className="absolute top-3 right-3 flex items-center gap-1.5">
                 <VisibilityToggle
                   hidden={isHidden}
