@@ -6,6 +6,7 @@ import { AuthenticatedTemplate, UnauthenticatedTemplate } from '@/services/auth'
 import { bcClient } from '@/services/bc/bcClient';
 import { useCompanyStore } from '@/hooks';
 import { LandingPage } from '@/components/landing/LandingPage';
+import { TenantGate } from '@/components/access/TenantGate';
 import { Button, Card } from '@/components/ui';
 import { isValidCompanyId, legacyToCompanyUrl } from '@/utils/companyPath';
 import { Layout } from './Layout';
@@ -24,7 +25,9 @@ export function LegacyCompanyRedirect() {
         <LandingPage />
       </UnauthenticatedTemplate>
       <AuthenticatedTemplate>
-        <RedirectToCompany />
+        <TenantGate>
+          <RedirectToCompany />
+        </TenantGate>
       </AuthenticatedTemplate>
     </>
   );

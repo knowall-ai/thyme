@@ -17,6 +17,8 @@ import {
 import { Header, PublicFooter } from '@/components/layout';
 import { QuoteDisplay } from '@/components/ui';
 import { ScreenshotCarousel } from './ScreenshotCarousel';
+import { NotApprovedPage } from '@/components/access/NotApprovedPage';
+import { useTenantAccess } from '@/components/access/useTenantAccess';
 
 // Ordered for the three-column grid: each Poppie card sits beside the feature it supports
 const features = [
@@ -129,6 +131,7 @@ const benefits = [
 
 export function LandingPage() {
   const { login, isLoading } = useAuth();
+  const tenantAccess = useTenantAccess();
 
   const handleLogin = async () => {
     try {
@@ -137,6 +140,11 @@ export function LandingPage() {
       toast.error('Failed to sign in. Please try again.');
     }
   };
+
+  // Signed in from an organisation that isn't approved: say so, rather than "Get Started"
+  if (tenantAccess.status === 'denied') {
+    return <NotApprovedPage tenantId={tenantAccess.tenantId} email={tenantAccess.email} />;
+  }
 
   return (
     <div className="bg-dark-950 flex min-h-screen flex-col">
