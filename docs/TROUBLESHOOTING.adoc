@@ -14,6 +14,9 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Every page shows "Couldn't load your Business Central companies" (e.g. "Couldn't load companies from Business Central (sandbox, production)"), "Try again" doesn't help, the avatar shows initials, and the console says "Silent token acquisition failed"
 | Your Microsoft sign-in has expired or needs re-verification (Edge may show a "Verify it's you" badge); Business Central itself is fine. Upgrade to the latest Thyme version: it now detects this and sends you to Microsoft to sign in again, then brings you back to the same page. If that already happened in the last few minutes (to avoid a sign-in loop), or Thyme is open in a popup or frame, it shows "Your sign-in has expired" with a *Sign in again* button instead. On older versions, sign out and sign in again. If signing in keeps coming back to the same message, check Conditional Access / MFA requirements for the user in Entra ID.
 
+| After signing in, Thyme shows "Your organisation isn't set up on Thyme yet"
+| Only organisations KnowAll has approved can use Thyme. The page shows the organisation's tenant ID: add it to the `APPROVED_TENANT_IDS` App Service setting (comma-separated GUIDs) and apply, then reload. "Tenant ID: Unknown" means the sign-in had no tenant (`tid` claim), which is never allowed: sign out and in again with a work account. See _Approved organisations_ in DEPLOYMENT.adoc.
+
 | BC API returns 403 Forbidden
 | User needs appropriate Business Central license and permissions assigned
 
