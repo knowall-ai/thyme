@@ -1,7 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { GET as getConfig } from '@/app/api/config/route';
 import type { BCJobPlanningLine, BCTimeSheetDetail, BCTimeSheetLine } from '@/types';
 import {
   getAiResourceNos,
+  loadAiResources,
+  setAiResources,
   isAiResource,
   sumPlannedHours,
   sumEstimateHours,
@@ -12,6 +15,8 @@ describe('AI usage resources', () => {
   it('defaults to AI-USAGE, and reads a comma-separated THYME_AI_RESOURCES', () => {
     expect([...getAiResourceNos(undefined)]).toEqual(['AI-USAGE']);
     expect([...getAiResourceNos('')]).toEqual(['AI-USAGE']);
+    expect([...getAiResourceNos('   ')]).toEqual(['AI-USAGE']);
+    expect([...getAiResourceNos(' , ,')]).toEqual(['AI-USAGE']);
     expect([...getAiResourceNos(' ai-usage, gpu-hours ,')]).toEqual(['AI-USAGE', 'GPU-HOURS']);
   });
 
@@ -70,5 +75,40 @@ describe('hours never include AI usage resources', () => {
       new Set(['R0010', 'AI-USAGE'])
     );
     expect(rows.map((r) => r.resourceNo)).toEqual(['R0010']);
+  });
+});
+
+describe('THYME_AI_RESOURCES at runtime', () => {
+  afterEach(() => {
+    setAiResources(undefined);
+    vi.unstubAllEnvs();
+  });
+
+  it('is served by /api/config from the server environment, read on each request', async () => {
+    vi.stubEnv('THYME_AI_RESOURCES', 'AI-USAGE,GPU-HOURS');
+    await expect((await getConfig()).json()).resolves.toEqual({
+      aiResources: 'AI-USAGE,GPU-HOURS',
+    });
+    vi.stubEnv('THYME_AI_RESOURCES', 'TOKENS');
+    await expect((await getConfig()).json()).resolves.toEqual({ aiResources: 'TOKENS' });
+  });
+
+  it('is loaded once by the client and then used to classify resources', async () => {
+    setAiResources(undefined);
+    const fetcher = vi.fn(async () => Response.json({ aiResources: 'GPU-HOURS' }));
+    await Promise.all([loadAiResources(fetcher), loadAiResources(fetcher)]);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(isAiResource('GPU-HOURS')).toBe(true);
+    expect(isAiResource('AI-USAGE')).toBe(false);
+  });
+
+  it('keeps the default (AI-USAGE) when the server has none or /api/config fails', async () => {
+    setAiResources(undefined);
+    await loadAiResources(vi.fn(async () => Response.json({ aiResources: '' })));
+    expect(isAiResource('AI-USAGE')).toBe(true);
+
+    setAiResources(undefined);
+    await loadAiResources(vi.fn(async () => Promise.reject(new Error('offline'))));
+    expect(isAiResource('AI-USAGE')).toBe(true);
   });
 });

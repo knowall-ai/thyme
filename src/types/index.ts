@@ -239,8 +239,7 @@ export interface BCTimeEntry {
   id: string;
   jobNo: string;
   jobTaskNo: string;
-  resourceNo: string;
-  quantity: number; // Hours posted
+  quantity: number; // Hours posted (Resource entries; see `type` and `resourceType`)
   totalCost: number; // Internal: actual cost (quantity × unitCost), in LCY
   totalPrice: number; // Customer: invoiced price (quantity × unitPrice), in LCY
   // Project currency (blank = LCY) and the price in it -

@@ -16,6 +16,7 @@ import {
   withoutAbsenceLines,
   type BillingMode,
   type StageHours,
+  loadAiResources,
 } from '@/utils';
 
 /** A project's figures for the Projects list, worked out as on the project page */
@@ -255,6 +256,8 @@ export const projectService = {
     const figures = new Map<string, ProjectFigures>();
     if (projects.length === 0) return figures;
 
+    // Which resources are AI usage (never hours), from the server's THYME_AI_RESOURCES
+    const aiResourcesReady = loadAiResources();
     const [resources, timesheets, jobLines, jobDetails, planningLines, uoms] = await Promise.all([
       bcClient.getResources(),
       bcClient.getTimeSheetsFrom(),
@@ -263,6 +266,8 @@ export const projectService = {
       bcClient.getAllJobPlanningLines().catch(() => []),
       bcClient.getResourceUnitsOfMeasure(),
     ]);
+
+    await aiResourcesReady;
 
     // Time Spent by stage, by the project page's rules
     const resourceNoByTimesheet = new Map(timesheets.map((ts) => [ts.number, ts.resourceNo]));

@@ -242,6 +242,8 @@ class BusinessCentralClient {
   private _environment: BCEnvironmentType;
   private _extensionInstalled: boolean | null = null;
   private _extensionCheckPromise: Promise<boolean> | null = null;
+  // The extension has no /jobCostEntries (404: before 1.28.0.0), so don't ask again
+  private _jobCostEntriesMissing = false;
   // The current company's names, fetched once per company (see getCompanyNames)
   private _companyNames: { key: string; promise: Promise<string[]> } | null = null;
 
@@ -321,6 +323,7 @@ class BusinessCentralClient {
       // Reset extension cache when company/environment changes
       this._extensionInstalled = null;
       this._extensionCheckPromise = null;
+      this._jobCostEntriesMissing = false;
       this._companyNames = null;
     }
   }
@@ -468,6 +471,7 @@ class BusinessCentralClient {
   resetExtensionCache(): void {
     this._extensionInstalled = null;
     this._extensionCheckPromise = null;
+    this._jobCostEntriesMissing = false;
   }
 
   // ============================================
@@ -1211,13 +1215,15 @@ class BusinessCentralClient {
    * real cost and price: non-hour costs such as AI services are posted as G/L Account lines,
    * which /timeEntries (Resource only) doesn't return. Requires Thyme BC Extension 1.28.0.0+.
    *
-   * Returns null when the endpoint isn't there (an older extension: 404) or can't be read,
-   * so the caller falls back to getTimeEntries, as before. Only Resource entries' quantity
-   * is hours: callers must filter on `type`.
+   * Returns null when the endpoint isn't there (an older extension: 404), remembered for this
+   * company until the extension cache is reset, so the caller falls back to getTimeEntries, as
+   * before. Any other failure (401, 403, 429, 500...) throws: falling back would show
+   * Resource-only costs and a wrong margin. Only people's Resource entries' quantity is hours:
+   * callers must classify on `type` and `resourceType`.
    */
   async getJobCostEntries(jobNumber: string): Promise<BCJobCostEntry[] | null> {
     const extensionInstalled = await this.isExtensionInstalled();
-    if (!extensionInstalled) return null;
+    if (!extensionInstalled || this._jobCostEntriesMissing) return null;
 
     const filter = `jobNo eq '${this.sanitizeODataString(jobNumber)}'`;
     try {
@@ -1229,10 +1235,10 @@ class BusinessCentralClient {
     } catch (error) {
       if (error instanceof Error && error.message.includes('(404)')) {
         // Expected until the extension is updated: use timeEntries, as before
+        this._jobCostEntriesMissing = true;
         return null;
       }
-      console.warn('[BC API] jobCostEntries unavailable, using timeEntries instead:', error);
-      return null;
+      throw error;
     }
   }
 

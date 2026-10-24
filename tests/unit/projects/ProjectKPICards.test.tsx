@@ -35,12 +35,14 @@ function setup({
   aiCost = 37.5,
   projectCurrencyCode = 'GBP',
   hiddenKpis = [] as string[],
+  costsIncomplete = false,
 }: {
   invoicedPriceLCY: number;
   actualCost: number;
   aiCost?: number;
   projectCurrencyCode?: string;
   hiddenKpis?: string[];
+  costsIncomplete?: boolean;
 }) {
   useProjectDetailsStore.setState({
     project: { id: 'p1', code: 'PR001', name: 'Contoso Website', isInternal: false },
@@ -54,6 +56,7 @@ function setup({
       invoicedPrice: invoicedPriceLCY,
       invoicedPriceBreakdown: breakdown(invoicedPriceLCY),
       invoicedPriceLCY,
+      costsIncomplete,
     },
     isLoadingAnalytics: false,
     currencyCode: 'GBP',
@@ -103,6 +106,22 @@ describe('financial KPI cards', () => {
 
   it("hides the margin with the Invoiced Price card's own Eye toggle", () => {
     setup({ invoicedPriceLCY: 4000, actualCost: 3000, hiddenKpis: ['Invoiced Price'] });
+    expect(card('Invoiced Price').queryByText(/^Margin/)).not.toBeInTheDocument();
+  });
+
+  it('shows no % and a red margin when nothing is invoiced yet but there are costs', () => {
+    setup({ invoicedPriceLCY: 0, actualCost: 37.5 });
+    const margin = card('Invoiced Price').getByText('Margin -£37.50');
+    expect(margin).toHaveClass('text-red-400');
+    expect(margin.textContent).not.toContain('%');
+  });
+
+  it("warns on the cost and price cards, and drops the margin, when posted costs couldn't load", () => {
+    setup({ invoicedPriceLCY: 4000, actualCost: 3000, costsIncomplete: true });
+    for (const label of ['Actual Cost', 'Invoiced Price']) {
+      expect(card(label).getByRole('status')).toHaveTextContent(/figures incomplete/);
+    }
+    expect(card('Budget Cost').queryByRole('status')).not.toBeInTheDocument();
     expect(card('Invoiced Price').queryByText(/^Margin/)).not.toBeInTheDocument();
   });
 });

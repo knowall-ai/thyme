@@ -28,6 +28,7 @@ import {
   EyeIcon,
   EyeSlashIcon,
   InformationCircleIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 
 // Resources listed on the Estimate and Planned cards before "+N more"
@@ -393,6 +394,9 @@ export function ProjectKPICards() {
   const marginColor =
     margin > 0.005 ? 'text-green-400' : margin < -0.005 ? 'text-red-400' : 'text-gray-400';
   const marginHidden = hiddenCards.has('Invoiced Price') || hiddenCards.has('Actual Cost');
+  // The posted entries couldn't be read, so Actual Cost, Invoiced Price and the margin are
+  // missing rather than zero (no fallback to Resource-only costs, which would be wrong)
+  const costsIncomplete = !!analytics?.costsIncomplete;
 
   // Helper to create BC link for subLabel
   const jobPlanningLinesLink = projectCode ? (
@@ -443,6 +447,7 @@ export function ProjectKPICards() {
     color: string;
     isInternal?: boolean;
     margin?: boolean; // Shows the internal Margin line (Invoiced Price)
+    fromLedger?: boolean; // From posted Job Ledger Entries: warns when they couldn't be read
   }[] = [
     {
       label: 'Budget Cost',
@@ -460,6 +465,7 @@ export function ProjectKPICards() {
       subLabel: jobLedgerEntryLink,
       breakdown: actualBreakdown,
       currency: currencyCode,
+      fromLedger: true,
       icon: BanknotesIcon,
       color:
         !isInternal && actualCost > budgetCost && budgetCost > 0
@@ -485,6 +491,7 @@ export function ProjectKPICards() {
       icon: currencyIcon(projectCurrencyCode),
       color: 'text-green-400',
       margin: true,
+      fromLedger: true,
     },
   ];
 
@@ -651,7 +658,17 @@ export function ProjectKPICards() {
                     </div>
                   )}
                   {/* Internal: masked whenever this card or Actual Cost is hidden */}
-                  {kpi.margin && !isHidden && !marginHidden && (
+                  {/* No figures in it, so shown even when the amount is masked */}
+                  {kpi.fromLedger && costsIncomplete && (
+                    <p
+                      role="status"
+                      className="mt-1 flex items-center gap-1 text-xs text-amber-400"
+                    >
+                      <ExclamationTriangleIcon className="h-3.5 w-3.5 shrink-0" />
+                      Posted costs couldn&apos;t be loaded; figures incomplete
+                    </p>
+                  )}
+                  {kpi.margin && !isHidden && !marginHidden && !costsIncomplete && (
                     <p className={`mt-1 text-xs font-medium ${marginColor}`}>{marginText}</p>
                   )}
                   <p className="mt-1 text-xs text-gray-500">{kpi.subLabel}</p>

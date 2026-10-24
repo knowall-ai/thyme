@@ -16,6 +16,8 @@ import {
   roundToQuarterHour,
   getPlanPreloadWindow,
   type UOMConversionMap,
+  isAiResource,
+  loadAiResources,
 } from '@/utils';
 import { addWeeks, startOfWeek, endOfWeek, format, parseISO, isWithinInterval } from 'date-fns';
 
@@ -539,10 +541,13 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
       // Use cached UOM map or fetch fresh (hoisted so cache save can access it)
       let uomConversionMap: UOMConversionMap = cache?.uomConversionMap ?? new Map();
+      // Which resources are AI usage (THYME_AI_RESOURCES), before any line is counted as hours
+      const aiResourcesReady = loadAiResources();
       if (uomConversionMap.size === 0) {
         const resourceUnitsOfMeasure = await bcClient.getResourceUnitsOfMeasure();
         uomConversionMap = buildUOMConversionMap(resourceUnitsOfMeasure);
       }
+      await aiResourcesReady;
 
       if (weeksToLoad.length > 0) {
         // Calculate date range for weeks to load
@@ -558,8 +563,11 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
               const planningLines = await bcClient.getJobPlanningLines(project.number, {
                 throwOnError: true,
               });
+              // People's (and agents') time only: an AI usage resource's quantity is money
+              // (e.g. AI-USAGE, £1 per unit), never planned hours
               const allResourceLines = planningLines.filter(
-                (line: BCJobPlanningLine) => line.type === 'Resource' && line.quantity > 0
+                (line: BCJobPlanningLine) =>
+                  line.type === 'Resource' && line.quantity > 0 && !isAiResource(line.number)
               );
 
               // Every line counts towards the In view total's note, in any week

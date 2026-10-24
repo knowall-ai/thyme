@@ -23,6 +23,7 @@ import {
   planningLineCostLCY,
   timeEntryPriceProjectCurrency,
   isAiResource,
+  loadAiResources,
 } from '@/utils';
 
 // Color palette for projects (same as projectService)
@@ -136,6 +137,9 @@ export interface ProjectAnalytics {
   invoicedPrice: number; // Σ price (project currency) of posted Job Ledger Entries of every type
   invoicedPriceBreakdown: CostBreakdown; // By Resource/Item/G/L Account
   invoicedPriceLCY: number; // The same in LCY, for the margin against actualCost (LCY)
+  // The posted entries couldn't be read (e.g. 401, 500), so actual cost, invoiced price and
+  // the margin are missing, not zero
+  costsIncomplete: boolean;
   unpostedBillable: number; // Estimated: hoursUnposted × average billable rate
 
   // Legacy - kept for backwards compatibility during transition
@@ -370,6 +374,7 @@ export const projectDetailsService = {
       invoicedPrice: 0,
       invoicedPriceBreakdown: emptyBreakdown(),
       invoicedPriceLCY: 0,
+      costsIncomplete: false,
       unpostedBillable: 0,
       totalHours: 0,
       billableHours: 0,
@@ -393,6 +398,8 @@ export const projectDetailsService = {
     // each is awaited, with its own error handling, where its result is used. The no-op
     // catches only stop a rejection being reported as unhandled before it's awaited.
     const resourcesPromise = bcClient.getResources();
+    // Which resources are AI usage (never hours), from the server's THYME_AI_RESOURCES
+    const aiResourcesReady = loadAiResources();
     const timesheetsPromise = bcClient.getTimeSheetsFrom();
     const jobLinesPromise = bcClient.getTimeSheetLinesForJob(projectNumber);
     const jobDetailsPromise = bcClient.getTimeSheetDetailsForJob(projectNumber);
@@ -462,6 +469,7 @@ export const projectDetailsService = {
 
     // Which hours count is shared with the Projects list, so the two show the same Time
     // Spent. Only people resources (as returned by getResources) count.
+    await aiResourcesReady;
     const timeRows = collectProjectTimeRows(
       jobLines,
       jobDetails,
@@ -620,7 +628,8 @@ export const projectDetailsService = {
       const resourceNosInProject = [
         ...new Set(
           planningLines
-            .filter((l: BCJobPlanningLine) => l.type === 'Resource')
+            // AI usage resources measure money, not time
+            .filter((l: BCJobPlanningLine) => breakdownKey(l.type, l.number) === 'resource')
             .map((l: BCJobPlanningLine) => l.number)
         ),
       ];
@@ -772,11 +781,15 @@ export const projectDetailsService = {
     // Entries of every type, so non-hour costs (e.g. AI services on G/L Account lines) count.
     // Hours come only from Resource entries (see summarizePostedEntries).
     let posted = summarizePostedEntries([], { allTypes: false });
+    let costsIncomplete = false;
     try {
       const { entries, allTypes } = await postedEntriesPromise;
       posted = summarizePostedEntries(entries, { allTypes });
-    } catch {
-      // If the entries can't be fetched, leave values as 0
+    } catch (error) {
+      // jobCostEntries failed for a reason other than not being there: show the costs as
+      // incomplete rather than Resource-only ones (from timeEntries) and a wrong margin
+      console.error('[Project analytics] Posted costs could not be loaded:', error);
+      costsIncomplete = true;
     }
     const {
       hoursPosted,
@@ -964,6 +977,7 @@ export const projectDetailsService = {
       invoicedPrice,
       invoicedPriceBreakdown,
       invoicedPriceLCY,
+      costsIncomplete,
       unpostedBillable,
 
       // Legacy fields (aliases for backwards compatibility)
