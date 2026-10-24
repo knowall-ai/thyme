@@ -52,7 +52,7 @@ vi.mock('@/services/bc', async () => {
       tenantId: 'tenant',
       environment: 'Sandbox',
       getResourceByEmail: vi.fn(async () => null),
-      getThymeSetup: vi.fn(async () => ({ id: 's', defaultBillableTargetPercent: 75 })),
+      getTimmieSetup: vi.fn(async () => ({ id: 's', defaultBillableTargetPercent: 75 })),
     },
   };
 });

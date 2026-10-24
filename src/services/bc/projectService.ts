@@ -1,3 +1,4 @@
+import { migrateLegacyStorageKey } from '@/utils/legacyStorage';
 import { bcClient } from './bcClient';
 import type { Project, Task, BCProject, BCJobTask, BCJobPlanningLine } from '@/types';
 import { compareProjectsByName } from '@/utils/projectSort';
@@ -48,7 +49,7 @@ let warnedNoBlockedField = false;
 
 /**
  * Warn (once per session) if no project in the response carries a `blocked`
- * field. That signals the Thyme BC Extension is older than the version that
+ * field. That signals the Timmie BC Extension is older than the version that
  * exposes `blocked` on /projects, in which case archived projects will fall
  * through to "active" and the hide-archived feature won't apply.
  */
@@ -58,17 +59,17 @@ function warnIfBlockedFieldMissing(bcProjects: BCProject[]): void {
   if (!anyHasBlocked) {
     warnedNoBlockedField = true;
     console.warn(
-      '[Thyme] No project returned a `blocked` field. Archived projects will not be hidden — ' +
-        'install the latest Thyme BC Extension to enable the hide-archived feature.'
+      '[Timmie] No project returned a `blocked` field. Archived projects will not be hidden — ' +
+        'install the latest Timmie BC Extension to enable the hide-archived feature.'
     );
   }
 }
 
-// The Thyme BC Extension API (v1.7+) returns displayName, billToCustomerName and status fields,
+// The Timmie BC Extension API (v1.7+) returns displayName, billToCustomerName and status fields,
 // and (v1.27.0.1+) sellToCustomerName.
 
 function mapBCProjectToProject(bcProject: BCProject, index: number, favorites: string[]): Project {
-  // Map BC status to Thyme status — blocked projects are archived
+  // Map BC status to Timmie status — blocked projects are archived
   const isBlocked = bcProject.blocked && bcProject.blocked !== ' ';
   const status: Project['status'] = isBlocked
     ? 'archived'
@@ -135,7 +136,9 @@ async function loadBCProjects(forceRefresh = false): Promise<BCProject[]> {
 }
 
 // Local storage key for favorites
-const FAVORITES_KEY = 'thyme_favorite_projects';
+const FAVORITES_KEY = 'timmie_favorite_projects';
+
+migrateLegacyStorageKey('thyme_favorite_projects', FAVORITES_KEY);
 
 function getFavorites(): string[] {
   if (typeof window === 'undefined') return [];

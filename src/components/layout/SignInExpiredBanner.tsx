@@ -5,7 +5,7 @@ import { signInAgain, useReauthStore } from '@/services/auth';
 import { Button } from '@/components/ui';
 
 /**
- * App-wide prompt when the Microsoft sign-in has expired and Thyme didn't redirect
+ * App-wide prompt when the Microsoft sign-in has expired and Timmie didn't redirect
  * automatically (it already tried recently, or it's in a popup/frame). Pages that
  * render straight away would otherwise just show empty data.
  */

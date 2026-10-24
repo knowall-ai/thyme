@@ -22,8 +22,17 @@ const BC_PAGES = {
   extensionManagement: 2503, // Extension Management page
 };
 
-// Thyme BC Extension App ID (from app.json in thyme-bc-extension repo)
-const THYME_EXTENSION_APP_ID = 'f879df78-af6d-44cb-987e-ac54c2755e71';
+/** Where to download the Timmie BC Extension */
+export const BC_EXTENSION_GITHUB_URL = 'https://github.com/knowall-ai/timmie-bc-extension';
+
+/**
+ * The extension's name in Business Central (Extension Management, AppSource). It keeps
+ * its pre-rename name, as do its objects (Thyme Setup, the THYME ADMIN permission set).
+ */
+export const BC_EXTENSION_NAME_IN_BC = 'Thyme BC API Extension';
+
+// Timmie BC Extension App ID (from app.json in the extension repo)
+const TIMMIE_EXTENSION_APP_ID = 'f879df78-af6d-44cb-987e-ac54c2755e71';
 
 /**
  * Get the base Business Central URL for the current tenant and environment
@@ -177,12 +186,12 @@ export function getBCJobLedgerEntriesUrl(jobNumber: string, companyName?: string
 
 /**
  * Generate a URL to open the Extension Management page in Business Central
- * filtered to the Thyme BC Extension for installation.
+ * filtered to the Timmie BC Extension for installation.
  * User can click "Install" on this page to install the extension.
  */
 export function getBCExtensionInstallUrl(): string {
   const baseUrl = getBCBaseUrl();
-  // Filter by extension ID to show only the Thyme extension
-  const filter = encodeURIComponent(`'ID' IS '${THYME_EXTENSION_APP_ID}'`);
+  // Filter by extension ID to show only the Timmie extension
+  const filter = encodeURIComponent(`'ID' IS '${TIMMIE_EXTENSION_APP_ID}'`);
   return `${baseUrl}/?page=${BC_PAGES.extensionManagement}&filter=${filter}`;
 }

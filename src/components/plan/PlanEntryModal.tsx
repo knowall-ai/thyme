@@ -22,6 +22,7 @@ import { useSaveSafeUomMap } from './useSaveSafeUomMap';
 import { UomLoadError } from './UomLoadError';
 import type { SelectOption } from '@/types';
 import { format, getWeek, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
+import { BC_EXTENSION_GITHUB_URL } from '@/utils/bcUrls';
 
 interface PlanEntryModalProps {
   isOpen: boolean;
@@ -392,18 +393,14 @@ export function PlanEntryModal({
           </div>
           <h3 className="mb-2 text-lg font-semibold text-white">Extension Required</h3>
           <p className="text-dark-300 mb-4 max-w-sm text-sm">
-            The Thyme BC Extension is required to create planning lines. It provides the project
+            The Timmie BC Extension is required to create planning lines. It provides the project
             tasks needed by Business Central.
           </p>
           <div className="flex gap-3">
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button
-              onClick={() =>
-                window.open('https://github.com/knowall-ai/thyme-bc-extension', '_blank')
-              }
-            >
+            <Button onClick={() => window.open(BC_EXTENSION_GITHUB_URL, '_blank')}>
               Learn More
             </Button>
           </div>

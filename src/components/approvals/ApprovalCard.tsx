@@ -171,7 +171,7 @@ export function ApprovalCard({
   });
   const showDays = daily !== null && weekDays.length > 0;
 
-  // One row per entry (a line's hours on one day), in date order. Thyme puts each entry on its
+  // One row per entry (a line's hours on one day), in date order. Timmie puts each entry on its
   // own line, but a line entered in BC can have hours on several days, so it's split per day.
   // Lines with no hours that week (or before details load) keep their order, at the end.
   const entries = useMemo(() => {
@@ -259,7 +259,7 @@ export function ApprovalCard({
           )}
           {hidePerson && !hideWeek && (
             <div className="flex items-center gap-2">
-              <CalendarDaysIcon className="text-thyme-500 h-8 w-8" />
+              <CalendarDaysIcon className="text-timmie-500 h-8 w-8" />
               <span className="font-medium text-white">
                 {formatDate(timeSheet.startingDate)} - {formatDate(timeSheet.endingDate)}
               </span>
@@ -311,7 +311,7 @@ export function ApprovalCard({
                 'rounded-full px-2 py-1 text-xs font-medium',
                 displayStatus === 'Submitted' && 'bg-amber-500/20 text-amber-400',
                 displayStatus === 'Partially Submitted' && 'bg-amber-500/20 text-amber-400',
-                displayStatus === 'Approved' && 'bg-thyme-500/20 text-thyme-400',
+                displayStatus === 'Approved' && 'bg-timmie-500/20 text-timmie-400',
                 displayStatus === 'Rejected' && 'bg-red-500/20 text-red-400',
                 displayStatus === 'Mixed' && 'bg-blue-500/20 text-blue-400',
                 displayStatus === 'Open' && 'bg-dark-500/20 text-dark-400'
@@ -475,7 +475,7 @@ export function ApprovalCard({
                           </span>
                           <Link
                             href={toHref(`/projects/${encodeURIComponent(line.jobNo)}`)}
-                            className="hover:text-thyme-400 truncate font-medium hover:underline"
+                            className="hover:text-timmie-400 truncate font-medium hover:underline"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {getJobName(line.jobNo)}
@@ -534,7 +534,7 @@ export function ApprovalCard({
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 placeholder="Please provide a reason for rejection..."
-                className="border-dark-600 bg-dark-700 placeholder:text-dark-400 focus:border-thyme-500 focus:ring-thyme-500 w-full rounded-lg border px-3 py-2 text-white focus:ring-1 focus:outline-none"
+                className="border-dark-600 bg-dark-700 placeholder:text-dark-400 focus:border-timmie-500 focus:ring-timmie-500 w-full rounded-lg border px-3 py-2 text-white focus:ring-1 focus:outline-none"
                 rows={3}
               />
             </div>

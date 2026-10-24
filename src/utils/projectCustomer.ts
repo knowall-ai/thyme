@@ -16,7 +16,7 @@ export interface ProjectCustomer {
 /**
  * The customer a project's work is for: its Sell-to customer, or its Bill-to customer
  * when it has no Sell-to (projects from before BC had Sell-to on projects, or an older
- * Thyme BC Extension that doesn't return it).
+ * Timmie BC Extension that doesn't return it).
  *
  * The two differ when the work comes through a partner: Sell-to is the end client and
  * Bill-to the partner who pays. Show and group projects by this customer; whether time is

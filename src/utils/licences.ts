@@ -32,7 +32,7 @@ export interface LicenceSku {
   bcRank?: number;
 }
 
-// Microsoft's SKU part numbers for the licences Thyme knows; others show their part number
+// Microsoft's SKU part numbers for the licences Timmie knows; others show their part number
 const CATALOGUE: LicenceSku[] = [
   {
     skuPartNumber: 'DYN365_BUSCENTRAL_PREMIUM',
@@ -106,7 +106,7 @@ const CATALOGUE: LicenceSku[] = [
 ];
 const CATALOGUE_BY_PART = new Map(CATALOGUE.map((sku) => [sku.skuPartNumber.toUpperCase(), sku]));
 
-/** The licence a SKU part number is, or a plain entry for one Thyme doesn't know */
+/** The licence a SKU part number is, or a plain entry for one Timmie doesn't know */
 export function getLicenceSku(skuPartNumber: string): LicenceSku {
   const known = CATALOGUE_BY_PART.get(skuPartNumber.toUpperCase());
   if (known) return known;

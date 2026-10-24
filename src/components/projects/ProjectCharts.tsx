@@ -102,7 +102,7 @@ function MaskedChartState({
 // Chart title shown only in print, where the on-screen view toggle is hidden
 function PrintChartTitle({ children }: { children: ReactNode }) {
   return (
-    <div className="bg-thyme-600 mb-4 hidden rounded-lg px-4 py-2 text-sm font-medium text-white print:inline-block">
+    <div className="bg-timmie-600 mb-4 hidden rounded-lg px-4 py-2 text-sm font-medium text-white print:inline-block">
       {children}
     </div>
   );
@@ -270,7 +270,7 @@ export function ProjectCharts() {
             className={cn(
               'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
               chartView === 'weekly'
-                ? 'bg-thyme-600 text-white'
+                ? 'bg-timmie-600 text-white'
                 : 'bg-dark-600 text-gray-400 hover:text-white'
             )}
           >
@@ -282,7 +282,7 @@ export function ProjectCharts() {
               className={cn(
                 'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
                 chartView === 'progress'
-                  ? 'bg-thyme-600 text-white'
+                  ? 'bg-timmie-600 text-white'
                   : 'bg-dark-600 text-gray-400 hover:text-white'
               )}
             >
@@ -395,7 +395,7 @@ export function ProjectCharts() {
                 isWholeProject
                   ? 'bg-dark-700 cursor-not-allowed text-gray-600'
                   : offsetWeeks === 0
-                    ? 'bg-thyme-600 text-white'
+                    ? 'bg-timmie-600 text-white'
                     : 'bg-dark-600 hover:bg-dark-500 text-gray-300 hover:text-white'
               )}
             >
@@ -766,8 +766,8 @@ function WeeklyBarChart({
                           className={cn(
                             'w-full rounded-t transition-all',
                             point.isCurrentWeek
-                              ? 'bg-thyme-400'
-                              : 'bg-thyme-600 group-hover:bg-thyme-500'
+                              ? 'bg-timmie-400'
+                              : 'bg-timmie-600 group-hover:bg-timmie-500'
                           )}
                           style={{
                             height: `${approvedHeightPercent}%`,
@@ -830,7 +830,7 @@ function WeeklyBarChart({
                       )}
                       {point.approvedHours > 0 && (
                         <div className="flex items-center gap-2 text-gray-400">
-                          <span className="bg-thyme-500 inline-block h-2 w-2 rounded-sm" />
+                          <span className="bg-timmie-500 inline-block h-2 w-2 rounded-sm" />
                           Approved: {formatEffort(point.approvedHours)}
                         </div>
                       )}
@@ -849,7 +849,7 @@ function WeeklyBarChart({
                       {point.hours === 0 && point.plannedHours === 0 && (
                         <div className="text-gray-400">No hours</div>
                       )}
-                      {point.isCurrentWeek && <div className="text-thyme-400">This week</div>}
+                      {point.isCurrentWeek && <div className="text-timmie-400">This week</div>}
                     </div>
                   )}
                 </div>
@@ -880,7 +880,7 @@ function WeeklyBarChart({
           <span>Planned ({formatEffort(legendTotals.planned)})</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="bg-thyme-500 inline-block h-2.5 w-2.5 rounded-sm" />
+          <span className="bg-timmie-500 inline-block h-2.5 w-2.5 rounded-sm" />
           <span>Approved ({formatEffort(legendTotals.approved)})</span>
         </div>
         <div className="flex items-center gap-1.5">
@@ -1262,7 +1262,7 @@ function ProgressLineChart({
                 return `M ${points.join(' L ')} L ${xFor(past.length - 1)},100 L ${xFor(0)},100 Z`;
               })()}
               fill="currentColor"
-              className="text-thyme-500/20"
+              className="text-timmie-500/20"
             />
 
             {/* Spent line - to date only */}
@@ -1280,7 +1280,7 @@ function ProgressLineChart({
               })()}
               fill="none"
               stroke="currentColor"
-              className="text-thyme-500"
+              className="text-timmie-500"
               strokeWidth="2"
               vectorEffect="non-scaling-stroke"
             />
@@ -1349,8 +1349,8 @@ function ProgressLineChart({
                     point.isFuture
                       ? 'bg-dark-800 border border-sky-400'
                       : point.isCurrentWeek
-                        ? 'bg-thyme-400'
-                        : 'bg-thyme-500',
+                        ? 'bg-timmie-400'
+                        : 'bg-timmie-500',
                     emphasised
                       ? markerSize === 'normal'
                         ? 'h-3 w-3'
@@ -1413,7 +1413,7 @@ function ProgressLineChart({
                       planned hours)
                     </div>
                   ) : (
-                    <div className="text-thyme-400">
+                    <div className="text-timmie-400">
                       ~{formatValue(displayDataWithCost[hoveredIndex].cumulativeCost)} spent
                     </div>
                   ))}
@@ -1430,7 +1430,7 @@ function ProgressLineChart({
                 </div>
               )}
               {displayDataWithCost[hoveredIndex].isCurrentWeek && (
-                <div className="text-thyme-400 mt-1">This week</div>
+                <div className="text-timmie-400 mt-1">This week</div>
               )}
             </div>
           )}
@@ -1455,7 +1455,7 @@ function ProgressLineChart({
       {showBudget && budgetValue > 0 && (
         <div className="mt-2 ml-12 flex items-center gap-4 text-xs text-gray-500">
           <div className="flex items-center gap-1">
-            <span className="bg-thyme-500/50 inline-block h-2 w-4 rounded" />
+            <span className="bg-timmie-500/50 inline-block h-2 w-4 rounded" />
             <span>Spent</span>
           </div>
           {onTrack && (

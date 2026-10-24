@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const getThymeSetup = vi.fn();
+const getTimmieSetup = vi.fn();
 
 vi.mock('@/services/bc/bcClient', () => ({
   bcClient: {
-    getThymeSetup: (...args: unknown[]) => getThymeSetup(...args),
+    getTimmieSetup: (...args: unknown[]) => getTimmieSetup(...args),
   },
 }));
 
@@ -22,11 +22,11 @@ describe('useBillableTargetStore', () => {
   });
 
   it('loads the company default once per company', async () => {
-    getThymeSetup.mockResolvedValue({ id: 's1', defaultBillableTargetPercent: 70 });
+    getTimmieSetup.mockResolvedValue({ id: 's1', defaultBillableTargetPercent: 70 });
     await useBillableTargetStore.getState().loadCompanyDefault(1);
     await useBillableTargetStore.getState().loadCompanyDefault(1);
 
-    expect(getThymeSetup).toHaveBeenCalledTimes(1);
+    expect(getTimmieSetup).toHaveBeenCalledTimes(1);
     expect(useBillableTargetStore.getState()).toMatchObject({
       companyDefaultPercent: 70,
       setupAvailable: true,
@@ -34,8 +34,8 @@ describe('useBillableTargetStore', () => {
     });
   });
 
-  it('marks setup unavailable on an extension without Thyme Setup', async () => {
-    getThymeSetup.mockResolvedValue(null);
+  it('marks setup unavailable on an extension without Timmie Setup', async () => {
+    getTimmieSetup.mockResolvedValue(null);
     await useBillableTargetStore.getState().loadCompanyDefault(1);
 
     expect(useBillableTargetStore.getState()).toMatchObject({
@@ -47,7 +47,7 @@ describe('useBillableTargetStore', () => {
 
   it('ignores a slow load for a company the user has switched away from', async () => {
     let resolveFirst: (value: unknown) => void = () => {};
-    getThymeSetup
+    getTimmieSetup
       .mockReturnValueOnce(new Promise((resolve) => (resolveFirst = resolve)))
       .mockResolvedValueOnce({ id: 's2', defaultBillableTargetPercent: 60 });
 
@@ -63,7 +63,7 @@ describe('useBillableTargetStore', () => {
   });
 
   it('only records a saved default for the company it was saved for', async () => {
-    getThymeSetup.mockResolvedValue({ id: 's1', defaultBillableTargetPercent: 75 });
+    getTimmieSetup.mockResolvedValue({ id: 's1', defaultBillableTargetPercent: 75 });
     await useBillableTargetStore.getState().loadCompanyDefault(1);
 
     useBillableTargetStore.getState().setCompanyDefault(80, 1);

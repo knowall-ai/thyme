@@ -79,7 +79,7 @@ describe('describeGitHubUsernameSaveError', () => {
   it('asks for a newer extension when the action is missing', () => {
     expect(
       describeGitHubUsernameSaveError(new Error('BC API Error (404): No HTTP resource was found'))
-    ).toMatch(/newer version of the Thyme BC Extension/);
+    ).toMatch(/newer version of the Timmie BC Extension/);
   });
 
   it("shows BC's reason for a rejected value, without the correlation id", () => {

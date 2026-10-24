@@ -1,7 +1,7 @@
 /**
- * Whether Business Central is accepting browsers' calls, as Thyme's server finds it
+ * Whether Business Central is accepting browsers' calls, as Timmie's server finds it
  * (see src/app/api/health/bc). Microsoft has no public status page for Business
- * Central, and its service health needs an admin, so Thyme checks for itself.
+ * Central, and its service health needs an admin, so Timmie checks for itself.
  */
 
 /**
@@ -22,7 +22,7 @@ export interface BcHealth {
 }
 
 /** Raised on window when a Business Central call never got a response (network or CORS) */
-export const BC_UNREACHABLE_EVENT = 'thyme:bc-unreachable';
+export const BC_UNREACHABLE_EVENT = 'timmie:bc-unreachable';
 
 /** The status from how many checks passed, and how many got any answer */
 export function getBcHealthStatus(passed: number, answered: number, total: number): BcHealthStatus {
@@ -37,10 +37,10 @@ export function describeBcHealth(status: BcHealthStatus): string | null {
     case 'ok':
       return null;
     case 'degraded':
-      return 'Business Central is rejecting some requests from browsers right now, so parts of Thyme may not load. This is a Microsoft issue, not Thyme; refreshing may help.';
+      return 'Business Central is rejecting some requests from browsers right now, so parts of Timmie may not load. This is a Microsoft issue, not Timmie; refreshing may help.';
     case 'down':
-      return "Business Central isn't accepting requests from browsers right now, so Thyme can't load your data. This is a Microsoft issue, not Thyme; it will clear once Microsoft fixes it.";
+      return "Business Central isn't accepting requests from browsers right now, so Timmie can't load your data. This is a Microsoft issue, not Timmie; it will clear once Microsoft fixes it.";
     case 'unreachable':
-      return "Business Central isn't responding right now, so Thyme can't load your data. This is a Microsoft issue, not Thyme.";
+      return "Business Central isn't responding right now, so Timmie can't load your data. This is a Microsoft issue, not Timmie.";
   }
 }

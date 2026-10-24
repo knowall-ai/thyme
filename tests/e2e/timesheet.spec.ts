@@ -29,7 +29,7 @@ test.describe('Weekly Timesheet', () => {
   test.beforeEach(async ({ page }) => {
     // Mock authentication state
     await page.addInitScript(() => {
-      window.localStorage.setItem('thyme_time_entries', JSON.stringify([]));
+      window.localStorage.setItem('timmie_time_entries', JSON.stringify([]));
     });
 
     // Mock BC API endpoints
@@ -54,7 +54,7 @@ test.describe('Weekly Timesheet', () => {
     // This test would run against the authenticated dashboard
     // For now, we test that the landing page loads
     await page.goto('/');
-    await expect(page).toHaveTitle(/Thyme/);
+    await expect(page).toHaveTitle(/Timmie/);
   });
 
   test('displays 7 day columns', async ({ page }) => {

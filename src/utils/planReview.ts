@@ -466,7 +466,7 @@ export function changesForLine(
 // ============================================
 
 /**
- * Why Thyme can't apply a change to a cell, or undefined when it can. BC applies a finding
+ * Why Timmie can't apply a change to a cell, or undefined when it can. BC applies a finding
  * only when each cell is empty or holds exactly one Budget line: a Billable or "Both Budget
  * and Billable" line is part of the project's budget estimate, and several lines would have to
  * be merged. Checked here from the plan on screen for quick feedback; BC checks again.
@@ -481,7 +481,7 @@ export function planCellManualReason(
   return undefined;
 }
 
-/** The message shown instead of Apply change for a cell Thyme mustn't change by itself */
+/** The message shown instead of Apply change for a cell Timmie mustn't change by itself */
 export function planCellManualMessage(reason: string): string {
   return `Edit this cell by hand: ${reason}.`;
 }

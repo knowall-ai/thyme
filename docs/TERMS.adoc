@@ -1,13 +1,13 @@
-= Thyme Terms of Service
+= Timmie Terms of Service
 :sectnums:
 
-Welcome to Thyme. These Terms of Service ("Terms") govern your access to and use of the Thyme time tracking application ("Service") provided by KnowAll AI SAS de CV ("Company", "we", "us", or "our").
+Welcome to Timmie. These Terms of Service ("Terms") govern your access to and use of the Timmie time tracking application ("Service") provided by KnowAll AI SAS de CV ("Company", "we", "us", or "our").
 
-By accessing or using Thyme, you agree to be bound by these Terms. If you disagree with any part of these Terms, you may not access the Service.
+By accessing or using Timmie, you agree to be bound by these Terms. If you disagree with any part of these Terms, you may not access the Service.
 
 == Definitions
 
-* *"Service"* refers to the Thyme web application and related services
+* *"Service"* refers to the Timmie web application and related services
 * *"User"* refers to any individual who accesses or uses the Service
 * *"Organization"* refers to the company or entity that has authorized your use of the Service
 * *"Content"* refers to any data, text, or information submitted through the Service
@@ -15,7 +15,7 @@ By accessing or using Thyme, you agree to be bound by these Terms. If you disagr
 
 == Eligibility
 
-To use Thyme, you must:
+To use Timmie, you must:
 
 * Be at least 16 years of age
 * Have a valid Microsoft Entra ID account
@@ -26,7 +26,7 @@ To use Thyme, you must:
 
 === Access and Authentication
 
-* You access Thyme using your Microsoft Entra ID credentials
+* You access Timmie using your Microsoft Entra ID credentials
 * You are responsible for all activities under your account
 * You must not share your login credentials with others
 * You must notify us immediately of any unauthorized access
@@ -41,7 +41,7 @@ To use Thyme, you must:
 
 === Permitted Uses
 
-You may use Thyme to:
+You may use Timmie to:
 
 * Track time worked on projects and tasks
 * View and manage your timesheets
@@ -104,9 +104,9 @@ We reserve the right to:
 
 === Subscription
 
-* Access to Thyme may be subject to subscription fees
+* Access to Timmie may be subject to subscription fees
 * Fees are determined by your Organization's agreement with us
-* Current pricing is available at https://getthyme.app/pricing
+* Current pricing is available at https://gettimm.ie/pricing
 
 === Payment Terms
 
@@ -123,7 +123,7 @@ We reserve the right to:
 
 === Our Rights
 
-* Thyme and all related intellectual property are owned by KnowAll AI SAS de CV
+* Timmie and all related intellectual property are owned by KnowAll AI SAS de CV
 * This includes software, design, trademarks, and documentation
 * Nothing in these Terms transfers any ownership rights to you
 
@@ -136,7 +136,7 @@ We reserve the right to:
 
 === Microsoft Integration
 
-Thyme integrates with Microsoft services:
+Timmie integrates with Microsoft services:
 
 * Microsoft Entra ID for authentication
 * Microsoft Dynamics 365 Business Central for data synchronization
@@ -151,7 +151,7 @@ Your use of Microsoft services is subject to Microsoft's terms.
 
 == Privacy
 
-Your privacy is important to us. Please review our Privacy Policy at https://getthyme.app/privacy to understand how we collect, use, and protect your information.
+Your privacy is important to us. Please review our Privacy Policy at https://gettimm.ie/privacy to understand how we collect, use, and protect your information.
 
 == Disclaimer of Warranties
 
@@ -242,4 +242,4 @@ Email: support@knowall.ai
 
 Website: https://knowall.ai
 
-Support: https://getthyme.app/help
+Support: https://gettimm.ie/help

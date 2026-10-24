@@ -23,7 +23,7 @@ import type { TimesheetReviewResult } from '@/hooks';
 import { useReviewerPhoto } from '@/services/auth/reviewerIdentity';
 
 export const VERDICT_TONE_CLASSES: Record<VerdictTone, string> = {
-  green: 'bg-thyme-500/20 text-thyme-400',
+  green: 'bg-timmie-500/20 text-timmie-400',
   amber: 'bg-amber-500/20 text-amber-400',
   red: 'bg-red-500/20 text-red-400',
 };

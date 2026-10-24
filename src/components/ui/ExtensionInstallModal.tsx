@@ -4,6 +4,7 @@ import { CheckCircleIcon, ArrowDownTrayIcon, ServerIcon } from '@heroicons/react
 import { Button } from './Button';
 import { useCompanyStore } from '@/hooks';
 import { getBCExtensionInstallUrl } from '@/utils';
+import { BC_EXTENSION_GITHUB_URL, BC_EXTENSION_NAME_IN_BC } from '@/utils/bcUrls';
 
 export interface ExtensionInstallModalProps {
   isOpen: boolean;
@@ -23,7 +24,7 @@ export function ExtensionInstallModal({ isOpen }: ExtensionInstallModalProps) {
   const environmentLabel = environment === 'sandbox' ? 'Sandbox' : 'Production';
 
   const handleInstall = () => {
-    // Open BC Extension Management page filtered to Thyme extension
+    // Open BC Extension Management page filtered to Timmie extension
     window.open(getBCExtensionInstallUrl(), '_blank', 'noopener,noreferrer');
   };
 
@@ -45,7 +46,7 @@ export function ExtensionInstallModal({ isOpen }: ExtensionInstallModalProps) {
           {/* Header */}
           <div className="border-dark-700 border-b px-6 py-4">
             <h2 id="extension-modal-title" className="text-lg font-semibold text-white">
-              Install Thyme BC Extension
+              Install Timmie BC Extension
             </h2>
           </div>
 
@@ -54,12 +55,13 @@ export function ExtensionInstallModal({ isOpen }: ExtensionInstallModalProps) {
             {/* Benefits */}
             <div>
               <p className="text-dark-300 mb-3 text-sm">
-                The Thyme BC Extension is required for full functionality:
+                The Timmie BC Extension (listed in Business Central as {BC_EXTENSION_NAME_IN_BC}) is
+                required for full functionality:
               </p>
               <ul className="space-y-2">
                 {BENEFITS.map((benefit, index) => (
                   <li key={index} className="flex items-start gap-2">
-                    <CheckCircleIcon className="text-thyme-500 mt-0.5 h-5 w-5 shrink-0" />
+                    <CheckCircleIcon className="text-timmie-500 mt-0.5 h-5 w-5 shrink-0" />
                     <span className="text-dark-200 text-sm">{benefit}</span>
                   </li>
                 ))}
@@ -82,10 +84,10 @@ export function ExtensionInstallModal({ isOpen }: ExtensionInstallModalProps) {
                 Install Extension
               </Button>
               <a
-                href="https://github.com/knowall-ai/thyme-bc-extension"
+                href={BC_EXTENSION_GITHUB_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-dark-300 hover:text-thyme-400 text-sm font-medium transition-colors"
+                className="text-dark-300 hover:text-timmie-400 text-sm font-medium transition-colors"
               >
                 Learn More
               </a>

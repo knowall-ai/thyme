@@ -1,9 +1,12 @@
 'use client';
 
+import { migrateLegacyStorageKey } from '@/utils/legacyStorage';
 import { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
-const DISMISSED_KEY = 'thyme_teams_bot_banner_dismissed';
+const DISMISSED_KEY = 'timmie_teams_bot_banner_dismissed';
+
+migrateLegacyStorageKey('thyme_teams_bot_banner_dismissed', DISMISSED_KEY);
 
 export function TeamsBotBanner() {
   const [isDismissed, setIsDismissed] = useState(true);
@@ -42,7 +45,7 @@ export function TeamsBotBanner() {
         {/* Content */}
         <div className="min-w-0 flex-1 pr-6 sm:pr-0">
           <h3 className="text-sm font-semibold text-white">
-            Introducing Thyme Bot for Microsoft Teams
+            Introducing Timmie Bot for Microsoft Teams
           </h3>
           <p className="mt-0.5 text-sm text-white/80">
             Get reminders to fill in your timesheets and let AI complete them for you.

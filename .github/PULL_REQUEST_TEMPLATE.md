@@ -40,6 +40,6 @@ For pure-refactor / docs / CI / deps PRs with no user-visible change, replace th
 Required for feat/fix/perf/refactor/style PRs. Add before/after images for UI changes.
 - Take them from the Business Central sandbox demo company CRONUS UK Ltd. Never use real client data or £ amounts; if unavoidable, blur them before committing.
 - Commit images under docs/images/pr/ and link them with raw.githubusercontent.com URLs pinned to the commit SHA:
-  ![After](https://raw.githubusercontent.com/knowall-ai/thyme/<commit-sha>/docs/images/pr/<name>.png)
+  ![After](https://raw.githubusercontent.com/knowall-ai/timmie/<commit-sha>/docs/images/pr/<name>.png)
 - If nothing visible changed, replace this with:  N/A — <one-line reason, e.g. "backend only, no UI change">
 -->

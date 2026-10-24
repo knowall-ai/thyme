@@ -617,7 +617,7 @@ function Finding({
             </button>
           )}
           {isApplied && (
-            <p className="text-thyme-400 mt-1 text-[11px]" role="status">
+            <p className="text-timmie-400 mt-1 text-[11px]" role="status">
               {appliedText(line)}
             </p>
           )}

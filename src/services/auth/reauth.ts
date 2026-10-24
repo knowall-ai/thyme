@@ -21,7 +21,8 @@ export const useReauthStore = create<{ status: ReauthStatus }>(() => ({ status: 
 const setStatus = (status: ReauthStatus) => useReauthStore.setState({ status });
 
 /** sessionStorage key holding when we last redirected to sign in automatically */
-export const AUTO_REDIRECT_KEY = 'thyme.reauth.lastAutoRedirectAt';
+export const AUTO_REDIRECT_KEY = 'timmie.reauth.lastAutoRedirectAt';
+
 /** At most one automatic sign-in redirect per tab in this window, to prevent loops */
 export const AUTO_REDIRECT_COOLDOWN_MS = 5 * 60 * 1000;
 
@@ -130,7 +131,7 @@ export function requestReauth(): Promise<void> {
 
 /**
  * User-initiated "Sign in again": always starts a sign-in (still single-flight):
- * a redirect normally, or a popup when Thyme is in an iframe or popup.
+ * a redirect normally, or a popup when Timmie is in an iframe or popup.
  */
 export function signInAgain(): Promise<void> {
   return startSignIn();

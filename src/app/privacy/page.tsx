@@ -5,9 +5,9 @@ import { PublicPageLayout } from '@/components/docs/PublicPageLayout';
 import { LegalDocLayout } from '@/components/docs/LegalDocLayout';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy - Thyme by KnowAll.ai',
+  title: 'Privacy Policy - Timmie by KnowAll.ai',
   description:
-    'Learn how Thyme collects, uses, and protects your personal information. Our privacy policy explains our data practices for our time tracking application.',
+    'Learn how Timmie collects, uses, and protects your personal information. Our privacy policy explains our data practices for our time tracking application.',
 };
 
 export default async function PrivacyPage() {

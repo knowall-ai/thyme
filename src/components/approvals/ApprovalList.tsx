@@ -299,7 +299,7 @@ export function ApprovalList() {
       uniqueJobNos.forEach((jobNo) => requestedJobNosRef.current.add(jobNo));
 
       // Fetch all projects and filter for the ones we need
-      // Note: Uses /projects endpoint (Thyme extension) instead of /jobs (standard API which may not be available)
+      // Note: Uses /projects endpoint (Timmie extension) instead of /jobs (standard API which may not be available)
       const generation = companyGenerationRef.current;
       const isStale = () => generation !== companyGenerationRef.current;
       try {
@@ -433,7 +433,7 @@ export function ApprovalList() {
   if (!permissionChecked) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div className="border-thyme-600 h-8 w-8 animate-spin rounded-full border-b-2"></div>
+        <div className="border-timmie-600 h-8 w-8 animate-spin rounded-full border-b-2"></div>
       </div>
     );
   }
@@ -457,7 +457,7 @@ export function ApprovalList() {
   if (isLoading && pendingApprovals.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div className="border-thyme-600 h-8 w-8 animate-spin rounded-full border-b-2"></div>
+        <div className="border-timmie-600 h-8 w-8 animate-spin rounded-full border-b-2"></div>
       </div>
     );
   }
@@ -469,7 +469,7 @@ export function ApprovalList() {
         <p className="mb-2 text-red-500">{error}</p>
         <button
           onClick={() => fetchApprovals()}
-          className="text-thyme-500 hover:text-thyme-400 underline"
+          className="text-timmie-500 hover:text-timmie-400 underline"
         >
           Try again
         </button>
@@ -520,7 +520,7 @@ export function ApprovalList() {
               className={cn(
                 'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
                 groupBy === 'week'
-                  ? 'bg-thyme-600 text-white'
+                  ? 'bg-timmie-600 text-white'
                   : 'text-dark-400 hover:bg-dark-700 hover:text-white'
               )}
               title="Group by week"
@@ -533,7 +533,7 @@ export function ApprovalList() {
               className={cn(
                 'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
                 groupBy === 'person'
-                  ? 'bg-thyme-600 text-white'
+                  ? 'bg-timmie-600 text-white'
                   : 'text-dark-400 hover:bg-dark-700 hover:text-white'
               )}
               title="Group by person"
@@ -554,7 +554,7 @@ export function ApprovalList() {
                 {groupBy !== 'none' && (
                   <div className="border-dark-700 flex items-center gap-2 border-b pb-2">
                     {groupBy === 'week' ? (
-                      <CalendarDaysIcon className="text-thyme-500 h-8 w-8" />
+                      <CalendarDaysIcon className="text-timmie-500 h-8 w-8" />
                     ) : (
                       // Show profile photo for person group
                       (() => {
@@ -567,7 +567,7 @@ export function ApprovalList() {
                             className="h-8 w-8 rounded-full object-cover"
                           />
                         ) : (
-                          <UserIcon className="text-thyme-500 h-8 w-8" />
+                          <UserIcon className="text-timmie-500 h-8 w-8" />
                         );
                       })()
                     )}
@@ -622,7 +622,7 @@ export function ApprovalList() {
                 </p>
                 <button
                   onClick={clearFilters}
-                  className="text-thyme-500 hover:text-thyme-400 mt-4 underline"
+                  className="text-timmie-500 hover:text-timmie-400 mt-4 underline"
                 >
                   Clear filters
                 </button>
@@ -630,8 +630,8 @@ export function ApprovalList() {
             ) : (
               // Truly no pending approvals
               <>
-                <div className="bg-thyme-500/20 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full">
-                  <CheckIcon className="text-thyme-500 h-8 w-8" />
+                <div className="bg-timmie-500/20 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full">
+                  <CheckIcon className="text-timmie-500 h-8 w-8" />
                 </div>
                 <h3 className="text-lg font-semibold text-white">All Caught Up!</h3>
                 <p className="text-dark-400 mt-2">There are no timesheets pending your approval.</p>

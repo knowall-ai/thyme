@@ -1,11 +1,11 @@
-= Thyme End User License Agreement
+= Timmie End User License Agreement
 :sectnums:
 
-PLEASE READ THIS END USER LICENSE AGREEMENT ("AGREEMENT") CAREFULLY BEFORE USING THYME.
+PLEASE READ THIS END USER LICENSE AGREEMENT ("AGREEMENT") CAREFULLY BEFORE USING TIMMIE.
 
-This Agreement is a legally binding contract between you ("User", "you", or "your") and KnowAll AI SAS de CV ("Company", "we", "us", or "our") governing your use of the Thyme time tracking application ("Application" or "Thyme").
+This Agreement is a legally binding contract between you ("User", "you", or "your") and KnowAll AI SAS de CV ("Company", "we", "us", or "our") governing your use of the Timmie time tracking application ("Application" or "Timmie").
 
-BY ACCESSING OR USING THYME, YOU AGREE TO BE BOUND BY THIS AGREEMENT. IF YOU DO NOT AGREE TO THESE TERMS, DO NOT USE THE APPLICATION.
+BY ACCESSING OR USING TIMMIE, YOU AGREE TO BE BOUND BY THIS AGREEMENT. IF YOU DO NOT AGREE TO THESE TERMS, DO NOT USE THE APPLICATION.
 
 == License Grant
 
@@ -13,7 +13,7 @@ BY ACCESSING OR USING THYME, YOU AGREE TO BE BOUND BY THIS AGREEMENT. IF YOU DO 
 
 Subject to the terms of this Agreement, we grant you a limited, non-exclusive, non-transferable, revocable license to:
 
-* Access and use Thyme through a web browser
+* Access and use Timmie through a web browser
 * Create, view, edit, and submit time entries
 * Synchronize time data with your organization's Microsoft Dynamics 365 Business Central environment
 
@@ -34,13 +34,13 @@ You may NOT:
 
 === Authentication
 
-* Access to Thyme requires authentication through Microsoft Entra ID
+* Access to Timmie requires authentication through Microsoft Entra ID
 * You are responsible for maintaining the security of your Microsoft account credentials
 * You must have appropriate permissions within your organization's Business Central environment
 
 === Authorized Use
 
-* You may only use Thyme for legitimate business purposes
+* You may only use Timmie for legitimate business purposes
 * You may only access data you are authorized to view within your organization
 * Your use must comply with your organization's policies and applicable laws
 
@@ -48,7 +48,7 @@ You may NOT:
 
 === Ownership
 
-* Thyme, including all code, design, features, and documentation, is owned by KnowAll AI SAS de CV
+* Timmie, including all code, design, features, and documentation, is owned by KnowAll AI SAS de CV
 * This Agreement does not transfer any ownership rights to you
 * All trademarks, logos, and service marks displayed are our property or the property of their respective owners
 
@@ -62,7 +62,7 @@ You may NOT:
 
 === Microsoft Services
 
-Thyme integrates with Microsoft services including:
+Timmie integrates with Microsoft services including:
 
 * Microsoft Entra ID for authentication
 * Microsoft Dynamics 365 Business Central for data synchronization
@@ -128,11 +128,11 @@ You agree to indemnify, defend, and hold harmless KnowAll AI SAS de CV and its o
 
 === Term
 
-This Agreement is effective from when you first access Thyme and continues until terminated.
+This Agreement is effective from when you first access Timmie and continues until terminated.
 
 === Termination by You
 
-You may stop using Thyme at any time.
+You may stop using Timmie at any time.
 
 === Termination by Us
 
@@ -147,7 +147,7 @@ We may terminate or suspend your access immediately, without notice, if:
 
 Upon termination:
 
-* Your license to use Thyme immediately ends
+* Your license to use Timmie immediately ends
 * You must cease all use of the Application
 * Provisions that by their nature should survive will continue (including Intellectual Property, Disclaimer, Limitation of Liability, and Indemnification)
 
@@ -163,7 +163,7 @@ Any disputes arising from this Agreement shall be subject to the exclusive juris
 
 === Entire Agreement
 
-This Agreement, together with our Privacy Policy and Terms of Service, constitutes the entire agreement between you and KnowAll AI SAS de CV regarding Thyme.
+This Agreement, together with our Privacy Policy and Terms of Service, constitutes the entire agreement between you and KnowAll AI SAS de CV regarding Timmie.
 
 === Severability
 
@@ -193,4 +193,4 @@ Website: https://knowall.ai
 
 == Acknowledgment
 
-BY USING THYME, YOU ACKNOWLEDGE THAT YOU HAVE READ THIS AGREEMENT, UNDERSTAND IT, AND AGREE TO BE BOUND BY ITS TERMS AND CONDITIONS.
+BY USING TIMMIE, YOU ACKNOWLEDGE THAT YOU HAVE READ THIS AGREEMENT, UNDERSTAND IT, AND AGREE TO BE BOUND BY ITS TERMS AND CONDITIONS.

@@ -18,7 +18,7 @@ import type { BCResource } from '@/types';
 /**
  * Settings card where people set their own GitHub username (on their BC resource in the
  * selected company), so Poppie can suggest time for their pull requests and issues. Hidden
- * when they have no resource here or the Thyme BC Extension predates GitHub usernames (1.21).
+ * when they have no resource here or the Timmie BC Extension predates GitHub usernames (1.21).
  */
 export function ConnectedAccountsSettings() {
   const inputId = useId();
@@ -87,11 +87,11 @@ export function ConnectedAccountsSettings() {
   return (
     <Card variant="bordered" className="p-6">
       <div className="mb-1 flex items-center gap-3">
-        <LinkIcon className="text-thyme-500 h-6 w-6" />
+        <LinkIcon className="text-timmie-500 h-6 w-6" />
         <h2 className="text-lg font-semibold text-white">Connected accounts</h2>
       </div>
       <p className="text-dark-400 mb-4 text-sm">
-        So Poppie can suggest time for your work outside Thyme. Saved on your resource in this
+        So Poppie can suggest time for your work outside Timmie. Saved on your resource in this
         company.
       </p>
 

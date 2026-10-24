@@ -48,7 +48,7 @@ function VisibilityToggle({
     <button
       type="button"
       onClick={onToggle}
-      className="focus:ring-thyme-500 focus:ring-offset-dark-800 flex rounded text-gray-600 transition-colors hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none print:hidden"
+      className="focus:ring-timmie-500 focus:ring-offset-dark-800 flex rounded text-gray-600 transition-colors hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none print:hidden"
       aria-label={hidden ? `Show ${label} amount` : `Hide ${label} amount`}
       aria-pressed={hidden}
       title={hidden ? 'Show amount' : 'Hide amount'}
@@ -76,7 +76,7 @@ function InfoTooltip({
     <div className="relative flex print:hidden">
       <button
         type="button"
-        className="focus:ring-thyme-500 focus:ring-offset-dark-800 flex cursor-help rounded text-gray-600 hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none"
+        className="focus:ring-timmie-500 focus:ring-offset-dark-800 flex cursor-help rounded text-gray-600 hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none"
         onMouseEnter={() => setIsOpen(true)}
         onMouseLeave={() => setIsOpen(false)}
         onFocus={() => setIsOpen(true)}
@@ -98,7 +98,7 @@ function InfoTooltip({
           {formula && (
             <div className="border-dark-500 mt-1 border-t pt-1">
               <div className="text-gray-500">Formula:</div>
-              <div className="text-thyme-400 font-mono">{formula}</div>
+              <div className="text-timmie-400 font-mono">{formula}</div>
             </div>
           )}
           <div className="border-dark-500 mt-1 border-t pt-1">
@@ -309,7 +309,7 @@ export function ProjectKPICards() {
         : 'From timesheets',
       subLabelColor: percentOfEstimate > 100 ? 'text-red-400' : undefined,
       icon: ClockIcon,
-      color: 'text-thyme-400',
+      color: 'text-timmie-400',
       segments: getStageSegments(timeByStage),
     },
     {
@@ -525,7 +525,7 @@ export function ProjectKPICards() {
                           <button
                             type="button"
                             onClick={() => setResourceDialog(kpi.label)}
-                            className="text-thyme-400 hover:text-thyme-300 focus-visible:ring-thyme-500 rounded hover:underline focus:outline-none focus-visible:ring-1"
+                            className="text-timmie-400 hover:text-timmie-300 focus-visible:ring-timmie-500 rounded hover:underline focus:outline-none focus-visible:ring-1"
                           >
                             {kpi.resources.length > MAX_RESOURCE_ROWS
                               ? `+${kpi.resources.length - MAX_RESOURCE_ROWS} more`

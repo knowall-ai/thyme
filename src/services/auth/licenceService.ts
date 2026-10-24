@@ -20,7 +20,7 @@ import {
 const GRAPH = 'https://graph.microsoft.com/v1.0';
 export const LICENCE_SCOPES = ['https://graph.microsoft.com/Directory.Read.All'];
 const TIMEOUT_MS = 20_000;
-// Users come 999 a page: enough for any organisation Thyme serves in a few requests
+// Users come 999 a page: enough for any organisation Timmie serves in a few requests
 const MAX_PAGES = 20;
 
 /** The directory token, or null when it isn't granted (or there's no account) */

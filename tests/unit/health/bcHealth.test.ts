@@ -7,7 +7,7 @@ type Answer = 'pass' | 'reject' | 'throw' | 'otherOrigin' | 'noHeaders';
 /**
  * Preflight answers in turn: 'pass' (allowed for the origin and headers), 'reject' (401,
  * no CORS headers), 'throw' (no answer), 'otherOrigin' or 'noHeaders' (allowed, but not
- * as Thyme's calls need)
+ * as Timmie's calls need)
  */
 function stubPreflights(...answers: Answer[]) {
   let i = 0;
@@ -45,53 +45,53 @@ describe('getBcHealthStatus', () => {
   it('says nothing when all is well, and that it is Microsoft otherwise', () => {
     expect(describeBcHealth('ok')).toBeNull();
     for (const status of ['degraded', 'down', 'unreachable'] as const) {
-      expect(describeBcHealth(status)).toMatch(/Microsoft issue, not Thyme/);
+      expect(describeBcHealth(status)).toMatch(/Microsoft issue, not Timmie/);
     }
   });
 });
 
 describe('checkBcHealth', () => {
-  it("sends browser-style preflights from Thyme's origin", async () => {
+  it("sends browser-style preflights from Timmie's origin", async () => {
     const fetchMock = stubPreflights('pass');
-    const health = await checkBcHealth('https://getthyme.ai');
+    const health = await checkBcHealth('https://gettimm.ie');
     expect(health).toMatchObject({ status: 'ok', passed: 3, total: 3 });
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toMatch(/^https:\/\/api\.businesscentral\.dynamics\.com\//);
     expect(init.method).toBe('OPTIONS');
-    expect((init.headers as Record<string, string>).Origin).toBe('https://getthyme.ai');
+    expect((init.headers as Record<string, string>).Origin).toBe('https://gettimm.ie');
   });
 
   it("finds Business Central down when it rejects every preflight, as in today's outage", async () => {
     stubPreflights('reject');
-    expect((await checkBcHealth('https://getthyme.ai')).status).toBe('down');
+    expect((await checkBcHealth('https://gettimm.ie')).status).toBe('down');
   });
 
   it('finds it degraded when it rejects some, and unreachable when nothing answers', async () => {
     stubPreflights('pass', 'reject', 'reject');
-    expect((await checkBcHealth('https://getthyme.ai')).status).toBe('degraded');
+    expect((await checkBcHealth('https://gettimm.ie')).status).toBe('degraded');
     resetBcHealthCache();
     stubPreflights('throw');
-    expect((await checkBcHealth('https://getthyme.ai')).status).toBe('unreachable');
+    expect((await checkBcHealth('https://gettimm.ie')).status).toBe('unreachable');
   });
 
-  it("counts a preflight allowed for another origin, or without Thyme's headers, as refused", async () => {
+  it("counts a preflight allowed for another origin, or without Timmie's headers, as refused", async () => {
     stubPreflights('otherOrigin');
-    expect((await checkBcHealth('https://getthyme.ai')).status).toBe('down');
+    expect((await checkBcHealth('https://gettimm.ie')).status).toBe('down');
     resetBcHealthCache();
     stubPreflights('noHeaders');
-    expect((await checkBcHealth('https://getthyme.ai')).status).toBe('down');
+    expect((await checkBcHealth('https://gettimm.ie')).status).toBe('down');
   });
 
   it('shares one round of checks between people asking at the same time', async () => {
     const fetchMock = stubPreflights('pass');
-    await Promise.all([checkBcHealth('https://getthyme.ai'), checkBcHealth('https://getthyme.ai')]);
+    await Promise.all([checkBcHealth('https://gettimm.ie'), checkBcHealth('https://gettimm.ie')]);
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it('keeps the answer for a minute, so Business Central is asked rarely', async () => {
     const fetchMock = stubPreflights('pass');
-    await checkBcHealth('https://getthyme.ai');
-    await checkBcHealth('https://getthyme.ai');
+    await checkBcHealth('https://gettimm.ie');
+    await checkBcHealth('https://gettimm.ie');
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

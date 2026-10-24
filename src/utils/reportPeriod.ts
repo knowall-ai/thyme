@@ -3,7 +3,7 @@
  * year to date or a custom range), stepping back and forward through them, and how a
  * period's hours are broken down (by day, week or month).
  *
- * Weeks start on Monday, as everywhere else in Thyme.
+ * Weeks start on Monday, as everywhere else in Timmie.
  */
 
 import {

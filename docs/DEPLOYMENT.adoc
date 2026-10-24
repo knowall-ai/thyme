@@ -1,4 +1,4 @@
-= Thyme Deployment Guide
+= Timmie Deployment Guide
 :toc:
 
 == Prerequisites
@@ -6,20 +6,20 @@
 * Azure subscription with App Service plan
 * Microsoft Entra ID tenant (Azure AD)
 * Business Central environment with API access
-* Thyme BC Extension installed in each Business Central environment (see below)
-* Node.js 20 LTS (for local development)
+* Timmie BC Extension installed in each Business Central environment (see below). Business Central lists it as *Thyme BC API Extension*.
+* Node.js 24 LTS (the App Service runtime; also fine for local development)
 
-=== Thyme BC Extension version
+=== Timmie BC Extension version
 
-Thyme detects what the installed Thyme BC Extension supports and hides features it doesn't, so
+Timmie detects what the installed Timmie BC Extension supports and hides features it doesn't, so
 an older extension keeps working without them. Install the latest version from
-https://github.com/knowall-ai/thyme-bc-extension in every environment Thyme uses.
+https://github.com/knowall-ai/timmie-bc-extension in every environment Timmie uses.
 
 |===
 | Feature | Needs
 
 | Day notes on the Plan (e.g. "Company Off-Site", "No project work" days) and the `canEditPlan` flag on the `projects` and `resources` APIs
-| Thyme BC Extension 1.22.0.0+ (the `dayNotes` API). With older versions the Plan shows no notes and no day header popover.
+| Timmie BC Extension 1.22.0.0+ (the `dayNotes` API). With older versions the Plan shows no notes and no day header popover.
 |===
 
 == Azure Resource Setup
@@ -29,20 +29,20 @@ https://github.com/knowall-ai/thyme-bc-extension in every environment Thyme uses
 [source,bash]
 ----
 # Create resource group
-az group create --name thyme-rg --location westeurope
+az group create --name timmie-rg --location westeurope
 
 # Create App Service plan (Linux, B1)
 az appservice plan create \
-  --name thyme-plan \
-  --resource-group thyme-rg \
+  --name timmie-plan \
+  --resource-group timmie-rg \
   --sku B1 \
   --is-linux
 
 # Create web app
 az webapp create \
-  --name thyme-knowall \
-  --resource-group thyme-rg \
-  --plan thyme-plan \
+  --name timmie-knowall \
+  --resource-group timmie-rg \
+  --plan timmie-plan \
   --runtime "NODE:20-lts"
 ----
 
@@ -52,14 +52,14 @@ az webapp create \
 ----
 # Add custom domain
 az webapp config hostname add \
-  --webapp-name thyme-knowall \
-  --resource-group thyme-rg \
-  --hostname getthyme.ai
+  --webapp-name timmie-knowall \
+  --resource-group timmie-rg \
+  --hostname gettimm.ie
 
 # Enable HTTPS (after DNS verification)
 az webapp config ssl bind \
-  --name thyme-knowall \
-  --resource-group thyme-rg \
+  --name timmie-knowall \
+  --resource-group timmie-rg \
   --certificate-thumbprint <cert-thumbprint> \
   --ssl-type SNI
 ----
@@ -71,17 +71,18 @@ az webapp config ssl bind \
 1. Go to Azure Portal → Microsoft Entra ID → App registrations
 2. Click "New registration"
 3. Configure:
-   - Name: `Thyme - Time Tracking`
+   - Name: `Timmie - Time Tracking`
    - Supported account types: `Single tenant`
-   - Redirect URI: `https://getthyme.ai` (SPA)
+   - Redirect URI: `https://gettimm.ie` (SPA)
 
 === 2. Configure Authentication
 
 1. Go to Authentication tab
 2. Add platform: Single-page application
 3. Add redirect URIs:
-   - `https://getthyme.ai`
-   - `http://localhost:3000` (for development)
+   - `https://gettimm.ie`
+   - `https://timmie.knowall.ai` (KnowAll's own address for the same app)
+   - `http://localhost:3000` and `http://localhost:3101` (for development)
 4. Enable "Access tokens" and "ID tokens"
 
 === 3. Configure API Permissions
@@ -106,7 +107,7 @@ Set these in Azure App Service Configuration:
 ----
 NEXT_PUBLIC_AZURE_CLIENT_ID=<app-registration-client-id>
 NEXT_PUBLIC_AZURE_TENANT_ID=<tenant-id>
-NEXT_PUBLIC_AZURE_REDIRECT_URI=https://getthyme.ai
+NEXT_PUBLIC_AZURE_REDIRECT_URI=https://gettimm.ie
 BC_ENVIRONMENT=production
 BC_COMPANY_ID=<business-central-company-guid>
 NEXT_PUBLIC_BC_BASE_URL=https://api.businesscentral.dynamics.com/v2.0
@@ -114,48 +115,16 @@ NEXT_PUBLIC_BC_BASE_URL=https://api.businesscentral.dynamics.com/v2.0
 
 == CI/CD Pipeline (GitHub Actions)
 
-Create `.github/workflows/deploy.yml`:
+Two workflows run on GitHub Actions:
 
-[source,yaml]
-----
-name: Deploy to Azure
+* `.github/workflows/ci.yml` runs format, lint, type check, unit tests and a build on every PR.
+* `.github/workflows/deploy-production.yml` deploys to the `timmie-knowall` App Service when a `v*` tag is pushed (see <<Release Workflow>>). Pushing to `main` doesn't deploy.
 
-on:
-  push:
-    branches: [main]
+The deploy uses these repository secrets:
 
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-
-    - name: Install dependencies
-      run: npm ci
-
-    - name: Run tests
-      run: npm test
-
-    - name: Build
-      run: npm run build
-      env:
-        NEXT_PUBLIC_AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-        NEXT_PUBLIC_AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-
-    - name: Deploy to Azure
-      uses: azure/webapps-deploy@v2
-      with:
-        app-name: 'thyme-knowall'
-        publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
-        package: .next/standalone
-----
+* `AZURE_CREDENTIALS`: the deploy service principal, with Contributor on `timmie-knowall` only
+* `AZURE_WEBAPP_NAME`: `timmie-knowall`
+* `NEXT_PUBLIC_AZURE_CLIENT_ID`, `NEXT_PUBLIC_AZURE_TENANT_ID` and `NEXT_PUBLIC_AZURE_REDIRECT_URI`, which are baked in at build time
 
 == Release Workflow
 
@@ -238,10 +207,6 @@ admin one-liner.
 |===
 | Action | Permission required | Notes
 
-| Deploy a PR to a staging slot (`slot1`–`slot4`)
-| Repo write
-| Run the *Deploy PR to Azure Slot* workflow from the Actions tab.
-
 | Bump version + push to `main` (admin one-liner)
 | Repo admin
 | Branch protection blocks the direct push for non-admins.
@@ -255,158 +220,9 @@ admin one-liner.
 | `deploy-production.yml` does not declare `environment: production` on its job, so adding required reviewers to the `production` Actions environment would not currently pause the workflow. To add an approval gate, set `environment: production` on the deploy job and configure required reviewers.
 |===
 
-== PR Testing with Deployment Slots
+== Testing a PR
 
-=== Overview
-
-The repository includes a manual workflow that allows reviewers to deploy PRs to Azure App Service deployment slots for testing before merging. This enables testing in a production-like environment without affecting the main application.
-
-=== Prerequisites
-
-1. **Azure App Service Plan**: Standard tier or higher (required for deployment slots)
-2. **Deployment Slot**: Create a staging slot for PR testing
-
-==== Create Deployment Slots
-
-Thyme uses 4 deployment slots (slot1-slot4) for PR testing:
-
-[source,bash]
-----
-# Create 4 deployment slots
-for i in {1..4}; do
-  az webapp deployment slot create \
-    --name thyme-knowall \
-    --resource-group <resource-group-name> \
-    --slot "slot${i}"
-done
-
-# You'll configure environment variables per slot in Azure App Service
-# Each slot should have its own redirect URI (e.g., https://slotN.thyme.knowall.ai)
-----
-
-==== Configure slot-specific environment variables
-
-For each deployment slot (`slot1`–`slot4`), configure its own application settings (environment variables) in Azure App Service:
-
-. In the Azure Portal, open your App Service (for example, `thyme-knowall`).
-. In the left menu, select *Deployment slots* and click the slot you want to configure (for example, `slot1`).
-. In the slot blade, select *Configuration* → *Application settings*.
-. Add or update the environment variables for this slot. For example:
-.. `NEXT_PUBLIC_APP_URL` = `https://slot1.thyme.knowall.ai`
-.. `NEXT_PUBLIC_AZURE_REDIRECT_URI` = `https://slot1.thyme.knowall.ai`
-.. Any other app-specific settings that should differ per slot
-. Click *Save* and allow the slot to restart if prompted.
-. Repeat these steps for `slot2`, `slot3`, and `slot4`, adjusting the values for each slot (e.g., `https://slot2.thyme.knowall.ai`, `https://slot3.thyme.knowall.ai`, etc.).
-
-These settings are *slot-specific*: when you swap slots, their configuration (including redirect URIs) stays with the slot, so each PR environment continues to work correctly.
-
-----
-
-=== GitHub Secrets Setup
-
-Configure these secrets in your GitHub repository (Settings → Secrets and variables → Actions):
-
-1. **AZURE_WEBAPP_NAME**: Your Azure App Service name (e.g., `thyme-knowall`)
-2. **AZURE_WEBAPP_PUBLISH_PROFILE**: Download from Azure Portal → App Service → Deployment Center → Manage publish profile for the production slot
-
-NOTE: Azure App Service publish profiles can be used across deployment slots when they share the same App Service. The production publish profile works for all slots (slot1-slot4) because they authenticate to the same App Service resource.
-
-To get the publish profile for the production slot:
-
-[source,bash]
-----
-# Download publish profile for the production slot
-az webapp deployment list-publishing-profiles \
-  --name thyme-knowall \
-  --resource-group <resource-group-name> \
-  --xml
-----
-
-Copy the XML output and add it as the `AZURE_WEBAPP_PUBLISH_PROFILE` secret in GitHub.
-
-=== Using the Workflow
-
-1. **Navigate to Actions**: Go to your GitHub repository → Actions tab
-2. **Select Workflow**: Click "Deploy PR to Azure Slot" from the workflow list
-3. **Run Workflow**: Click "Run workflow" button
-4. **Enter Details**:
-   - **PR number**: The pull request number to deploy
-   - **Slot name**: Target deployment slot (default: `slot1`, options: slot1-slot4)
-5. **Monitor**: Watch the workflow execution in the Actions tab
-
-The workflow will:
-
-- ✅ Check for existing deployments in the target slot
-- ✅ Validate the PR is open
-- ✅ Run tests and type checking
-- ✅ Build the application
-- ✅ Create a GitHub deployment for tracking
-- ✅ Deploy to the specified slot
-- ✅ Update deployment status (active/inactive)
-- ✅ Comment on both the current and previously deployed PRs
-- ✅ Post deployment URL with custom domain
-
-=== Deployment Tracking
-
-The workflow uses **GitHub's Deployments API** to track which PR is deployed to each slot:
-
-**View Deployments:**
-- Go to your repository → Deployments tab
-- See active and inactive deployments per slot
-- Track deployment history for each PR
-
-**PR Comments:**
-- Each deployment posts a comment with the deployment URL
-- If a slot is overwritten, both PRs receive notification comments
-- Previous PR gets a "Deployment Replaced" comment
-- New PR shows which deployment it replaced (if any)
-
-**Deployment Status:**
-- Active: Currently deployed and accessible
-- Inactive: Overwritten by a newer deployment
-- Failed: Deployment encountered errors
-
-=== Testing the Deployment
-
-After deployment completes:
-
-1. Visit the deployment URL (e.g., `https://slot1.thyme.knowall.ai`)
-2. Check the PR comment for the exact slot URL
-3. Test the PR changes thoroughly:
-   - Authentication flow (redirect URI is configured for the slot domain)
-   - Business Central integration
-   - New features or bug fixes
-   - Mobile responsiveness
-   - Cross-browser compatibility
-4. Check the GitHub Deployments tab to see deployment status
-5. If issues are found:
-   - Request changes on the PR
-   - Developer pushes fixes
-   - Re-run the workflow to deploy updated code to the same slot
-
-**Available Deployment Slots:**
-- `slot1.thyme.knowall.ai` - Primary testing slot
-- `slot2.thyme.knowall.ai` - Secondary testing slot
-- `slot3.thyme.knowall.ai` - Additional slot for parallel testing
-- `slot4.thyme.knowall.ai` - Additional slot for parallel testing
-
-**Parallel Testing:**
-Multiple PRs can be deployed to different slots simultaneously, allowing reviewers to test several changes in parallel without conflicts.
-
-=== Cleanup
-
-Deployment slots persist until manually deleted. To clean up after testing:
-
-[source,bash]
-----
-# Delete a deployment slot (optional)
-az webapp deployment slot delete \
-  --name thyme-knowall \
-  --resource-group <resource-group-name> \
-  --slot slot1
-----
-
-NOTE: You typically keep the deployment slots (slot1–slot4) and reuse them for multiple PR deployments.
+Timmie is a single App Service (`timmie-knowall`) on a Basic (B1) plan, with no deployment slots or preview environments. Test a PR locally before merging: check out its branch and run `bun run dev` (see the README). Production only changes when a `v*` release tag is pushed.
 
 == Manual Deployment
 
@@ -420,14 +236,14 @@ npm run build
 
 # Or use Azure CLI
 az webapp deployment source config-zip \
-  --name thyme-knowall \
-  --resource-group thyme-rg \
+  --name timmie-knowall \
+  --resource-group timmie-rg \
   --src deploy.zip
 ----
 
 == Post-Deployment Checklist
 
-- [ ] Verify app loads at https://getthyme.ai
+- [ ] Verify app loads at https://gettimm.ie
 - [ ] Test Microsoft sign-in flow
 - [ ] Verify Business Central API connection
 - [ ] Check projects load from BC

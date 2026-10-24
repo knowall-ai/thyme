@@ -18,7 +18,7 @@ import { Header, PublicFooter } from '@/components/layout';
 import { QuoteDisplay } from '@/components/ui';
 import { ScreenshotCarousel } from './ScreenshotCarousel';
 
-// Ordered for the three-column grid: each Poppie card sits beside the feature it supports
+// Ordered for the three-column grid: each AI agent card sits beside the feature it supports
 const features = [
   {
     icon: ClockIcon,
@@ -28,9 +28,9 @@ const features = [
   },
   {
     icon: SparklesIcon,
-    title: "Poppie's Time Suggestions",
+    title: 'AI Time Suggestions',
     description:
-      'Poppie, the AI assistant, suggests entries from your calendar, GitHub and Azure DevOps activity, matched to the right project. Review each one before you add it.',
+      'The AI agent suggests entries from your calendar, GitHub and Azure DevOps activity, matched to the right project. Review each one before you add it.',
   },
   {
     icon: ArrowPathIcon,
@@ -46,9 +46,9 @@ const features = [
   },
   {
     icon: SparklesIcon,
-    title: "Poppie's Timesheet Review",
+    title: 'AI Timesheet Review',
     description:
-      'Before you approve, Poppie flags missing comments, short days, the billable mix and budget overruns, with notes against the entries concerned.',
+      'Before you approve, the AI agent flags missing comments, short days, the billable mix and budget overruns, with notes against the entries concerned.',
   },
   {
     icon: ChartBarIcon,
@@ -70,9 +70,9 @@ const features = [
   },
   {
     icon: SparklesIcon,
-    title: "Poppie's Plan Review",
+    title: 'AI Plan Review',
     description:
-      "Poppie checks each week's plan for billable targets, holidays, capacity and budget burn. If you can edit plans, apply her proposed changes in one click.",
+      "The AI agent checks each week's plan for billable targets, holidays, capacity and budget burn. If you can edit plans, apply its proposed changes in one click.",
   },
   {
     icon: ArrowTrendingUpIcon,
@@ -100,7 +100,7 @@ const benefits = [
   { title: 'Accurate client billing', description: 'Every hour tracked means every hour billed' },
   {
     title: 'Fewer forgotten hours',
-    description: 'Poppie suggests entries from the work you have already done',
+    description: 'The AI agent suggests entries from the work you have already done',
   },
   {
     title: 'Real-time project profitability',
@@ -169,9 +169,9 @@ export function LandingPage() {
             </h1>
 
             <p className="text-dark-300 mx-auto mb-10 max-w-2xl text-lg sm:text-xl">
-              Thyme is time tracking for Microsoft Dynamics 365 Business Central. Log your time,
-              plan your team and keep projects on budget, with Poppie, the AI assistant, suggesting
-              entries and reviewing timesheets and plans.
+              Timmie is time tracking for Microsoft Dynamics 365 Business Central. Log your time,
+              plan your team and keep projects on budget, while an AI agent suggests entries and
+              reviews timesheets and plans.
             </p>
 
             <div className="flex flex-col justify-center gap-4 sm:flex-row">
@@ -247,10 +247,10 @@ export function LandingPage() {
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
             <div>
               <h2 className="mb-6 text-3xl font-bold text-white sm:text-4xl">
-                Why <span className="text-knowall-green">Thyme</span>?
+                Why <span className="text-knowall-green">Timmie</span>?
               </h2>
               <p className="text-dark-400 mb-8 text-lg">
-                Stop losing revenue to unbilled hours and late timesheets. Thyme gives you the
+                Stop losing revenue to unbilled hours and late timesheets. Timmie gives you the
                 visibility and control you need to run profitable projects.
               </p>
 
@@ -279,7 +279,7 @@ export function LandingPage() {
                 </div>
                 <h3 className="mb-3 text-xl font-semibold text-white">Sign in with Microsoft</h3>
                 <p className="text-dark-400 mb-6">
-                  Use your Microsoft Entra ID account to access Thyme securely.
+                  Use your Microsoft Entra ID account to access Timmie securely.
                 </p>
                 <button
                   onClick={handleLogin}

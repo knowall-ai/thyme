@@ -18,7 +18,7 @@ import {
 import { useAuth, useProfilePhoto } from '@/services/auth';
 import { useCompanyPath } from '@/hooks';
 import { cn, stripCompanyPrefix } from '@/utils';
-import { ThymeLogo } from '@/components/icons';
+import { TimmieLogo } from '@/components/icons';
 import { CompanySwitcher } from './CompanySwitcher';
 
 interface NavItem {
@@ -90,9 +90,9 @@ export function Header() {
             <Link href="/" className="flex shrink-0 items-center">
               <div className="flex items-center gap-2">
                 <div className="bg-knowall-green shadow-knowall-green/20 flex h-8 w-8 items-center justify-center rounded-lg shadow-lg">
-                  <ThymeLogo className="text-dark-950 h-5 w-5" />
+                  <TimmieLogo className="text-dark-950 h-5 w-5" />
                 </div>
-                <span className="text-xl font-bold text-white">Thyme</span>
+                <span className="text-xl font-bold text-white">Timmie</span>
               </div>
             </Link>
 

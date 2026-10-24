@@ -147,7 +147,7 @@ export function TimeEntryDetailsPopover({
         <span
           className={cn(
             'rounded px-1.5 py-0.5 text-[11px] font-medium',
-            entry.isBillable ? 'bg-thyme-500/20 text-thyme-400' : 'bg-dark-600 text-dark-300'
+            entry.isBillable ? 'bg-timmie-500/20 text-timmie-400' : 'bg-dark-600 text-dark-300'
           )}
         >
           {entry.isBillable ? 'Billable' : 'Non-billable'}

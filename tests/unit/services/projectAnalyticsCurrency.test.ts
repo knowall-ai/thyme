@@ -48,7 +48,7 @@ const entry = (overrides: Partial<BCTimeEntry>): BCTimeEntry => ({
   ...overrides,
 });
 
-// Fields Thyme BC Extension 1.14.0.0 adds
+// Fields Timmie BC Extension 1.14.0.0 adds
 const newFields = {
   line: { currencyCode: 'EUR', totalCostLCY: 520, totalPriceLCY: 1040 },
   entry: { currencyCode: 'EUR', totalPriceProjectCurrency: 960 },

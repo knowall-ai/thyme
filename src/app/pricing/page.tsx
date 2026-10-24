@@ -96,7 +96,7 @@ const faqs = [
   {
     question: 'Do I need a Business Central license?',
     answer:
-      'Yes, Thyme requires Microsoft Dynamics 365 Business Central. Users need appropriate BC licenses to sync time data.',
+      'Yes, Timmie requires Microsoft Dynamics 365 Business Central. Users need appropriate BC licenses to sync time data.',
   },
   {
     question: 'Is there a free trial?',
@@ -348,7 +348,8 @@ export default function PricingPage() {
       <div className="border-dark-700 bg-dark-800/50 mt-20 rounded-2xl border p-8 text-center">
         <h2 className="mb-4 text-2xl font-bold text-white">Ready to get started?</h2>
         <p className="text-dark-400 mx-auto mb-6 max-w-xl">
-          Join teams using Thyme to streamline their time tracking and Business Central integration.
+          Join teams using Timmie to streamline their time tracking and Business Central
+          integration.
         </p>
         <Link
           href="/"

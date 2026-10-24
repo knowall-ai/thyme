@@ -108,7 +108,7 @@ export async function getGraphUser(userPrincipalName: string): Promise<GraphUser
 
 /**
  * Finds directory users whose display name equals the given name (Graph compares
- * case-insensitively). Needs only User.ReadBasic.All, which Thyme already requests.
+ * case-insensitively). Needs only User.ReadBasic.All, which Timmie already requests.
  * Throws when Graph can't be reached.
  */
 export async function findGraphUsersByDisplayName(
@@ -135,7 +135,7 @@ export async function findGraphUsersByDisplayName(
  * Finds directory users whose display name starts with the given text (Graph compares
  * case-insensitively), following pagination. `complete` is false when there were more pages than
  * we were willing to read, so callers can treat the result as ambiguous. Needs only
- * User.ReadBasic.All, which Thyme already requests. Throws when Graph can't be reached.
+ * User.ReadBasic.All, which Timmie already requests. Throws when Graph can't be reached.
  */
 export async function findGraphUsersByDisplayNamePrefix(
   prefix: string

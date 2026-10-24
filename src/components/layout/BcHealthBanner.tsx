@@ -15,8 +15,8 @@ const SERVICE_HEALTH_URL = 'https://admin.microsoft.com/#/servicehealth';
 
 /**
  * App-wide notice when Business Central itself is failing, so an empty page isn't
- * taken for Thyme being broken. Asked for only when a Business Central call gets no
- * response (BC_UNREACHABLE_EVENT): Thyme's server then checks Business Central (see
+ * taken for Timmie being broken. Asked for only when a Business Central call gets no
+ * response (BC_UNREACHABLE_EVENT): Timmie's server then checks Business Central (see
  * /api/health/bc), so the user's own connection dropping shows nothing.
  */
 export function BcHealthBanner() {
@@ -35,7 +35,7 @@ export function BcHealthBanner() {
       const health = (await response.json()) as BcHealth;
       if (requestId === latestRequest.current) setHealth(health);
     } catch {
-      // Thyme's own server can't be reached either: nothing useful to say about BC
+      // Timmie's own server can't be reached either: nothing useful to say about BC
     }
   }, []);
 
