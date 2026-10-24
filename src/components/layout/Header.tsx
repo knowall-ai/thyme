@@ -20,6 +20,7 @@ import { useCompanyPath } from '@/hooks';
 import { cn, stripCompanyPrefix } from '@/utils';
 import { ThymeLogo } from '@/components/icons';
 import { CompanySwitcher } from './CompanySwitcher';
+import { useTenantAccess } from '@/components/access/useTenantAccess';
 
 interface NavItem {
   name: string;
@@ -40,6 +41,8 @@ export function Header() {
   const pathname = usePathname();
   const { account, logout, login, isAuthenticated, isLoading } = useAuth();
   const { photoUrl } = useProfilePhoto(isAuthenticated);
+  // Navigation and the company list are only for approved organisations
+  const showApp = useTenantAccess().status === 'approved';
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   // Nav links open in the current company (/{environment}/{companyId}/…)
@@ -97,7 +100,7 @@ export function Header() {
             </Link>
 
             {/* Navigation - only shown when authenticated, hidden in print */}
-            {isAuthenticated && (
+            {showApp && (
               <nav className="hidden sm:ml-8 sm:flex sm:space-x-1 print:!hidden">
                 {navigation.map((item) => {
                   const Icon = item.icon;
@@ -127,22 +130,24 @@ export function Header() {
             {isAuthenticated ? (
               <>
                 {/* Settings icon */}
-                <Link
-                  href={toHref('/settings')}
-                  className={cn(
-                    'hidden rounded-lg p-2 transition-colors sm:block',
-                    isActive('/settings')
-                      ? 'bg-knowall-green/10 text-knowall-green'
-                      : 'text-dark-400 hover:bg-dark-800 hover:text-white'
-                  )}
-                  title="Settings"
-                >
-                  <Cog6ToothIcon className="h-5 w-5" />
-                </Link>
+                {showApp && (
+                  <Link
+                    href={toHref('/settings')}
+                    className={cn(
+                      'hidden rounded-lg p-2 transition-colors sm:block',
+                      isActive('/settings')
+                        ? 'bg-knowall-green/10 text-knowall-green'
+                        : 'text-dark-400 hover:bg-dark-800 hover:text-white'
+                    )}
+                    title="Settings"
+                  >
+                    <Cog6ToothIcon className="h-5 w-5" />
+                  </Link>
+                )}
 
                 {account && (
                   <>
-                    <CompanySwitcher />
+                    {showApp && <CompanySwitcher />}
 
                     {/* User dropdown */}
                     <div className="relative" ref={userMenuRef}>
@@ -235,7 +240,7 @@ export function Header() {
       </div>
 
       {/* Mobile Navigation - only for authenticated users, hidden in print */}
-      {isAuthenticated && (
+      {showApp && (
         <nav className="border-dark-700 border-t sm:hidden print:!hidden">
           <div className="flex justify-around">
             {navigation.map((item) => {
