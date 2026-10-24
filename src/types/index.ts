@@ -249,7 +249,22 @@ export interface BCTimeEntry {
   totalPriceProjectCurrency?: number;
   postingDate: string;
   description?: string;
+  // Job Ledger Entry type: "Resource", "Item" or "G/L Account" (decoded from BC's
+  // "G_x002F_L_x0020_Account"). Always "Resource" on /timeEntries; any of the three on
+  // /jobCostEntries. Only Resource entries' quantity is hours.
+  type?: string;
+  number?: string; // The resource, item or G/L account number
+  // The resource's type, "Person" or "Machine" (e.g. AI usage), on Resource entries from
+  // /jobCostEntries (Thyme BC Extension 1.28.0.0+); blank on other entries, undefined before
+  resourceType?: string;
+  entryType?: string; // "Usage" or "Sale"
 }
+
+/**
+ * A project's Job Ledger Entry of any type, from /jobCostEntries (Thyme BC Extension
+ * 1.28.0.0+): the same fields as /timeEntries, which only has Resource entries
+ */
+export type BCJobCostEntry = BCTimeEntry;
 
 // Time Sheet status types
 export type TimeSheetStatus = 'Open' | 'Submitted' | 'Rejected' | 'Approved' | 'Posted';

@@ -20,6 +20,7 @@ import type {
   BCTimeSheetLine,
   BCTimeSheetDetail,
   BCTimeEntry,
+  BCJobCostEntry,
   BCTimeSuggestion,
   BCTimeSuggestionUpdate,
   BCSuggestionRequest,
@@ -1202,6 +1203,36 @@ class BusinessCentralClient {
       }
       console.error('[BC API] Error fetching time entries:', error);
       return [];
+    }
+  }
+
+  /**
+   * A project's Job Ledger Entries of every type (Resource, Item and G/L Account), for its
+   * real cost and price: non-hour costs such as AI services are posted as G/L Account lines,
+   * which /timeEntries (Resource only) doesn't return. Requires Thyme BC Extension 1.28.0.0+.
+   *
+   * Returns null when the endpoint isn't there (an older extension: 404) or can't be read,
+   * so the caller falls back to getTimeEntries, as before. Only Resource entries' quantity
+   * is hours: callers must filter on `type`.
+   */
+  async getJobCostEntries(jobNumber: string): Promise<BCJobCostEntry[] | null> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled) return null;
+
+    const filter = `jobNo eq '${this.sanitizeODataString(jobNumber)}'`;
+    try {
+      const entries = await this.customApiFetchAll<BCJobCostEntry>(
+        `/jobCostEntries?$filter=${encodeURIComponent(filter)}`
+      );
+      // BC encodes "G/L Account" as "G_x002F_L_x0020_Account"
+      return entries.map((entry) => ({ ...entry, type: decodeBCEnum(entry.type) }));
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('(404)')) {
+        // Expected until the extension is updated: use timeEntries, as before
+        return null;
+      }
+      console.warn('[BC API] jobCostEntries unavailable, using timeEntries instead:', error);
+      return null;
     }
   }
 

@@ -10,6 +10,8 @@ const client = vi.hoisted(() => ({
   getTimeSheetDetailsForJob: vi.fn(),
   getJobPlanningLines: vi.fn(),
   getResourceUnitsOfMeasure: vi.fn(async () => []),
+  // An extension before 1.28.0.0: no jobCostEntries, so timeEntries is used
+  getJobCostEntries: vi.fn(async () => null),
   getTimeEntries: vi.fn(),
   getJobTasks: vi.fn(async () => []),
 }));

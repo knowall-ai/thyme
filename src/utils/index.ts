@@ -30,3 +30,4 @@ export * from './dayNotes';
 export * from './popoverPosition';
 export * from './planReview';
 export * from './legacyStorage';
+export * from './aiResources';

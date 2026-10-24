@@ -68,7 +68,7 @@ Open → Submitted → Approved → Posted (to Job Ledger Entry)
 
 After approval, someone (usually finance/admin) must run the **"Post Time Sheets"** batch job or post individually from the Time Sheet Administrator page.
 
-**Where Timmie's Posted stage comes from:** every page that splits time by stage (Time Spent, the project Breakdown, the Projects list, Team and Reports) takes posted hours from the timesheet itself: each approved day's `postedQuantity` on `/timeSheetDetails`. So a figure on one page and the entries it links to on Reports always agree. Cost and invoiced figures still come from the Job Ledger (`/timeEntries`), which is why Hours Posted below can differ from the Posted stage.
+**Where Timmie's Posted stage comes from:** every page that splits time by stage (Time Spent, the project Breakdown, the Projects list, Team and Reports) takes posted hours from the timesheet itself: each approved day's `postedQuantity` on `/timeSheetDetails`. So a figure on one page and the entries it links to on Reports always agree. Cost and invoiced figures still come from the Job Ledger (`/jobCostEntries`, or `/timeEntries` on an extension before 1.28), which is why Hours Posted below can differ from the Posted stage.
 
 === Why Hours May Show £0 Cost
 
@@ -104,8 +104,8 @@ Timmie shows this as:
 
 | Hours Posted
 | `quantity`
-| Hours that have been posted to Job Ledger Entry (behind the cost estimates)
-| `/timeEntries`
+| Hours that have been posted to Job Ledger Entry (behind the cost estimates): people's and agents' Resource entries only, never AI usage, Item or G/L Account quantities
+| `/jobCostEntries` (`/timeEntries` before 1.28)
 
 | Posted (stage)
 | `postedQuantity`
@@ -136,8 +136,8 @@ Timmie shows this as:
 
 | Actual Cost
 | `totalCost`
-| Actual cost incurred (from posted entries only)
-| `/timeEntries` (Job Ledger Entry)
+| Actual cost incurred (from posted entries only), of every type: Resource, AI, Item and G/L Account
+| `/jobCostEntries` (Job Ledger Entry; `/timeEntries`, Resource only, before 1.28)
 
 | Unposted Cost
 | (estimated)
@@ -158,14 +158,25 @@ Timmie shows this as:
 
 | Invoiced Price
 | `totalPrice`
-| Amount actually invoiced to customer
-| `/timeEntries` (Job Ledger Entry)
+| Amount actually invoiced to customer, of every type
+| `/jobCostEntries` (Job Ledger Entry; `/timeEntries` before 1.28)
+
+| Margin (internal, on the Invoiced Price card)
+| `totalPrice` − `totalCost` (LCY)
+| Invoiced Price less Actual Cost, in the company's currency (using the LCY price, even for a project in another currency), with its % of the invoiced price. Hidden with Actual Cost or Invoiced Price.
+| `/jobCostEntries`
 
 | Unposted Billable
 | (estimated)
 | Estimated billable for unposted timesheet hours
 | Hours Unposted × average billable rate
 |===
+
+=== AI Usage Costs
+
+AI agents are BC resources with a unit price only: their hours are what's charged, at no unit cost. Their real costs (AI tokens, compute) are posted to the client's project against a dedicated **Machine** resource, e.g. `AI-USAGE` (unit of measure in currency units, unit cost 1, unit price 0, non-chargeable), so its quantity is money, not hours.
+
+Thyme shows these as an **AI** line in the cost and price breakdowns, alongside Resource (now people's and agents' time only), Item and G/L Account. An entry or planning line is AI when its resource is a Machine (`resourceType` on `/jobCostEntries`, Thyme BC Extension 1.28+) or is one of `THYME_AI_RESOURCES` (comma-separated resource numbers, default `AI-USAGE`). AI usage never counts as hours: not in Time Spent, Hours Posted, Planned, Estimate, or the team and task breakdowns.
 
 === Billable Hours
 
@@ -355,10 +366,10 @@ Timmie provides an "eye" toggle button to show/hide internal costs:
 
 **When Costs Visible:**
 
-* Budget Cost with breakdown (Resource/Item/G/L Account)
+* Budget Cost with breakdown (Resource/AI/Item/G/L Account)
 * Actual Cost with breakdown + unposted estimate
 * Billable Price with breakdown
-* Invoiced Price with breakdown
+* Invoiced Price with breakdown, and its Margin line (hidden with Actual Cost, or with Invoiced Price's own toggle)
 * Spend vs Budget chart with £ axis
 
 **When Costs Hidden:**

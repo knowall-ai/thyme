@@ -110,6 +110,8 @@ const client = vi.hoisted(() => ({
   getTimeSheetLinesForJob: vi.fn(),
   getTimeSheetDetailsForJob: vi.fn(),
   getJobPlanningLines: vi.fn(),
+  // No jobCostEntries (extension before 1.28.0.0): both use timeEntries
+  getJobCostEntries: vi.fn(async () => null),
   getTimeEntries: vi.fn(),
   getJobTasks: vi.fn(),
   // Company-wide (the Projects list)
