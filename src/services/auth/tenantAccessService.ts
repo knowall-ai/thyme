@@ -7,14 +7,17 @@
  */
 
 import { KNOWALL_TENANT_ID, normaliseTenantId } from '@/utils/tenantAccess';
-import { getGraphAccessToken } from './tokenService';
+import { getGraphAccessToken, getIdToken } from './tokenService';
 
 const TIMEOUT_MS = 15_000;
 
 /**
- * True when the tenant is approved, false when it isn't (or the tenant ID is missing
- * or malformed). Throws when the server couldn't say, so the caller can offer a retry
- * rather than wrongly telling an approved organisation it isn't set up.
+ * True when the server approves the signed-in organisation, false when it doesn't (or
+ * the tenant ID is missing or malformed). The server decides from the user's ID token,
+ * which it verifies, not from `tid`: that is only used to skip the round trip for
+ * KnowAll. Throws when the server couldn't say (no ID token, a token it rejected, or an
+ * outage), so the caller can offer a retry rather than wrongly telling an approved
+ * organisation it isn't set up.
  */
 export async function checkTenantApproved(tid: string | null): Promise<boolean> {
   const id = normaliseTenantId(tid);
@@ -22,11 +25,15 @@ export async function checkTenantApproved(tid: string | null): Promise<boolean> 
   // KnowAll (and guests invited into it) needs no round trip
   if (id === KNOWALL_TENANT_ID) return true;
 
-  const response = await fetch(`/api/tenant-access?tid=${encodeURIComponent(id)}`, {
+  const idToken = await getIdToken();
+  if (!idToken) throw new Error('No ID token to check tenant access with');
+
+  const response = await fetch('/api/tenant-access', {
     cache: 'no-store',
+    headers: { Authorization: `Bearer ${idToken}` },
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
-  if (response.status === 401 || response.status === 403) return false;
+  if (response.status === 403) return false;
   if (!response.ok) throw new Error(`Tenant access check failed (${response.status})`);
   const body = (await response.json()) as { approved?: unknown };
   return body.approved === true;

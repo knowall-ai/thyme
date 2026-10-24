@@ -49,6 +49,33 @@ export async function getAccessToken(
   }
 }
 
+/**
+ * The signed-in user's Entra ID token (refreshed silently if it has expired), for
+ * Thyme's own server to verify. Returns null when there's no signed-in account or it
+ * couldn't be fetched for a transient reason.
+ *
+ * @throws ReauthRequiredError when Microsoft Entra needs the user to sign in again
+ */
+export async function getIdToken(): Promise<string | null> {
+  try {
+    await initializeMsal();
+    const account = msalInstance.getActiveAccount();
+    if (!account) return null;
+    const response = await msalInstance.acquireTokenSilent({
+      scopes: ['openid', 'profile'],
+      account,
+    });
+    return response.idToken || null;
+  } catch (error) {
+    if (isInteractionRequiredError(error)) {
+      void requestReauth();
+      throw new ReauthRequiredError(error);
+    }
+    console.warn('Silent ID token acquisition failed', error);
+    return null;
+  }
+}
+
 export async function getBCAccessToken(): Promise<string | null> {
   return getAccessToken(bcTokenRequest.scopes);
 }

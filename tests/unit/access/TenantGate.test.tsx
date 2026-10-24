@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach, type Mock } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { NextRequest } from 'next/server';
+import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT, type JWK } from 'jose';
 import { GET } from '@/app/api/tenant-access/route';
 import { KNOWALL_TENANT_ID } from '@/utils/tenantAccess';
 import { resetTenantAccessCache } from '@/components/access/useTenantAccess';
@@ -31,6 +32,36 @@ vi.mock('@/services/auth', async (importOriginal) => ({
   UnauthenticatedTemplate: ({ children }: { children: ReactNode }) =>
     auth.account ? null : children,
 }));
+
+// Entra's side of the approval check: MSAL hands out an ID token for the signed-in
+// account's tenant, signed with a key generated here instead of Entra's
+const CLIENT_ID = '99999999-0000-0000-0000-000000000001';
+const entra = vi.hoisted(() => ({
+  jwks: { keys: [] as JWK[] },
+  sign: null as null | ((tid: unknown) => Promise<string>),
+}));
+vi.mock('@/services/auth/idTokenVerifier', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/auth/idTokenVerifier')>()),
+  entraKeySet: () => createLocalJWKSet(entra.jwks),
+}));
+vi.mock('@/services/auth/tokenService', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/auth/tokenService')>()),
+  getIdToken: vi.fn(async () =>
+    auth.account && entra.sign ? entra.sign(auth.account.idTokenClaims.tid) : null
+  ),
+}));
+
+beforeAll(async () => {
+  const { publicKey, privateKey } = await generateKeyPair('RS256');
+  entra.jwks = { keys: [{ ...(await exportJWK(publicKey)), kid: 'k1', alg: 'RS256' }] };
+  entra.sign = (tid) =>
+    new SignJWT({ tid })
+      .setProtectedHeader({ alg: 'RS256', kid: 'k1' })
+      .setIssuer(`https://login.microsoftonline.com/${String(tid).toLowerCase()}/v2.0`)
+      .setAudience(CLIENT_ID)
+      .setExpirationTime('1h')
+      .sign(privateKey);
+});
 
 // The organisation name lookup goes to Microsoft Graph; the approval check stays real
 vi.mock('@/services/auth/tenantAccessService', async (importOriginal) => ({
@@ -83,7 +114,7 @@ function renderCompanyPage() {
   );
 }
 
-let fetchMock: Mock<[string], Promise<Response>>;
+let fetchMock: Mock<[string, RequestInit?], Promise<Response>>;
 
 beforeEach(() => {
   resetTenantAccessCache();
@@ -101,9 +132,10 @@ beforeEach(() => {
     fetchCompanies: store.fetchCompanies,
   };
   vi.stubEnv('APPROVED_TENANT_IDS', CONTOSO);
+  vi.stubEnv('NEXT_PUBLIC_AZURE_CLIENT_ID', CLIENT_ID);
   // The browser's call to /api/tenant-access goes to the real route handler
-  fetchMock = vi.fn(async (input: string) =>
-    GET(new NextRequest(new URL(input, 'http://localhost')))
+  fetchMock = vi.fn(async (input: string, init?: RequestInit) =>
+    GET(new NextRequest(new URL(input, 'http://localhost'), { headers: init?.headers }))
   );
   vi.stubGlobal('fetch', fetchMock);
 });
@@ -126,9 +158,13 @@ describe('TenantGate on company pages', () => {
     renderCompanyPage();
     expect(screen.queryByText('Timesheet data')).not.toBeInTheDocument();
     expect(await screen.findByText('Timesheet data')).toBeInTheDocument();
+    // It sends the ID token for the server to verify, not the tenant ID
     expect(fetchMock).toHaveBeenCalledWith(
-      `/api/tenant-access?tid=${CONTOSO}`,
-      expect.objectContaining({ cache: 'no-store' })
+      '/api/tenant-access',
+      expect.objectContaining({
+        cache: 'no-store',
+        headers: { Authorization: expect.stringMatching(/^Bearer ey/) },
+      })
     );
   });
 

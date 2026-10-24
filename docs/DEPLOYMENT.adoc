@@ -122,7 +122,7 @@ Only organisations KnowAll has approved can use Thyme. A signed-in user gets in 
 
 Everyone else (including a sign-in with no `tid`) sees "Your organisation isn't set up on Thyme yet", with a *Request access* button that emails `hello@knowall.ai` with their organisation, tenant ID and email. Per-user rules still apply on top: Business Central licences and permissions, and which companies the user can open.
 
-The list is read by the server at request time (`/api/tenant-access`), not built into the app, so approving an organisation needs no release.
+The list is read by the server at request time (`/api/tenant-access`), not built into the app, so approving an organisation needs no release. The browser sends the user's ID token (`Authorization: Bearer`), and the server verifies it against Entra's signing keys (RS256, audience `NEXT_PUBLIC_AZURE_CLIENT_ID`, issuer matching the token's own `tid`) before deciding from that `tid`. It never takes a tenant ID from the request, so it can't be asked about other organisations. Without `NEXT_PUBLIC_AZURE_CLIENT_ID` it answers 503 and nobody outside KnowAll gets in.
 
 To approve an organisation:
 
