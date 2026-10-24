@@ -135,7 +135,7 @@ The redirect URI is determined dynamically using `window.location.origin`, so it
 - `http://localhost:3000` - Default Next.js port
 - `http://localhost:3101` - Local dev port (configured in package.json)
 - `https://gettimm.ie` - Production
-- `https://slot1.timmie.knowall.ai`, `https://slot2.timmie.knowall.ai` - PR preview apps
+- `https://timmie.knowall.ai` - Production (KnowAll's own address)
 
 To check or update redirect URIs:
 
@@ -144,7 +144,7 @@ To check or update redirect URIs:
 az ad app show --id "44c618b5-89c3-4673-92ec-f7afb4e403bf" --query "spa.redirectUris"
 
 # Add a new redirect URI (replace with full list)
-az ad app update --id "44c618b5-89c3-4673-92ec-f7afb4e403bf" --spa-redirect-uris "http://localhost:3000" "http://localhost:3101" "https://gettimm.ie"
+az ad app update --id "44c618b5-89c3-4673-92ec-f7afb4e403bf" --spa-redirect-uris "http://localhost:3000" "http://localhost:3101" "https://gettimm.ie" "https://timmie.knowall.ai"
 ```
 
 ## Adding UI Components

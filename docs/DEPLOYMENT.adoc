@@ -238,10 +238,6 @@ admin one-liner.
 |===
 | Action | Permission required | Notes
 
-| Deploy a PR to a preview app (`slot1` or `slot2`)
-| Repo write
-| Run the *Deploy PR to Azure Slot* workflow from the Actions tab.
-
 | Bump version + push to `main` (admin one-liner)
 | Repo admin
 | Branch protection blocks the direct push for non-admins.
@@ -255,110 +251,9 @@ admin one-liner.
 | `deploy-production.yml` does not declare `environment: production` on its job, so adding required reviewers to the `production` Actions environment would not currently pause the workflow. To add an approval gate, set `environment: production` on the deploy job and configure required reviewers.
 |===
 
-== PR Testing with Preview Apps
+== Testing a PR
 
-=== Overview
-
-A manual workflow deploys a PR to one of two preview apps, so reviewers can test it in a production-like environment without affecting the live app. The workflow and its inputs still call them "slots" (`slot1`, `slot2`).
-
-Timmie runs on a Basic (B1) App Service plan, which has no deployment slots. Each preview is instead its own App Service on the same plan, named after the production app:
-
-[cols="1,2"]
-|===
-| App Service | URL
-
-| `timmie-knowall` | `https://timmie.knowall.ai` and `https://gettimm.ie` (production)
-| `timmie-knowall-slot1` | `https://slot1.timmie.knowall.ai`
-| `timmie-knowall-slot2` | `https://slot2.timmie.knowall.ai`
-|===
-
-Extra apps on the same plan cost nothing; they share its memory. That's why there are only two previews and why Always On is off for them.
-
-==== Create a preview app
-
-[source,bash]
-----
-az webapp create --resource-group KnowAllAIRG --plan timmie-plan \
-  --name timmie-knowall-slot1 --runtime "NODE:24-lts" --startup-file "node server.js"
-az webapp update --resource-group KnowAllAIRG --name timmie-knowall-slot1 --https-only true
-----
-
-Then give it its own settings (Configuration → Application settings), copying production's but with its own URLs:
-
-* `NEXT_PUBLIC_APP_URL` = `https://slot1.timmie.knowall.ai`
-* `NEXT_PUBLIC_AZURE_REDIRECT_URI` = `https://slot1.timmie.knowall.ai`
-
-Add the custom domain (a `slot1.timmie` CNAME to `timmie-knowall-slot1.azurewebsites.net` plus an `asuid.slot1.timmie` TXT record in the `knowall.ai` zone), a free managed certificate, and the URL as a SPA redirect URI on the Entra app registration.
-
-=== GitHub Secrets Setup
-
-The PR workflow uses the same secrets as the production deploy (Settings → Secrets and variables → Actions):
-
-1. **AZURE_WEBAPP_NAME**: the production App Service name, `timmie-knowall`. The workflow deploys to `<AZURE_WEBAPP_NAME>-<slot>`, e.g. `timmie-knowall-slot1`.
-2. **AZURE_CREDENTIALS**: the `timmie-github-deploy` service principal, which has Contributor on `timmie-knowall`, `timmie-knowall-slot1` and `timmie-knowall-slot2` only.
-
-=== Using the Workflow
-
-1. **Navigate to Actions**: Go to your GitHub repository → Actions tab
-2. **Select Workflow**: Click "Deploy PR to Azure Slot" from the workflow list
-3. **Run Workflow**: Click "Run workflow" button
-4. **Enter Details**:
-   - **PR number**: The pull request number to deploy
-   - **Slot name**: Target preview app (default: `slot1`, options: `slot1`, `slot2`)
-5. **Monitor**: Watch the workflow execution in the Actions tab
-
-The workflow will:
-
-- ✅ Check for existing deployments in the target slot
-- ✅ Validate the PR is open
-- ✅ Run tests and type checking
-- ✅ Build the application
-- ✅ Create a GitHub deployment for tracking
-- ✅ Deploy to the specified slot
-- ✅ Update deployment status (active/inactive)
-- ✅ Comment on both the current and previously deployed PRs
-- ✅ Post deployment URL with custom domain
-
-=== Deployment Tracking
-
-The workflow uses **GitHub's Deployments API** to track which PR is deployed to each slot:
-
-**View Deployments:**
-- Go to your repository → Deployments tab
-- See active and inactive deployments per slot
-- Track deployment history for each PR
-
-**PR Comments:**
-- Each deployment posts a comment with the deployment URL
-- If a slot is overwritten, both PRs receive notification comments
-- Previous PR gets a "Deployment Replaced" comment
-- New PR shows which deployment it replaced (if any)
-
-**Deployment Status:**
-- Active: Currently deployed and accessible
-- Inactive: Overwritten by a newer deployment
-- Failed: Deployment encountered errors
-
-=== Testing the Deployment
-
-After deployment completes:
-
-1. Visit the deployment URL (e.g., `https://slot1.timmie.knowall.ai`)
-2. Check the PR comment for the exact slot URL
-3. Test the PR changes thoroughly:
-   - Authentication flow (redirect URI is configured for the slot domain)
-   - Business Central integration
-   - New features or bug fixes
-   - Mobile responsiveness
-   - Cross-browser compatibility
-4. Check the GitHub Deployments tab to see deployment status
-5. If issues are found:
-   - Request changes on the PR
-   - Developer pushes fixes
-   - Re-run the workflow to deploy updated code to the same slot
-
-**Parallel Testing:**
-Two PRs can be deployed at once, one to each preview app. Deploying to a busy preview replaces what's there, and both PRs get a comment saying so.
+Timmie is a single App Service (`timmie-knowall`) on a Basic (B1) plan, with no deployment slots or preview environments. Test a PR locally before merging: check out its branch and run `bun run dev` (see the README). Production only changes when a `v*` release tag is pushed.
 
 == Manual Deployment
 
