@@ -42,7 +42,7 @@ const entry = (overrides: Partial<BCTimeEntry>): BCTimeEntry => ({
   id: 'e1',
   jobNo: 'PR00010',
   jobTaskNo: '100',
-  resourceNo: 'R0010',
+  number: 'R0010',
   quantity: 8,
   totalCost: 400, // GBP
   totalPrice: 830, // GBP

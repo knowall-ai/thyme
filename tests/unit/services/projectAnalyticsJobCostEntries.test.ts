@@ -24,7 +24,6 @@ const entry = (overrides: Partial<BCTimeEntry>): BCTimeEntry => ({
   id: 'e1',
   jobNo: 'PR00010',
   jobTaskNo: '100',
-  resourceNo: 'R0010',
   type: 'Resource',
   number: 'R0010',
   quantity: 8,
@@ -193,6 +192,20 @@ describe('project analytics from jobCostEntries', () => {
     expect(a.unpostedBillable).toBe(200);
   });
 
+  it('marks the costs incomplete, without falling back, when jobCostEntries fails (500)', async () => {
+    client.getJobCostEntries.mockRejectedValue(new Error('BC API Error (500): Internal error'));
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const a = await projectDetailsService.getProjectAnalytics('PR00010');
+
+    expect(client.getTimeEntries).not.toHaveBeenCalled();
+    expect(a.costsIncomplete).toBe(true);
+    expect(a.actualCost).toBe(0);
+    expect(a.invoicedPriceLCY).toBe(0);
+    expect(a.hoursSpent).toBe(10); // timesheet hours still load
+    error.mockRestore();
+  });
+
   it('falls back to timeEntries when jobCostEntries is missing (extension not updated)', async () => {
     client.getJobCostEntries.mockResolvedValue(null);
     client.getTimeEntries.mockResolvedValue([entry({})]);
@@ -200,6 +213,7 @@ describe('project analytics from jobCostEntries', () => {
     const a = await projectDetailsService.getProjectAnalytics('PR00010');
 
     expect(client.getTimeEntries).toHaveBeenCalledWith('PR00010');
+    expect(a.costsIncomplete).toBe(false);
     expect(a.hoursPosted).toBe(8);
     expect(a.actualCost).toBe(400);
     expect(a.actualCostBreakdown).toEqual({

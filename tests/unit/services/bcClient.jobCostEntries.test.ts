@@ -20,6 +20,8 @@ function stubFetch(status: number, body: unknown) {
 describe('bcClient.getJobCostEntries', () => {
   beforeEach(() => {
     bcClient.setCompany('00000000-0000-0000-0000-0000000000c3', 'sandbox');
+    // Forget an earlier test's 404 (the client is shared)
+    bcClient.resetExtensionCache();
     vi.spyOn(bcClient, 'isExtensionInstalled').mockResolvedValue(true);
   });
 
@@ -49,10 +51,27 @@ describe('bcClient.getJobCostEntries', () => {
     await expect(bcClient.getJobCostEntries('PR-CONTOSO')).resolves.toBeNull();
   });
 
-  it('returns null, rather than failing the page, on any other error', async () => {
-    stubFetch(403, { error: { message: 'No permission' } });
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    await expect(bcClient.getJobCostEntries('PR-CONTOSO')).resolves.toBeNull();
-    warn.mockRestore();
+  it('remembers the 404 for the company, so the next project load asks only timeEntries', async () => {
+    const fetchMock = stubFetch(404, { error: { message: 'No HTTP resource was found' } });
+    await bcClient.getJobCostEntries('PR-CONTOSO');
+    await expect(bcClient.getJobCostEntries('PR-OTHER')).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Another company may have the updated extension: ask again
+    bcClient.setCompany('00000000-0000-0000-0000-0000000000c4', 'sandbox');
+    await bcClient.getJobCostEntries('PR-CONTOSO');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws on any other error (e.g. 500), rather than fall back to Resource-only costs', async () => {
+    stubFetch(500, { error: { message: 'Internal error' } });
+    await expect(bcClient.getJobCostEntries('PR-CONTOSO')).rejects.toThrow('(500)');
+  });
+
+  it('throws on a 401 too, and asks again next time', async () => {
+    const fetchMock = stubFetch(401, { error: { message: 'Unauthorized' } });
+    await expect(bcClient.getJobCostEntries('PR-CONTOSO')).rejects.toThrow('(401)');
+    await expect(bcClient.getJobCostEntries('PR-CONTOSO')).rejects.toThrow('(401)');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
