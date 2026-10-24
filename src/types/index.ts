@@ -66,7 +66,7 @@ export interface BCResource {
 }
 
 /** Timmie company-wide settings (single record, Timmie BC Extension `thymeSetup` API) */
-export interface BCThymeSetup {
+export interface BCTimmieSetup {
   id: string;
   defaultBillableTargetPercent: number; // 0-100, used for anyone without their own target
   '@odata.etag'?: string;

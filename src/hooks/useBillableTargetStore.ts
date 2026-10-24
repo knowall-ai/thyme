@@ -39,7 +39,7 @@ export const useBillableTargetStore = create<BillableTargetStore>((set, get) => 
     const promise = (async () => {
       set({ isLoading: true, companyDefaultPercent: null, setupAvailable: null });
       try {
-        const setup = await bcClient.getThymeSetup();
+        const setup = await bcClient.getTimmieSetup();
         // A company switch while loading makes this result stale
         if (inFlight?.companyVersion !== companyVersion) return;
         set({

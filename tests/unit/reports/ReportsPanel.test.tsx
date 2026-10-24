@@ -134,7 +134,7 @@ vi.mock('@/services/bc', async () => {
 });
 
 vi.mock('@/services/bc/bcClient', () => ({
-  bcClient: { getThymeSetup: vi.fn(async () => ({ id: 's', defaultBillableTargetPercent: 75 })) },
+  bcClient: { getTimmieSetup: vi.fn(async () => ({ id: 's', defaultBillableTargetPercent: 75 })) },
 }));
 
 // The entries the Export button would write to the CSV

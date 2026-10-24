@@ -5,7 +5,7 @@ import type { BCResource } from '@/types';
 const client = vi.hoisted(() => ({
   getResources: vi.fn(),
   getResourceForCurrentUser: vi.fn(),
-  getThymeSetup: vi.fn(),
+  getTimmieSetup: vi.fn(),
 }));
 vi.mock('@/services/bc/bcClient', () => ({ bcClient: client }));
 
@@ -24,7 +24,7 @@ describe('useViewedBillableTarget', () => {
       loadedForCompanyVersion: -1,
       isLoading: false,
     });
-    client.getThymeSetup.mockResolvedValue({ defaultBillableTargetPercent: 75 });
+    client.getTimmieSetup.mockResolvedValue({ defaultBillableTargetPercent: 75 });
   });
 
   it("uses the signed-in user's own target", async () => {
@@ -45,7 +45,7 @@ describe('useViewedBillableTarget', () => {
   });
 
   it("shows someone's own target even when the company default can't be loaded", async () => {
-    client.getThymeSetup.mockRejectedValue(new Error('BC API Error (500)'));
+    client.getTimmieSetup.mockRejectedValue(new Error('BC API Error (500)'));
     client.getResourceForCurrentUser.mockResolvedValue(
       resource({ billableTargetSet: true, billableTargetPercent: 25 })
     );
@@ -54,10 +54,10 @@ describe('useViewedBillableTarget', () => {
   });
 
   it('shows no target for someone without their own until the company default loads', async () => {
-    client.getThymeSetup.mockRejectedValue(new Error('BC API Error (500)'));
+    client.getTimmieSetup.mockRejectedValue(new Error('BC API Error (500)'));
     client.getResourceForCurrentUser.mockResolvedValue(resource({ billableTargetSet: false }));
     const { result } = renderHook(() => useViewedBillableTarget(null, 'me@contoso.com'));
-    await waitFor(() => expect(client.getThymeSetup).toHaveBeenCalled());
+    await waitFor(() => expect(client.getTimmieSetup).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 0));
     expect(result.current).toBeNull();
   });
@@ -68,7 +68,7 @@ describe('useViewedBillableTarget', () => {
     await waitFor(() => expect(client.getResourceForCurrentUser).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 0));
     expect(result.current).toBeNull();
-    expect(client.getThymeSetup).not.toHaveBeenCalled();
+    expect(client.getTimmieSetup).not.toHaveBeenCalled();
   });
 
   it("never shows a previous person's target after switching", async () => {

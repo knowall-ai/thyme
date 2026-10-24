@@ -15,7 +15,7 @@ import type {
   BCJobJournalLine,
   BCResource,
   BCResourceUnitOfMeasure,
-  BCThymeSetup,
+  BCTimmieSetup,
   BCTimeSheet,
   BCTimeSheetLine,
   BCTimeSheetDetail,
@@ -132,7 +132,8 @@ const ENVIRONMENT_STORAGE_KEY = 'timmie_selected_environment';
 
 migrateLegacyStorageKey('thyme_selected_environment', ENVIRONMENT_STORAGE_KEY);
 
-// Custom Timmie BC Extension API settings
+// Custom Timmie BC Extension API settings. The group and the thymeSetup entity keep their
+// pre-rename names: they're compiled into the extension customers have installed.
 const TIMMIE_API_PUBLISHER = 'knowall';
 const TIMMIE_API_GROUP = 'thyme';
 const TIMMIE_API_VERSION = 'v1.0';
@@ -1324,16 +1325,16 @@ class BusinessCentralClient {
    * Timmie's company-wide settings (a single record), or null when the installed
    * Timmie BC Extension predates them (404) or isn't installed.
    */
-  async getThymeSetup(): Promise<BCThymeSetup | null> {
+  async getTimmieSetup(): Promise<BCTimmieSetup | null> {
     const baseUrl = this.customApiBaseUrl;
     if (!(await this.isExtensionInstalled())) return null;
-    return this.fetchThymeSetup(baseUrl);
+    return this.fetchTimmieSetup(baseUrl);
   }
 
   /** The thymeSetup record for the company at `baseUrl`, or null on a 404 */
-  private async fetchThymeSetup(baseUrl: string): Promise<BCThymeSetup | null> {
+  private async fetchTimmieSetup(baseUrl: string): Promise<BCTimmieSetup | null> {
     try {
-      const response = await this.customApiFetch<PaginatedResponse<BCThymeSetup> | BCThymeSetup>(
+      const response = await this.customApiFetch<PaginatedResponse<BCTimmieSetup> | BCTimmieSetup>(
         '/thymeSetup',
         {},
         baseUrl
@@ -1348,17 +1349,17 @@ class BusinessCentralClient {
   }
 
   /** Change the company default billable target (0-100) on the thymeSetup record */
-  async updateDefaultBillableTarget(targetPercent: number): Promise<BCThymeSetup> {
+  async updateDefaultBillableTarget(targetPercent: number): Promise<BCTimmieSetup> {
     const percent = requireTargetPercent(targetPercent);
     // Read and write the same company even if the user switches company meanwhile
     const baseUrl = this.customApiBaseUrl;
-    const current = await this.fetchThymeSetup(baseUrl);
+    const current = await this.fetchTimmieSetup(baseUrl);
     if (!current) {
       throw new Error('BC API Error (404): Billable targets need a newer Timmie BC Extension');
     }
     const etag = requireETag(current['@odata.etag'], 'Timmie Setup');
     const id = requireSystemId(current.id, 'Timmie Setup');
-    return this.customApiFetch<BCThymeSetup>(
+    return this.customApiFetch<BCTimmieSetup>(
       `/thymeSetup(${id})`,
       {
         method: 'PATCH',
