@@ -157,8 +157,8 @@ Timmie shows this as:
 | `/jobPlanningLines` where lineType includes 'Billable'
 
 | Invoiced Price
-| `totalPrice`
-| Amount actually invoiced to customer, of every type
+| `totalPrice` (Usage entries)
+| The price of the posted work, of every type: Usage entries only. Sale entries, which posting a sales invoice for the project adds (negative quantity, cost and price), aren't counted by Invoiced Price, Actual Cost, Hours Posted or the margin, as they'd cancel out the usage they invoice
 | `/jobCostEntries` (Job Ledger Entry; `/timeEntries` before 1.28)
 
 | Margin (internal, on the Invoiced Price card)
@@ -313,7 +313,10 @@ Provides posted/invoiced data from Job Ledger Entry.
 | Actual internal cost incurred
 
 | totalPrice
-| Amount invoiced to customer
+| The price of the posted work (on Usage entries; Sale entries, from posted sales invoices, are negative and Thyme ignores them)
+
+| entryType
+| `Usage` (posted work: time sheets, journals) or `Sale` (a posted sales invoice). Thyme uses Usage entries only, on `/jobCostEntries` too
 
 | postingDate
 | When the entry was posted

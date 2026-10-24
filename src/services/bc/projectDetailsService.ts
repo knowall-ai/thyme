@@ -127,14 +127,14 @@ export interface ProjectAnalytics {
   // Costs (internal - hideable) with breakdown by type
   budgetCost: number; // Total from Job Planning Lines totalCost (Budget lineType)
   budgetCostBreakdown: CostBreakdown; // By Resource/Item/G/L Account
-  actualCost: number; // Σ totalCost (LCY) of posted Job Ledger Entries of every type (jobCostEntries; timeEntries before 1.28)
+  actualCost: number; // Σ totalCost (LCY) of posted Usage Job Ledger Entries of every type (jobCostEntries; timeEntries before 1.28)
   actualCostBreakdown: CostBreakdown; // By Resource/Item/G/L Account
   unpostedCost: number; // Estimated: hoursUnposted × average cost rate
 
   // Revenue (customer-facing) with breakdown by type
   billablePrice: number; // Total from Job Planning Lines totalPrice (Billable lineType)
   billablePriceBreakdown: CostBreakdown; // By Resource/Item/G/L Account
-  invoicedPrice: number; // Σ price (project currency) of posted Job Ledger Entries of every type
+  invoicedPrice: number; // Σ price (project currency) of posted Usage Job Ledger Entries of every type (not Sale entries)
   invoicedPriceBreakdown: CostBreakdown; // By Resource/Item/G/L Account
   invoicedPriceLCY: number; // The same in LCY, for the margin against actualCost (LCY)
   // The posted entries couldn't be read (e.g. 401, 500), so actual cost, invoiced price and
@@ -202,12 +202,21 @@ interface TeamBreakdownItem extends StatusHours {
 
 /** Posted Job Ledger Entry totals for a project (see summarizePostedEntries) */
 export interface PostedEntryTotals {
+  // All from Usage entries only (never Sale entries: see summarizePostedEntries)
   hoursPosted: number; // People's (and agents') Resource entries only: never AI, Item or G/L
   actualCost: number; // LCY, every type
   actualCostBreakdown: CostBreakdown;
-  invoicedPrice: number; // Project currency, every type
+  invoicedPrice: number; // Project currency, every type: the price of the posted usage
   invoicedPriceBreakdown: CostBreakdown;
   invoicedPriceLCY: number; // LCY, every type: compared with actualCost for the margin
+}
+
+/**
+ * A Usage Job Ledger Entry: posted work (time sheets, journals, purchases), not a Sale entry
+ * (a posted sales invoice). Blank counts as Usage: Usage is the field's first value.
+ */
+export function isUsageEntry(entry: Pick<BCTimeEntry, 'entryType'>): boolean {
+  return !entry.entryType || entry.entryType === 'Usage';
 }
 
 /**
@@ -218,14 +227,23 @@ export interface PostedEntryTotals {
  * their real costs (AI tokens, compute) are posted against an AI usage resource (a Machine,
  * e.g. AI-USAGE, unit cost 1) whose quantity is currency units, not hours.
  *
+ * Only Usage entries count. Posting a sales invoice for a project also writes Sale entries
+ * (the invoiced amounts, with negative quantity, cost and price): summed with the Usage they
+ * invoice, they'd cancel it out, taking hours, cost and price towards zero and making the
+ * margin wrong. So every figure here is posted work, i.e. the "work done" Thyme tracks,
+ * including the price (the price of the posted usage, as for Billable Price), not what's been
+ * invoiced. Both /jobCostEntries and /timeEntries return entryType, so this holds on the
+ * older-extension fallback too.
+ *
  * allTypes: the entries came from /jobCostEntries, so `type` (and `resourceType`) tell them
  * apart. False for /timeEntries (an extension before 1.28.0.0), which only has Resource
  * entries; AI usage is then told apart by THYME_AI_RESOURCES only.
  */
 export function summarizePostedEntries(
-  entries: BCTimeEntry[],
+  allEntries: BCTimeEntry[],
   { allTypes }: { allTypes: boolean }
 ): PostedEntryTotals {
+  const entries = allEntries.filter(isUsageEntry);
   const keyOf = (entry: BCTimeEntry) =>
     breakdownKey(allTypes ? entry.type : 'Resource', entry.number, entry.resourceType);
   const cost = sumBreakdown(entries, keyOf, (entry) => entry.totalCost);

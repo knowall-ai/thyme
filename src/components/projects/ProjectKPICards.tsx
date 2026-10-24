@@ -257,8 +257,8 @@ export function ProjectKPICards() {
     'Actual Cost': {
       title: 'Actual Cost (Internal)',
       description:
-        "Internal cost incurred from posted Job Ledger Entries of every type, in the company's currency: Resource (people's and agents' posted time, at each Resource's Unit Cost), AI (AI usage posted against a Machine resource such as AI-USAGE, whose quantity is cost, never hours), Item and G/L Account. Shows 0 if timesheets are approved but not yet posted.",
-      formula: 'Σ totalCost (LCY): Resource + AI + Item + G/L Account',
+        "Internal cost incurred from posted Usage Job Ledger Entries of every type (not the Sale entries a posted sales invoice adds), in the company's currency: Resource (people's and agents' posted time, at each Resource's Unit Cost), AI (AI usage posted against a Machine resource such as AI-USAGE, whose quantity is cost, never hours), Item and G/L Account. Shows 0 if timesheets are approved but not yet posted.",
+      formula: 'Σ totalCost (LCY) of Usage entries: Resource + AI + Item + G/L Account',
       source:
         'BC API: /jobCostEntries → totalCost (LCY) (/timeEntries, Resource entries only, on extensions before 1.28)',
     },
@@ -271,9 +271,9 @@ export function ProjectKPICards() {
     },
     'Invoiced Price': {
       title: 'Invoiced Price (Customer)',
-      description: `Amount actually invoiced to the customer from posted Job Ledger Entries of every type, in the project's currency, using the unit price on each posted line converted to the project's currency. Margin (internal, hidden with Actual Cost) is the invoiced price less the Actual Cost, worked out in the company's currency (${currencyCode})${projectCurrencyCode !== currencyCode ? `: the project is priced in ${projectCurrencyCode}, so the margin uses BC's ${currencyCode} price, not the ${projectCurrencyCode} amount above` : ''}; the % is the margin's share of that price.`,
+      description: `The price of the posted work: posted Usage Job Ledger Entries of every type, in the project's currency, using the unit price on each posted line converted to the project's currency. Sale entries (the amounts a posted sales invoice records, negative) aren't counted, as they'd cancel out the usage they invoice. Margin (internal, hidden with Actual Cost) is the invoiced price less the Actual Cost, worked out in the company's currency (${currencyCode})${projectCurrencyCode !== currencyCode ? `: the project is priced in ${projectCurrencyCode}, so the margin uses BC's ${currencyCode} price, not the ${projectCurrencyCode} amount above` : ''}; the % is the margin's share of that price.`,
       formula:
-        'Σ totalPriceProjectCurrency · Margin = Σ totalPrice (LCY) − Actual Cost (LCY); % = Margin ÷ Σ totalPrice (LCY)',
+        'Σ totalPriceProjectCurrency of Usage entries · Margin = Σ totalPrice (LCY) − Actual Cost (LCY); % = Margin ÷ Σ totalPrice (LCY)',
       source:
         'BC API: /jobCostEntries → totalPriceProjectCurrency, totalPrice (LCY), totalCost (LCY) (/timeEntries before 1.28; totalPrice before 1.14)',
     },

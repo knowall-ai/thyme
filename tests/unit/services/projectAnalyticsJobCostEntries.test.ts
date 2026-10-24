@@ -18,7 +18,11 @@ const client = vi.hoisted(() => ({
 }));
 vi.mock('@/services/bc/bcClient', () => ({ bcClient: client }));
 
-import { projectDetailsService, summarizePostedEntries } from '@/services/bc/projectDetailsService';
+import {
+  isUsageEntry,
+  projectDetailsService,
+  summarizePostedEntries,
+} from '@/services/bc/projectDetailsService';
 
 const entry = (overrides: Partial<BCTimeEntry>): BCTimeEntry => ({
   id: 'e1',
@@ -65,7 +69,83 @@ const glCost = entry({
   totalPriceProjectCurrency: 0,
 });
 
+// Posting a sales invoice for the project's 8 hours writes a Sale entry: the same amounts,
+// negated (quantity, cost and price)
+const saleOfHours = entry({
+  id: 's1',
+  entryType: 'Sale',
+  resourceType: 'Person',
+  quantity: -8,
+  totalCost: -400,
+  totalPrice: -800,
+  totalPriceProjectCurrency: -800,
+});
+// And a Sale entry for an invoiced G/L line
+const saleOfGl = entry({
+  id: 's2',
+  entryType: 'Sale',
+  type: 'G/L Account',
+  number: '6100',
+  resourceType: '',
+  quantity: -1,
+  totalCost: -12,
+  totalPrice: -20,
+  totalPriceProjectCurrency: -20,
+});
+
+describe('isUsageEntry', () => {
+  it('is true for Usage and for a blank entry type, false for Sale', () => {
+    expect(isUsageEntry({ entryType: 'Usage' })).toBe(true);
+    expect(isUsageEntry({})).toBe(true);
+    expect(isUsageEntry({ entryType: 'Sale' })).toBe(false);
+  });
+});
+
 describe('summarizePostedEntries', () => {
+  it("ignores posted Sale entries, so they don't cancel out the usage they invoice", () => {
+    const usage = entry({ entryType: 'Usage', resourceType: 'Person' });
+    const usageGl = {
+      ...glCost,
+      entryType: 'Usage',
+      totalPrice: 20,
+      totalPriceProjectCurrency: 20,
+    };
+    const totals = summarizePostedEntries([usage, usageGl, aiUsage, saleOfHours, saleOfGl], {
+      allTypes: true,
+    });
+
+    expect(totals.hoursPosted).toBe(8); // not 0
+    expect(totals.actualCost).toBe(449.5); // 400 + 12 + 37.5, not 37.5
+    expect(totals.actualCostBreakdown).toEqual({
+      resource: 400,
+      ai: 37.5,
+      item: 0,
+      glAccount: 12,
+      total: 449.5,
+    });
+    expect(totals.invoicedPrice).toBe(820); // not 0
+    expect(totals.invoicedPriceBreakdown).toEqual({
+      resource: 800,
+      ai: 0,
+      item: 0,
+      glAccount: 20,
+      total: 820,
+    });
+    expect(totals.invoicedPriceLCY).toBe(820);
+    // So the margin is 820 − 449.5, not 0 − 37.5
+    expect(totals.invoicedPriceLCY - totals.actualCost).toBe(370.5);
+  });
+
+  it('ignores Sale entries on timeEntries too (extension before 1.28)', () => {
+    const totals = summarizePostedEntries([entry({ entryType: 'Usage' }), saleOfHours], {
+      allTypes: false,
+    });
+    expect(totals.hoursPosted).toBe(8);
+    expect(totals.actualCost).toBe(400);
+    expect(totals.invoicedPrice).toBe(800);
+    expect(totals.invoicedPriceLCY).toBe(800);
+  });
+
   it('counts an AI-USAGE entry of quantity 37.50 as £37.50 of AI cost and 0 hours', () => {
     const totals = summarizePostedEntries([agentHours, aiUsage], { allTypes: true });
 
@@ -225,5 +305,34 @@ describe('project analytics from jobCostEntries', () => {
     });
     expect(a.invoicedPrice).toBe(800);
     expect(a.invoicedPriceBreakdown.resource).toBe(800);
+  });
+
+  it('leaves posted Sale entries out of the cost, price, hours and margin', async () => {
+    client.getJobCostEntries.mockResolvedValue([
+      entry({ entryType: 'Usage', resourceType: 'Person' }),
+      aiUsage,
+      saleOfHours,
+    ]);
+
+    const a = await projectDetailsService.getProjectAnalytics('PR00010');
+
+    expect(a.hoursPosted).toBe(8);
+    expect(a.hoursUnposted).toBe(2);
+    expect(a.actualCost).toBe(437.5);
+    expect(a.actualCostBreakdown.ai).toBe(37.5);
+    expect(a.invoicedPrice).toBe(800);
+    expect(a.invoicedPriceLCY).toBe(800);
+  });
+
+  it('leaves Sale entries out on the timeEntries fallback too', async () => {
+    client.getJobCostEntries.mockResolvedValue(null);
+    client.getTimeEntries.mockResolvedValue([entry({ entryType: 'Usage' }), saleOfHours]);
+
+    const a = await projectDetailsService.getProjectAnalytics('PR00010');
+
+    expect(a.hoursPosted).toBe(8);
+    expect(a.actualCost).toBe(400);
+    expect(a.invoicedPrice).toBe(800);
+    expect(a.invoicedPriceLCY).toBe(800);
   });
 });
