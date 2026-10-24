@@ -125,7 +125,7 @@ jobs:
         with:
           script: |
             const slotName = '${{ inputs.slot_name }}';
-            const url = `https://${slotName}.thyme.knowall.ai`;
+            const url = `https://${slotName}.timmie.knowall.ai`;
 
             // Create deployment
             const { data: deployment } = await github.rest.repos.createDeployment({
@@ -286,7 +286,7 @@ jobs:
 
             This deployment to **${slotName}** was replaced by PR #${{ inputs.pr_number }} on ${new Date().toUTCString()}.
 
-            **Previous URL:** https://${slotName}.thyme.knowall.ai (now shows PR #${{ inputs.pr_number }})
+            **Previous URL:** https://${slotName}.timmie.knowall.ai (now shows PR #${{ inputs.pr_number }})
 
             [View deployment history →](${{ github.server_url }}/${{ github.repository }}/deployments)`;
 

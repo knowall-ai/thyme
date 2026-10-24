@@ -1,4 +1,4 @@
-# Contributing to Thyme
+# Contributing to Timmie
 
 ## Before you open a pull request
 

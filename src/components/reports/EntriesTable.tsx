@@ -33,7 +33,7 @@ const STATUS_COLORS: Record<EntryStatus, string> = {
   submitted: 'text-amber-400',
   approved: 'text-green-400',
   partlyPosted: 'text-green-400',
-  posted: 'text-thyme-600',
+  posted: 'text-timmie-600',
   rejected: 'text-red-400',
 };
 
@@ -118,7 +118,7 @@ export function EntriesTable({ rows }: { rows: EntryRow[] }) {
               active ? { key, dir: sort.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: firstDir }
             );
           }}
-          className="focus-visible:ring-thyme-500 inline-flex items-center gap-0.5 rounded hover:text-white focus:outline-none focus-visible:ring-1"
+          className="focus-visible:ring-timmie-500 inline-flex items-center gap-0.5 rounded hover:text-white focus:outline-none focus-visible:ring-1"
           title={`Sort by ${label.toLowerCase()}`}
         >
           {active &&
@@ -158,7 +158,7 @@ export function EntriesTable({ rows }: { rows: EntryRow[] }) {
                       href={companyPath(
                         `/time?week=${entry.date}&${RESOURCE_PARAM}=${encodeURIComponent(resourceNo)}`
                       )}
-                      className="text-dark-200 hover:text-thyme-400 underline-offset-4 hover:underline"
+                      className="text-dark-200 hover:text-timmie-400 underline-offset-4 hover:underline"
                       title="Open this timesheet"
                     >
                       {format(parseISO(entry.date), 'EEE d MMM yyyy')}
@@ -168,7 +168,7 @@ export function EntriesTable({ rows }: { rows: EntryRow[] }) {
                   <td className="px-3 py-2">
                     <Link
                       href={companyPath(`/projects/${encodeURIComponent(entry.projectId)}`)}
-                      className="hover:text-thyme-400 flex items-center gap-2 text-white underline-offset-4 hover:underline"
+                      className="hover:text-timmie-400 flex items-center gap-2 text-white underline-offset-4 hover:underline"
                     >
                       <span
                         className="h-2.5 w-2.5 flex-none rounded-full"

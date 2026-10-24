@@ -47,13 +47,13 @@ describe('bcClient retries', () => {
         )
       );
       const unreachable = vi.fn();
-      window.addEventListener('thyme:bc-unreachable', unreachable);
+      window.addEventListener('timmie:bc-unreachable', unreachable);
       const entries = bcClient.getTimeEntries('PR00010');
       await vi.advanceTimersByTimeAsync(90_000);
       // getTimeEntries reports a failure as no entries
       expect(await entries).toEqual([]);
       expect(unreachable).toHaveBeenCalledTimes(1);
-      window.removeEventListener('thyme:bc-unreachable', unreachable);
+      window.removeEventListener('timmie:bc-unreachable', unreachable);
     } finally {
       vi.useRealTimers();
     }

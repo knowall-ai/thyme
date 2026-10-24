@@ -1,9 +1,12 @@
 'use client';
 
+import { migrateLegacyStorageKey } from '@/utils/legacyStorage';
 import { useState, useEffect } from 'react';
 import { XMarkIcon, BoltIcon } from '@heroicons/react/24/outline';
 
-const DISMISSED_KEY = 'thyme_zaplie_banner_dismissed';
+const DISMISSED_KEY = 'timmie_zaplie_banner_dismissed';
+
+migrateLegacyStorageKey('thyme_zaplie_banner_dismissed', DISMISSED_KEY);
 
 export function ZaplieBanner() {
   const [isDismissed, setIsDismissed] = useState(true);

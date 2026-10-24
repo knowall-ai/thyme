@@ -20,7 +20,7 @@ microsoft-edge --remote-debugging-port=9222 http://localhost:3000
 google-chrome --remote-debugging-port=9222 http://localhost:3000
 ```
 
-Sign in to Thyme in that browser and open the demo company before running the script. The script reuses the signed-in session.
+Sign in to Timmie in that browser and open the demo company before running the script. The script reuses the signed-in session.
 
 ## Demo data only
 
@@ -37,18 +37,18 @@ node scripts/capture-screenshots.mjs --env sandbox --company <company-guid> --pr
 node scripts/capture-screenshots.mjs --env sandbox --company <company-guid> --week 2026-10-12 --only plan,plan-review
 ```
 
-Copy the company GUID from the Thyme URL (`/sandbox/<company-guid>/time`).
+Copy the company GUID from the Timmie URL (`/sandbox/<company-guid>/time`).
 
 ### Options
 
 | Option       | Environment variable | Default                 | Purpose                                                                                                             |
 | ------------ | -------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `--env`      | `THYME_ENV`          | `sandbox`               | Business Central environment (`sandbox` or `production`)                                                            |
-| `--company`  | `THYME_COMPANY_ID`   | (required)              | Business Central company GUID                                                                                       |
-| `--project`  | `THYME_PROJECT`      | (none: skips Projects)  | Project number for the project page shot                                                                            |
-| `--week`     | `THYME_WEEK`         | current week            | Week (`yyyy-mm-dd`, not in the future) for the Time, Team and Reports shots; Plan always starts at the current week |
-| `--only`     | `THYME_ONLY`         | all                     | Comma-separated shot names to capture                                                                               |
-| `--base-url` | `THYME_BASE_URL`     | `http://localhost:3000` | Thyme URL                                                                                                           |
+| `--env`      | `TIMMIE_ENV`         | `sandbox`               | Business Central environment (`sandbox` or `production`)                                                            |
+| `--company`  | `TIMMIE_COMPANY_ID`  | (required)              | Business Central company GUID                                                                                       |
+| `--project`  | `TIMMIE_PROJECT`     | (none: skips Projects)  | Project number for the project page shot                                                                            |
+| `--week`     | `TIMMIE_WEEK`        | current week            | Week (`yyyy-mm-dd`, not in the future) for the Time, Team and Reports shots; Plan always starts at the current week |
+| `--only`     | `TIMMIE_ONLY`        | all                     | Comma-separated shot names to capture                                                                               |
+| `--base-url` | `TIMMIE_BASE_URL`    | `http://localhost:3000` | Timmie URL                                                                                                          |
 | `--cdp-url`  | `CDP_URL`            | `http://localhost:9222` | Browser remote debugging URL                                                                                        |
 
 The script exits non-zero if any shot fails, and prints the `--only` list to retry.

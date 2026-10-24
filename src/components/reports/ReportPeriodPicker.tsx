@@ -115,7 +115,7 @@ export function ReportPeriodPicker({
             onChange={(e) => handleSelect(e.target.value)}
             // Styled like the filter buttons: their icon and chevron, not the
             // browser's own arrow (which sits hard against the edge)
-            className="border-dark-600 bg-dark-700 hover:border-dark-500 hover:bg-dark-600 focus:border-thyme-500 focus:ring-thyme-500 text-dark-200 h-10 cursor-pointer appearance-none rounded-lg border pr-9 pl-9 text-sm transition-colors focus:ring-1 focus:outline-none"
+            className="border-dark-600 bg-dark-700 hover:border-dark-500 hover:bg-dark-600 focus:border-timmie-500 focus:ring-timmie-500 text-dark-200 h-10 cursor-pointer appearance-none rounded-lg border pr-9 pl-9 text-sm transition-colors focus:ring-1 focus:outline-none"
           >
             {/* Stepped away from every preset: name the kind of period instead */}
             {selectValue === '' && (

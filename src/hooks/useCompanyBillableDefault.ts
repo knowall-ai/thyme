@@ -4,9 +4,9 @@ import { useCompanyStore } from './useCompanyStore';
 import { resolveCompanyDefault } from '@/utils';
 
 /**
- * The company default billable target, or null until this company's Thyme Setup has
+ * The company default billable target, or null until this company's Timmie Setup has
  * loaded (so another company's default is never used) and on extensions without
- * Thyme Setup. Pass `enabled: false` to skip loading, e.g. when the resources have no
+ * Timmie Setup. Pass `enabled: false` to skip loading, e.g. when the resources have no
  * billable target fields.
  */
 export function useCompanyBillableDefault(enabled: boolean): number | null {

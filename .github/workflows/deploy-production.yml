@@ -70,7 +70,7 @@ jobs:
         with:
           script: |
             const tag = '${{ steps.release.outputs.tag }}';
-            const url = 'https://getthyme.ai';
+            const url = 'https://gettimm.ie';
 
             // Create deployment
             const { data: deployment } = await github.rest.repos.createDeployment({

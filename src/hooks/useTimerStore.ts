@@ -1,6 +1,11 @@
+import { migrateLegacyStorageKey } from '@/utils/legacyStorage';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { TimerState } from '@/types';
+
+const TIMER_STORAGE_KEY = 'timmie-timer-storage';
+
+migrateLegacyStorageKey('thyme-timer-storage', TIMER_STORAGE_KEY);
 
 interface TimerStore extends TimerState {
   startTimer: (projectId: string, taskId: string, notes?: string) => void;
@@ -78,7 +83,7 @@ export const useTimerStore = create<TimerStore>()(
       },
     }),
     {
-      name: 'thyme-timer-storage',
+      name: TIMER_STORAGE_KEY,
     }
   )
 );

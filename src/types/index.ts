@@ -45,17 +45,17 @@ export interface BCResource {
   indirectCostPercent?: number;
   unitCost?: number; // Internal cost per hour
   unitPrice?: number; // Customer billing rate per hour
-  // Billable target (Thyme BC Extension with billable targets; undefined on older versions)
+  // Billable target (Timmie BC Extension with billable targets; undefined on older versions)
   billableTargetPercent?: number; // 0-100, only meaningful when billableTargetSet
   billableTargetSet?: boolean; // false = use the company default (thymeSetup)
-  // Weekly capacity (Thyme BC Extension 1.19+; undefined on older versions)
+  // Weekly capacity (Timmie BC Extension 1.19+; undefined on older versions)
   weeklyCapacityHours?: number; // only meaningful when weeklyCapacitySet; 0 = listed, not counted
   weeklyCapacitySet?: boolean; // false = hours per day x 5
   flexibleWorkingDays?: boolean; // works the weekly capacity on any days
-  // Whether the signed-in user may ask Poppie for suggestions for this resource (Thyme BC
+  // Whether the signed-in user may ask Poppie for suggestions for this resource (Timmie BC
   // Extension 1.18+; undefined on older versions)
   canRequestSuggestions?: boolean;
-  // The person's GitHub login, '' when not set (Thyme BC Extension 1.21+; undefined on older
+  // The person's GitHub login, '' when not set (Timmie BC Extension 1.21+; undefined on older
   // versions), and whether the signed-in user may change it (an admin, or it's their own)
   githubUsername?: string;
   canEditConnectedAccounts?: boolean;
@@ -65,7 +65,7 @@ export interface BCResource {
   '@odata.etag'?: string;
 }
 
-/** Thyme company-wide settings (single record, Thyme BC Extension `thymeSetup` API) */
+/** Timmie company-wide settings (single record, Timmie BC Extension `thymeSetup` API) */
 export interface BCThymeSetup {
   id: string;
   defaultBillableTargetPercent: number; // 0-100, used for anyone without their own target
@@ -88,7 +88,7 @@ export interface BCProject {
   number: string;
   displayName: string;
   // Sell-to customer: who the work is for (the end client when it comes through a partner).
-  // Requires Thyme BC Extension 1.27.0.1+ (undefined on older versions); see getProjectCustomer
+  // Requires Timmie BC Extension 1.27.0.1+ (undefined on older versions); see getProjectCustomer
   sellToCustomerNo?: string;
   sellToCustomerName?: string;
   // Bill-to customer: who pays (the partner, for partner work); decides whether time is billable
@@ -99,7 +99,7 @@ export interface BCProject {
   startingDate?: string;
   endingDate?: string;
   // Currency of the project's prices; blank = the company's local currency (LCY).
-  // Requires Thyme BC Extension 1.14.0.0+ (undefined on older versions)
+  // Requires Timmie BC Extension 1.14.0.0+ (undefined on older versions)
   currencyCode?: string;
   lastModifiedDateTime?: string;
   '@odata.etag'?: string;
@@ -186,14 +186,14 @@ export interface BCJobPlanningLine {
   number: string; // The "No." field - resource/item/GL account number
   description: string;
   quantity: number;
-  unitOfMeasureCode?: string; // e.g., "HOUR", "DAY" - requires Thyme BC Extension v1.7.0+
+  unitOfMeasureCode?: string; // e.g., "HOUR", "DAY" - requires Timmie BC Extension v1.7.0+
   // Costs and prices in the project currency (currencyCode; blank = LCY)
   unitCost: number;
   unitPrice: number;
   totalCost: number;
   totalPrice: number;
   // The same in the company's local currency, and the line's currency -
-  // requires Thyme BC Extension 1.14.0.0+ (undefined on older versions)
+  // requires Timmie BC Extension 1.14.0.0+ (undefined on older versions)
   currencyCode?: string;
   unitCostLCY?: number;
   totalCostLCY?: number;
@@ -233,7 +233,7 @@ export interface BCJobJournalLine {
   totalPrice?: number;
 }
 
-// Time Entry - from Job Ledger Entry via Thyme BC Extension
+// Time Entry - from Job Ledger Entry via Timmie BC Extension
 // Represents posted time entries with actual cost and invoiced price
 export interface BCTimeEntry {
   id: string;
@@ -244,7 +244,7 @@ export interface BCTimeEntry {
   totalCost: number; // Internal: actual cost (quantity × unitCost), in LCY
   totalPrice: number; // Customer: invoiced price (quantity × unitPrice), in LCY
   // Project currency (blank = LCY) and the price in it -
-  // requires Thyme BC Extension 1.14.0.0+ (undefined on older versions)
+  // requires Timmie BC Extension 1.14.0.0+ (undefined on older versions)
   currencyCode?: string;
   totalPriceProjectCurrency?: number;
   postingDate: string;
@@ -263,7 +263,7 @@ export type TimesheetDisplayStatus =
   | 'Approved'
   | 'Mixed';
 
-// BC Timesheet types (from Thyme BC Extension)
+// BC Timesheet types (from Timmie BC Extension)
 export interface BCTimeSheet {
   id: string;
   number: string;
@@ -314,7 +314,7 @@ export interface BCTimeSheetDetail {
 }
 
 // Time Suggestion - a time entry Poppie (the AI agent) proposes from calendars,
-// GitHub and Azure DevOps activity. Requires the Thyme BC Extension timeSuggestions API.
+// GitHub and Azure DevOps activity. Requires the Timmie BC Extension timeSuggestions API.
 export type TimeSuggestionSource = 'Calendar' | 'GitHub' | 'DevOps' | 'Other';
 export type TimeSuggestionConfidence = 'High' | 'Medium' | 'Low';
 export type TimeSuggestionStatus = 'Pending' | 'Accepted' | 'Dismissed';
@@ -342,7 +342,7 @@ export interface BCTimeSuggestion {
   '@odata.etag'?: string;
 }
 
-// Fields Thyme writes back when a suggestion is accepted, dismissed or restored
+// Fields Timmie writes back when a suggestion is accepted, dismissed or restored
 export interface BCTimeSuggestionUpdate {
   status: TimeSuggestionStatus;
   timeSheetNo?: string;
@@ -350,7 +350,7 @@ export interface BCTimeSuggestionUpdate {
   actionedAt?: string;
 }
 
-// A request for Poppie to generate time suggestions for a resource's week now (Thyme BC
+// A request for Poppie to generate time suggestions for a resource's week now (Timmie BC
 // Extension 1.18+ suggestionRequests API). Poppie claims it within a minute, updates
 // `progress` as she checks each source, then marks it Done or Failed.
 export type SuggestionRequestStatus = 'Requested' | 'Running' | 'Done' | 'Failed';
@@ -373,7 +373,7 @@ export interface BCSuggestionRequest {
   lastModifiedDateTime?: string;
 }
 
-// A project's linked source (Thyme BC Extension 1.20+ projectSourceLinks API): work in this
+// A project's linked source (Timmie BC Extension 1.20+ projectSourceLinks API): work in this
 // GitHub repo / DevOps project or repo, or a meeting with this keyword / attendee domain, is
 // time on the project. Poppie uses them to map her time suggestions.
 export type ProjectSourceLinkType =
@@ -385,7 +385,7 @@ export type ProjectSourceLinkType =
 
 /**
  * One of a project's Notes in Business Central (the Notes factbox on the Project card),
- * from the Thyme extension's projectNotes API (1.25+). The latest is the project's status.
+ * from the Timmie extension's projectNotes API (1.25+). The latest is the project's status.
  */
 export interface BCProjectNote {
   /** The note's Record Link ID */
@@ -421,7 +421,7 @@ export interface BCProjectSourceLinkInput {
   useMonthlyBlock: boolean;
 }
 
-// A note on a day of the Plan, e.g. "Company Off-Site" (Thyme BC Extension `dayNotes` API).
+// A note on a day of the Plan, e.g. "Company Off-Site" (Timmie BC Extension `dayNotes` API).
 // resourceNo '' = the whole company; noProjectWork = the day isn't available for project work.
 export interface BCDayNote {
   id: string;
@@ -443,7 +443,7 @@ export interface BCDayNoteInput {
   noProjectWork: boolean;
 }
 
-// When an AI agent (Poppie) was last seen (Thyme BC Extension 1.18+ agentHeartbeats API).
+// When an AI agent (Poppie) was last seen (Timmie BC Extension 1.18+ agentHeartbeats API).
 // lastSeenAt is stamped by BC on every poll the agent makes.
 export interface BCAgentHeartbeat {
   id: string;
@@ -453,7 +453,7 @@ export interface BCAgentHeartbeat {
   version?: string;
 }
 
-// Poppie's timesheet reviews - requires the Thyme BC Extension review tables.
+// Poppie's timesheet reviews - requires the Timmie BC Extension review tables.
 // Poppie (an AI agent) reviews submitted timesheets and writes one review per version.
 export type TimesheetReviewVerdict = 'Approve' | 'Check' | 'Query';
 export type TimesheetReviewSeverity = 'Info' | 'Warning' | 'Issue';
@@ -497,10 +497,10 @@ export interface BCTimesheetReviewRequest {
   finishedAt?: string;
 }
 
-// Poppie's plan reviews (Thyme BC Extension planReviews, planReviewLines, planReviewChanges and
+// Poppie's plan reviews (Timmie BC Extension planReviews, planReviewLines, planReviewChanges and
 // planReviewRequests APIs). Poppie reviews the Plan one subject-week at a time - a person's
 // week (Resource) or a project's week (Project) - and stamps each review with the planHash of
-// the plan she saw, so Thyme can tell when it's out of date.
+// the plan she saw, so Timmie can tell when it's out of date.
 export type PlanReviewSubjectType = 'Resource' | 'Project';
 
 export type PlanReviewCheck =
@@ -616,7 +616,7 @@ export interface Project {
   startDate?: string; // ISO date string or undefined
   endDate?: string; // ISO date string or undefined
   // BC Job Currency Code: the currency of the project's prices. Blank, or undefined with
-  // Thyme BC Extension before 1.14.0.0, means the company currency
+  // Timmie BC Extension before 1.14.0.0, means the company currency
   currencyCode?: string;
   // Analytics data (loaded separately), worked out as on the project page
   totalHours?: number; // Time Spent: all timesheet hours

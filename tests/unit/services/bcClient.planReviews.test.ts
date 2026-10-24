@@ -258,7 +258,7 @@ describe('bcClient plan reviews', () => {
   it('asks for an extension update when the action is missing (404)', async () => {
     stubFetch(() => ({ status: 404, body: 'No HTTP resource was found' }));
     await expect(bcClient.applyPlanReviewFinding(FINDING_ID)).rejects.toThrow(
-      'Update the Thyme BC Extension to apply changes'
+      'Update the Timmie BC Extension to apply changes'
     );
   });
 

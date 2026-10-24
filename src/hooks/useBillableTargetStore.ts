@@ -2,13 +2,13 @@ import { create } from 'zustand';
 import { bcClient } from '@/services/bc/bcClient';
 
 /**
- * The company default billable target (Thyme Setup in BC), shared by the Team page,
+ * The company default billable target (Timmie Setup in BC), shared by the Team page,
  * Reports and Settings so a change in Settings shows everywhere.
  */
 interface BillableTargetStore {
   /** Company default billable %, or null when not loaded / not available */
   companyDefaultPercent: number | null;
-  /** false when the installed Thyme BC Extension has no Thyme Setup API */
+  /** false when the installed Timmie BC Extension has no Timmie Setup API */
   setupAvailable: boolean | null;
   /** companyVersion the default was loaded for (-1 = never) */
   loadedForCompanyVersion: number;
@@ -50,7 +50,7 @@ export const useBillableTargetStore = create<BillableTargetStore>((set, get) => 
       } catch (error) {
         if (inFlight?.companyVersion !== companyVersion) return;
         if (process.env.NODE_ENV === 'development') {
-          console.error('Failed to load Thyme Setup', error);
+          console.error('Failed to load Timmie Setup', error);
         }
         // Leave loadedForCompanyVersion alone so the next mount retries
         set({ companyDefaultPercent: null, setupAvailable: null });

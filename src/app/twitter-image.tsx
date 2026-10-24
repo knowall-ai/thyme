@@ -3,7 +3,7 @@ import { SocialImageContent } from '@/components/social';
 
 export const runtime = 'edge';
 
-export const alt = 'Thyme - Time Tracking for Business Central';
+export const alt = 'Timmie - Time Tracking for Business Central';
 export const size = {
   width: 1200,
   height: 630,

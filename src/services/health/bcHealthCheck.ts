@@ -1,5 +1,5 @@
 /**
- * Thyme's own check of whether Business Central is accepting browsers' calls (see
+ * Timmie's own check of whether Business Central is accepting browsers' calls (see
  * src/app/api/health/bc). Server-side only: it sends CORS preflights itself.
  */
 
@@ -15,7 +15,7 @@ const PROBES = 3;
 const TIMEOUT_MS = 5000;
 const CACHE_MS = 60_000;
 
-// The headers Thyme's calls send that need the browser's permission (Accept is always
+// The headers Timmie's calls send that need the browser's permission (Accept is always
 // allowed)
 const REQUESTED_HEADERS = ['authorization', 'content-type'];
 
@@ -36,7 +36,7 @@ async function probe(origin: string): Promise<boolean | null> {
       cache: 'no-store',
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
-    // Allowed for Thyme's origin, with the headers its calls send: anything less and
+    // Allowed for Timmie's origin, with the headers its calls send: anything less and
     // the browser still blocks the call
     const allowOrigin = response.headers.get('access-control-allow-origin');
     const allowedHeaders = new Set(
@@ -68,7 +68,7 @@ async function runChecks(origin: string): Promise<BcHealth> {
 }
 
 /**
- * Business Central's health, asked from `origin` (Thyme's public address). One round
+ * Business Central's health, asked from `origin` (Timmie's public address). One round
  * of checks a minute at most, however many people ask (concurrent askers share it).
  */
 export function checkBcHealth(origin: string): Promise<BcHealth> {

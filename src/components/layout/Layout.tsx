@@ -32,7 +32,7 @@ export function Layout({ children, hideSignInBanner = false }: LayoutProps) {
             {/* Screen version */}
             <div className="flex flex-col items-center gap-3 print:hidden">
               <p className="text-dark-500 text-center text-sm">
-                Thyme v{appVersion} - Time Tracking for Business Central
+                Timmie v{appVersion} - Time Tracking for Business Central
               </p>
               <a
                 href="https://knowall.ai"
@@ -51,9 +51,9 @@ export function Layout({ children, hideSignInBanner = false }: LayoutProps) {
             </div>
             {/* Print version */}
             <p className="text-dark-500 hidden text-center text-sm print:block">
-              Want to get Thyme for Business Central? Go to{' '}
-              <a href="https://getthyme.ai" className="text-knowall-green">
-                GetThyme.ai
+              Want to get Timmie for Business Central? Go to{' '}
+              <a href="https://gettimm.ie" className="text-knowall-green">
+                gettimm.ie
               </a>
               . Built by{' '}
               <a href="https://knowall.ai" className="text-knowall-green">

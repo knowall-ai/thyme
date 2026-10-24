@@ -50,8 +50,8 @@ const EMPTY_DRAFT: Draft = { type: 'GitHubRepo', value: '', jobTaskNo: '', useMo
 /**
  * "Linked sources" on the project page: the repos, DevOps projects, meeting keywords and
  * attendee domains whose time belongs to this project, which Poppie uses to map her time
- * suggestions. Thyme administrators and the project's manager can add, edit and remove them;
- * everyone else sees them read-only. Hidden when the Thyme BC Extension has no
+ * suggestions. Timmie administrators and the project's manager can add, edit and remove them;
+ * everyone else sees them read-only. Hidden when the Timmie BC Extension has no
  * projectSourceLinks API (older than 1.20).
  */
 export function ProjectSourceLinksCard() {
@@ -257,7 +257,7 @@ export function ProjectSourceLinksCard() {
             type="checkbox"
             checked={draft.useMonthlyBlock}
             onChange={(e) => setDraft((d) => ({ ...d, useMonthlyBlock: e.target.checked }))}
-            className="accent-thyme-600 h-4 w-4"
+            className="accent-timmie-600 h-4 w-4"
           />
           Use the month&apos;s block
         </label>
@@ -320,7 +320,7 @@ export function ProjectSourceLinksCard() {
             <p className="text-dark-400 text-sm">
               {canEdit
                 ? 'No linked sources yet. Add the repos, DevOps projects, meeting keywords and attendee domains whose time belongs to this project.'
-                : 'No linked sources yet. A Thyme administrator or the project manager can add them.'}
+                : 'No linked sources yet. A Timmie administrator or the project manager can add them.'}
             </p>
           )}
           {links.length > 0 && (
@@ -337,7 +337,7 @@ export function ProjectSourceLinksCard() {
                 const url = sourceLinkUrl(link.type, link.value);
                 return (
                   <li key={link.id} className="flex items-center gap-3 px-4 py-3">
-                    <Icon className="text-thyme-500 h-5 w-5 shrink-0" aria-hidden="true" />
+                    <Icon className="text-timmie-500 h-5 w-5 shrink-0" aria-hidden="true" />
                     <div className="min-w-0 flex-1">
                       <div className="text-dark-400 text-xs">
                         {SOURCE_LINK_TYPE_LABELS[link.type] ?? link.type}
@@ -348,7 +348,7 @@ export function ProjectSourceLinksCard() {
                             href={url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="hover:text-thyme-400 truncate text-sm font-medium text-white"
+                            className="hover:text-timmie-400 truncate text-sm font-medium text-white"
                           >
                             {link.value}
                             <ArrowTopRightOnSquareIcon className="ml-1 inline h-3.5 w-3.5 align-[-2px] text-gray-500" />

@@ -34,7 +34,7 @@ describe('useBillableTargetStore', () => {
     });
   });
 
-  it('marks setup unavailable on an extension without Thyme Setup', async () => {
+  it('marks setup unavailable on an extension without Timmie Setup', async () => {
     getThymeSetup.mockResolvedValue(null);
     await useBillableTargetStore.getState().loadCompanyDefault(1);
 

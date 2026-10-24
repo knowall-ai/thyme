@@ -59,7 +59,7 @@ describe('bcClient.createProject', () => {
     vi.unstubAllGlobals();
   });
 
-  it('POSTs the project to the Thyme projects API and returns it normalised', async () => {
+  it('POSTs the project to the Timmie projects API and returns it normalised', async () => {
     const fetchMock = stubFetch({ status: 201, body: created });
 
     const project = await bcClient.createProject({

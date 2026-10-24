@@ -3,12 +3,12 @@
 :toc-title: Contents
 :sectnums:
 
-This document describes how Thyme aligns with Microsoft Dynamics 365 Business Central terminology for project tracking, hours, costs, and revenue.
+This document describes how Timmie aligns with Microsoft Dynamics 365 Business Central terminology for project tracking, hours, costs, and revenue.
 
 == Overview
 
-Thyme uses Business Central as the source of truth for project and financial data.
-The Thyme BC Extension exposes several API endpoints that provide this data.
+Timmie uses Business Central as the source of truth for project and financial data.
+The Timmie BC Extension exposes several API endpoints that provide this data.
 
 === Key Principle: Cost vs Price
 
@@ -17,11 +17,11 @@ In Business Central:
 * **Cost** = Internal (what it costs the company) - typically hidden from customers
 * **Price** = External/Customer-facing (what the customer pays) - visible in reports
 
-Thyme follows this convention with a toggle to show/hide internal costs.
+Timmie follows this convention with a toggle to show/hide internal costs.
 
 === Key Principle: Work Done vs Invoiced
 
-**Important:** Thyme tracks **work done** (costs incurred), not just **amounts invoiced**.
+**Important:** Timmie tracks **work done** (costs incurred), not just **amounts invoiced**.
 
 Invoicing timing doesn't reflect project progress:
 
@@ -66,7 +66,7 @@ Open → Submitted → Approved → Posted (to Job Ledger Entry)
 
 After approval, someone (usually finance/admin) must run the **"Post Time Sheets"** batch job or post individually from the Time Sheet Administrator page.
 
-**Where Thyme's Posted stage comes from:** every page that splits time by stage (Time Spent, the project Breakdown, the Projects list, Team and Reports) takes posted hours from the timesheet itself: each approved day's `postedQuantity` on `/timeSheetDetails`. So a figure on one page and the entries it links to on Reports always agree. Cost and invoiced figures still come from the Job Ledger (`/timeEntries`), which is why Hours Posted below can differ from the Posted stage.
+**Where Timmie's Posted stage comes from:** every page that splits time by stage (Time Spent, the project Breakdown, the Projects list, Team and Reports) takes posted hours from the timesheet itself: each approved day's `postedQuantity` on `/timeSheetDetails`. So a figure on one page and the entries it links to on Reports always agree. Cost and invoiced figures still come from the Job Ledger (`/timeEntries`), which is why Hours Posted below can differ from the Posted stage.
 
 === Why Hours May Show £0 Cost
 
@@ -76,7 +76,7 @@ If you see hours logged but £0 Actual Cost, this is because:
 2. **No Resource Unit Cost** - The Resource doesn't have a Unit Cost configured in BC
 3. **No Job Planning Lines** - The task/project doesn't have cost planning lines
 
-Thyme shows this as:
+Timmie shows this as:
 
 * Hours Spent: 75.0h (from timesheets)
 * Hours Posted: 0.0h (from Job Ledger Entry)
@@ -88,7 +88,7 @@ Thyme shows this as:
 
 [cols="2,2,3,2", options="header"]
 |===
-| Thyme UI Label | BC Field | Description | Data Source
+| Timmie UI Label | BC Field | Description | Data Source
 
 | Hours Spent
 | `totalQuantity`
@@ -125,7 +125,7 @@ Thyme shows this as:
 
 [cols="2,2,3,2", options="header"]
 |===
-| Thyme UI Label | BC Field | Description | Data Source
+| Timmie UI Label | BC Field | Description | Data Source
 
 | Budget Cost
 | `totalCost` (Budget)
@@ -147,7 +147,7 @@ Thyme shows this as:
 
 [cols="2,2,3,2", options="header"]
 |===
-| Thyme UI Label | BC Field | Description | Data Source
+| Timmie UI Label | BC Field | Description | Data Source
 
 | Billable Price
 | `totalPrice` (Billable)
@@ -172,7 +172,7 @@ Reports (Billable Hours, Billable %, per-project and per-day splits, CSV export)
 * the timesheet line isn't marked not chargeable (`chargeable` on `/timeSheetLines` is not `false`), and
 * its project isn't *internal*.
 
-A project has two customers in BC. The *Sell-to Customer* is who the work is for, and the *Bill-to Customer* who pays. They're usually the same; with work that comes through a partner, Sell-to is the end client and Bill-to the partner. Thyme shows and groups projects by the Sell-to customer (falling back to Bill-to when there's no Sell-to), so the client doesn't need to be in the project's name. Whether time is billable goes by the Bill-to customer.
+A project has two customers in BC. The *Sell-to Customer* is who the work is for, and the *Bill-to Customer* who pays. They're usually the same; with work that comes through a partner, Sell-to is the end client and Bill-to the partner. Timmie shows and groups projects by the Sell-to customer (falling back to Bill-to when there's no Sell-to), so the client doesn't need to be in the project's name. Whether time is billable goes by the Bill-to customer.
 
 A project is internal when it has no bill-to customer (`billToCustomerNo` is empty), its bill-to customer's name contains "Internal" as a whole word (case-insensitive, e.g. "Contoso - Internal"; "Contoso International" doesn't count), or the bill-to customer is the company itself: its name matches the company's display name or its Company Information name, ignoring case, punctuation and spacing (e.g. a project in CRONUS UK Ltd. billed to the customer "CRONUS UK Ltd"). So an internal customer can carry the company's own name instead of "Internal".
 
@@ -252,7 +252,7 @@ Provides budget and billable planning data (the "quote").
 | `Resource`, `Item`, or `G/L Account`
 
 | quantity
-| Planned quantity in the resource's base unit (DAY or HOUR). Note: Thyme converts based on the resource's Unit of Measure, not `unitOfMeasureCode` (see below)
+| Planned quantity in the resource's base unit (DAY or HOUR). Note: Timmie converts based on the resource's Unit of Measure, not `unitOfMeasureCode` (see below)
 
 | unitOfMeasureCode
 | Unit of measure (e.g., `HOUR`, `DAY`) - requires v1.7.0+
@@ -273,15 +273,15 @@ Provides budget and billable planning data (the "quote").
 ==== Unit of Measure Conversion
 
 BC stores Job Planning Line quantities in the resource's **base unit** (DAY or HOUR).
-Thyme converts to hours using the Resource Unit of Measure conversion factor from the `/resourceUnitsOfMeasure` endpoint.
+Timmie converts to hours using the Resource Unit of Measure conversion factor from the `/resourceUnitsOfMeasure` endpoint.
 
-**Important:** Thyme does **not** trust the `unitOfMeasureCode` field from the API because BC may ignore it when creating planning lines. Instead, Thyme detects whether a resource is DAY-based by checking if the resource has an HOUR conversion factor that differs from 1.
+**Important:** Timmie does **not** trust the `unitOfMeasureCode` field from the API because BC may ignore it when creating planning lines. Instead, Timmie detects whether a resource is DAY-based by checking if the resource has an HOUR conversion factor that differs from 1.
 
-For example, if a planning line has `quantity: 1.5` and the resource has HOUR configured with `qtyPerUnitOfMeasure: 7.5` (meaning 1 DAY = 7.5 HOURS), Thyme displays:
+For example, if a planning line has `quantity: 1.5` and the resource has HOUR configured with `qtyPerUnitOfMeasure: 7.5` (meaning 1 DAY = 7.5 HOURS), Timmie displays:
 
 * Hours Planned: 11.25h (1.5 × 7.5)
 
-BC may also configure HOUR with `qtyPerUnitOfMeasure < 1` (e.g., 0.125 meaning 1 HOUR = 0.125 DAY). Thyme handles both configurations by inverting the factor when it is less than 1 (e.g., 1/0.125 = 8 hours/day).
+BC may also configure HOUR with `qtyPerUnitOfMeasure < 1` (e.g., 0.125 meaning 1 HOUR = 0.125 DAY). Timmie handles both configurations by inverting the factor when it is less than 1 (e.g., 1/0.125 = 8 hours/day).
 
 This conversion is fetched from the `/resourceUnitsOfMeasure` endpoint (requires v1.7.0+).
 
@@ -349,7 +349,7 @@ The chart will be extended to show:
 
 == Visibility Toggle
 
-Thyme provides an "eye" toggle button to show/hide internal costs:
+Timmie provides an "eye" toggle button to show/hide internal costs:
 
 **When Costs Visible:**
 
@@ -374,7 +374,7 @@ The project page's *Print* button prints a customer-friendly report (choose "Sav
 * When costs are hidden, the Budget Cost and Actual Cost cards still print, with their amounts masked and without their breakdowns
 * Includes: Project details, Hours (Spent/Planned), Revenue (Billable/Invoiced)
 
-== Thyme BC Extension Requirements
+== Timmie BC Extension Requirements
 
 [cols="2,3", options="header"]
 |===
@@ -418,10 +418,10 @@ The project page's *Print* button prints a customer-friendly report (choose "Sav
 
 **Cause:** The estimate uses an average rate from posted entries, or falls back to budget rates.
 
-**Solution:** Post some timesheet entries so Thyme can calculate accurate average rates.
+**Solution:** Post some timesheet entries so Timmie can calculate accurate average rates.
 
 == See Also
 
 * link:SOLUTION_DESIGN.adoc[Solution Design] - Architecture overview
 * link:TROUBLESHOOTING.adoc[Troubleshooting] - Common issues and solutions
-* https://github.com/knowall-ai/thyme-bc-extension[Thyme BC Extension] - Business Central extension repository
+* https://github.com/knowall-ai/timmie-bc-extension[Timmie BC Extension] - Business Central extension repository

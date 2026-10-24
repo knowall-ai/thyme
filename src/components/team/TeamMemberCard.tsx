@@ -22,7 +22,7 @@ export function TeamMemberCard({ member }: TeamMemberCardProps) {
   const progressPercent = Math.min((member.hoursThisWeek / member.hoursTarget) * 100, 100);
 
   const statusColors = {
-    'on-track': 'bg-thyme-500',
+    'on-track': 'bg-timmie-500',
     behind: 'bg-amber-500',
     ahead: 'bg-blue-500',
   };

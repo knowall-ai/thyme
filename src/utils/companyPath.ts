@@ -53,7 +53,7 @@ export function isValidCompanyId(value: string | null | undefined): value is str
 }
 
 /**
- * Map a URL environment segment to the environment Thyme knows, ignoring case
+ * Map a URL environment segment to the environment Timmie knows, ignoring case
  * (`Production` and `production` are the same). Returns null for anything else.
  */
 export function parseEnvironment(value: string | null | undefined): BCEnvironmentType | null {

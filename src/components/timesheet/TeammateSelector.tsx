@@ -97,7 +97,7 @@ export function TeammateSelector() {
           !isDisabled && 'hover:border-dark-500 hover:bg-dark-700',
           isDisabled && 'cursor-not-allowed opacity-50',
           isOpen && 'border-knowall-green bg-dark-700',
-          selectedTeammate && 'border-thyme-600'
+          selectedTeammate && 'border-timmie-600'
         )}
         title={
           isDisabled
@@ -163,7 +163,7 @@ export function TeammateSelector() {
                     role="option"
                     aria-selected={!selectedTeammate}
                   >
-                    <UserIcon className="text-thyme-500 h-5 w-5 flex-shrink-0" />
+                    <UserIcon className="text-timmie-500 h-5 w-5 flex-shrink-0" />
                     <div className="flex-1 truncate">
                       <span className="text-dark-200">My Timesheet</span>
                       {currentUserTeammate && (

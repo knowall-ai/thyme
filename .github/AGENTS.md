@@ -1,6 +1,6 @@
-# AI Assistant Personas for Thyme
+# AI Assistant Personas for Timmie
 
-This document defines AI assistant personas that can help with the Thyme project development.
+This document defines AI assistant personas that can help with the Timmie project development.
 
 ## `/pennie` - Requirements Analyst
 
@@ -109,10 +109,10 @@ This document defines AI assistant personas that can help with the Thyme project
 
 ## Project Context
 
-Thyme is a time tracking application that:
+Timmie is a time tracking application that:
 
 - Uses Microsoft Entra ID (Azure AD) for authentication
 - Integrates with Microsoft Dynamics 365 Business Central
 - Is built with Next.js 15, TypeScript, and Tailwind CSS
-- Deploys to Azure App Service at getthyme.ai
+- Deploys to Azure App Service at gettimm.ie
 - Is used exclusively by KnowAll.ai team members

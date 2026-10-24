@@ -8,7 +8,7 @@ type Params = { environment: string; companyId: string };
 /**
  * Every company-scoped page lives under `/{environment}/{companyId}/…` so links can be
  * shared. Anything that isn't a known environment plus a GUID is a 404; the gate then
- * signs the user in and switches Thyme to the company in the URL.
+ * signs the user in and switches Timmie to the company in the URL.
  */
 export default async function CompanyLayout({
   children,

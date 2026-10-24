@@ -1,10 +1,10 @@
-= Thyme Solution Design
+= Timmie Solution Design
 :toc:
 :toclevels: 3
 
 == Overview
 
-Thyme is a modern time tracking web application designed for KnowAll.ai team members. It integrates with Microsoft Dynamics 365 Business Central for project/job data synchronization and uses Microsoft Entra ID for authentication.
+Timmie is a modern time tracking web application designed for KnowAll.ai team members. It integrates with Microsoft Dynamics 365 Business Central for project/job data synchronization and uses Microsoft Entra ID for authentication.
 
 == System Context
 
@@ -65,7 +65,7 @@ Every company-scoped page carries the Business Central environment and company i
 /sandbox/00000000-0000-0000-0000-000000000002/plan
 ----
 
-* `{environment}` is the environment Thyme stores on the company (`production` or `sandbox`, matched case-insensitively) and `{companyId}` is the BC company GUID. Company identity is id + environment, because a sandbox copy can share GUIDs with Production.
+* `{environment}` is the environment Timmie stores on the company (`production` or `sandbox`, matched case-insensitively) and `{companyId}` is the BC company GUID. Company identity is id + environment, because a sandbox copy can share GUIDs with Production.
 * Company pages (Time, Projects, Team, Plan, Approvals, Reports, Settings) live under `src/app/[environment]/[companyId]/`. Its layout 404s anything that isn't a known environment plus a GUID, then `CompanyRouteGate` makes the URL's company the active one before rendering the page. If the user doesn't have that company, it shows "You don't have access to that company in Business Central" instead of another company's data.
 * Public pages (`/`, `/pricing`, `/help`, `/privacy`, `/terms`, `/eula`) stay at the top level.
 * The old unprefixed URLs (`/time`, `/projects/PR00100`, ...) live in `src/app/(legacy)/` and redirect to the same page under the remembered company, keeping the query string and hash.
@@ -113,7 +113,7 @@ The application uses Zustand for state management with the following stores:
 === Entity Mapping
 
 |===
-| BC Entity | Thyme Concept | Purpose
+| BC Entity | Timmie Concept | Purpose
 
 | Jobs | Projects | Project/client work containers
 | Job Task Lines | Tasks | Billable activities within projects
@@ -135,7 +135,7 @@ POST /companies({id})/jobJournalLines         # Create time entry
 
 Poppie, the AI agent, suggests time entries from people's calendars, GitHub and Azure DevOps.
 Which project that time belongs to comes from each project's *linked sources* in Business
-Central (Thyme BC Extension 1.20+ `projectSourceLinks`): GitHub repos, DevOps projects and
+Central (Timmie BC Extension 1.20+ `projectSourceLinks`): GitHub repos, DevOps projects and
 repos, meeting keywords and attendee domains, each optionally with a task. They're per company,
 so every company maps its own projects.
 
@@ -150,8 +150,8 @@ so every company maps its own projects.
 === Day notes
 
 Day notes put context on a date of the Plan, e.g. "Company Off-Site" or "Client workshop".
-They're stored in Business Central (Thyme BC Extension 1.22.0.0+ `dayNotes`, table 50111
-*Thyme Day Note*), per company. A note with no resource is for everyone; otherwise it's for that
+They're stored in Business Central (Timmie BC Extension 1.22.0.0+ `dayNotes`, table 50111
+*Timmie Day Note*), per company. A note with no resource is for everyone; otherwise it's for that
 person. *No project work* marks the day as unavailable for project work (an off-site, a holiday).
 
 [source]
@@ -175,9 +175,9 @@ a person's note is a dot on their day cell in the Team view. *No project work* d
 the whole column for a company note, that person's cells for a personal one. Clicking a date
 opens a popover listing the day's notes.
 
-*Permissions.* Anyone using Thyme can read notes. Adding, changing and deleting them is limited
-in BC to people who can write planning lines, Thyme administrators and the AI agent. BC exposes
-the same check as a read-only `canEditPlan` on the `projects` and `resources` APIs; Thyme shows
+*Permissions.* Anyone using Timmie can read notes. Adding, changing and deleting them is limited
+in BC to people who can write planning lines, Timmie administrators and the AI agent. BC exposes
+the same check as a read-only `canEditPlan` on the `projects` and `resources` APIs; Timmie shows
 the edit controls when any loaded project or resource has `canEditPlan` true (`canEditPlan()` in
 `src/utils/dayNotes.ts`). A missing flag (older extension) counts as no. BC re-checks every change.
 An edit sends the ETag the note had when editing began; if someone changed it meanwhile (or BC

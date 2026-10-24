@@ -54,7 +54,7 @@ export function SocialImageContent() {
           marginBottom: '40px',
         }}
       >
-        {/* Clock icon in green box */}
+        {/* Timmie icon (a smiling stopwatch) in a green box */}
         <div
           style={{
             width: '80px',
@@ -67,18 +67,14 @@ export function SocialImageContent() {
             boxShadow: '0 0 40px rgba(0, 210, 106, 0.4)',
           }}
         >
-          <svg
-            width="48"
-            height="48"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#020617"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12,6 12,12 16,14" />
+          <svg width="56" height="56" viewBox="2 2 28 28" fill="none">
+            <g stroke="#020617" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="16" cy="18" r="10" />
+              <path d="M16 8V5.5M13.5 4.5h5" />
+              <path d="M11.8 20.6Q16 24.6 20.2 20.6" strokeWidth="2.4" />
+            </g>
+            <circle cx="12.6" cy="16.2" r="1.7" fill="#020617" />
+            <circle cx="19.4" cy="16.2" r="1.7" fill="#020617" />
           </svg>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -90,7 +86,7 @@ export function SocialImageContent() {
               letterSpacing: '-1px',
             }}
           >
-            Thyme
+            Timmie
           </span>
           <span
             style={{

@@ -1,13 +1,13 @@
-= Thyme Privacy Policy
+= Timmie Privacy Policy
 :sectnums:
 
-KnowAll AI SAS de CV ("we", "us", or "our") operates Thyme, a time tracking application that integrates with Microsoft Dynamics 365 Business Central. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application.
+KnowAll AI SAS de CV ("we", "us", or "our") operates Timmie, a time tracking application that integrates with Microsoft Dynamics 365 Business Central. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application.
 
 == Information We Collect
 
 === Information You Provide
 
-We collect information that you voluntarily provide when using Thyme:
+We collect information that you voluntarily provide when using Timmie:
 
 * *Account Information:* Your name and email address from your Microsoft Entra ID (Azure AD) account
 * *Time Entries:* Hours worked, project assignments, task descriptions, and notes you enter
@@ -15,7 +15,7 @@ We collect information that you voluntarily provide when using Thyme:
 
 === Information Collected Automatically
 
-When you use Thyme, we automatically collect:
+When you use Timmie, we automatically collect:
 
 * *Usage Data:* Features used, pages visited, and interaction patterns within the application
 * *Device Information:* Browser type, operating system, and device identifiers
@@ -41,10 +41,10 @@ We use the collected information to:
 
 == Data Synchronization with Business Central
 
-Thyme acts as an interface to your organization's Microsoft Dynamics 365 Business Central environment:
+Timmie acts as an interface to your organization's Microsoft Dynamics 365 Business Central environment:
 
-* *Read Access:* We retrieve project, task, and resource information from Business Central to display in Thyme
-* *Write Access:* Time entries you create in Thyme are written to Business Central timesheet lines
+* *Read Access:* We retrieve project, task, and resource information from Business Central to display in Timmie
+* *Write Access:* Time entries you create in Timmie are written to Business Central timesheet lines
 * *Your Organization's Data:* All Business Central data remains within your organization's Microsoft environment; we do not store copies of this data on our servers beyond temporary caching for performance
 
 == Data Storage and Security
@@ -87,7 +87,7 @@ To exercise these rights, contact us at privacy@knowall.ai.
 
 == Cookies and Tracking
 
-Thyme uses:
+Timmie uses:
 
 * *Essential Cookies:* Required for authentication and core functionality
 * *Preference Cookies:* Store your application settings and preferences
@@ -96,7 +96,7 @@ We do not use advertising or third-party tracking cookies.
 
 == Third-Party Services
 
-Thyme integrates with:
+Timmie integrates with:
 
 * *Microsoft Entra ID:* For user authentication (see https://privacy.microsoft.com[Microsoft Privacy Statement])
 * *Microsoft Dynamics 365 Business Central:* For time and project data synchronization
@@ -105,11 +105,11 @@ We do not sell your personal information to third parties.
 
 == Children's Privacy
 
-Thyme is not intended for users under 16 years of age. We do not knowingly collect personal information from children.
+Timmie is not intended for users under 16 years of age. We do not knowingly collect personal information from children.
 
 == International Data Transfers
 
-If you access Thyme from outside the United Kingdom, your information may be transferred to and processed in the UK or other countries where our service providers operate. We ensure appropriate safeguards are in place for such transfers.
+If you access Timmie from outside the United Kingdom, your information may be transferred to and processed in the UK or other countries where our service providers operate. We ensure appropriate safeguards are in place for such transfers.
 
 == Changes to This Policy
 

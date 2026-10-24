@@ -5,9 +5,9 @@ import { PublicPageLayout } from '@/components/docs/PublicPageLayout';
 import { AsciidocContent } from '@/components/docs/AsciidocContent';
 
 export const metadata: Metadata = {
-  title: 'Help & Documentation - Thyme by KnowAll.ai',
+  title: 'Help & Documentation - Timmie by KnowAll.ai',
   description:
-    'Get help with Thyme, the time tracking application for Microsoft Dynamics 365 Business Central. Find FAQs and troubleshooting tips.',
+    'Get help with Timmie, the time tracking application for Microsoft Dynamics 365 Business Central. Find FAQs and troubleshooting tips.',
 };
 
 export default async function HelpPage() {
@@ -24,7 +24,7 @@ export default async function HelpPage() {
       <div className="mb-12">
         <h1 className="mb-4 text-4xl font-bold text-white">Help & Support</h1>
         <p className="text-dark-300 text-lg">
-          Find answers to common questions and solutions to known issues with Thyme.
+          Find answers to common questions and solutions to known issues with Timmie.
         </p>
       </div>
 
@@ -39,7 +39,7 @@ export default async function HelpPage() {
             <span className="text-2xl">?</span>
             <div>
               <div className="font-medium text-white">FAQs</div>
-              <div className="text-dark-400 text-sm">Common questions about Thyme</div>
+              <div className="text-dark-400 text-sm">Common questions about Timmie</div>
             </div>
           </a>
           <a
@@ -69,7 +69,7 @@ export default async function HelpPage() {
             Email Support
           </a>
           <a
-            href="https://github.com/knowall-ai/thyme/issues"
+            href="https://github.com/knowall-ai/timmie/issues"
             target="_blank"
             rel="noopener noreferrer"
             className="border-dark-600 bg-dark-800 hover:bg-dark-700 rounded-lg border px-4 py-2 text-sm font-medium text-white transition-colors"

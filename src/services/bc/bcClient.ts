@@ -1,3 +1,4 @@
+import { migrateLegacyStorageKey } from '@/utils/legacyStorage';
 import { getBCAccessToken } from '../auth';
 import { isReauthRequiredError } from '../auth/reauthErrors';
 import { ExtensionNotInstalledError } from './timeEntryService';
@@ -123,13 +124,18 @@ async function bcFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Re
 }
 
 // localStorage keys for persisting selection
-const COMPANY_STORAGE_KEY = 'thyme_selected_company_id';
-const ENVIRONMENT_STORAGE_KEY = 'thyme_selected_environment';
+const COMPANY_STORAGE_KEY = 'timmie_selected_company_id';
 
-// Custom Thyme BC Extension API settings
-const THYME_API_PUBLISHER = 'knowall';
-const THYME_API_GROUP = 'thyme';
-const THYME_API_VERSION = 'v1.0';
+migrateLegacyStorageKey('thyme_selected_company_id', COMPANY_STORAGE_KEY);
+
+const ENVIRONMENT_STORAGE_KEY = 'timmie_selected_environment';
+
+migrateLegacyStorageKey('thyme_selected_environment', ENVIRONMENT_STORAGE_KEY);
+
+// Custom Timmie BC Extension API settings
+const TIMMIE_API_PUBLISHER = 'knowall';
+const TIMMIE_API_GROUP = 'thyme';
+const TIMMIE_API_VERSION = 'v1.0';
 
 // Valid TimeSheetStatus values for whitelist validation
 const VALID_TIMESHEET_STATUSES = ['Open', 'Submitted', 'Rejected', 'Approved', 'Posted'] as const;
@@ -278,7 +284,7 @@ class BusinessCentralClient {
         'BusinessCentralClient: companyId is not set. Select a company or configure NEXT_PUBLIC_BC_COMPANY_ID.'
       );
     }
-    return `${BC_BASE_URL}/${this.tenantPath}${this._environment}/api/${THYME_API_PUBLISHER}/${THYME_API_GROUP}/${THYME_API_VERSION}/companies(${this._companyId})`;
+    return `${BC_BASE_URL}/${this.tenantPath}${this._environment}/api/${TIMMIE_API_PUBLISHER}/${TIMMIE_API_GROUP}/${TIMMIE_API_VERSION}/companies(${this._companyId})`;
   }
 
   // Company management
@@ -395,9 +401,9 @@ class BusinessCentralClient {
   }
 
   /**
-   * Check if the Thyme BC Extension is installed.
+   * Check if the Timmie BC Extension is installed.
    * The extension provides additional API endpoints with customer and task data.
-   * @see https://github.com/knowall-ai/thyme-bc-extension
+   * @see https://github.com/knowall-ai/timmie-bc-extension
    */
   async isExtensionInstalled(): Promise<boolean> {
     // Return cached result if available
@@ -541,7 +547,7 @@ class BusinessCentralClient {
   }
 
   /**
-   * Fetch from custom Thyme BC Extension API
+   * Fetch from custom Timmie BC Extension API
    */
   /** @param baseUrl - The company's custom API URL, captured earlier (see fetch) */
   private async fetchCustomApi<T>(
@@ -579,7 +585,7 @@ class BusinessCentralClient {
     return response.json();
   }
 
-  // Projects - uses Thyme BC Extension API for additional fields (billToCustomerName, dates, etc.)
+  // Projects - uses Timmie BC Extension API for additional fields (billToCustomerName, dates, etc.)
   async getProjects(filter?: string): Promise<BCProject[]> {
     let endpoint = '/projects';
     if (filter) {
@@ -660,7 +666,7 @@ class BusinessCentralClient {
   }
 
   /**
-   * Create a project (BC Job) through the Thyme extension's projects API, which, unlike
+   * Create a project (BC Job) through the Timmie extension's projects API, which, unlike
    * the standard API, can set the bill-to customer and dates. BC numbers it from the
    * company's Project Nos. series, and BC permissions decide whether the user may.
    */
@@ -730,7 +736,7 @@ class BusinessCentralClient {
     return this.fetch<BCJob>(`/jobs(${jobId})`);
   }
 
-  // Job Tasks - requires Thyme BC Extension
+  // Job Tasks - requires Timmie BC Extension
   async getJobTasks(jobNumber: string): Promise<BCJobTask[]> {
     // Check if extension is installed
     const extensionInstalled = await this.isExtensionInstalled();
@@ -778,7 +784,7 @@ class BusinessCentralClient {
     }));
   }
 
-  // Job Planning Lines - requires Thyme BC Extension v1.6.0+
+  // Job Planning Lines - requires Timmie BC Extension v1.6.0+
   // Provides budget/planned hours data for projects
   async getJobPlanningLines(
     jobNumber: string,
@@ -804,7 +810,7 @@ class BusinessCentralClient {
       // 404 means the endpoint doesn't exist (extension too old)
       if (error instanceof Error && error.message.includes('404')) {
         console.warn(
-          '[BC API] jobPlanningLines endpoint not found. Upgrade Thyme BC Extension to v1.6.0+.'
+          '[BC API] jobPlanningLines endpoint not found. Upgrade Timmie BC Extension to v1.6.0+.'
         );
         return [];
       }
@@ -815,7 +821,7 @@ class BusinessCentralClient {
   }
 
   // Resource Units of Measure - conversion factors for time units
-  // Requires Thyme BC Extension v1.7.0+
+  // Requires Timmie BC Extension v1.7.0+
   /**
    * Get every resource's units of measure (e.g. DAY = 7.5 HOURS).
    * By default failures return [] so read-only views degrade gracefully. Pass
@@ -849,7 +855,7 @@ class BusinessCentralClient {
       if (!response.ok) {
         if (response.status === 404) {
           console.warn(
-            '[BC API] resourceUnitsOfMeasure endpoint not found. Upgrade Thyme BC Extension to v1.7.0+.'
+            '[BC API] resourceUnitsOfMeasure endpoint not found. Upgrade Timmie BC Extension to v1.7.0+.'
           );
           return [];
         }
@@ -905,7 +911,7 @@ class BusinessCentralClient {
       if (!response.ok) {
         if (response.status === 404) {
           console.warn(
-            '[BC API] jobPlanningLines endpoint not found. Upgrade Thyme BC Extension to v1.6.0+.'
+            '[BC API] jobPlanningLines endpoint not found. Upgrade Timmie BC Extension to v1.6.0+.'
           );
           return [];
         }
@@ -952,7 +958,7 @@ class BusinessCentralClient {
       if (!response.ok) {
         if (response.status === 404) {
           console.warn(
-            '[BC API] jobPlanningLines endpoint not found. Upgrade Thyme BC Extension to v1.6.0+.'
+            '[BC API] jobPlanningLines endpoint not found. Upgrade Timmie BC Extension to v1.6.0+.'
           );
           return [];
         }
@@ -967,7 +973,7 @@ class BusinessCentralClient {
     }
   }
 
-  // Create Job Planning Line - requires Thyme BC Extension v1.8.0+
+  // Create Job Planning Line - requires Timmie BC Extension v1.8.0+
   // Creates a new planning line for resource allocation
   async createJobPlanningLine(params: {
     jobNo: string;
@@ -1019,7 +1025,7 @@ class BusinessCentralClient {
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error(
-            'Job Planning Lines API not found. Upgrade Thyme BC Extension to v1.8.0+.'
+            'Job Planning Lines API not found. Upgrade Timmie BC Extension to v1.8.0+.'
           );
         }
         const errorData = await response.json().catch(() => ({}));
@@ -1037,7 +1043,7 @@ class BusinessCentralClient {
   }
 
   /**
-   * Update a job planning line - requires Thyme BC Extension v1.8.0+
+   * Update a job planning line - requires Timmie BC Extension v1.8.0+
    * @param id - The SystemId (GUID) of the planning line to update
    * @param params - The fields to update (quantity, etc.)
    * @param etag - The @odata.etag value for optimistic concurrency (required by BC)
@@ -1110,7 +1116,7 @@ class BusinessCentralClient {
   }
 
   /**
-   * Delete a job planning line - requires Thyme BC Extension v1.8.0+
+   * Delete a job planning line - requires Timmie BC Extension v1.8.0+
    * @param id - The SystemId (GUID) of the planning line to delete
    * @param etag - The @odata.etag value for optimistic concurrency (required by BC)
    */
@@ -1160,7 +1166,7 @@ class BusinessCentralClient {
     }
   }
 
-  // Time Entries - requires Thyme BC Extension v1.7.0+
+  // Time Entries - requires Timmie BC Extension v1.7.0+
   // Provides posted time entries from Job Ledger Entry (actual cost and invoiced price)
   async getTimeEntries(jobNumber: string): Promise<BCTimeEntry[]> {
     // Check if extension is installed
@@ -1180,7 +1186,7 @@ class BusinessCentralClient {
       // 404 means the endpoint doesn't exist (extension too old)
       if (error instanceof Error && error.message.includes('404')) {
         console.warn(
-          '[BC API] timeEntries endpoint not found. Upgrade Thyme BC Extension to v1.7.0+.'
+          '[BC API] timeEntries endpoint not found. Upgrade Timmie BC Extension to v1.7.0+.'
         );
         return [];
       }
@@ -1210,7 +1216,7 @@ class BusinessCentralClient {
     return this.normalizePlanningLines(lines);
   }
 
-  // Resources (Users/Employees) - uses custom Thyme API
+  // Resources (Users/Employees) - uses custom Timmie API
   async getResources(filter?: string): Promise<BCResource[]> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
@@ -1239,7 +1245,7 @@ class BusinessCentralClient {
   /**
    * Set a resource's own billable target, or clear it (null) so they fall back to the
    * company default. Reads the resource first for a fresh ETag, as BC requires If-Match.
-   * Needs a Thyme BC Extension with billable targets; BC decides who may change them.
+   * Needs a Timmie BC Extension with billable targets; BC decides who may change them.
    */
   async updateResourceBillableTarget(
     resourceId: string,
@@ -1263,8 +1269,8 @@ class BusinessCentralClient {
 
   /**
    * Set a resource's own weekly capacity (hours, 0 = listed but not counted), or clear it
-   * (null) so Thyme falls back to hours per day x 5, plus whether they work flexible days.
-   * Reads the resource first for a fresh ETag, as BC requires If-Match. Needs Thyme BC
+   * (null) so Timmie falls back to hours per day x 5, plus whether they work flexible days.
+   * Reads the resource first for a fresh ETag, as BC requires If-Match. Needs Timmie BC
    * Extension 1.19+; BC decides who may change it.
    */
   async updateResourceWeeklyCapacity(
@@ -1296,7 +1302,7 @@ class BusinessCentralClient {
    * Set a resource's GitHub username ('' clears it) through the resources API's
    * setGitHubUsername action, which works for people without permission to modify
    * resources. BC normalises it (a profile URL or @login becomes the login) and decides who
-   * may: an administrator for anyone, a person for their own. Needs Thyme BC Extension 1.21+.
+   * may: an administrator for anyone, a person for their own. Needs Timmie BC Extension 1.21+.
    * Returns the resource as saved.
    */
   async updateResourceGitHubUsername(
@@ -1315,8 +1321,8 @@ class BusinessCentralClient {
   }
 
   /**
-   * Thyme's company-wide settings (a single record), or null when the installed
-   * Thyme BC Extension predates them (404) or isn't installed.
+   * Timmie's company-wide settings (a single record), or null when the installed
+   * Timmie BC Extension predates them (404) or isn't installed.
    */
   async getThymeSetup(): Promise<BCThymeSetup | null> {
     const baseUrl = this.customApiBaseUrl;
@@ -1335,7 +1341,7 @@ class BusinessCentralClient {
       const setup = 'value' in response ? response.value[0] : response;
       return setup?.id ? setup : null;
     } catch (error) {
-      // An extension without Thyme Setup; any other failure is a real error
+      // An extension without Timmie Setup; any other failure is a real error
       if (isEndpointMissing(error)) return null;
       throw error;
     }
@@ -1348,10 +1354,10 @@ class BusinessCentralClient {
     const baseUrl = this.customApiBaseUrl;
     const current = await this.fetchThymeSetup(baseUrl);
     if (!current) {
-      throw new Error('BC API Error (404): Billable targets need a newer Thyme BC Extension');
+      throw new Error('BC API Error (404): Billable targets need a newer Timmie BC Extension');
     }
-    const etag = requireETag(current['@odata.etag'], 'Thyme Setup');
-    const id = requireSystemId(current.id, 'Thyme Setup');
+    const etag = requireETag(current['@odata.etag'], 'Timmie Setup');
+    const id = requireSystemId(current.id, 'Timmie Setup');
     return this.customApiFetch<BCThymeSetup>(
       `/thymeSetup(${id})`,
       {
@@ -1471,7 +1477,7 @@ class BusinessCentralClient {
   }
 
   // ============================================
-  // Timesheet API (requires Thyme BC Extension)
+  // Timesheet API (requires Timmie BC Extension)
   // ============================================
 
   /**
@@ -1692,7 +1698,7 @@ class BusinessCentralClient {
   }
 
   /**
-   * Whether the signed-in user may change a project's linked sources (a Thyme administrator
+   * Whether the signed-in user may change a project's linked sources (a Timmie administrator
    * or the project's manager). False when the extension is too old to say.
    */
   async canEditProjectSourceLinks(jobNo: string): Promise<boolean> {
@@ -1710,7 +1716,7 @@ class BusinessCentralClient {
   /** Add a linked source; BC normalises the value and checks the caller may. */
   /**
    * A project's Notes (Business Central's own, as on the Project card), newest first.
-   * Undefined when the Thyme extension is too old to have them (before 1.25).
+   * Undefined when the Timmie extension is too old to have them (before 1.25).
    */
   async getProjectNotes(jobNo: string): Promise<BCProjectNote[] | undefined> {
     const extensionInstalled = await this.isExtensionInstalled();
@@ -2014,7 +2020,7 @@ class BusinessCentralClient {
    *
    * The company URL is taken once, when this is called, so a company switch while it runs
    * can't send it elsewhere.
-   * @throws Error "Update the Thyme BC Extension to apply changes" when the action is missing
+   * @throws Error "Update the Timmie BC Extension to apply changes" when the action is missing
    */
   async applyPlanReviewFinding(findingId: string): Promise<void> {
     const baseUrl = this.customApiBaseUrl;
@@ -2026,7 +2032,7 @@ class BusinessCentralClient {
       );
     } catch (error) {
       if (error instanceof Error && error.message.startsWith('BC API Error (404)')) {
-        throw new Error('Update the Thyme BC Extension to apply changes');
+        throw new Error('Update the Timmie BC Extension to apply changes');
       }
       throw error;
     }
@@ -2039,7 +2045,7 @@ class BusinessCentralClient {
 
   /**
    * Ask Poppie to generate suggestions for a resource's week. BC checks the caller may
-   * (the resource's owner or approver, or a Thyme administrator) and rejects a second
+   * (the resource's owner or approver, or a Timmie administrator) and rejects a second
    * open request for the same week.
    */
   async createSuggestionRequest(
@@ -2080,7 +2086,7 @@ class BusinessCentralClient {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
       throw new Error(
-        'Thyme BC Extension is not installed. Timesheet functionality requires the extension.'
+        'Timmie BC Extension is not installed. Timesheet functionality requires the extension.'
       );
     }
 
@@ -2110,7 +2116,7 @@ class BusinessCentralClient {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
       throw new Error(
-        'Thyme BC Extension is not installed. Timesheet functionality requires the extension.'
+        'Timmie BC Extension is not installed. Timesheet functionality requires the extension.'
       );
     }
     const from = this.sanitizeDateInput(fromDate);
@@ -2129,7 +2135,7 @@ class BusinessCentralClient {
   ): Promise<BCTimeSheetLine[]> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
     const from = this.sanitizeDateInput(fromDate);
     const to = this.sanitizeDateInput(toDate);
@@ -2146,7 +2152,7 @@ class BusinessCentralClient {
   async getTimeSheetDetailsBetween(fromDate: string, toDate: string): Promise<BCTimeSheetDetail[]> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
     const from = this.sanitizeDateInput(fromDate);
     const to = this.sanitizeDateInput(toDate);
@@ -2162,7 +2168,7 @@ class BusinessCentralClient {
   async getTimeSheet(timeSheetId: string): Promise<BCTimeSheet> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
 
     return this.customApiFetch<BCTimeSheet>(`/timeSheets(${timeSheetId})`);
@@ -2175,7 +2181,7 @@ class BusinessCentralClient {
   async deleteTimeSheet(timeSheetId: string, etag: string): Promise<void> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
 
     await this.customApiFetch(`/timeSheets(${timeSheetId})`, {
@@ -2192,7 +2198,7 @@ class BusinessCentralClient {
   async getTimeSheetLines(timeSheetNo: string): Promise<BCTimeSheetLine[]> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
 
     const escaped = timeSheetNo.replace(/'/g, "''");
@@ -2201,7 +2207,7 @@ class BusinessCentralClient {
     return response.value;
   }
 
-  // Poppie's timesheet reviews - requires the Thyme BC Extension review tables.
+  // Poppie's timesheet reviews - requires the Timmie BC Extension review tables.
   // Both return null when the endpoint doesn't exist (extension not installed or too old),
   // so callers can hide the feature rather than show an error. They skip the cached
   // isExtensionInstalled() check on purpose: a transient failure there is cached as
@@ -2224,7 +2230,7 @@ class BusinessCentralClient {
     } catch (error) {
       if (isEndpointMissing(error)) {
         console.warn(
-          '[BC API] timesheetReviews endpoint not found. Update the Thyme BC Extension to see reviews.'
+          '[BC API] timesheetReviews endpoint not found. Update the Timmie BC Extension to see reviews.'
         );
         return null;
       }
@@ -2304,7 +2310,7 @@ class BusinessCentralClient {
   async getTimeSheetsFrom(fromDate?: string): Promise<BCTimeSheet[]> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
 
     if (!fromDate) return this.customApiFetchAll<BCTimeSheet>('/timeSheets');
@@ -2319,7 +2325,7 @@ class BusinessCentralClient {
   async getTimeSheetLinesForJob(jobNo: string, fromDate?: string): Promise<BCTimeSheetLine[]> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
 
     const escaped = jobNo.replace(/'/g, "''");
@@ -2338,7 +2344,7 @@ class BusinessCentralClient {
   ): Promise<BCTimeSheetLine> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
 
     const result = await this.customApiFetch<BCTimeSheetLine>('/timeSheetLines', {
@@ -2361,7 +2367,7 @@ class BusinessCentralClient {
   ): Promise<BCTimeSheetLine> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
 
     return this.customApiFetch<BCTimeSheetLine>(`/timeSheetLines(${lineId})`, {
@@ -2379,7 +2385,7 @@ class BusinessCentralClient {
   async deleteTimeSheetLine(lineId: string, etag: string): Promise<void> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
 
     await this.customApiFetch(`/timeSheetLines(${lineId})`, {
@@ -2400,7 +2406,7 @@ class BusinessCentralClient {
   async getTimeSheetDetails(timeSheetNo: string, lineNo: number): Promise<BCTimeSheetDetail[]> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
 
     const escapedNo = timeSheetNo.replace(/'/g, "''");
@@ -2420,7 +2426,7 @@ class BusinessCentralClient {
   async getTimeSheetDetailsForJob(jobNo: string, fromDate?: string): Promise<BCTimeSheetDetail[]> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
 
     const escaped = jobNo.replace(/'/g, "''");
@@ -2439,7 +2445,7 @@ class BusinessCentralClient {
   async getAllJobTimeSheetLines(): Promise<BCTimeSheetLine[]> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
     const filter = encodeURIComponent("type eq 'Job'");
     return this.customApiFetchAll<BCTimeSheetLine>(`/timeSheetLines?$filter=${filter}`);
@@ -2452,7 +2458,7 @@ class BusinessCentralClient {
   async getAllJobTimeSheetDetails(): Promise<BCTimeSheetDetail[]> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
     const filter = encodeURIComponent("type eq 'Job'");
     return this.customApiFetchAll<BCTimeSheetDetail>(`/timeSheetDetails?$filter=${filter}`);
@@ -2464,7 +2470,7 @@ class BusinessCentralClient {
   async getAllTimeSheetDetails(timeSheetNo: string): Promise<BCTimeSheetDetail[]> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
 
     const escapedNo = timeSheetNo.replace(/'/g, "''");
@@ -2485,7 +2491,7 @@ class BusinessCentralClient {
   async setHoursForDate(lineId: string, entryDate: string, hours: number): Promise<void> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
 
     const url = `/timeSheetLines(${lineId})/Microsoft.NAV.setHoursForDate`;
@@ -2505,7 +2511,7 @@ class BusinessCentralClient {
   async submitTimeSheet(timeSheetId: string): Promise<void> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
 
     await this.customApiFetch(`/timeSheets(${timeSheetId})/Microsoft.NAV.submit`, {
@@ -2519,7 +2525,7 @@ class BusinessCentralClient {
   async reopenTimeSheet(timeSheetId: string): Promise<void> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
 
     await this.customApiFetch(`/timeSheets(${timeSheetId})/Microsoft.NAV.reopen`, {
@@ -2533,7 +2539,7 @@ class BusinessCentralClient {
   async approveTimeSheet(timeSheetId: string): Promise<void> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
 
     await this.customApiFetch(`/timeSheets(${timeSheetId})/Microsoft.NAV.approve`, {
@@ -2547,7 +2553,7 @@ class BusinessCentralClient {
   async rejectTimeSheet(timeSheetId: string): Promise<void> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
 
     await this.customApiFetch(`/timeSheets(${timeSheetId})/Microsoft.NAV.reject`, {
@@ -2564,7 +2570,7 @@ class BusinessCentralClient {
   async createTimeSheet(resourceNo: string, startingDate: string): Promise<BCTimeSheet> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
 
     // Validate and sanitize date input to prevent OData injection
@@ -2646,7 +2652,7 @@ class BusinessCentralClient {
   }
 
   // ============================================
-  // Approval Workflow API (requires Thyme BC Extension)
+  // Approval Workflow API (requires Timmie BC Extension)
   // ============================================
 
   /**
@@ -2675,7 +2681,7 @@ class BusinessCentralClient {
   private async getApproverTimesheets(filter?: string): Promise<BCTimeSheet[]> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
 
     const endpoint = filter ? `/timeSheets?$filter=${encodeURIComponent(filter)}` : '/timeSheets';
@@ -2727,7 +2733,7 @@ class BusinessCentralClient {
   async approveTimeSheetLines(lineIds: string[], comment?: string): Promise<void> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
 
     // Approve each line individually using the bound action
@@ -2745,7 +2751,7 @@ class BusinessCentralClient {
   async rejectTimeSheetLines(lineIds: string[], comment: string): Promise<void> {
     const extensionInstalled = await this.isExtensionInstalled();
     if (!extensionInstalled) {
-      throw new Error('Thyme BC Extension is not installed.');
+      throw new Error('Timmie BC Extension is not installed.');
     }
 
     // Reject each line individually using the bound action

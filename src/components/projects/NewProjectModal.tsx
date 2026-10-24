@@ -23,7 +23,7 @@ export function describeCreateProjectError(error: unknown): string {
     return "You don't have permission to create projects in Business Central";
   }
   if (/\(404\)/.test(message)) {
-    return 'Creating projects needs the Thyme BC Extension.';
+    return 'Creating projects needs the Timmie BC Extension.';
   }
   // Anything else BC rejected (e.g. a blocked customer): show its reason
   return bcErrorText(error, "Business Central didn't create the project. Please try again.");

@@ -4,7 +4,7 @@ import { ExclamationTriangleIcon, EnvelopeIcon } from '@heroicons/react/24/outli
 import { Card } from './Card';
 
 // Single source of truth for the extension GitHub URL
-const EXTENSION_GITHUB_URL = 'https://github.com/knowall-ai/thyme-bc-extension';
+const EXTENSION_GITHUB_URL = 'https://github.com/knowall-ai/timmie-bc-extension';
 
 interface ExtensionNotInstalledProps {
   /** Optional custom message to display */
@@ -12,17 +12,17 @@ interface ExtensionNotInstalledProps {
 }
 
 /**
- * Displays a message when the Thyme BC Extension is not installed.
+ * Displays a message when the Timmie BC Extension is not installed.
  * Used when API calls fail due to missing custom API endpoints.
  */
 export function ExtensionNotInstalled({ message }: ExtensionNotInstalledProps) {
   const defaultMessage =
-    'The Thyme Business Central Extension is not installed or is outdated for this company. The extension is required for timesheet functionality.';
+    'The Timmie Business Central Extension is not installed or is outdated for this company. The extension is required for timesheet functionality.';
 
-  const emailSubject = encodeURIComponent('Thyme Setup: BC Extension Installation Needed');
+  const emailSubject = encodeURIComponent('Timmie Setup: BC Extension Installation Needed');
   const emailBody = encodeURIComponent(`Hi,
 
-I need the Thyme BC Extension installed in Business Central so I can use Thyme for time tracking.
+I need the Timmie BC Extension installed in Business Central so I can use Timmie for time tracking.
 
 Please download and install the extension from:
 ${EXTENSION_GITHUB_URL}
@@ -33,7 +33,7 @@ Thank you!`);
     <Card variant="bordered" className="p-8">
       <div className="flex flex-col items-center justify-center text-center">
         <ExclamationTriangleIcon className="mb-4 h-12 w-12 text-yellow-500" />
-        <h3 className="mb-2 text-lg font-semibold text-white">Thyme BC Extension Not Installed</h3>
+        <h3 className="mb-2 text-lg font-semibold text-white">Timmie BC Extension Not Installed</h3>
         <p className="text-dark-300 mb-4 max-w-md">{message || defaultMessage}</p>
 
         <div className="max-w-lg text-left">
@@ -42,12 +42,12 @@ Thank you!`);
           </p>
           <ol className="text-dark-400 list-inside list-decimal space-y-2 text-sm">
             <li>
-              Download the latest Thyme BC Extension from{' '}
+              Download the latest Timmie BC Extension from{' '}
               <a
                 href={EXTENSION_GITHUB_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-thyme-400 hover:text-thyme-300 font-medium underline"
+                className="text-timmie-400 hover:text-timmie-300 font-medium underline"
               >
                 GitHub
               </a>
@@ -59,7 +59,7 @@ Thank you!`);
           <div className="mt-4 flex justify-center">
             <a
               href={`mailto:?subject=${emailSubject}&body=${emailBody}`}
-              className="bg-thyme-600 hover:bg-thyme-500 inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white"
+              className="bg-timmie-600 hover:bg-timmie-500 inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white"
             >
               <EnvelopeIcon className="h-4 w-4" />
               Email request to administrator

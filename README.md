@@ -1,8 +1,8 @@
-# Thyme - Time Tracking for Business Central
+# Timmie - Time Tracking for Business Central
 
-[![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/knowall-ai/thyme?label=CodeRabbit+Reviews&labelColor=171717&color=FF570A)](https://coderabbit.ai)
+[![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/knowall-ai/timmie?label=CodeRabbit+Reviews&labelColor=171717&color=FF570A)](https://coderabbit.ai)
 
-![Thyme - Time Tracking for Business Central](public/social-preview.svg)
+![Timmie - Time Tracking for Business Central](public/social-preview.svg)
 
 A modern time tracking web application that integrates with Microsoft Dynamics 365 Business Central. Built by [KnowAll.ai](https://knowall.ai).
 
@@ -88,8 +88,8 @@ Poppie works alongside you. She proposes; you decide.
 
 ```bash
 # Clone the repository
-git clone https://github.com/knowall-ai/thyme.git
-cd thyme
+git clone https://github.com/knowall-ai/timmie.git
+cd timmie
 
 # Install dependencies
 bun install
@@ -152,7 +152,7 @@ These checks also run automatically via GitHub Actions on every PR.
 ### Project Structure
 
 ```
-thyme/
+timmie/
 ├── .github/
 │   └── AGENTS.md              # AI assistant personas
 ├── docs/                      # Guides, FAQs and legal (AsciiDoc)
@@ -193,7 +193,7 @@ See [docs/DEPLOYMENT.adoc](docs/DEPLOYMENT.adoc) for detailed instructions.
 - [Testing Guide](docs/TESTING.adoc) - Running tests
 - [Troubleshooting](docs/TROUBLESHOOTING.adoc) - Common issues
 - [FAQs](docs/FAQs.adoc) - Frequently asked questions
-- [Business Central Terminology](docs/bc-terminology.adoc) - How Thyme's terms map to Business Central
+- [Business Central Terminology](docs/bc-terminology.adoc) - How Timmie's terms map to Business Central
 - [EULA](docs/EULA.adoc), [Privacy Policy](docs/PRIVACY.adoc) and [Terms of Service](docs/TERMS.adoc)
 
 ## Contributing

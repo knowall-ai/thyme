@@ -392,7 +392,7 @@ export function PlanEntryModal({
           </div>
           <h3 className="mb-2 text-lg font-semibold text-white">Extension Required</h3>
           <p className="text-dark-300 mb-4 max-w-sm text-sm">
-            The Thyme BC Extension is required to create planning lines. It provides the project
+            The Timmie BC Extension is required to create planning lines. It provides the project
             tasks needed by Business Central.
           </p>
           <div className="flex gap-3">
@@ -401,7 +401,7 @@ export function PlanEntryModal({
             </Button>
             <Button
               onClick={() =>
-                window.open('https://github.com/knowall-ai/thyme-bc-extension', '_blank')
+                window.open('https://github.com/knowall-ai/timmie-bc-extension', '_blank')
               }
             >
               Learn More

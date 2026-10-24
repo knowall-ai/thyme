@@ -9,8 +9,8 @@ import { useBillableTargetStore, useCompanyStore } from '@/hooks';
 import { describeTargetSaveError, parseTargetPercent } from '@/utils';
 
 /**
- * Settings card for the company default billable target (Thyme Setup in BC).
- * Hidden when the installed Thyme BC Extension doesn't support targets.
+ * Settings card for the company default billable target (Timmie Setup in BC).
+ * Hidden when the installed Timmie BC Extension doesn't support targets.
  */
 export function CompanyBillableTargetSettings() {
   const inputId = useId();
@@ -69,7 +69,7 @@ export function CompanyBillableTargetSettings() {
   return (
     <Card variant="bordered" className="p-6">
       <div className="mb-4 flex items-center gap-3">
-        <ChartPieIcon className="text-thyme-500 h-6 w-6" />
+        <ChartPieIcon className="text-timmie-500 h-6 w-6" />
         <h2 className="text-lg font-semibold text-white">Billable Target</h2>
       </div>
       <form
@@ -99,7 +99,7 @@ export function CompanyBillableTargetSettings() {
             value={value}
             onChange={(e) => setValue(e.target.value)}
             aria-invalid={invalid}
-            className="border-dark-600 bg-dark-800 text-dark-100 focus:ring-thyme-500 w-24 rounded-lg border px-3 py-2 focus:ring-2 focus:outline-none"
+            className="border-dark-600 bg-dark-800 text-dark-100 focus:ring-timmie-500 w-24 rounded-lg border px-3 py-2 focus:ring-2 focus:outline-none"
           />
           <Button type="submit" size="sm" disabled={invalid || unchanged || isSaving}>
             {isSaving ? 'Saving...' : 'Save'}

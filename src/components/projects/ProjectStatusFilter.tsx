@@ -156,7 +156,7 @@ export function ProjectStatusFilter({ value, onChange }: ProjectStatusFilterProp
       <div className="relative flex">
         <button
           type="button"
-          className="focus:ring-thyme-500 flex cursor-help rounded text-gray-500 hover:text-gray-300 focus:ring-1 focus:outline-none"
+          className="focus:ring-timmie-500 flex cursor-help rounded text-gray-500 hover:text-gray-300 focus:ring-1 focus:outline-none"
           onMouseEnter={() => setInfoOpen(true)}
           onMouseLeave={() => setInfoOpen(false)}
           onFocus={() => setInfoOpen(true)}

@@ -36,7 +36,7 @@ type StatusRow = Record<StatusKey, number>;
 
 // Hour columns, in stage order then the total (same colours as the Time Spent card and weekly chart)
 const STATUS_COLUMNS: { key: StatusKey; label: string; text: string; subText: string }[] = [
-  { key: 'postedHours', label: 'Posted', text: 'text-thyme-600', subText: 'text-thyme-600/70' },
+  { key: 'postedHours', label: 'Posted', text: 'text-timmie-600', subText: 'text-timmie-600/70' },
   { key: 'approvedHours', label: 'Approved', text: 'text-green-400', subText: 'text-green-400/70' },
   {
     key: 'submittedHours',
@@ -112,7 +112,7 @@ function SortableHeaders({
         <button
           type="button"
           onClick={() => onSort(null)}
-          className="focus-visible:ring-thyme-500 rounded hover:text-white focus:outline-none focus-visible:ring-1"
+          className="focus-visible:ring-timmie-500 rounded hover:text-white focus:outline-none focus-visible:ring-1"
           title="Business Central order"
         >
           {firstLabel}
@@ -130,7 +130,7 @@ function SortableHeaders({
           <button
             type="button"
             onClick={() => onSort(next(col.key))}
-            className="focus-visible:ring-thyme-500 inline-flex items-center gap-0.5 rounded hover:brightness-125 focus:outline-none focus-visible:ring-1"
+            className="focus-visible:ring-timmie-500 inline-flex items-center gap-0.5 rounded hover:brightness-125 focus:outline-none focus-visible:ring-1"
             title={`Sort by ${col.label.toLowerCase()}`}
           >
             {sort?.key === col.key &&
@@ -179,7 +179,7 @@ function StatusCells({
               <Link
                 href={href}
                 onClick={(e) => e.stopPropagation()}
-                className="focus-visible:ring-thyme-500 rounded underline-offset-4 hover:underline focus:outline-none focus-visible:ring-1 print:no-underline"
+                className="focus-visible:ring-timmie-500 rounded underline-offset-4 hover:underline focus:outline-none focus-visible:ring-1 print:no-underline"
                 title={`List the ${col.key === 'hours' ? '' : `${col.label.toLowerCase()} `}entries on Reports`}
               >
                 {text}
@@ -383,7 +383,7 @@ export function ProjectTasksTable() {
             className={cn(
               'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
               groupBy === 'task'
-                ? 'bg-thyme-600 text-white'
+                ? 'bg-timmie-600 text-white'
                 : 'bg-dark-600 text-gray-400 hover:text-white'
             )}
           >
@@ -397,7 +397,7 @@ export function ProjectTasksTable() {
             className={cn(
               'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
               groupBy === 'team'
-                ? 'bg-thyme-600 text-white'
+                ? 'bg-timmie-600 text-white'
                 : 'bg-dark-600 text-gray-400 hover:text-white'
             )}
           >
@@ -605,7 +605,7 @@ function TaskBreakdownTable({
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="hover:text-thyme-400 text-gray-500 print:hidden"
+                            className="hover:text-timmie-400 text-gray-500 print:hidden"
                             title="Open task in Business Central"
                           >
                             <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
@@ -640,7 +640,7 @@ function TaskBreakdownTable({
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
-                          className="hover:text-thyme-400 text-gray-500 print:hidden"
+                          className="hover:text-timmie-400 text-gray-500 print:hidden"
                           title="Open resource in Business Central"
                         >
                           <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
@@ -762,7 +762,7 @@ function TeamBreakdownTable({
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="hover:text-thyme-400 text-gray-500 print:hidden"
+                        className="hover:text-timmie-400 text-gray-500 print:hidden"
                         title="Open resource in Business Central"
                       >
                         <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
@@ -794,7 +794,7 @@ function TeamBreakdownTable({
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="hover:text-thyme-400 text-gray-500 print:hidden"
+                                className="hover:text-timmie-400 text-gray-500 print:hidden"
                                 title="Open task in Business Central"
                               >
                                 <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />

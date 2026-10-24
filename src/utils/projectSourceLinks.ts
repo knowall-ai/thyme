@@ -1,4 +1,4 @@
-// Project source links (Thyme BC Extension 1.20+ projectSourceLinks): which GitHub repos,
+// Project source links (Timmie BC Extension 1.20+ projectSourceLinks): which GitHub repos,
 // Azure DevOps projects and repos, meeting keywords and attendee domains belong to a project.
 // Poppie reads them to map activity to projects when she suggests time. Pure helpers: value
 // normalisation and validation (mirroring the extension, so errors show before saving),

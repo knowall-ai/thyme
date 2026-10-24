@@ -37,19 +37,17 @@
     <rect x="478" y="160" width="80" height="80" rx="16" fill="#00D26A"/>
   </g>
 
-  <!-- Thyme sprig icon - angled 45 degrees, white on green, centered in box -->
-  <g transform="translate(518, 200) rotate(-45) translate(0, -20)">
-    <path d="M0 50 Q-3 35 0 18 Q2 8 6 -5" stroke="white" stroke-width="4.5" stroke-linecap="round" fill="none"/>
-    <circle cx="-6" cy="40" r="5.5" fill="white"/>
-    <circle cx="5" cy="33" r="4.5" fill="white"/>
-    <circle cx="-5" cy="24" r="4.5" fill="white"/>
-    <circle cx="4" cy="14" r="4" fill="white"/>
-    <circle cx="-3" cy="6" r="3.5" fill="white"/>
-    <circle cx="5" cy="-2" r="3" fill="white"/>
+  <!-- Timmie icon: a smiling stopwatch, white on green, centred in the box -->
+  <g transform="translate(478, 160) scale(2.5)" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="16" cy="18" r="10"/>
+    <path d="M16 8V5.5M13.5 4.5h5"/>
+    <path d="M11.8 20.6Q16 24.6 20.2 20.6" stroke-width="2.4"/>
+    <circle cx="12.6" cy="16.2" r="1.7" fill="white" stroke="none"/>
+    <circle cx="19.4" cy="16.2" r="1.7" fill="white" stroke="none"/>
   </g>
 
-  <!-- Thyme text -->
-  <text x="570" y="210" font-family="Inter, system-ui, sans-serif" font-size="64" font-weight="700" fill="white" letter-spacing="-1">Thyme</text>
+  <!-- Timmie text -->
+  <text x="570" y="210" font-family="Inter, system-ui, sans-serif" font-size="64" font-weight="700" fill="white" letter-spacing="-1">Timmie</text>
 
   <!-- by KnowAll.ai -->
   <text x="570" y="240" font-family="Inter, system-ui, sans-serif" font-size="24" fill="#94a3b8">by KnowAll.ai</text>

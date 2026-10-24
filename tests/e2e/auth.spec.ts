@@ -12,8 +12,8 @@ test.describe('Authentication', () => {
   test('landing page has correct branding', async ({ page }) => {
     await page.goto('/');
 
-    // Should see Thyme branding
-    await expect(page.getByText('Thyme')).toBeVisible();
+    // Should see Timmie branding
+    await expect(page.getByText('Timmie')).toBeVisible();
     await expect(page.getByText('KnowAll.ai')).toBeVisible();
   });
 

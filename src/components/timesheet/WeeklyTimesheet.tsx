@@ -387,7 +387,7 @@ export function WeeklyTimesheet() {
                     href={getBCResourcesListUrl()}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-thyme-400 hover:text-thyme-300 font-medium underline"
+                    className="text-timmie-400 hover:text-timmie-300 font-medium underline"
                   >
                     Resources
                   </a>{' '}
@@ -417,9 +417,9 @@ export function WeeklyTimesheet() {
 
               <div className="mt-4 flex justify-center">
                 <a
-                  href={`mailto:?subject=${encodeURIComponent('Thyme Setup: Resource Record Needed')}&body=${encodeURIComponent(`Hi,
+                  href={`mailto:?subject=${encodeURIComponent('Timmie Setup: Resource Record Needed')}&body=${encodeURIComponent(`Hi,
 
-I need a Resource record set up in Business Central so I can use Thyme for time tracking.
+I need a Resource record set up in Business Central so I can use Timmie for time tracking.
 
 Please create or update a Resource with the following settings:
 
@@ -432,7 +432,7 @@ Please create or update a Resource with the following settings:
 7. Save the Resource record
 
 Thank you!`)}`}
-                  className="bg-thyme-600 hover:bg-thyme-500 inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white"
+                  className="bg-timmie-600 hover:bg-timmie-500 inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white"
                 >
                   <EnvelopeIcon className="h-4 w-4" />
                   Email request to manager
@@ -492,9 +492,9 @@ Thank you!`)}`}
                 </Button>
               )}
               <a
-                href={`mailto:?subject=${encodeURIComponent(`Thyme: Timesheet Needed for Week of ${weekStartStr}`)}&body=${encodeURIComponent(`Hi,
+                href={`mailto:?subject=${encodeURIComponent(`Timmie: Timesheet Needed for Week of ${weekStartStr}`)}&body=${encodeURIComponent(`Hi,
 
-I need a timesheet created in Business Central for the week of ${weekStartStr} - ${weekEndStr} so I can enter my time in Thyme.
+I need a timesheet created in Business Central for the week of ${weekStartStr} - ${weekEndStr} so I can enter my time in Timmie.
 
 Please create a timesheet using the following steps:
 
@@ -529,7 +529,7 @@ Thank you!`)}`}
                     href={getBCResourcesListUrl()}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-thyme-400 hover:text-thyme-300 font-medium underline"
+                    className="text-timmie-400 hover:text-timmie-300 font-medium underline"
                   >
                     Resource
                   </a>{' '}
@@ -566,8 +566,8 @@ Thank you!`)}`}
       <div className="space-y-6">
         {/* Teammate View Banner */}
         {isViewingTeammate && (
-          <div className="border-thyme-600/30 bg-thyme-900/20 flex items-center gap-3 rounded-lg border px-4 py-3">
-            <EyeIcon className="text-thyme-500 h-5 w-5" />
+          <div className="border-timmie-600/30 bg-timmie-900/20 flex items-center gap-3 rounded-lg border px-4 py-3">
+            <EyeIcon className="text-timmie-500 h-5 w-5" />
             <div className="flex-1">
               <span className="text-dark-200 text-sm">
                 Viewing{' '}
@@ -578,7 +578,7 @@ Thank you!`)}`}
                 <span className="text-dark-400 ml-2 text-xs">({selectedTeammate.jobTitle})</span>
               )}
             </div>
-            <span className="bg-thyme-600/20 text-thyme-400 rounded px-2 py-1 text-xs">
+            <span className="bg-timmie-600/20 text-timmie-400 rounded px-2 py-1 text-xs">
               Read-only
             </span>
           </div>

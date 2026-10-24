@@ -22,10 +22,10 @@ const screenshots: Screenshot[] = [
   },
   {
     src: '/screenshots/poppie-suggestions.png',
-    alt: "Poppie's suggested time entries for the week, grouped by day, with Add and Edit buttons",
-    title: "Poppie's Suggestions",
+    alt: "The AI agent's suggested time entries for the week, grouped by day, with Add and Edit buttons",
+    title: 'AI Time Suggestions',
     description:
-      'Poppie suggests entries from your calendar, GitHub and Azure DevOps. Add each one, edit it first or dismiss it.',
+      'The AI agent suggests entries from your calendar, GitHub and Azure DevOps. Add each one, edit it first or dismiss it.',
   },
   {
     src: '/screenshots/projects.png',
@@ -50,17 +50,17 @@ const screenshots: Screenshot[] = [
   },
   {
     src: '/screenshots/plan-review.png',
-    alt: "Plan grid with Poppie's verdict in the week header and her review open, showing a proposed change",
-    title: "Poppie's Plan Review",
+    alt: "Plan grid with the AI agent's verdict in the week header and its review open, showing a proposed change",
+    title: 'AI Plan Review',
     description:
-      "Poppie checks each week's plan for targets, capacity, holidays and budget burn, and proposes changes you can apply.",
+      "The AI agent checks each week's plan for targets, capacity, holidays and budget burn, and proposes changes you can apply.",
   },
   {
     src: '/screenshots/approvals.png',
     alt: 'Submitted timesheet expanded with one row per entry, its day, and daily hours',
     title: 'Approvals',
     description:
-      "Review each entry with its day, the daily hours, billable % against target and Poppie's notes, then approve.",
+      "Review each entry with its day, the daily hours, billable % against target and the AI agent's notes, then approve.",
   },
   {
     src: '/screenshots/reports.png',
@@ -117,7 +117,7 @@ export function ScreenshotCarousel() {
           <div className="h-3 w-3 rounded-full bg-red-500/80" />
           <div className="h-3 w-3 rounded-full bg-yellow-500/80" />
           <div className="h-3 w-3 rounded-full bg-green-500/80" />
-          <span className="text-dark-400 ml-3 text-sm">getthyme.ai</span>
+          <span className="text-dark-400 ml-3 text-sm">gettimm.ie</span>
         </div>
 
         {/* Screenshot container */}
