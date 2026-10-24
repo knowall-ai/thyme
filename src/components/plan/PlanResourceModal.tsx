@@ -22,6 +22,7 @@ import { useSaveSafeUomMap } from './useSaveSafeUomMap';
 import { UomLoadError } from './UomLoadError';
 import type { SelectOption, BCResource } from '@/types';
 import { format, getWeek, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
+import { BC_EXTENSION_GITHUB_URL } from '@/utils/bcUrls';
 
 interface PlanResourceModalProps {
   isOpen: boolean;
@@ -404,11 +405,7 @@ export function PlanResourceModal({
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button
-              onClick={() =>
-                window.open('https://github.com/knowall-ai/timmie-bc-extension', '_blank')
-              }
-            >
+            <Button onClick={() => window.open(BC_EXTENSION_GITHUB_URL, '_blank')}>
               Learn More
             </Button>
           </div>

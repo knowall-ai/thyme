@@ -4,7 +4,10 @@ import { ExclamationTriangleIcon, EnvelopeIcon } from '@heroicons/react/24/outli
 import { Card } from './Card';
 
 // Single source of truth for the extension GitHub URL
-const EXTENSION_GITHUB_URL = 'https://github.com/knowall-ai/timmie-bc-extension';
+import {
+  BC_EXTENSION_GITHUB_URL as EXTENSION_GITHUB_URL,
+  BC_EXTENSION_NAME_IN_BC,
+} from '@/utils/bcUrls';
 
 interface ExtensionNotInstalledProps {
   /** Optional custom message to display */
@@ -22,7 +25,7 @@ export function ExtensionNotInstalled({ message }: ExtensionNotInstalledProps) {
   const emailSubject = encodeURIComponent('Timmie Setup: BC Extension Installation Needed');
   const emailBody = encodeURIComponent(`Hi,
 
-I need the Timmie BC Extension installed in Business Central so I can use Timmie for time tracking.
+I need the Timmie BC Extension (listed in Business Central as ${BC_EXTENSION_NAME_IN_BC}) installed so I can use Timmie for time tracking.
 
 Please download and install the extension from:
 ${EXTENSION_GITHUB_URL}

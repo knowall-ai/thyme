@@ -11,7 +11,7 @@ const footerSections = [
     links: [
       { href: '/pricing', label: 'Pricing' },
       {
-        href: 'https://github.com/user/timmie-bc-extension',
+        href: 'https://github.com/knowall-ai/timmie-bc-extension',
         label: 'BC Extension',
         external: true,
       },

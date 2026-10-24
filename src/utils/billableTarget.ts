@@ -2,7 +2,7 @@
  * Billable targets.
  *
  * Each person's effective billable target is their own (set on their BC resource) or,
- * if they don't have one, the company default (Timmie Setup in BC). Older Timmie BC
+ * if they don't have one, the company default (the Thyme Setup page in BC). Older Timmie BC
  * Extension versions don't have targets at all; then nothing here is shown.
  */
 

@@ -22,7 +22,16 @@ const BC_PAGES = {
   extensionManagement: 2503, // Extension Management page
 };
 
-// Timmie BC Extension App ID (from app.json in timmie-bc-extension repo)
+/** Where to download the Timmie BC Extension */
+export const BC_EXTENSION_GITHUB_URL = 'https://github.com/knowall-ai/timmie-bc-extension';
+
+/**
+ * The extension's name in Business Central (Extension Management, AppSource). It keeps
+ * its pre-rename name, as do its objects (Thyme Setup, the THYME ADMIN permission set).
+ */
+export const BC_EXTENSION_NAME_IN_BC = 'Thyme BC API Extension';
+
+// Timmie BC Extension App ID (from app.json in the extension repo)
 const TIMMIE_EXTENSION_APP_ID = 'f879df78-af6d-44cb-987e-ac54c2755e71';
 
 /**

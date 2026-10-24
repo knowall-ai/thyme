@@ -3,6 +3,8 @@ const LEGACY_HOST_REDIRECTS = [
   { from: 'getthyme.ai', to: 'https://gettimm.ie' },
   { from: 'www.getthyme.ai', to: 'https://gettimm.ie' },
   { from: 'thyme.knowall.ai', to: 'https://timmie.knowall.ai' },
+  // One origin for the app, so sign-in and saved settings aren't split across two
+  { from: 'www.gettimm.ie', to: 'https://gettimm.ie' },
 ];
 
 /** @type {import('next').NextConfig} */

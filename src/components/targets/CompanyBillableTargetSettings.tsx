@@ -9,7 +9,7 @@ import { useBillableTargetStore, useCompanyStore } from '@/hooks';
 import { describeTargetSaveError, parseTargetPercent } from '@/utils';
 
 /**
- * Settings card for the company default billable target (Timmie Setup in BC).
+ * Settings card for the company default billable target (the Thyme Setup page in BC).
  * Hidden when the installed Timmie BC Extension doesn't support targets.
  */
 export function CompanyBillableTargetSettings() {

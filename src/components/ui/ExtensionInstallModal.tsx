@@ -4,6 +4,7 @@ import { CheckCircleIcon, ArrowDownTrayIcon, ServerIcon } from '@heroicons/react
 import { Button } from './Button';
 import { useCompanyStore } from '@/hooks';
 import { getBCExtensionInstallUrl } from '@/utils';
+import { BC_EXTENSION_GITHUB_URL, BC_EXTENSION_NAME_IN_BC } from '@/utils/bcUrls';
 
 export interface ExtensionInstallModalProps {
   isOpen: boolean;
@@ -54,7 +55,8 @@ export function ExtensionInstallModal({ isOpen }: ExtensionInstallModalProps) {
             {/* Benefits */}
             <div>
               <p className="text-dark-300 mb-3 text-sm">
-                The Timmie BC Extension is required for full functionality:
+                The Timmie BC Extension (listed in Business Central as {BC_EXTENSION_NAME_IN_BC}) is
+                required for full functionality:
               </p>
               <ul className="space-y-2">
                 {BENEFITS.map((benefit, index) => (
@@ -82,7 +84,7 @@ export function ExtensionInstallModal({ isOpen }: ExtensionInstallModalProps) {
                 Install Extension
               </Button>
               <a
-                href="https://github.com/knowall-ai/timmie-bc-extension"
+                href={BC_EXTENSION_GITHUB_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-dark-300 hover:text-timmie-400 text-sm font-medium transition-colors"

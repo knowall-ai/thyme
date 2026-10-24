@@ -1357,8 +1357,8 @@ class BusinessCentralClient {
     if (!current) {
       throw new Error('BC API Error (404): Billable targets need a newer Timmie BC Extension');
     }
-    const etag = requireETag(current['@odata.etag'], 'Timmie Setup');
-    const id = requireSystemId(current.id, 'Timmie Setup');
+    const etag = requireETag(current['@odata.etag'], 'Thyme Setup');
+    const id = requireSystemId(current.id, 'Thyme Setup');
     return this.customApiFetch<BCTimmieSetup>(
       `/thymeSetup(${id})`,
       {

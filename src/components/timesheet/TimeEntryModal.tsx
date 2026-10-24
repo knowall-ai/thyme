@@ -11,6 +11,7 @@ import type { TimeEntry, SelectOption, Project } from '@/types';
 import { getCustomerKey, uniqueCustomerOptions } from '@/utils/customerKey';
 import { formatDate, formatDateForDisplay, getWeekDays } from '@/utils';
 import { bcErrorText, type SourceLinkCandidate } from '@/utils/projectSourceLinks';
+import { BC_EXTENSION_GITHUB_URL } from '@/utils/bcUrls';
 
 // BC Time Sheet Line Description field has a 100-character limit
 const MAX_NOTES_LENGTH = 100;
@@ -446,11 +447,7 @@ export function TimeEntryModal({
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button
-              onClick={() =>
-                window.open('https://github.com/knowall-ai/timmie-bc-extension', '_blank')
-              }
-            >
+            <Button onClick={() => window.open(BC_EXTENSION_GITHUB_URL, '_blank')}>
               Learn More
             </Button>
           </div>

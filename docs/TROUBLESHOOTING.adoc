@@ -30,7 +30,7 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Billable targets need a Timmie BC Extension version with billable targets (the `billableTargetPercent` / `billableTargetSet` fields on the resources API and the `thymeSetup` API). Install the latest extension in the BC environment; older versions keep working, just without targets.
 
 | "You don't have permission in Business Central to change billable targets" when saving a target
-| Business Central refused the change (403). Billable targets are saved to the Resource (per person) and Timmie Setup (company default) in BC, so the user needs permission to modify those records; ask a BC administrator to assign it, or to change the target for you.
+| Business Central refused the change (403). Billable targets are saved to the Resource (per person) and Thyme Setup (company default) in BC, so the user needs permission to modify those records; ask a BC administrator to assign it, or to change the target for you.
 
 | Team page "Timesheet completion" is below 100% for someone who worked a full week
 | Timesheet completion is hours logged ÷ capacity. Check their timesheet for missing days, and that their capacity is right: it is the person's own *Weekly Capacity* when set (Timmie BC Extension 1.19+), otherwise the hours per day on their resource units of measure in BC (e.g. a DAY unit of 7.5 hours) x 5, falling back to 40 hours a week.
@@ -105,7 +105,7 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Poppie needs to know their GitHub username. Set it on the Team page (the GitHub line under their name; administrators can set anyone's) or, for yourself, in *Settings > Connected accounts*. A profile link or `@username` works too. It's saved on the person's resource in the selected company, so set it in each company they log time in. Needs Timmie BC Extension 1.21+; with older versions the GitHub line and the *Connected accounts* section are hidden. Azure DevOps doesn't need setting up: Poppie uses the person's Microsoft 365 sign-in.
 
 | "You are not allowed to change the GitHub username of resource ..."
-| You can change your own GitHub username (the resource whose *Time Sheet Owner User ID* on the BC Resource card is you) and, as a Timmie administrator (*Time Sheet Admin.* in User Setup, or the `TIMMIE ADMIN` permission set), anyone's. If it's your own and you still see this, ask an administrator to set you as the time sheet owner of your resource.
+| You can change your own GitHub username (the resource whose *Time Sheet Owner User ID* on the BC Resource card is you) and, as a Timmie administrator (*Time Sheet Admin.* in User Setup, or the `THYME ADMIN` permission set), anyone's. If it's your own and you still see this, ask an administrator to set you as the time sheet owner of your resource.
 
 | A suggestion request stays on "Queued" or says "Poppie seems to be offline"
 | Poppie checks for requests every minute, so a request waiting longer than a few minutes means her VM or its `suggestion-requests` job isn't running. The request stays queued and runs when she's back; you don't need to ask again. If it never starts, ask an administrator to check Poppie's `suggestion-requests` cron job. A request that started but stopped updating is marked failed after 30 minutes, so you can ask again.
@@ -120,7 +120,7 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | The card needs Timmie BC Extension 1.20 or later (the `projectSourceLinks` API); on older versions it's hidden. Upgrade the extension from https://github.com/knowall-ai/timmie-bc-extension.
 
 | *Linked sources* shows the links but no *Add link*, edit or remove buttons
-| Only a Timmie administrator (*Time Sheet Admin.* in User Setup, or the `TIMMIE ADMIN` permission set) or the project's manager can change them. The manager is the project's *Project Manager* user, or the person whose resource is its *Person Responsible* (their *Time Sheet Owner User ID* on the Resource card). Ask one of them, or edit the links in Business Central on the Project Card (*Timmie Linked Sources*), where the same rule applies.
+| Only a Timmie administrator (*Time Sheet Admin.* in User Setup, or the `THYME ADMIN` permission set) or the project's manager can change them. The manager is the project's *Project Manager* user, or the person whose resource is its *Person Responsible* (their *Time Sheet Owner User ID* on the Resource card). Ask one of them, or edit the links in Business Central on the Project Card (*Thyme Linked Sources*), where the same rule applies.
 
 | Poppie keeps suggesting time from a repo, DevOps project or meeting without a project ("Choose project")
 | Link it to the project: on the project page, *Linked sources* → *Add link* (GitHub repo, DevOps project or repo, meeting keyword or attendee domain), optionally with the task. Or, when you add the suggestion, pick the project and task and tick *Always map this to the chosen project and task* (shown to administrators and the project's manager). Poppie uses the link from her next run. A DevOps repo link wins over a link to its DevOps project.
@@ -189,7 +189,7 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Day notes need Timmie BC Extension 1.22.0.0 or later (the `dayNotes` API); with older versions they're hidden and the dates in the Plan header aren't clickable. Upgrade the extension from https://github.com/knowall-ai/timmie-bc-extension, then reload the Plan.
 
 | The day notes popover has no *Add note*, edit or delete buttons, or saving a note says "You don't have permission to change day notes."
-| Only people who can write planning lines (Job Planning Line) in Business Central, Timmie administrators and the AI agent can change day notes; everyone else sees them read-only. Ask a BC administrator to give the user permission to modify Job Planning Lines (or the `TIMMIE ADMIN` permission set). Timmie reads this from `canEditPlan` on the projects and resources APIs, so reload the Plan after the permission changes.
+| Only people who can write planning lines (Job Planning Line) in Business Central, Timmie administrators and the AI agent can change day notes; everyone else sees them read-only. Ask a BC administrator to give the user permission to modify Job Planning Lines (or the `THYME ADMIN` permission set). Timmie reads this from `canEditPlan` on the projects and resources APIs, so reload the Plan after the permission changes.
 
 | A Plan cell has a red outline on a hatched day, though the hours are within the person's day
 | The day has a *No project work* note (for everyone, or that person), e.g. an off-site, so any hours planned on it count as over capacity. Hover the cell for the note. Move the allocation to another day, or edit the note in the date's popover and untick *No project work* if the day is available after all.

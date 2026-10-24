@@ -171,7 +171,7 @@ export function LandingPage() {
             <p className="text-dark-300 mx-auto mb-10 max-w-2xl text-lg sm:text-xl">
               Timmie is time tracking for Microsoft Dynamics 365 Business Central. Log your time,
               plan your team and keep projects on budget, while an AI agent suggests entries and
-              reviews timesheets and plans. Use Timmie&apos;s own agent, or connect your own.
+              reviews timesheets and plans.
             </p>
 
             <div className="flex flex-col justify-center gap-4 sm:flex-row">

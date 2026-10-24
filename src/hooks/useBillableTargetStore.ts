@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { bcClient } from '@/services/bc/bcClient';
 
 /**
- * The company default billable target (Timmie Setup in BC), shared by the Team page,
+ * The company default billable target (the Thyme Setup page in BC), shared by the Team page,
  * Reports and Settings so a change in Settings shows everywhere.
  */
 interface BillableTargetStore {

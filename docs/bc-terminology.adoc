@@ -3,6 +3,8 @@
 :toc-title: Contents
 :sectnums:
 
+NOTE: Thyme was renamed Timmie, but the Business Central extension keeps its original names so installed copies keep working: it's listed in Business Central as *Thyme BC API Extension*, its API is `/api/knowall/thyme/v1.0`, and its objects include the *Thyme Setup* page, the *Thyme Linked Sources* FastTab and the `THYME ADMIN` permission set.
+
 This document describes how Timmie aligns with Microsoft Dynamics 365 Business Central terminology for project tracking, hours, costs, and revenue.
 
 == Overview

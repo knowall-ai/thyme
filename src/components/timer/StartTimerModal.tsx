@@ -7,6 +7,7 @@ import { useTimer, useProjectsStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
 import { bcClient } from '@/services/bc/bcClient';
 import type { SelectOption } from '@/types';
+import { BC_EXTENSION_GITHUB_URL } from '@/utils/bcUrls';
 
 interface StartTimerModalProps {
   isOpen: boolean;
@@ -95,11 +96,7 @@ export function StartTimerModal({ isOpen, onClose }: StartTimerModalProps) {
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button
-              onClick={() =>
-                window.open('https://github.com/knowall-ai/timmie-bc-extension', '_blank')
-              }
-            >
+            <Button onClick={() => window.open(BC_EXTENSION_GITHUB_URL, '_blank')}>
               Learn More
             </Button>
           </div>
