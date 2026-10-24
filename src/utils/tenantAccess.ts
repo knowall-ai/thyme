@@ -66,12 +66,14 @@ export function accessRequestMailto({
   const body = [
     `Hello KnowAll,`,
     ``,
-    `Please set up our organisation on ${app}.`,
+    `Please could you set up our organisation on ${app}?`,
     ``,
     `App: ${app}`,
     `Organisation: ${organisationName || 'Unknown'}`,
     `Tenant ID: ${tenantId || 'Unknown'}`,
     `Email: ${email || 'Unknown'}`,
+    ``,
+    `Thank you`,
   ].join('\n');
   return `mailto:${ACCESS_REQUEST_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }

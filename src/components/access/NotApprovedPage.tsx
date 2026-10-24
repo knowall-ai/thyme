@@ -88,7 +88,7 @@ export function NotApprovedPage({
       <section className="mx-auto flex w-full max-w-7xl flex-1 items-end px-4 pt-56 pb-14 sm:px-6 sm:pt-72 lg:items-center lg:px-8 lg:py-24">
         <div className="max-w-xl">
           <p className="text-knowall-green mb-4 text-sm font-semibold tracking-wider uppercase">
-            {onRetry ? 'Checking access' : 'Not set up yet'}
+            {onRetry ? 'Checking access' : 'Awaiting approval'}
           </p>
           <h1 className="mb-5 text-4xl leading-tight font-bold text-white sm:text-5xl lg:text-6xl">
             {onRetry ? (
@@ -103,7 +103,7 @@ export function NotApprovedPage({
           <p className="text-dark-200 mb-8 text-lg sm:text-xl">
             {onRetry
               ? 'Thyme couldn’t confirm your organisation’s access. Try again in a moment, or get in touch if it keeps happening.'
-              : 'Thyme is available to organisations KnowAll has approved. Ask us and we’ll get you set up.'}
+              : 'Thyme is open to organisations KnowAll has approved. Get in touch and we’ll set yours up.'}
           </p>
 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
