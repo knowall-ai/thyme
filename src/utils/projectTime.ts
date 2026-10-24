@@ -5,6 +5,7 @@
 
 import type { BCTimeSheetDetail, BCTimeSheetLine } from '@/types';
 import { getPostedHours, type StageHours } from './timesheetStatus';
+import { isAiResource } from './aiResources';
 
 /** One day's hours on a project, with the timesheet line they were logged on */
 export interface ProjectTimeRow {
@@ -40,6 +41,8 @@ export function collectProjectTimeRows(
     const line = linesByKey.get(`${detail.timeSheetNo}|${detail.timeSheetLineNo}`);
     const resourceNo = resourceNoByTimesheet.get(detail.timeSheetNo);
     if (!line?.jobNo || !resourceNo || !personResourceNos.has(resourceNo)) continue;
+    // AI usage resources are a cost, never hours, even if set up as a Person
+    if (isAiResource(resourceNo)) continue;
     rows.push({ jobNo: line.jobNo, resourceNo, line, detail });
   }
   return rows;

@@ -19,6 +19,7 @@ import type {
   BCTimeSheetLine,
   BCTimeSheetDetail,
   BCTimeEntry,
+  BCJobCostEntry,
   BCTimeSuggestion,
   BCTimeSuggestionUpdate,
   BCSuggestionRequest,
@@ -234,6 +235,8 @@ class BusinessCentralClient {
   private _environment: BCEnvironmentType;
   private _extensionInstalled: boolean | null = null;
   private _extensionCheckPromise: Promise<boolean> | null = null;
+  // The extension has no /jobCostEntries (404: before 1.28.0.0), so don't ask again
+  private _jobCostEntriesMissing = false;
   // The current company's names, fetched once per company (see getCompanyNames)
   private _companyNames: { key: string; promise: Promise<string[]> } | null = null;
 
@@ -313,6 +316,7 @@ class BusinessCentralClient {
       // Reset extension cache when company/environment changes
       this._extensionInstalled = null;
       this._extensionCheckPromise = null;
+      this._jobCostEntriesMissing = false;
       this._companyNames = null;
     }
   }
@@ -460,6 +464,7 @@ class BusinessCentralClient {
   resetExtensionCache(): void {
     this._extensionInstalled = null;
     this._extensionCheckPromise = null;
+    this._jobCostEntriesMissing = false;
   }
 
   // ============================================
@@ -1186,6 +1191,38 @@ class BusinessCentralClient {
       }
       console.error('[BC API] Error fetching time entries:', error);
       return [];
+    }
+  }
+
+  /**
+   * A project's Job Ledger Entries of every type (Resource, Item and G/L Account), for its
+   * real cost and price: non-hour costs such as AI services are posted as G/L Account lines,
+   * which /timeEntries (Resource only) doesn't return. Requires Thyme BC Extension 1.28.0.0+.
+   *
+   * Returns null when the endpoint isn't there (an older extension: 404), remembered for this
+   * company until the extension cache is reset, so the caller falls back to getTimeEntries, as
+   * before. Any other failure (401, 403, 429, 500...) throws: falling back would show
+   * Resource-only costs and a wrong margin. Only people's Resource entries' quantity is hours:
+   * callers must classify on `type` and `resourceType`.
+   */
+  async getJobCostEntries(jobNumber: string): Promise<BCJobCostEntry[] | null> {
+    const extensionInstalled = await this.isExtensionInstalled();
+    if (!extensionInstalled || this._jobCostEntriesMissing) return null;
+
+    const filter = `jobNo eq '${this.sanitizeODataString(jobNumber)}'`;
+    try {
+      const entries = await this.customApiFetchAll<BCJobCostEntry>(
+        `/jobCostEntries?$filter=${encodeURIComponent(filter)}`
+      );
+      // BC encodes "G/L Account" as "G_x002F_L_x0020_Account"
+      return entries.map((entry) => ({ ...entry, type: decodeBCEnum(entry.type) }));
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('(404)')) {
+        // Expected until the extension is updated: use timeEntries, as before
+        this._jobCostEntriesMissing = true;
+        return null;
+      }
+      throw error;
     }
   }
 

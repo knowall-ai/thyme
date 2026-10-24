@@ -1,4 +1,5 @@
 import type { BCJobPlanningLine, BCResourceUnitOfMeasure } from '@/types';
+import { isAiResource } from './aiResources';
 
 /**
  * UOM conversion map: "resourceNo:code" → qtyPerUnitOfMeasure
@@ -232,9 +233,17 @@ export function sumPlannedHours(
   planningLines: BCJobPlanningLine[],
   uomConversionMap: UOMConversionMap
 ): number {
-  return planningLines
-    .filter((line) => line.type === 'Resource' && isBudgetPlanningLine(line.lineType))
-    .reduce((sum, line) => sum + convertToHours(line.number, line.quantity, uomConversionMap), 0);
+  return (
+    planningLines
+      // AI usage resources are a cost, never hours
+      .filter(
+        (line) =>
+          line.type === 'Resource' &&
+          !isAiResource(line.number) &&
+          isBudgetPlanningLine(line.lineType)
+      )
+      .reduce((sum, line) => sum + convertToHours(line.number, line.quantity, uomConversionMap), 0)
+  );
 }
 
 /**
@@ -259,6 +268,11 @@ export function sumEstimateHours(
   uomConversionMap: UOMConversionMap
 ): number {
   return planningLines
-    .filter((line) => line.type === 'Resource' && isBillablePlanningLine(line.lineType))
+    .filter(
+      (line) =>
+        line.type === 'Resource' &&
+        !isAiResource(line.number) &&
+        isBillablePlanningLine(line.lineType)
+    )
     .reduce((sum, line) => sum + convertToHours(line.number, line.quantity, uomConversionMap), 0);
 }

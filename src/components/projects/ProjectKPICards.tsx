@@ -28,6 +28,7 @@ import {
   EyeIcon,
   EyeSlashIcon,
   InformationCircleIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 
 // Resources listed on the Estimate and Planned cards before "+N more"
@@ -256,9 +257,10 @@ export function ProjectKPICards() {
     'Actual Cost': {
       title: 'Actual Cost (Internal)',
       description:
-        "Internal cost incurred from posted Job Ledger Entries, in the company's currency. Calculated when timesheets are posted using each Resource's Unit Cost. Shows 0 if timesheets are approved but not yet posted.",
-      formula: 'posted hours × Resource Unit Cost',
-      source: 'BC API: /timeEntries → totalCost (LCY)',
+        "Internal cost incurred from posted Job Ledger Entries of every type, in the company's currency: Resource (people's and agents' posted time, at each Resource's Unit Cost), AI (AI usage posted against a Machine resource such as AI-USAGE, whose quantity is cost, never hours), Item and G/L Account. Shows 0 if timesheets are approved but not yet posted.",
+      formula: 'Σ totalCost (LCY): Resource + AI + Item + G/L Account',
+      source:
+        'BC API: /jobCostEntries → totalCost (LCY) (/timeEntries, Resource entries only, on extensions before 1.28)',
     },
     'Billable Price': {
       title: 'Billable Price (Customer)',
@@ -269,11 +271,11 @@ export function ProjectKPICards() {
     },
     'Invoiced Price': {
       title: 'Invoiced Price (Customer)',
-      description:
-        "Amount actually invoiced to the customer from Job Ledger Entry, in the project's currency. Calculated when time is posted, using the unit price on the posted line converted to the project's currency.",
-      formula: 'Σ totalPriceProjectCurrency (posted quantity × unit price, in project currency)',
+      description: `Amount actually invoiced to the customer from posted Job Ledger Entries of every type, in the project's currency, using the unit price on each posted line converted to the project's currency. Margin (internal, hidden with Actual Cost) is the invoiced price less the Actual Cost, worked out in the company's currency (${currencyCode})${projectCurrencyCode !== currencyCode ? `: the project is priced in ${projectCurrencyCode}, so the margin uses BC's ${currencyCode} price, not the ${projectCurrencyCode} amount above` : ''}; the % is the margin's share of that price.`,
+      formula:
+        'Σ totalPriceProjectCurrency · Margin = Σ totalPrice (LCY) − Actual Cost (LCY); % = Margin ÷ Σ totalPrice (LCY)',
       source:
-        'BC API: /timeEntries → totalPriceProjectCurrency (totalPrice on extensions before 1.14)',
+        'BC API: /jobCostEntries → totalPriceProjectCurrency, totalPrice (LCY), totalCost (LCY) (/timeEntries before 1.28; totalPrice before 1.14)',
     },
   };
 
@@ -351,6 +353,7 @@ export function ProjectKPICards() {
   const budgetCost = analytics?.budgetCost ?? 0;
   const budgetBreakdown = analytics?.budgetCostBreakdown ?? {
     resource: 0,
+    ai: 0,
     item: 0,
     glAccount: 0,
     total: 0,
@@ -358,6 +361,7 @@ export function ProjectKPICards() {
   const actualCost = analytics?.actualCost ?? 0;
   const actualBreakdown = analytics?.actualCostBreakdown ?? {
     resource: 0,
+    ai: 0,
     item: 0,
     glAccount: 0,
     total: 0,
@@ -365,6 +369,7 @@ export function ProjectKPICards() {
   const billablePrice = analytics?.billablePrice ?? 0;
   const billableBreakdown = analytics?.billablePriceBreakdown ?? {
     resource: 0,
+    ai: 0,
     item: 0,
     glAccount: 0,
     total: 0,
@@ -372,10 +377,26 @@ export function ProjectKPICards() {
   const invoicedPrice = analytics?.invoicedPrice ?? 0;
   const invoicedBreakdown = analytics?.invoicedPriceBreakdown ?? {
     resource: 0,
+    ai: 0,
     item: 0,
     glAccount: 0,
     total: 0,
   };
+
+  // Margin, internal: Invoiced Price − Actual Cost in the company currency (LCY). Costs are
+  // only in LCY, so it uses BC's LCY price (the same as the project-currency one when the
+  // project is in LCY). Masked by the Invoiced Price card's Eye toggle or Actual Cost's.
+  const invoicedPriceLCY = analytics?.invoicedPriceLCY ?? 0;
+  const margin = invoicedPriceLCY - actualCost;
+  const marginPercent = invoicedPriceLCY !== 0 ? (margin / invoicedPriceLCY) * 100 : null;
+  const marginText = `Margin ${formatCurrency(margin, currencyCode)}${marginPercent !== null ? ` · ${marginPercent.toFixed(1)}%` : ''}`;
+  // Within a penny counts as break-even, neither green nor red
+  const marginColor =
+    margin > 0.005 ? 'text-green-400' : margin < -0.005 ? 'text-red-400' : 'text-gray-400';
+  const marginHidden = hiddenCards.has('Invoiced Price') || hiddenCards.has('Actual Cost');
+  // The posted entries couldn't be read, so Actual Cost, Invoiced Price and the margin are
+  // missing rather than zero (no fallback to Resource-only costs, which would be wrong)
+  const costsIncomplete = !!analytics?.costsIncomplete;
 
   // Helper to create BC link for subLabel
   const jobPlanningLinesLink = projectCode ? (
@@ -425,6 +446,8 @@ export function ProjectKPICards() {
     icon: typeof BanknotesIcon;
     color: string;
     isInternal?: boolean;
+    margin?: boolean; // Shows the internal Margin line (Invoiced Price)
+    fromLedger?: boolean; // From posted Job Ledger Entries: warns when they couldn't be read
   }[] = [
     {
       label: 'Budget Cost',
@@ -442,6 +465,7 @@ export function ProjectKPICards() {
       subLabel: jobLedgerEntryLink,
       breakdown: actualBreakdown,
       currency: currencyCode,
+      fromLedger: true,
       icon: BanknotesIcon,
       color:
         !isInternal && actualCost > budgetCost && budgetCost > 0
@@ -466,6 +490,8 @@ export function ProjectKPICards() {
       currency: projectCurrencyCode,
       icon: currencyIcon(projectCurrencyCode),
       color: 'text-green-400',
+      margin: true,
+      fromLedger: true,
     },
   ];
 
@@ -576,7 +602,12 @@ export function ProjectKPICards() {
           const isHidden = hiddenCards.has(kpi.label);
           const breakdown = kpi.breakdown;
           return (
-            <Card key={kpi.label} variant="bordered" className="relative p-4">
+            <Card
+              key={kpi.label}
+              variant="bordered"
+              className="relative p-4"
+              data-testid={`kpi-card-${kpi.label.toLowerCase().replace(/\s+/g, '-')}`}
+            >
               <div className="absolute top-3 right-3 flex items-center gap-1.5">
                 <VisibilityToggle
                   hidden={isHidden}
@@ -605,12 +636,16 @@ export function ProjectKPICards() {
                   <p className={`text-2xl font-bold ${isHidden ? 'text-gray-600' : 'text-white'}`}>
                     {isHidden ? maskedValue : kpi.value}
                   </p>
-                  {/* Breakdown by type - always show all 3 lines */}
+                  {/* Breakdown by type - always show all 4 lines */}
                   {breakdown && !isHidden && (
                     <div className="mt-1 space-y-0.5 text-xs text-gray-500">
                       <div className="flex justify-between">
                         <span>Resource:</span>
                         <span>{formatCurrency(breakdown.resource, kpi.currency)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>AI:</span>
+                        <span>{formatCurrency(breakdown.ai ?? 0, kpi.currency)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Item:</span>
@@ -621,6 +656,20 @@ export function ProjectKPICards() {
                         <span>{formatCurrency(breakdown.glAccount, kpi.currency)}</span>
                       </div>
                     </div>
+                  )}
+                  {/* Internal: masked whenever this card or Actual Cost is hidden */}
+                  {/* No figures in it, so shown even when the amount is masked */}
+                  {kpi.fromLedger && costsIncomplete && (
+                    <p
+                      role="status"
+                      className="mt-1 flex items-center gap-1 text-xs text-amber-400"
+                    >
+                      <ExclamationTriangleIcon className="h-3.5 w-3.5 shrink-0" />
+                      Posted costs couldn&apos;t be loaded; figures incomplete
+                    </p>
+                  )}
+                  {kpi.margin && !isHidden && !marginHidden && !costsIncomplete && (
+                    <p className={`mt-1 text-xs font-medium ${marginColor}`}>{marginText}</p>
                   )}
                   <p className="mt-1 text-xs text-gray-500">{kpi.subLabel}</p>
                 </div>
