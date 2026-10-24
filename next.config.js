@@ -7,10 +7,28 @@ const LEGACY_HOST_REDIRECTS = [
   { from: 'www.gettimm.ie', to: 'https://gettimm.ie' },
 ];
 
+/**
+ * Headers sent on every response, static assets included. The Content-Security-Policy
+ * is per-request (it carries a nonce), so it's set in src/proxy.ts instead.
+ */
+const securityHeaders = [
+  { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  {
+    key: 'Permissions-Policy',
+    value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()',
+  },
+  // SAMEORIGIN rather than DENY: MSAL's silent sign-in loads Timmie's own origin in a
+  // hidden iframe. Nothing else (Teams, Business Central) embeds Timmie.
+  { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
+  poweredByHeader: false,
   env: {
     NEXT_PUBLIC_APP_VERSION: require('./package.json').version,
   },
@@ -21,6 +39,9 @@ const nextConfig = {
       destination: `${to}/:path*`,
       permanent: true,
     }));
+  },
+  async headers() {
+    return [{ source: '/:path*', headers: securityHeaders }];
   },
 };
 
