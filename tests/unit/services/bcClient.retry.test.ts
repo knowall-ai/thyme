@@ -5,6 +5,7 @@ vi.mock('@/services/auth', () => ({
 }));
 
 import { bcClient } from '@/services/bc/bcClient';
+import { BC_UNREACHABLE_EVENT } from '@/utils/bcHealth';
 
 beforeEach(() => {
   bcClient.setCompany('00000000-0000-0000-0000-0000000000c2', 'sandbox');
@@ -47,13 +48,13 @@ describe('bcClient retries', () => {
         )
       );
       const unreachable = vi.fn();
-      window.addEventListener('timmie:bc-unreachable', unreachable);
+      window.addEventListener(BC_UNREACHABLE_EVENT, unreachable);
       const entries = bcClient.getTimeEntries('PR00010');
       await vi.advanceTimersByTimeAsync(90_000);
       // getTimeEntries reports a failure as no entries
       expect(await entries).toEqual([]);
       expect(unreachable).toHaveBeenCalledTimes(1);
-      window.removeEventListener('timmie:bc-unreachable', unreachable);
+      window.removeEventListener(BC_UNREACHABLE_EVENT, unreachable);
     } finally {
       vi.useRealTimers();
     }

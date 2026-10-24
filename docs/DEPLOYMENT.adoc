@@ -6,8 +6,8 @@
 * Azure subscription with App Service plan
 * Microsoft Entra ID tenant (Azure AD)
 * Business Central environment with API access
-* Timmie BC Extension installed in each Business Central environment (see below)
-* Node.js 20 LTS (for local development)
+* Timmie BC Extension installed in each Business Central environment (see below). Business Central lists it as *Thyme BC API Extension*.
+* Node.js 24 LTS (the App Service runtime; also fine for local development)
 
 === Timmie BC Extension version
 
@@ -81,7 +81,8 @@ az webapp config ssl bind \
 2. Add platform: Single-page application
 3. Add redirect URIs:
    - `https://gettimm.ie`
-   - `http://localhost:3000` (for development)
+   - `https://timmie.knowall.ai` (KnowAll's own address for the same app)
+   - `http://localhost:3000` and `http://localhost:3101` (for development)
 4. Enable "Access tokens" and "ID tokens"
 
 === 3. Configure API Permissions
@@ -114,48 +115,16 @@ NEXT_PUBLIC_BC_BASE_URL=https://api.businesscentral.dynamics.com/v2.0
 
 == CI/CD Pipeline (GitHub Actions)
 
-Create `.github/workflows/deploy.yml`:
+Two workflows run on GitHub Actions:
 
-[source,yaml]
-----
-name: Deploy to Azure
+* `.github/workflows/ci.yml` runs format, lint, type check, unit tests and a build on every PR.
+* `.github/workflows/deploy-production.yml` deploys to the `timmie-knowall` App Service when a `v*` tag is pushed (see <<Release Workflow>>). Pushing to `main` doesn't deploy.
 
-on:
-  push:
-    branches: [main]
+The deploy uses these repository secrets:
 
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-
-    - name: Install dependencies
-      run: npm ci
-
-    - name: Run tests
-      run: npm test
-
-    - name: Build
-      run: npm run build
-      env:
-        NEXT_PUBLIC_AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-        NEXT_PUBLIC_AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-
-    - name: Deploy to Azure
-      uses: azure/webapps-deploy@v2
-      with:
-        app-name: 'timmie-knowall'
-        publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
-        package: .next/standalone
-----
+* `AZURE_CREDENTIALS`: the deploy service principal, with Contributor on `timmie-knowall` only
+* `AZURE_WEBAPP_NAME`: `timmie-knowall`
+* `NEXT_PUBLIC_AZURE_CLIENT_ID`, `NEXT_PUBLIC_AZURE_TENANT_ID` and `NEXT_PUBLIC_AZURE_REDIRECT_URI`, which are baked in at build time
 
 == Release Workflow
 

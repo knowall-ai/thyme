@@ -31,6 +31,7 @@ describe('migrateLegacyStorageKey', () => {
     localStorage.setItem(newKey, 'new');
     migrateLegacyStorageKey(oldKey, newKey);
     expect(localStorage.getItem(newKey)).toBe('new');
+    expect(localStorage.getItem(oldKey)).toBeNull();
   });
 
   it('does nothing when there is no old value', () => {
