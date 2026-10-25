@@ -23,11 +23,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles =
-      'inline-flex items-center justify-center font-medium transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-knowall-green focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900 disabled:pointer-events-none disabled:opacity-50 rounded-lg [&_svg]:stroke-current';
+      'inline-flex items-center justify-center font-medium transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900 disabled:pointer-events-none disabled:opacity-50 rounded-lg [&_svg]:stroke-current';
 
     const variants = {
       primary:
-        'bg-knowall-green text-dark-950 hover:bg-knowall-green-light active:bg-knowall-green-dark shadow-lg shadow-knowall-green/20 hover:shadow-knowall-green/40',
+        'bg-brand text-brand-foreground hover:bg-brand-hover active:bg-brand/80 shadow-lg shadow-brand/20 hover:shadow-brand/40',
       secondary: 'bg-dark-700 text-white hover:bg-dark-600 active:bg-dark-800',
       outline:
         'border border-dark-600 bg-transparent text-dark-200 hover:bg-dark-800 hover:text-white active:bg-dark-700',

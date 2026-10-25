@@ -49,7 +49,7 @@ export function EnquiryForm({ option, onOptionChange }: EnquiryFormProps) {
   if (status.state === 'sent') {
     return (
       <div className="flex flex-col items-center py-10 text-center" role="status">
-        <CheckCircleIcon className="text-knowall-green mb-4 h-12 w-12" />
+        <CheckCircleIcon className="text-brand mb-4 h-12 w-12" />
         <h3 className="mb-2 text-xl font-semibold text-white">Thanks, we&apos;ve got it</h3>
         <p className="text-dark-300 max-w-md">
           We&apos;ll reply to the email address you gave, usually within one working day.
@@ -75,7 +75,7 @@ export function EnquiryForm({ option, onOptionChange }: EnquiryFormProps) {
                 onChange={() => onOptionChange(o)}
                 className="peer sr-only"
               />
-              <span className="border-dark-600 bg-dark-800 text-dark-300 peer-checked:border-knowall-green peer-checked:bg-knowall-green/10 peer-checked:text-knowall-green peer-focus-visible:ring-knowall-green hover:border-dark-500 inline-block rounded-full border px-4 py-2 text-sm font-medium transition-colors peer-focus-visible:ring-2">
+              <span className="border-dark-600 bg-dark-800 text-dark-300 peer-checked:border-brand peer-checked:bg-brand/10 peer-checked:text-brand peer-focus-visible:ring-brand hover:border-dark-500 inline-block rounded-full border px-4 py-2 text-sm font-medium transition-colors peer-focus-visible:ring-2">
                 {ENQUIRY_OPTION_LABELS[o]}
               </span>
             </label>
@@ -131,7 +131,7 @@ export function EnquiryForm({ option, onOptionChange }: EnquiryFormProps) {
           maxLength={5000}
           rows={5}
           placeholder="Tell us about your team and how you use Business Central."
-          className="border-dark-600 bg-dark-800 placeholder:text-dark-400 focus:ring-knowall-green w-full rounded-lg border px-3 py-2 text-sm text-white focus:border-transparent focus:ring-2 focus:outline-none"
+          className="border-dark-600 bg-dark-800 placeholder:text-dark-400 focus:ring-brand w-full rounded-lg border px-3 py-2 text-sm text-white focus:border-transparent focus:ring-2 focus:outline-none"
         />
       </div>
 
@@ -155,7 +155,7 @@ export function EnquiryForm({ option, onOptionChange }: EnquiryFormProps) {
         </Button>
         <p className="text-dark-500 text-sm">
           Or email{' '}
-          <a href="mailto:hello@knowall.ai" className="text-knowall-green hover:underline">
+          <a href="mailto:hello@knowall.ai" className="text-brand hover:underline">
             hello@knowall.ai
           </a>
         </p>

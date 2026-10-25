@@ -92,7 +92,7 @@ export function WeeklyCapacityEditor({
             type="checkbox"
             checked={useDefault}
             onChange={(e) => setUseDefault(e.target.checked)}
-            className="accent-knowall-green h-4 w-4"
+            className="accent-brand h-4 w-4"
           />
           Use default ({formatHours(current.defaultHours)}h: hours per day x 5)
         </label>
@@ -112,7 +112,7 @@ export function WeeklyCapacityEditor({
             onChange={(e) => setValue(e.target.value)}
             disabled={useDefault}
             aria-invalid={invalid}
-            className="border-dark-600 bg-dark-800 text-dark-100 focus:ring-knowall-green w-28 rounded-lg border px-3 py-2 focus:ring-2 focus:outline-none disabled:opacity-50"
+            className="border-dark-600 bg-dark-800 text-dark-100 focus:ring-brand w-28 rounded-lg border px-3 py-2 focus:ring-2 focus:outline-none disabled:opacity-50"
           />
           {invalid && (
             <p className="mt-1 text-sm text-red-400">
@@ -131,7 +131,7 @@ export function WeeklyCapacityEditor({
             type="checkbox"
             checked={flexible}
             onChange={(e) => setFlexible(e.target.checked)}
-            className="accent-knowall-green mt-0.5 h-4 w-4"
+            className="accent-brand mt-0.5 h-4 w-4"
           />
           <span>
             Flexible working days

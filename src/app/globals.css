@@ -3,11 +3,18 @@
 @plugin '@tailwindcss/typography';
 
 @theme {
-  /* KnowAll.ai brand colors - Dark theme with green accent */
-  --color-knowall-green: #00d26a;
-  --color-knowall-green-light: #00ff7f;
-  --color-knowall-green-dark: #00b359;
-  --color-knowall-green-glow: rgba(0, 210, 106, 0.3);
+  /* KnowAll.ai shared brand tokens. Text on brand must use brand-foreground (near-black),
+     never white. brand-on-light is the brand colour for text on white or light backgrounds.
+     Use opacity modifiers for tints (bg-brand/10, border-brand/50). */
+  --color-brand: #9dff0a;
+  --color-brand-hover: #b4ff3d;
+  --color-brand-foreground: var(--color-gray-950);
+  --color-brand-on-light: #4d7c0f;
+
+  /* shadcn/ui aliases */
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: var(--color-brand-foreground);
+  --color-ring: var(--color-brand);
 
   /* Dark theme backgrounds */
   --color-dark-50: #f8fafc;
@@ -24,17 +31,17 @@
   --color-dark-950: #020617;
 
   /* Timmie accent (matching KnowAll green) */
-  --color-timmie-50: #ecfdf5;
-  --color-timmie-100: #d1fae5;
-  --color-timmie-200: #a7f3d0;
-  --color-timmie-300: #6ee7b7;
-  --color-timmie-400: #34d399;
-  --color-timmie-500: #00d26a;
-  --color-timmie-600: #00b359;
-  --color-timmie-700: #059669;
-  --color-timmie-800: #047857;
-  --color-timmie-900: #065f46;
-  --color-timmie-950: #022c22;
+  --color-timmie-50: #f7ffe6;
+  --color-timmie-100: #ecffc2;
+  --color-timmie-200: #dcff8f;
+  --color-timmie-300: #c8ff5c;
+  --color-timmie-400: #b4ff3d;
+  --color-timmie-500: #9dff0a;
+  --color-timmie-600: #7acc00;
+  --color-timmie-700: #5c9900;
+  --color-timmie-800: #467300;
+  --color-timmie-900: #2f4d00;
+  --color-timmie-950: #172600;
 
   /* Fonts */
   --font-family-sans: 'Inter', system-ui, sans-serif;
@@ -57,10 +64,10 @@
 
   @keyframes glow {
     0% {
-      box-shadow: 0 0 20px rgba(0, 210, 106, 0.2);
+      box-shadow: 0 0 20px color-mix(in srgb, var(--color-brand) 20%, transparent);
     }
     100% {
-      box-shadow: 0 0 30px rgba(0, 210, 106, 0.4);
+      box-shadow: 0 0 30px color-mix(in srgb, var(--color-brand) 40%, transparent);
     }
   }
 }
@@ -104,15 +111,15 @@ body {
   }
 
   .glow-green {
-    box-shadow: 0 0 20px rgba(0, 210, 106, 0.3);
+    box-shadow: 0 0 20px color-mix(in srgb, var(--color-brand) 30%, transparent);
   }
 
   .glow-green-lg {
-    box-shadow: 0 0 40px rgba(0, 210, 106, 0.4);
+    box-shadow: 0 0 40px color-mix(in srgb, var(--color-brand) 40%, transparent);
   }
 
   .gradient-text {
-    @apply from-knowall-green to-timmie-300 bg-gradient-to-r bg-clip-text text-transparent;
+    @apply from-brand to-timmie-300 bg-gradient-to-r bg-clip-text text-transparent;
   }
 
   .bg-grid-pattern {
@@ -144,8 +151,8 @@ body {
 
 /* Selection styling */
 ::selection {
-  background-color: rgba(0, 210, 106, 0.3);
-  color: white;
+  background-color: var(--color-brand);
+  color: var(--color-brand-foreground);
 }
 
 /* Print styles for PDF export */

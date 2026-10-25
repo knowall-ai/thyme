@@ -57,8 +57,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               },
               success: {
                 iconTheme: {
-                  primary: '#00D26A',
-                  secondary: '#fff',
+                  primary: 'var(--color-brand)',
+                  secondary: 'var(--color-brand-foreground)',
                 },
               },
             }}

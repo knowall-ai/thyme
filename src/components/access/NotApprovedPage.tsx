@@ -52,9 +52,9 @@ export function NotApprovedPage({
       {/* The visual: Timmie's timesheet, big and tilted, behind a dark gradient */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
         <div className="bg-grid-pattern bg-grid absolute inset-0 opacity-20" />
-        <div className="bg-knowall-green/20 absolute top-24 -right-24 h-[28rem] w-[28rem] rounded-full blur-3xl lg:top-1/4 lg:right-0 lg:h-[40rem] lg:w-[40rem]" />
+        <div className="bg-brand/20 absolute top-24 -right-24 h-[28rem] w-[28rem] rounded-full blur-3xl lg:top-1/4 lg:right-0 lg:h-[40rem] lg:w-[40rem]" />
         <div className="absolute top-20 -right-[55%] w-[150%] [perspective:1600px] sm:-right-[30%] sm:w-[110%] lg:top-1/2 lg:-right-[10%] lg:w-[64%] lg:-translate-y-1/2">
-          <div className="border-knowall-green/30 shadow-knowall-green/20 [transform:rotateY(-14deg)_rotateX(6deg)_rotate(-2deg)] overflow-hidden rounded-2xl border shadow-2xl">
+          <div className="border-brand/30 shadow-brand/20 [transform:rotateY(-14deg)_rotateX(6deg)_rotate(-2deg)] overflow-hidden rounded-2xl border shadow-2xl">
             <Image
               src="/screenshots/timesheet.png"
               alt=""
@@ -71,8 +71,8 @@ export function NotApprovedPage({
 
       <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-5 sm:px-6 lg:px-8">
         <div className="flex items-center gap-2">
-          <div className="bg-knowall-green shadow-knowall-green/20 flex h-8 w-8 items-center justify-center rounded-lg shadow-lg">
-            <TimmieLogo className="text-dark-950 h-5 w-5" />
+          <div className="bg-brand shadow-brand/20 flex h-8 w-8 items-center justify-center rounded-lg shadow-lg">
+            <TimmieLogo className="text-brand-foreground h-5 w-5" />
           </div>
           <span className="text-xl font-bold text-white">{APP_NAME}</span>
         </div>
@@ -87,7 +87,7 @@ export function NotApprovedPage({
 
       <section className="mx-auto flex w-full max-w-7xl flex-1 items-end px-4 pt-56 pb-14 sm:px-6 sm:pt-72 lg:items-center lg:px-8 lg:py-24">
         <div className="max-w-xl">
-          <p className="text-knowall-green mb-4 text-sm font-semibold tracking-wider uppercase">
+          <p className="text-brand mb-4 text-sm font-semibold tracking-wider uppercase">
             {onRetry ? 'Checking access' : 'Awaiting approval'}
           </p>
           <h1 className="mb-5 text-4xl leading-tight font-bold text-white sm:text-5xl lg:text-6xl">
@@ -96,7 +96,7 @@ export function NotApprovedPage({
             ) : (
               <>
                 Your organisation isn&apos;t set up on{' '}
-                <span className="text-knowall-green">{APP_NAME}</span> yet.
+                <span className="text-brand">{APP_NAME}</span> yet.
               </>
             )}
           </h1>
@@ -111,14 +111,14 @@ export function NotApprovedPage({
               <button
                 type="button"
                 onClick={onRetry}
-                className="group bg-knowall-green text-dark-950 shadow-knowall-green/20 hover:bg-knowall-green-light flex items-center justify-center gap-2 rounded-xl px-7 py-3.5 font-semibold shadow-xl transition-all"
+                className="group bg-brand text-brand-foreground shadow-brand/20 hover:bg-brand-hover flex items-center justify-center gap-2 rounded-xl px-7 py-3.5 font-semibold shadow-xl transition-all"
               >
                 Try again
               </button>
             ) : (
               <a
                 href={mailto}
-                className="group bg-knowall-green text-dark-950 shadow-knowall-green/20 hover:bg-knowall-green-light hover:shadow-knowall-green/40 flex items-center justify-center gap-2 rounded-xl px-7 py-3.5 font-semibold shadow-xl transition-all"
+                className="group bg-brand text-brand-foreground shadow-brand/20 hover:bg-brand-hover hover:shadow-brand/40 flex items-center justify-center gap-2 rounded-xl px-7 py-3.5 font-semibold shadow-xl transition-all"
               >
                 Request access
                 <ArrowRightIcon className="h-5 w-5 transition-transform group-hover:translate-x-1" />
@@ -128,7 +128,7 @@ export function NotApprovedPage({
               Or email us at{' '}
               <a
                 href={`mailto:${ACCESS_REQUEST_EMAIL}`}
-                className="hover:text-knowall-green font-semibold text-white underline underline-offset-4"
+                className="hover:text-brand font-semibold text-white underline underline-offset-4"
               >
                 {ACCESS_REQUEST_EMAIL}
               </a>

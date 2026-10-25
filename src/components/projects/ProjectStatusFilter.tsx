@@ -102,7 +102,7 @@ export function ProjectStatusFilter({ value, onChange }: ProjectStatusFilterProp
           }}
           className={cn(
             'border-dark-600 bg-dark-800 flex h-10 min-w-56 items-center justify-between gap-2 rounded-lg border py-2 pr-3 pl-3 text-sm text-white',
-            'focus:ring-knowall-green focus:border-transparent focus:ring-2 focus:outline-none'
+            'focus:ring-brand focus:border-transparent focus:ring-2 focus:outline-none'
           )}
         >
           <span className="whitespace-nowrap">{projectStatusSummary(value)}</span>
@@ -138,7 +138,7 @@ export function ProjectStatusFilter({ value, onChange }: ProjectStatusFilterProp
                   <span
                     className={cn(
                       'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border',
-                      selected ? 'border-knowall-green bg-knowall-green' : 'border-dark-500'
+                      selected ? 'border-brand bg-brand' : 'border-dark-500'
                     )}
                   >
                     {selected && <CheckIcon className="h-3 w-3 text-black" strokeWidth={3} />}

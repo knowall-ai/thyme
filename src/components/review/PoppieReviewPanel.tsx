@@ -263,7 +263,7 @@ function AskPoppieAgain({ result }: { result: TimesheetReviewResult }) {
         type="button"
         disabled={isSubmitting}
         onClick={ask}
-        className="text-knowall-green focus-visible:ring-knowall-green rounded text-xs font-medium hover:underline focus:outline-none focus-visible:ring-2 disabled:opacity-50"
+        className="text-brand focus-visible:ring-brand rounded text-xs font-medium hover:underline focus:outline-none focus-visible:ring-2 disabled:opacity-50"
       >
         {isSubmitting ? 'Asking…' : 'Ask Poppie to look again'}
       </button>

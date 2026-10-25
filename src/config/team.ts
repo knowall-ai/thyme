@@ -63,7 +63,7 @@ export const teamConfig: TeamConfig = {
     colors: {
       low: 'bg-red-500',
       medium: 'bg-yellow-500',
-      high: 'bg-knowall-green',
+      high: 'bg-brand',
     },
   },
   billable: {

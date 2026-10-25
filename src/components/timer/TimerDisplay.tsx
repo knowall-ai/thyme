@@ -29,7 +29,7 @@ export function TimerDisplay({ onStartTimer }: TimerDisplayProps) {
       <Button
         onClick={onStartTimer}
         size="icon"
-        className="animate-glow shadow-knowall-green/30 hover:shadow-knowall-green/50 h-14 w-14 rounded-full shadow-lg transition-shadow"
+        className="animate-glow shadow-brand/30 hover:shadow-brand/50 h-14 w-14 rounded-full shadow-lg transition-shadow"
       >
         <PlayIcon className="h-5 w-5 translate-x-0.5" />
         <span className="sr-only">Start timer</span>
@@ -58,7 +58,7 @@ export function TimerDisplay({ onStartTimer }: TimerDisplayProps) {
 
       {/* Timer Display and Stop Button */}
       <div className="flex items-center justify-between gap-4 sm:justify-end">
-        <div className="text-knowall-green font-mono text-2xl font-bold tabular-nums">
+        <div className="text-brand font-mono text-2xl font-bold tabular-nums">
           {formatDuration(timer.elapsedSeconds)}
         </div>
 

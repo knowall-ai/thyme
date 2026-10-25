@@ -221,7 +221,7 @@ export function PlanReviewWeekChip({
         type="button"
         data-testid="plan-review-week-chip"
         className={cn(
-          'focus-visible:ring-knowall-green inline-flex max-w-full min-w-0 cursor-pointer items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] leading-tight font-medium focus:outline-none focus-visible:ring-2',
+          'focus-visible:ring-brand inline-flex max-w-full min-w-0 cursor-pointer items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] leading-tight font-medium focus:outline-none focus-visible:ring-2',
           toneClass,
           summary.outOfDate > 0 && 'border border-dashed border-current opacity-75'
         )}
@@ -394,7 +394,7 @@ function PlanReviewPopover({
           type="button"
           onClick={onClose}
           aria-label="Close Poppie's review"
-          className="text-dark-400 hover:text-dark-100 focus-visible:ring-knowall-green rounded p-0.5 focus:outline-none focus-visible:ring-2"
+          className="text-dark-400 hover:text-dark-100 focus-visible:ring-brand rounded p-0.5 focus:outline-none focus-visible:ring-2"
         >
           <XMarkIcon className="h-4 w-4" />
         </button>
@@ -449,7 +449,7 @@ function SubjectReview({
             aria-label={`${subject.name}: ${verdict.label}${outOfDate ? ', out of date' : ''}. ${
               isExpanded ? 'Hide' : 'Show'
             } findings`}
-            className="focus-visible:ring-knowall-green flex w-full items-center gap-1.5 rounded text-left focus:outline-none focus-visible:ring-2"
+            className="focus-visible:ring-brand flex w-full items-center gap-1.5 rounded text-left focus:outline-none focus-visible:ring-2"
           >
             {isExpanded ? (
               <ChevronDownIcon className="text-dark-400 h-3.5 w-3.5 shrink-0" />
@@ -588,7 +588,7 @@ function Finding({
               <button
                 type="button"
                 onClick={() => context.loadChanges([subject.review!.entryNo], { retry: true })}
-                className="text-knowall-green focus-visible:ring-knowall-green rounded font-medium hover:underline focus:outline-none focus-visible:ring-2"
+                className="text-brand focus-visible:ring-brand rounded font-medium hover:underline focus:outline-none focus-visible:ring-2"
               >
                 Retry
               </button>
@@ -611,7 +611,7 @@ function Finding({
               type="button"
               disabled={state.kind === 'applying'}
               onClick={apply}
-              className="bg-knowall-green/20 text-knowall-green hover:bg-knowall-green/30 focus-visible:ring-knowall-green mt-1 rounded px-2 py-0.5 text-[11px] font-medium focus:outline-none focus-visible:ring-2 disabled:opacity-50"
+              className="bg-brand/20 text-brand hover:bg-brand/30 focus-visible:ring-brand mt-1 rounded px-2 py-0.5 text-[11px] font-medium focus:outline-none focus-visible:ring-2 disabled:opacity-50"
             >
               {state.kind === 'applying' ? 'Applying…' : 'Apply change'}
             </button>
@@ -693,7 +693,7 @@ function RequestReview({
           type="button"
           disabled={isSubmitting}
           onClick={ask}
-          className="text-knowall-green focus-visible:ring-knowall-green rounded text-[11px] font-medium hover:underline focus:outline-none focus-visible:ring-2 disabled:opacity-50"
+          className="text-brand focus-visible:ring-brand rounded text-[11px] font-medium hover:underline focus:outline-none focus-visible:ring-2 disabled:opacity-50"
         >
           {isSubmitting
             ? 'Asking…'

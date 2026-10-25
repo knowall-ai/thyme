@@ -173,7 +173,7 @@ export function DayHeaderNotes({
         type="button"
         className={cn(
           className,
-          'hover:bg-dark-700/60 focus-visible:ring-knowall-green min-w-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset'
+          'hover:bg-dark-700/60 focus-visible:ring-brand min-w-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset'
         )}
         aria-label={ariaLabel}
         aria-haspopup="dialog"
@@ -383,7 +383,7 @@ function DayNotesPopover({
           type="button"
           onClick={onClose}
           aria-label="Close notes"
-          className="text-dark-400 hover:text-dark-100 focus-visible:ring-knowall-green rounded p-0.5 focus:outline-none focus-visible:ring-2"
+          className="text-dark-400 hover:text-dark-100 focus-visible:ring-brand rounded p-0.5 focus:outline-none focus-visible:ring-2"
         >
           <XMarkIcon className="h-4 w-4" />
         </button>
@@ -416,7 +416,7 @@ function DayNotesPopover({
                     type="button"
                     disabled={isBusy}
                     onClick={() => void reloadAfterConflict()}
-                    className="focus-visible:ring-knowall-green mt-1 rounded font-medium text-amber-100 underline focus:outline-none focus-visible:ring-2 disabled:opacity-50"
+                    className="focus-visible:ring-brand mt-1 rounded font-medium text-amber-100 underline focus:outline-none focus-visible:ring-2 disabled:opacity-50"
                   >
                     Reload
                   </button>
@@ -445,7 +445,7 @@ function DayNotesPopover({
                       disabled={isBusy}
                       onClick={() => startEditing(note)}
                       aria-label={`Edit note "${note.note}"`}
-                      className="text-dark-400 hover:text-knowall-green focus-visible:ring-knowall-green rounded p-0.5 focus:outline-none focus-visible:ring-2 disabled:opacity-50"
+                      className="text-dark-400 hover:text-brand focus-visible:ring-brand rounded p-0.5 focus:outline-none focus-visible:ring-2 disabled:opacity-50"
                     >
                       <PencilSquareIcon className="h-4 w-4" />
                     </button>
@@ -454,7 +454,7 @@ function DayNotesPopover({
                       disabled={isBusy}
                       onClick={() => setConfirmingDelete(note.id)}
                       aria-label={`Delete note "${note.note}"`}
-                      className="text-dark-400 focus-visible:ring-knowall-green rounded p-0.5 hover:text-red-400 focus:outline-none focus-visible:ring-2 disabled:opacity-50"
+                      className="text-dark-400 focus-visible:ring-brand rounded p-0.5 hover:text-red-400 focus:outline-none focus-visible:ring-2 disabled:opacity-50"
                     >
                       <TrashIcon className="h-4 w-4" />
                     </button>
@@ -507,7 +507,7 @@ function DayNotesPopover({
                 setConfirmingDelete(null);
                 setEditing('new');
               }}
-              className="text-knowall-green focus-visible:ring-knowall-green mt-2 rounded text-xs font-medium hover:underline focus:outline-none focus-visible:ring-2 disabled:opacity-50"
+              className="text-brand focus-visible:ring-brand mt-2 rounded text-xs font-medium hover:underline focus:outline-none focus-visible:ring-2 disabled:opacity-50"
             >
               + Add note
             </button>
@@ -582,7 +582,7 @@ function DayNoteForm({
           maxLength={DAY_NOTE_MAX_LENGTH}
           onChange={(e) => setNote(e.target.value)}
           placeholder="e.g. Company Off-Site"
-          className="border-dark-600 bg-dark-900 text-dark-100 placeholder:text-dark-500 focus:border-knowall-green w-full rounded border px-2 py-1 text-xs focus:ring-1 focus:outline-none"
+          className="border-dark-600 bg-dark-900 text-dark-100 placeholder:text-dark-500 focus:border-brand w-full rounded border px-2 py-1 text-xs focus:ring-1 focus:outline-none"
         />
       </div>
       <div>
@@ -593,7 +593,7 @@ function DayNoteForm({
           id={whoId}
           value={resourceNo}
           onChange={(e) => setResourceNo(e.target.value)}
-          className="border-dark-600 bg-dark-900 text-dark-100 focus:border-knowall-green w-full rounded border px-2 py-1 text-xs focus:ring-1 focus:outline-none"
+          className="border-dark-600 bg-dark-900 text-dark-100 focus:border-brand w-full rounded border px-2 py-1 text-xs focus:ring-1 focus:outline-none"
         >
           <option value="">Everyone</option>
           {options.map((person) => (
@@ -608,7 +608,7 @@ function DayNoteForm({
           type="checkbox"
           checked={noProjectWork}
           onChange={(e) => setNoProjectWork(e.target.checked)}
-          className="accent-knowall-green"
+          className="accent-brand"
         />
         No project work
       </label>
@@ -625,7 +625,7 @@ function DayNoteForm({
         <button
           type="submit"
           disabled={!canSave}
-          className="bg-knowall-green text-dark-950 rounded px-2.5 py-1 text-xs font-semibold disabled:opacity-50"
+          className="bg-brand text-brand-foreground rounded px-2.5 py-1 text-xs font-semibold disabled:opacity-50"
         >
           {isBusy ? 'Saving…' : 'Save'}
         </button>

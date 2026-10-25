@@ -1,11 +1,11 @@
 <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Timmie: a smiling stopwatch, white on green -->
-  <rect width="32" height="32" rx="7" fill="#00D26A"/>
-  <g stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Timmie: a smiling stopwatch, near-black on lime -->
+  <rect width="32" height="32" rx="7" fill="#9dff0a"/>
+  <g stroke="#06100a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="16" cy="18" r="10"/>
     <path d="M16 8V5.5M13.5 4.5h5"/>
     <path d="M11.8 20.6Q16 24.6 20.2 20.6" stroke-width="2.4"/>
   </g>
-  <circle cx="12.6" cy="16.2" r="1.7" fill="white"/>
-  <circle cx="19.4" cy="16.2" r="1.7" fill="white"/>
+  <circle cx="12.6" cy="16.2" r="1.7" fill="#06100a"/>
+  <circle cx="19.4" cy="16.2" r="1.7" fill="#06100a"/>
 </svg>

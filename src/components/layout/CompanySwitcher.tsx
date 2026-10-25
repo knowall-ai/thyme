@@ -140,7 +140,7 @@ export function CompanySwitcher() {
         className={cn(
           'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
           'border-dark-600 bg-dark-800 hover:border-dark-500 hover:bg-dark-700 border',
-          isOpen && 'border-knowall-green bg-dark-700'
+          isOpen && 'border-brand bg-dark-700'
         )}
         title="Switch company"
         aria-expanded={isOpen}
@@ -172,7 +172,7 @@ export function CompanySwitcher() {
                 placeholder="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="border-dark-600 bg-dark-700 placeholder:text-dark-400 focus:border-knowall-green w-full rounded-md border py-2 pr-3 pl-9 text-sm text-white focus:outline-none"
+                className="border-dark-600 bg-dark-700 placeholder:text-dark-400 focus:border-brand w-full rounded-md border py-2 pr-3 pl-9 text-sm text-white focus:outline-none"
               />
             </div>
           </div>
@@ -233,7 +233,7 @@ export function CompanySwitcher() {
                                 {company.displayName}
                               </span>
                               {isSelected && (
-                                <CheckIcon className="text-knowall-green h-5 w-5 flex-shrink-0" />
+                                <CheckIcon className="text-brand h-5 w-5 flex-shrink-0" />
                               )}
                             </button>
                           );

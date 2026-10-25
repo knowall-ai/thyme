@@ -51,7 +51,7 @@ function Check({ checked }: { checked: boolean }) {
       aria-hidden="true"
       className={cn(
         'flex h-4 w-4 shrink-0 items-center justify-center rounded border',
-        checked ? 'border-timmie-500 bg-timmie-500 text-white' : 'border-dark-500'
+        checked ? 'border-timmie-500 bg-timmie-500 text-dark-950' : 'border-dark-500'
       )}
     >
       {checked && <CheckIcon className="h-3 w-3" strokeWidth={3} />}

@@ -860,7 +860,7 @@ export function ReportsPanel() {
               className={cn(
                 'focus-visible:ring-timmie-500 flex items-center gap-2 rounded-md px-4 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-1',
                 view === id
-                  ? 'bg-timmie-600 text-white shadow-sm'
+                  ? 'bg-timmie-600 text-dark-950 shadow-sm'
                   : 'hover:bg-dark-700 text-gray-400 hover:text-white'
               )}
             >
@@ -1090,7 +1090,7 @@ export function ReportsPanel() {
                                   }}
                                 >
                                   {billableWidth >= MIN_LABELLED_SEGMENT && (
-                                    <span className="text-xs font-medium whitespace-nowrap text-white">
+                                    <span className="text-brand-foreground text-xs font-medium whitespace-nowrap">
                                       {formatTime(row.billableHours)}
                                     </span>
                                   )}

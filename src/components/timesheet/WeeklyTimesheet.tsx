@@ -432,7 +432,7 @@ Please create or update a Resource with the following settings:
 7. Save the Resource record
 
 Thank you!`)}`}
-                  className="bg-timmie-600 hover:bg-timmie-500 inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white"
+                  className="bg-timmie-600 hover:bg-timmie-500 text-dark-950 inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
                 >
                   <EnvelopeIcon className="h-4 w-4" />
                   Email request to manager
@@ -725,17 +725,13 @@ Thank you!`)}`}
                 <div
                   key={day.toISOString()}
                   className={`border-dark-700 border-r p-3 text-center last:border-r-0 ${
-                    isToday ? 'bg-knowall-green/10' : ''
+                    isToday ? 'bg-brand/10' : ''
                   }`}
                 >
                   <p className="text-dark-400 text-xs font-medium uppercase">
                     {format(day, 'EEE')}
                   </p>
-                  <p
-                    className={`text-lg font-semibold ${
-                      isToday ? 'text-knowall-green' : 'text-white'
-                    }`}
-                  >
+                  <p className={`text-lg font-semibold ${isToday ? 'text-brand' : 'text-white'}`}>
                     {format(day, 'd')}
                   </p>
                 </div>
@@ -746,7 +742,7 @@ Thank you!`)}`}
           {/* Entries Grid */}
           {isLoading || projectsLoading ? (
             <div className="flex h-64 items-center justify-center">
-              <div className="border-knowall-green h-8 w-8 animate-spin rounded-full border-b-2"></div>
+              <div className="border-brand h-8 w-8 animate-spin rounded-full border-b-2"></div>
             </div>
           ) : (
             <div className="grid grid-cols-7">

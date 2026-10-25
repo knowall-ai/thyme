@@ -62,7 +62,7 @@ Thank you!`);
           <div className="mt-4 flex justify-center">
             <a
               href={`mailto:?subject=${emailSubject}&body=${emailBody}`}
-              className="bg-timmie-600 hover:bg-timmie-500 inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white"
+              className="bg-timmie-600 hover:bg-timmie-500 text-dark-950 inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
             >
               <EnvelopeIcon className="h-4 w-4" />
               Email request to administrator

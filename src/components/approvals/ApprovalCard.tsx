@@ -400,7 +400,7 @@ export function ApprovalCard({
                   }`}
                   className={cn(
                     'rounded-md px-1 py-1 text-center',
-                    day.isToday ? 'bg-knowall-green/10' : !day.isWeekend && 'bg-dark-700/40',
+                    day.isToday ? 'bg-brand/10' : !day.isWeekend && 'bg-dark-700/40',
                     isOver && 'bg-amber-500/10'
                   )}
                 >
@@ -408,7 +408,7 @@ export function ApprovalCard({
                     className={cn(
                       'text-[10px] leading-tight whitespace-nowrap',
                       day.isToday
-                        ? 'text-knowall-green font-medium'
+                        ? 'text-brand font-medium'
                         : day.isWeekend
                           ? 'text-dark-500'
                           : 'text-dark-400'
@@ -458,7 +458,7 @@ export function ApprovalCard({
                         dayIndex === null
                           ? 'text-dark-500'
                           : weekDays[dayIndex].isToday
-                            ? 'text-knowall-green'
+                            ? 'text-brand'
                             : 'text-dark-300'
                       )}
                     >

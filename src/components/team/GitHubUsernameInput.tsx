@@ -36,7 +36,7 @@ export function GitHubUsernameInput({
   const hintId = `${id}-hint`;
   return (
     <div>
-      <div className="border-dark-600 bg-dark-800 focus-within:ring-knowall-green flex max-w-sm items-center rounded-lg border focus-within:ring-2">
+      <div className="border-dark-600 bg-dark-800 focus-within:ring-brand flex max-w-sm items-center rounded-lg border focus-within:ring-2">
         <span className="text-dark-400 pl-3 text-sm select-none">github.com/</span>
         <input
           id={id}

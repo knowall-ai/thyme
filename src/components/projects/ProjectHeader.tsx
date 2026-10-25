@@ -272,7 +272,7 @@ function ProjectName({ projectId, name }: ProjectNameProps) {
         <button
           type="submit"
           disabled={isSaving}
-          className="bg-timmie-600 hover:bg-timmie-500 rounded-lg p-2 text-white transition-colors disabled:opacity-50"
+          className="bg-timmie-600 hover:bg-timmie-500 text-dark-950 rounded-lg p-2 transition-colors disabled:opacity-50"
           title="Save name"
           aria-label="Save name"
         >

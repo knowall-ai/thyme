@@ -125,9 +125,9 @@ export function ScreenshotCarousel() {
           {hasImageError ? (
             // Placeholder when image doesn't exist
             <div className="flex h-full flex-col items-center justify-center p-8">
-              <div className="bg-knowall-green/10 mb-4 flex h-20 w-20 items-center justify-center rounded-2xl">
+              <div className="bg-brand/10 mb-4 flex h-20 w-20 items-center justify-center rounded-2xl">
                 <svg
-                  className="text-knowall-green h-10 w-10"
+                  className="text-brand h-10 w-10"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -186,7 +186,7 @@ export function ScreenshotCarousel() {
             key={index}
             onClick={() => goToSlide(index)}
             className={`h-2 rounded-full transition-all ${
-              index === currentIndex ? 'bg-knowall-green w-8' : 'bg-dark-600 hover:bg-dark-500 w-2'
+              index === currentIndex ? 'bg-brand w-8' : 'bg-dark-600 hover:bg-dark-500 w-2'
             }`}
             aria-label={`Go to screenshot ${index + 1}`}
           />
@@ -200,7 +200,7 @@ export function ScreenshotCarousel() {
             key={index}
             onClick={() => goToSlide(index)}
             className={`border-dark-700 bg-dark-800 relative flex-1 overflow-hidden rounded-lg border transition-all ${
-              index === currentIndex ? 'ring-knowall-green ring-2' : 'opacity-60 hover:opacity-100'
+              index === currentIndex ? 'ring-brand ring-2' : 'opacity-60 hover:opacity-100'
             }`}
           >
             <div className="relative aspect-video">

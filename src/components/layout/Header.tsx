@@ -92,8 +92,8 @@ export function Header() {
             {/* Logo - always links to home/landing */}
             <Link href="/" className="flex shrink-0 items-center">
               <div className="flex items-center gap-2">
-                <div className="bg-knowall-green shadow-knowall-green/20 flex h-8 w-8 items-center justify-center rounded-lg shadow-lg">
-                  <TimmieLogo className="text-dark-950 h-5 w-5" />
+                <div className="bg-brand shadow-brand/20 flex h-8 w-8 items-center justify-center rounded-lg shadow-lg">
+                  <TimmieLogo className="text-brand-foreground h-5 w-5" />
                 </div>
                 <span className="text-xl font-bold text-white">Timmie</span>
               </div>
@@ -112,7 +112,7 @@ export function Header() {
                       className={cn(
                         'inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors',
                         active
-                          ? 'bg-knowall-green/10 text-knowall-green'
+                          ? 'bg-brand/10 text-brand'
                           : 'text-dark-400 hover:bg-dark-800 hover:text-white'
                       )}
                     >
@@ -136,7 +136,7 @@ export function Header() {
                     className={cn(
                       'hidden rounded-lg p-2 transition-colors sm:block',
                       isActive('/settings')
-                        ? 'bg-knowall-green/10 text-knowall-green'
+                        ? 'bg-brand/10 text-brand'
                         : 'text-dark-400 hover:bg-dark-800 hover:text-white'
                     )}
                     title="Settings"
@@ -163,11 +163,11 @@ export function Header() {
                                 ? `${account.name}'s profile photo`
                                 : 'User profile photo'
                             }
-                            className="border-knowall-green/30 h-9 w-9 rounded-full border object-cover"
+                            className="border-brand/30 h-9 w-9 rounded-full border object-cover"
                           />
                         ) : (
-                          <div className="border-knowall-green/30 bg-knowall-green/20 flex h-9 w-9 items-center justify-center rounded-full border">
-                            <span className="text-knowall-green text-sm font-medium">
+                          <div className="border-brand/30 bg-brand/20 flex h-9 w-9 items-center justify-center rounded-full border">
+                            <span className="text-brand text-sm font-medium">
                               {account.name
                                 ?.trim()
                                 .split(/\s+/)
@@ -215,7 +215,7 @@ export function Header() {
               <button
                 onClick={handleLogin}
                 disabled={isLoading}
-                className="bg-knowall-green text-dark-950 hover:bg-knowall-green-light flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                className="bg-brand text-brand-foreground hover:bg-brand-hover flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isLoading ? (
                   <>
@@ -252,7 +252,7 @@ export function Header() {
                   href={toHref(item.href)}
                   className={cn(
                     'flex flex-col items-center gap-1 px-4 py-3 text-xs font-medium transition-colors',
-                    active ? 'text-knowall-green' : 'text-dark-400 hover:text-white'
+                    active ? 'text-brand' : 'text-dark-400 hover:text-white'
                   )}
                 >
                   <Icon className="h-5 w-5" />
@@ -265,7 +265,7 @@ export function Header() {
               href={toHref('/settings')}
               className={cn(
                 'flex flex-col items-center gap-1 px-4 py-3 text-xs font-medium transition-colors',
-                isActive('/settings') ? 'text-knowall-green' : 'text-dark-400 hover:text-white'
+                isActive('/settings') ? 'text-brand' : 'text-dark-400 hover:text-white'
               )}
             >
               <Cog6ToothIcon className="h-5 w-5" />

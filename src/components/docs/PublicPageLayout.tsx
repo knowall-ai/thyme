@@ -11,7 +11,7 @@ export function PublicPageLayout({ children }: PublicPageLayoutProps) {
     <div className="bg-dark-950 flex min-h-screen flex-col">
       {/* Background effects */}
       <div className="bg-grid-pattern bg-grid pointer-events-none fixed inset-0 opacity-20" />
-      <div className="bg-gradient-radial from-knowall-green/5 pointer-events-none fixed inset-0 via-transparent to-transparent" />
+      <div className="bg-gradient-radial from-brand/5 pointer-events-none fixed inset-0 via-transparent to-transparent" />
 
       {/* Header */}
       <Header />

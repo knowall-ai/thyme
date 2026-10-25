@@ -49,8 +49,8 @@ export function PublicFooter() {
           {/* Brand column */}
           <div className="lg:col-span-2">
             <div className="flex items-center gap-3">
-              <div className="bg-knowall-green shadow-knowall-green/20 flex h-10 w-10 items-center justify-center rounded-lg shadow-lg">
-                <TimmieLogo className="text-dark-950 h-6 w-6" />
+              <div className="bg-brand shadow-brand/20 flex h-10 w-10 items-center justify-center rounded-lg shadow-lg">
+                <TimmieLogo className="text-brand-foreground h-6 w-6" />
               </div>
               <span className="text-xl font-bold text-white">Timmie</span>
             </div>
