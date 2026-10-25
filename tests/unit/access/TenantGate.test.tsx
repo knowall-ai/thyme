@@ -4,7 +4,9 @@ import type { ReactNode } from 'react';
 import { NextRequest } from 'next/server';
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT, type JWK } from 'jose';
 import { GET } from '@/app/api/tenant-access/route';
-import { KNOWALL_TENANT_ID } from '@/utils/tenantAccess';
+import { ACCESS_REQUEST_EMAIL, KNOWALL_TENANT_ID } from '@/utils/tenantAccess';
+import { useReauthStore } from '@/services/auth';
+import { getIdToken } from '@/services/auth/tokenService';
 import { resetTenantAccessCache } from '@/components/access/useTenantAccess';
 
 const CONTOSO = '11111111-2222-3333-4444-555555555555';
@@ -183,7 +185,7 @@ describe('TenantGate on company pages', () => {
     // Two ways to get in touch: the pre-filled request, and the plain address
     const request = screen.getByRole('link', { name: /Request access/ });
     const href = new URL(request.getAttribute('href')!);
-    expect(href.pathname).toBe('hello@knowall.ai');
+    expect(href.pathname).toBe(ACCESS_REQUEST_EMAIL);
     expect(href.searchParams.get('subject')).toBe('Timmie access request');
     expect(href.searchParams.get('body')).toContain(`Tenant ID: ${FABRIKAM}`);
     expect(href.searchParams.get('body')).toContain('Email: alex@contoso.com');
@@ -196,9 +198,9 @@ describe('TenantGate on company pages', () => {
         ).searchParams.get('body')
       ).toContain('Organisation: Contoso Ltd')
     );
-    expect(screen.getByRole('link', { name: 'hello@knowall.ai' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: ACCESS_REQUEST_EMAIL })).toHaveAttribute(
       'href',
-      'mailto:hello@knowall.ai'
+      `mailto:${ACCESS_REQUEST_EMAIL}`
     );
     expect(screen.getByText(FABRIKAM)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
@@ -223,7 +225,7 @@ describe('TenantGate on company pages', () => {
     renderCompanyPage();
     expect(screen.getByRole('heading', { name: /isn.t set up on Timmie yet/ })).toBeInTheDocument();
     expect(screen.queryByText('Timesheet data')).not.toBeInTheDocument();
-    expect(screen.getByText('Tenant ID:').nextSibling).toHaveTextContent('Unknown');
+    expect(screen.getByTestId('tenant-id')).toHaveTextContent('Unknown');
     expect(await screen.findByText('Contoso Ltd')).toBeInTheDocument();
   });
 
@@ -233,6 +235,22 @@ describe('TenantGate on company pages', () => {
     renderCompanyPage();
     expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument();
     expect(screen.queryByText('Timesheet data')).not.toBeInTheDocument();
+  });
+
+  it('asks the user to sign in again, not retry, when the check needs a new sign-in', async () => {
+    signIn(CONTOSO);
+    (getIdToken as Mock).mockRejectedValueOnce(new Error('interaction_required'));
+    useReauthStore.setState({ status: 'manual' });
+    try {
+      renderCompanyPage();
+      expect(
+        await screen.findByRole('heading', { name: 'Your sign-in has expired' })
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+      expect(screen.queryByText('Timesheet data')).not.toBeInTheDocument();
+    } finally {
+      useReauthStore.setState({ status: 'idle' });
+    }
   });
 
   it("still applies per-user rules: an approved user can't open a company they don't have", async () => {

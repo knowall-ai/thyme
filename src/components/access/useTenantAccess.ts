@@ -1,11 +1,18 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useAuth } from '@/services/auth';
+import { useAuth, useReauthStore } from '@/services/auth';
 import { checkTenantApproved } from '@/services/auth/tenantAccessService';
 import { KNOWALL_TENANT_ID, getAccountTenantId } from '@/utils/tenantAccess';
 
-export type TenantAccessStatus = 'signed-out' | 'checking' | 'approved' | 'denied' | 'error';
+/** 'reauth': the check failed because Entra needs the user to sign in again */
+export type TenantAccessStatus =
+  | 'signed-out'
+  | 'checking'
+  | 'approved'
+  | 'denied'
+  | 'error'
+  | 'reauth';
 
 // One server check per tenant per page load, shared by the gate and the header
 const checks = new Map<string, Promise<boolean>>();
@@ -59,7 +66,10 @@ export function useTenantAccess() {
     setAttempt((n) => n + 1);
   }, []);
 
-  const status: TenantAccessStatus = !isAuthenticated
+  // Set when a token needs an interactive sign-in that couldn't start by itself
+  const reauthRequired = useReauthStore((state) => state.status === 'manual');
+
+  const checked: TenantAccessStatus = !isAuthenticated
     ? 'signed-out'
     : !tid
       ? 'denied'
@@ -68,6 +78,8 @@ export function useTenantAccess() {
         : check?.tid === tid
           ? check.status
           : 'checking';
+  // Retrying can't fix a sign-in that has expired; signing in again can
+  const status = checked === 'error' && reauthRequired ? 'reauth' : checked;
 
   return { status, tenantId: tid, email: account?.username ?? null, retry };
 }

@@ -142,7 +142,9 @@ export function NotApprovedPage({
             </div>
             <div className="flex flex-wrap gap-x-2">
               <dt>Tenant ID:</dt>
-              <dd className="text-dark-300 font-mono break-all">{tenantId || 'Unknown'}</dd>
+              <dd className="text-dark-300 font-mono break-all" data-testid="tenant-id">
+                {tenantId || 'Unknown'}
+              </dd>
             </div>
             {email && (
               <div className="flex flex-wrap gap-x-2">

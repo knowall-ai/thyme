@@ -18,6 +18,7 @@ import { Header, PublicFooter } from '@/components/layout';
 import { QuoteDisplay } from '@/components/ui';
 import { ScreenshotCarousel } from './ScreenshotCarousel';
 import { NotApprovedPage } from '@/components/access/NotApprovedPage';
+import { SignInExpired } from '@/components/layout/SignInExpired';
 import { useTenantAccess } from '@/components/access/useTenantAccess';
 
 // Ordered for the three-column grid: each AI agent card sits beside the feature it supports
@@ -145,7 +146,9 @@ export function LandingPage() {
   if (tenantAccess.status === 'denied') {
     return <NotApprovedPage tenantId={tenantAccess.tenantId} email={tenantAccess.email} />;
   }
-  // The check itself failed (an outage or a rejected token): offer a retry, as TenantGate does
+  // The check itself failed: sign in again if that's the cause, otherwise offer a retry,
+  // as TenantGate does
+  if (tenantAccess.status === 'reauth') return <SignInExpired />;
   if (tenantAccess.status === 'error') {
     return (
       <NotApprovedPage

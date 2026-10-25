@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { SignInExpired } from '@/components/layout/SignInExpired';
 import { NotApprovedPage } from './NotApprovedPage';
 import { useTenantAccess } from './useTenantAccess';
 
@@ -19,6 +20,8 @@ export function TenantGate({ children }: { children: ReactNode }) {
   if (status === 'denied' || status === 'signed-out') {
     return <NotApprovedPage tenantId={tenantId} email={email} />;
   }
+
+  if (status === 'reauth') return <SignInExpired />;
 
   if (status === 'error') {
     return <NotApprovedPage tenantId={tenantId} email={email} onRetry={retry} />;
