@@ -14,6 +14,7 @@ import {
   SparklesIcon,
   UserGroupIcon,
 } from '@heroicons/react/24/outline';
+import Image from 'next/image';
 import { Header, PublicFooter } from '@/components/layout';
 import { QuoteDisplay } from '@/components/ui';
 import { ScreenshotCarousel } from './ScreenshotCarousel';
@@ -31,6 +32,7 @@ const features = [
   },
   {
     icon: SparklesIcon,
+    agent: true,
     title: 'AI Time Suggestions',
     description:
       'The AI agent suggests entries from your calendar, GitHub and Azure DevOps activity, matched to the right project. Review each one before you add it.',
@@ -49,6 +51,7 @@ const features = [
   },
   {
     icon: SparklesIcon,
+    agent: true,
     title: 'AI Timesheet Review',
     description:
       'Before you approve, the AI agent flags missing comments, short days, the billable mix and budget overruns, with notes against the entries concerned.',
@@ -73,6 +76,7 @@ const features = [
   },
   {
     icon: SparklesIcon,
+    agent: true,
     title: 'AI Plan Review',
     description:
       "The AI agent checks each week's plan for billable targets, holidays, capacity and budget burn. If you can edit plans, apply its proposed changes in one click.",
@@ -176,11 +180,31 @@ export function LandingPage() {
       {/* Header */}
       <Header />
 
-      {/* Hero Section */}
-      <section className="relative z-10 py-20 sm:py-32">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-3xl text-center">
-            <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
+      {/* Hero Section: Timmie on the right (above the text on phones), the pitch on the left */}
+      {/* No z-index here: a stacking context would stop the image blending with the page behind it */}
+      <section className="relative overflow-hidden">
+        {/* `lighten` lets the page's grid and glow show through the image's dark background, so
+            there's no visible rectangle; the mask fades his body out at the bottom */}
+        <div
+          className="absolute inset-x-0 top-0 h-80 mix-blend-lighten sm:h-[26rem] lg:inset-y-0 lg:right-0 lg:left-auto lg:h-auto lg:w-[66%]"
+          style={{
+            maskImage: 'linear-gradient(to bottom, black 70%, transparent)',
+            WebkitMaskImage: 'linear-gradient(to bottom, black 70%, transparent)',
+          }}
+        >
+          <Image
+            src="/timmie/hero.webp"
+            alt="Timmie, the AI timekeeper, holding a glowing stopwatch"
+            fill
+            priority
+            sizes="(min-width: 1024px) 66vw, 100vw"
+            className="object-cover object-[78%_center] lg:object-right"
+          />
+        </div>
+
+        <div className="relative mx-auto max-w-7xl px-4 pt-72 pb-16 sm:px-6 sm:pt-96 lg:px-8 lg:py-36">
+          <div className="mx-auto max-w-xl text-center lg:mx-0 lg:text-left">
+            <div className="mb-6 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
               <div className="border-dark-700 bg-dark-800 text-dark-300 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm">
                 <span className="bg-brand h-2 w-2 animate-pulse rounded-full" />
                 Powered by Microsoft Dynamics 365 Business Central
@@ -197,13 +221,13 @@ export function LandingPage() {
               <span className="text-brand">Perfectly Synced</span>
             </h1>
 
-            <p className="text-dark-300 mx-auto mb-10 max-w-2xl text-lg sm:text-xl">
+            <p className="text-dark-300 mx-auto mb-10 max-w-2xl text-lg sm:text-xl lg:mx-0">
               Timmie is time tracking for Microsoft Dynamics 365 Business Central. Log your time,
               plan your team and keep projects on budget, while an AI agent suggests entries and
               reviews timesheets and plans.
             </p>
 
-            <div className="flex flex-col justify-center gap-4 sm:flex-row">
+            <div className="flex flex-col justify-center gap-4 sm:flex-row lg:justify-start">
               <button
                 onClick={handleLogin}
                 disabled={isLoading}
@@ -222,11 +246,13 @@ export function LandingPage() {
               </a>
             </div>
           </div>
+        </div>
+      </section>
 
-          {/* Screenshot carousel */}
-          <div className="mt-16">
-            <ScreenshotCarousel />
-          </div>
+      {/* Screenshot carousel */}
+      <section className="relative z-10 pb-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <ScreenshotCarousel />
         </div>
       </section>
 
@@ -256,11 +282,22 @@ export function LandingPage() {
                   key={index}
                   className="group border-dark-700 bg-dark-800/50 hover:border-brand/50 rounded-xl border p-6 transition-colors"
                 >
-                  <div
-                    className={`${bgColor} ${hoverBgColor} mb-4 flex h-12 w-12 items-center justify-center rounded-lg transition-colors`}
-                  >
-                    <Icon className={`${iconColor} h-6 w-6`} />
-                  </div>
+                  {feature.agent ? (
+                    // The AI features are Timmie's work, so they carry his face
+                    <Image
+                      src="/timmie/avatar-192.png"
+                      alt="Timmie"
+                      width={48}
+                      height={48}
+                      className="ring-brand/30 group-hover:ring-brand/60 mb-4 h-12 w-12 rounded-lg ring-1 transition-shadow"
+                    />
+                  ) : (
+                    <div
+                      className={`${bgColor} ${hoverBgColor} mb-4 flex h-12 w-12 items-center justify-center rounded-lg transition-colors`}
+                    >
+                      <Icon className={`${iconColor} h-6 w-6`} />
+                    </div>
+                  )}
                   <h3 className="mb-2 text-xl font-semibold text-white">{feature.title}</h3>
                   <p className="text-dark-400">{feature.description}</p>
                 </div>
