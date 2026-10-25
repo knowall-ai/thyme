@@ -182,11 +182,11 @@ export function DatePicker({
                   aria-selected={isSelected || undefined}
                   className={cn(
                     'h-8 w-8 rounded text-sm transition-colors',
-                    'hover:bg-dark-700 focus-visible:ring-knowall-green focus-visible:ring-offset-dark-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+                    'hover:bg-dark-700 focus-visible:ring-brand focus-visible:ring-offset-dark-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
                     !isCurrentMonth && 'text-dark-500',
                     isCurrentMonth && !isSelected && 'text-dark-200',
-                    isToday && !isSelected && 'text-knowall-green font-semibold',
-                    isSelected && 'bg-knowall-green text-dark-950 hover:bg-knowall-green-light'
+                    isToday && !isSelected && 'text-brand font-semibold',
+                    isSelected && 'bg-brand text-brand-foreground hover:bg-brand-hover'
                   )}
                 >
                   {format(day, 'd')}

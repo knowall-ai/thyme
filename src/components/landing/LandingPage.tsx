@@ -171,7 +171,7 @@ export function LandingPage() {
     <div className="bg-dark-950 flex min-h-screen flex-col">
       {/* Background effects */}
       <div className="bg-grid-pattern bg-grid pointer-events-none fixed inset-0 opacity-20" />
-      <div className="bg-gradient-radial from-knowall-green/5 pointer-events-none fixed inset-0 via-transparent to-transparent" />
+      <div className="bg-gradient-radial from-brand/5 pointer-events-none fixed inset-0 via-transparent to-transparent" />
 
       {/* Header */}
       <Header />
@@ -182,7 +182,7 @@ export function LandingPage() {
           <div className="mx-auto max-w-3xl text-center">
             <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
               <div className="border-dark-700 bg-dark-800 text-dark-300 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm">
-                <span className="bg-knowall-green h-2 w-2 animate-pulse rounded-full" />
+                <span className="bg-brand h-2 w-2 animate-pulse rounded-full" />
                 Powered by Microsoft Dynamics 365 Business Central
               </div>
               <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-sm text-amber-400">
@@ -194,7 +194,7 @@ export function LandingPage() {
             <h1 className="mb-6 text-4xl leading-tight font-bold text-white sm:text-5xl lg:text-6xl">
               Time Tracking,
               <br />
-              <span className="text-knowall-green">Perfectly Synced</span>
+              <span className="text-brand">Perfectly Synced</span>
             </h1>
 
             <p className="text-dark-300 mx-auto mb-10 max-w-2xl text-lg sm:text-xl">
@@ -207,7 +207,7 @@ export function LandingPage() {
               <button
                 onClick={handleLogin}
                 disabled={isLoading}
-                className="group bg-knowall-green text-dark-950 shadow-knowall-green/20 hover:bg-knowall-green-light hover:shadow-knowall-green/40 flex items-center justify-center gap-2 rounded-xl px-8 py-4 font-semibold shadow-xl transition-all duration-200 disabled:opacity-50"
+                className="group bg-brand text-brand-foreground shadow-brand/20 hover:bg-brand-hover hover:shadow-brand/40 flex items-center justify-center gap-2 rounded-xl px-8 py-4 font-semibold shadow-xl transition-all duration-200 disabled:opacity-50"
               >
                 Get Started
                 <ArrowRightIcon className="h-5 w-5 transition-transform group-hover:translate-x-1" />
@@ -246,15 +246,15 @@ export function LandingPage() {
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {features.map((feature, index) => {
               const Icon = feature.icon;
-              const iconColor = feature.iconColor || 'text-knowall-green';
-              const bgColor = feature.iconColor ? 'bg-amber-500/10' : 'bg-knowall-green/10';
+              const iconColor = feature.iconColor || 'text-brand';
+              const bgColor = feature.iconColor ? 'bg-amber-500/10' : 'bg-brand/10';
               const hoverBgColor = feature.iconColor
                 ? 'group-hover:bg-amber-500/20'
-                : 'group-hover:bg-knowall-green/20';
+                : 'group-hover:bg-brand/20';
               return (
                 <div
                   key={index}
-                  className="group border-dark-700 bg-dark-800/50 hover:border-knowall-green/50 rounded-xl border p-6 transition-colors"
+                  className="group border-dark-700 bg-dark-800/50 hover:border-brand/50 rounded-xl border p-6 transition-colors"
                 >
                   <div
                     className={`${bgColor} ${hoverBgColor} mb-4 flex h-12 w-12 items-center justify-center rounded-lg transition-colors`}
@@ -275,7 +275,7 @@ export function LandingPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-12 text-center">
             <h2 className="mb-4 text-3xl font-bold text-white sm:text-4xl">
-              Why <span className="text-knowall-green">Timmie</span>?
+              Why <span className="text-brand">Timmie</span>?
             </h2>
             <p className="text-dark-400 mx-auto max-w-2xl text-lg">
               Stop losing revenue to unbilled hours and late timesheets. Timmie gives you the
@@ -286,7 +286,7 @@ export function LandingPage() {
           <ul className="mx-auto grid max-w-5xl grid-cols-1 gap-x-12 gap-y-6 md:grid-cols-2">
             {benefits.map((benefit, index) => (
               <li key={index} className="flex items-start gap-3">
-                <CheckCircleIcon className="text-knowall-green mt-0.5 h-5 w-5 shrink-0" />
+                <CheckCircleIcon className="text-brand mt-0.5 h-5 w-5 shrink-0" />
                 <div>
                   <span className="font-medium text-white">{benefit.title}</span>
                   <p className="text-dark-400 text-sm">{benefit.description}</p>

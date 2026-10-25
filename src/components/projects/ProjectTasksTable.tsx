@@ -383,7 +383,7 @@ export function ProjectTasksTable() {
             className={cn(
               'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
               groupBy === 'task'
-                ? 'bg-timmie-600 text-white'
+                ? 'bg-timmie-600 text-dark-950'
                 : 'bg-dark-600 text-gray-400 hover:text-white'
             )}
           >
@@ -397,7 +397,7 @@ export function ProjectTasksTable() {
             className={cn(
               'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
               groupBy === 'team'
-                ? 'bg-timmie-600 text-white'
+                ? 'bg-timmie-600 text-dark-950'
                 : 'bg-dark-600 text-gray-400 hover:text-white'
             )}
           >

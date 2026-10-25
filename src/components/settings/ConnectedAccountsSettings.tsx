@@ -113,7 +113,7 @@ export function ConnectedAccountsSettings() {
               href={profileUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-dark-400 hover:text-knowall-green text-xs font-normal"
+              className="text-dark-400 hover:text-brand text-xs font-normal"
             >
               View profile
             </a>

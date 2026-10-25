@@ -109,7 +109,7 @@ export function LegalDocLayout({ content }: LegalDocLayoutProps) {
   if (!html) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="border-knowall-green h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" />
+        <div className="border-brand h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" />
       </div>
     );
   }
@@ -127,7 +127,7 @@ export function LegalDocLayout({ content }: LegalDocLayoutProps) {
                   onClick={() => scrollToSection(section.id)}
                   className={`block w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                     activeSection === section.id
-                      ? 'bg-knowall-green/10 text-knowall-green font-medium'
+                      ? 'bg-brand/10 text-brand font-medium'
                       : 'text-dark-400 hover:bg-dark-800 hover:text-white'
                   }`}
                 >
@@ -147,7 +147,7 @@ export function LegalDocLayout({ content }: LegalDocLayoutProps) {
           className="border-dark-700 bg-dark-800/50 h-[calc(100vh-200px)] overflow-y-auto rounded-xl border p-8"
         >
           <div
-            className="prose prose-invert prose-lg prose-headings:text-white prose-headings:font-bold prose-h1:text-3xl prose-h1:mb-8 prose-h1:border-b prose-h1:border-dark-700 prose-h1:pb-4 prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4 prose-h2:text-knowall-green prose-h2:scroll-mt-4 prose-h3:text-xl prose-h3:mt-6 prose-h3:mb-3 prose-p:text-dark-300 prose-p:leading-relaxed prose-li:text-dark-300 prose-strong:text-white prose-strong:font-semibold prose-a:text-knowall-green prose-a:no-underline hover:prose-a:underline prose-code:text-knowall-green prose-code:bg-dark-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-pre:bg-dark-800 prose-pre:border prose-pre:border-dark-700 prose-table:border-collapse prose-th:bg-dark-800 prose-th:border prose-th:border-dark-700 prose-th:px-4 prose-th:py-2 prose-th:text-left prose-td:border prose-td:border-dark-700 prose-td:px-4 prose-td:py-2 prose-hr:border-dark-700 max-w-none"
+            className="prose prose-invert prose-lg prose-headings:text-white prose-headings:font-bold prose-h1:text-3xl prose-h1:mb-8 prose-h1:border-b prose-h1:border-dark-700 prose-h1:pb-4 prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4 prose-h2:text-brand prose-h2:scroll-mt-4 prose-h3:text-xl prose-h3:mt-6 prose-h3:mb-3 prose-p:text-dark-300 prose-p:leading-relaxed prose-li:text-dark-300 prose-strong:text-white prose-strong:font-semibold prose-a:text-brand prose-a:no-underline hover:prose-a:underline prose-code:text-brand prose-code:bg-dark-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-pre:bg-dark-800 prose-pre:border prose-pre:border-dark-700 prose-table:border-collapse prose-th:bg-dark-800 prose-th:border prose-th:border-dark-700 prose-th:px-4 prose-th:py-2 prose-th:text-left prose-td:border prose-td:border-dark-700 prose-td:px-4 prose-td:py-2 prose-hr:border-dark-700 max-w-none"
             dangerouslySetInnerHTML={{ __html: html }}
           />
         </div>

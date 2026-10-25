@@ -84,7 +84,7 @@ export function BillableTargetEditor({
             type="checkbox"
             checked={useDefault}
             onChange={(e) => setUseDefault(e.target.checked)}
-            className="accent-knowall-green h-4 w-4"
+            className="accent-brand h-4 w-4"
           />
           Use company default ({companyDefaultPercent.toFixed(0)}%)
         </label>
@@ -104,7 +104,7 @@ export function BillableTargetEditor({
             onChange={(e) => setValue(e.target.value)}
             disabled={useDefault}
             aria-invalid={invalid}
-            className="border-dark-600 bg-dark-800 text-dark-100 focus:ring-knowall-green w-28 rounded-lg border px-3 py-2 focus:ring-2 focus:outline-none disabled:opacity-50"
+            className="border-dark-600 bg-dark-800 text-dark-100 focus:ring-brand w-28 rounded-lg border px-3 py-2 focus:ring-2 focus:outline-none disabled:opacity-50"
           />
           {invalid && <p className="mt-1 text-sm text-red-400">Enter a number from 0 to 100.</p>}
           <p className="text-dark-400 mt-1 text-xs">

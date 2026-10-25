@@ -102,7 +102,7 @@ function MaskedChartState({
 // Chart title shown only in print, where the on-screen view toggle is hidden
 function PrintChartTitle({ children }: { children: ReactNode }) {
   return (
-    <div className="bg-timmie-600 mb-4 hidden rounded-lg px-4 py-2 text-sm font-medium text-white print:inline-block">
+    <div className="bg-timmie-600 text-dark-950 mb-4 hidden rounded-lg px-4 py-2 text-sm font-medium print:inline-block">
       {children}
     </div>
   );
@@ -270,7 +270,7 @@ export function ProjectCharts() {
             className={cn(
               'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
               chartView === 'weekly'
-                ? 'bg-timmie-600 text-white'
+                ? 'bg-timmie-600 text-dark-950'
                 : 'bg-dark-600 text-gray-400 hover:text-white'
             )}
           >
@@ -282,7 +282,7 @@ export function ProjectCharts() {
               className={cn(
                 'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
                 chartView === 'progress'
-                  ? 'bg-timmie-600 text-white'
+                  ? 'bg-timmie-600 text-dark-950'
                   : 'bg-dark-600 text-gray-400 hover:text-white'
               )}
             >
@@ -395,7 +395,7 @@ export function ProjectCharts() {
                 isWholeProject
                   ? 'bg-dark-700 cursor-not-allowed text-gray-600'
                   : offsetWeeks === 0
-                    ? 'bg-timmie-600 text-white'
+                    ? 'bg-timmie-600 text-dark-950'
                     : 'bg-dark-600 hover:bg-dark-500 text-gray-300 hover:text-white'
               )}
             >

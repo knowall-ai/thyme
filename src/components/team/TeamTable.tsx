@@ -340,7 +340,7 @@ export function TeamTable({
                           <button
                             type="button"
                             onClick={() => onSelect(member)}
-                            className="hover:text-knowall-green text-left hover:underline"
+                            className="hover:text-brand text-left hover:underline"
                             title={`Show ${member.name}'s report`}
                           >
                             {member.name}
@@ -348,7 +348,7 @@ export function TeamTable({
                         ) : (
                           member.name
                         )}
-                        {member.isCurrentUser && <span className="text-knowall-green">(you)</span>}
+                        {member.isCurrentUser && <span className="text-brand">(you)</span>}
                         {licenceTags?.[member.id] && (
                           <LicenceTagButton tag={licenceTags[member.id]} name={member.name} />
                         )}
@@ -376,7 +376,7 @@ export function TeamTable({
                         )}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-dark-400 hover:text-knowall-green print:hidden"
+                        className="text-dark-400 hover:text-brand print:hidden"
                         title="Open in Business Central"
                       >
                         <ArrowTopRightOnSquareIcon className="h-4 w-4" />
@@ -455,7 +455,7 @@ export function TeamTable({
                           <button
                             type="button"
                             onClick={() => onEditCapacity(member)}
-                            className="text-dark-400 hover:text-knowall-green rounded p-1 print:hidden"
+                            className="text-dark-400 hover:text-brand rounded p-1 print:hidden"
                             title="Edit weekly capacity"
                             aria-label={`Edit weekly capacity for ${member.name}`}
                           >
@@ -482,7 +482,7 @@ export function TeamTable({
                         <button
                           type="button"
                           onClick={() => onEditTarget(member)}
-                          className="text-dark-400 hover:text-knowall-green rounded p-1 print:hidden"
+                          className="text-dark-400 hover:text-brand rounded p-1 print:hidden"
                           title="Edit billable target"
                           aria-label={`Edit billable target for ${member.name}`}
                         >
@@ -561,7 +561,7 @@ function MemberGitHub({
           href={profileUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-dark-400 hover:text-knowall-green inline-flex items-center gap-1"
+          className="text-dark-400 hover:text-brand inline-flex items-center gap-1"
           title={`${member.name} on GitHub`}
         >
           <GitHubIcon className="h-3.5 w-3.5" />
@@ -577,7 +577,7 @@ function MemberGitHub({
         <button
           type="button"
           onClick={onEdit}
-          className="text-dark-400 hover:text-knowall-green rounded p-0.5"
+          className="text-dark-400 hover:text-brand rounded p-0.5"
           title={profileUrl ? 'Change GitHub username' : 'Add GitHub username'}
           aria-label={`${profileUrl ? 'Change' : 'Add'} GitHub username for ${member.name}`}
         >

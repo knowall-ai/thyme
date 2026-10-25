@@ -100,7 +100,7 @@ function RedirectToCompany() {
   return (
     <Layout>
       <div className="flex items-center justify-center py-24" role="status">
-        <div className="border-knowall-green h-8 w-8 animate-spin rounded-full border-b-2" />
+        <div className="border-brand h-8 w-8 animate-spin rounded-full border-b-2" />
         <span className="text-dark-400 ml-3 text-sm">Opening company...</span>
       </div>
     </Layout>

@@ -118,7 +118,7 @@ export function PlanTotalCell({
         onBlur={hide}
         aria-label={`${formatHours(hours)}h planned in view`}
         aria-describedby={note ? noteId : undefined}
-        className="text-dark-300 hover:text-dark-100 focus-visible:ring-knowall-green h-full w-full px-2 text-right text-sm focus:outline-none focus-visible:ring-1"
+        className="text-dark-300 hover:text-dark-100 focus-visible:ring-brand h-full w-full px-2 text-right text-sm focus:outline-none focus-visible:ring-1"
       >
         {inView}
       </button>

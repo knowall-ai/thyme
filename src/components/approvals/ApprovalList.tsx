@@ -520,7 +520,7 @@ export function ApprovalList() {
               className={cn(
                 'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
                 groupBy === 'week'
-                  ? 'bg-timmie-600 text-white'
+                  ? 'bg-timmie-600 text-dark-950'
                   : 'text-dark-400 hover:bg-dark-700 hover:text-white'
               )}
               title="Group by week"
@@ -533,7 +533,7 @@ export function ApprovalList() {
               className={cn(
                 'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
                 groupBy === 'person'
-                  ? 'bg-timmie-600 text-white'
+                  ? 'bg-timmie-600 text-dark-950'
                   : 'text-dark-400 hover:bg-dark-700 hover:text-white'
               )}
               title="Group by person"

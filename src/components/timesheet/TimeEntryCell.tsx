@@ -292,9 +292,9 @@ export function TimeEntryCell({
       className={cn(
         // Flex column so the day total can sit at the bottom, level across the week
         'border-dark-700 flex min-h-[100px] flex-col border-r p-2 transition-colors last:border-r-0 sm:min-h-[120px]',
-        isToday ? 'bg-knowall-green/5' : 'bg-dark-800',
+        isToday ? 'bg-brand/5' : 'bg-dark-800',
         isHovered && !isDragOver && 'bg-dark-700/50',
-        isDragOver && 'ring-knowall-green/60 bg-knowall-green/10 ring-2 ring-inset'
+        isDragOver && 'ring-brand/60 bg-brand/10 ring-2 ring-inset'
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -328,7 +328,7 @@ export function TimeEntryCell({
           onClick={() => onAddEntry(date)}
           className={cn(
             'border-dark-600 text-dark-500 mt-2 w-full rounded-md border-2 border-dashed p-2',
-            'hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green transition-colors',
+            'hover:border-brand hover:bg-brand/10 hover:text-brand transition-colors',
             'flex items-center justify-center gap-1 text-xs'
           )}
         >

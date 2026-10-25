@@ -29,7 +29,7 @@ export function TenantGate({ children }: { children: ReactNode }) {
 
   return (
     <div className="bg-dark-950 flex min-h-screen items-center justify-center" role="status">
-      <div className="border-knowall-green h-8 w-8 animate-spin rounded-full border-b-2" />
+      <div className="border-brand h-8 w-8 animate-spin rounded-full border-b-2" />
       <span className="text-dark-400 ml-3 text-sm">Checking your organisation...</span>
     </div>
   );

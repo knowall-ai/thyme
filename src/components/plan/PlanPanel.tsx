@@ -301,7 +301,7 @@ function ResourceRow({
               href={getBCResourceUrl(member.number, companyName)}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-dark-500 hover:text-knowall-green mr-2 flex-shrink-0 transition-colors"
+              className="text-dark-500 hover:text-brand mr-2 flex-shrink-0 transition-colors"
               title="Open in Business Central"
               onClick={(e) => e.stopPropagation()}
             >
@@ -335,7 +335,7 @@ function ResourceRow({
                         'border-dark-700 relative h-10 flex-1 border-l',
                         dayIsWeekend && 'bg-dark-700/60',
                         noProjectWorkClass(dayStr),
-                        dayIsToday && 'bg-knowall-green/5',
+                        dayIsToday && 'bg-brand/5',
                         isDragging && 'hover:bg-dark-700/50'
                       )}
                       onDragOver={handleDragOver}
@@ -347,7 +347,7 @@ function ResourceRow({
                       {dayHours > 0 && (
                         <div
                           className={cn(
-                            'bg-knowall-green/90 text-dark-950 absolute inset-0.5 flex cursor-pointer items-center justify-center rounded text-xs font-semibold',
+                            'bg-brand/90 text-brand-foreground absolute inset-0.5 flex cursor-pointer items-center justify-center rounded text-xs font-semibold',
                             capacityFlag && CAPACITY_FLAG_CLASS[capacityFlag.status]
                           )}
                           onClick={onToggleExpand}
@@ -374,7 +374,7 @@ function ResourceRow({
                   }).length === 0 && (
                     <button
                       onClick={() => onAddPlan(weekGroup.weekStart)}
-                      className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-1 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-xs opacity-0 transition-all group-hover:opacity-100"
+                      className="border-dark-600 text-dark-500 hover:border-brand hover:bg-brand/10 hover:text-brand absolute inset-1 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-xs opacity-0 transition-all group-hover:opacity-100"
                     >
                       <PlusIcon className="h-3 w-3" />
                       Add
@@ -496,7 +496,7 @@ function ResourceRow({
                             'border-dark-700 h-7 flex-1 border-l',
                             dayIsWeekend && 'bg-dark-700/60',
                             noProjectWorkClass(format(day, 'yyyy-MM-dd')),
-                            dayIsToday && 'bg-knowall-green/5'
+                            dayIsToday && 'bg-brand/5'
                           )}
                         />
                       );
@@ -506,7 +506,7 @@ function ResourceRow({
                     {hoveredWeekStart && isSameDay(hoveredWeekStart, weekGroup.weekStart) && (
                       <button
                         onClick={() => onAddPlan(weekGroup.weekStart)}
-                        className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
+                        className="border-dark-600 text-dark-500 hover:border-brand hover:bg-brand/10 hover:text-brand absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
                       >
                         <PlusIcon className="h-3 w-3" />
                         Add
@@ -622,7 +622,7 @@ function TeamTaskRow({
                       'border-dark-700 relative h-6 flex-1 cursor-pointer border-l',
                       dayIsWeekend && 'bg-dark-700/60',
                       noProjectWorkClass(dayStr),
-                      dayIsToday && 'bg-knowall-green/5'
+                      dayIsToday && 'bg-brand/5'
                     )}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -665,7 +665,7 @@ function TeamTaskRow({
                       taskCode: taskData.taskNumber,
                     });
                   }}
-                  className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
+                  className="border-dark-600 text-dark-500 hover:border-brand hover:bg-brand/10 hover:text-brand absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
                 >
                   <PlusIcon className="h-3 w-3" />
                   Add
@@ -773,7 +773,7 @@ function TeamProjectRow({
                       'border-dark-700 relative h-7 flex-1 cursor-pointer border-l',
                       dayIsWeekend && 'bg-dark-700/60',
                       noProjectWorkClass(dayStr),
-                      dayIsToday && 'bg-knowall-green/5'
+                      dayIsToday && 'bg-brand/5'
                     )}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -812,7 +812,7 @@ function TeamProjectRow({
                       projectCode: projectData.projectNumber,
                     });
                   }}
-                  className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
+                  className="border-dark-600 text-dark-500 hover:border-brand hover:bg-brand/10 hover:text-brand absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
                 >
                   <PlusIcon className="h-3 w-3" />
                   Add
@@ -918,7 +918,7 @@ function TaskRow({
                       'border-dark-700 relative h-7 flex-1 cursor-pointer border-l',
                       dayIsWeekend && 'bg-dark-700/60',
                       noProjectWorkClass(dayStr),
-                      dayIsToday && 'bg-knowall-green/5'
+                      dayIsToday && 'bg-brand/5'
                     )}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -953,7 +953,7 @@ function TaskRow({
                     e.stopPropagation();
                     onAddPlan(weekGroup.weekStart, { taskCode: taskData.taskNumber });
                   }}
-                  className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
+                  className="border-dark-600 text-dark-500 hover:border-brand hover:bg-brand/10 hover:text-brand absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
                 >
                   <PlusIcon className="h-3 w-3" />
                   Add
@@ -1069,7 +1069,7 @@ function ResourceTaskRow({
                       'border-dark-700 relative h-6 flex-1 cursor-pointer border-l',
                       dayIsWeekend && 'bg-dark-700/60',
                       noProjectWorkClass(dayStr),
-                      dayIsToday && 'bg-knowall-green/5'
+                      dayIsToday && 'bg-brand/5'
                     )}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1112,7 +1112,7 @@ function ResourceTaskRow({
                       resourceNo: firstAlloc.resourceNumber,
                     });
                   }}
-                  className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
+                  className="border-dark-600 text-dark-500 hover:border-brand hover:bg-brand/10 hover:text-brand absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
                 >
                   <PlusIcon className="h-3 w-3" />
                   Add
@@ -1173,7 +1173,7 @@ function AddResourceRow({
                   'border-dark-700 h-7 flex-1 border-l',
                   isWeekend(day) && 'bg-dark-700/60',
                   noProjectWorkClass(format(day, 'yyyy-MM-dd')),
-                  isToday(day) && 'bg-knowall-green/5'
+                  isToday(day) && 'bg-brand/5'
                 )}
               />
             ))}
@@ -1183,7 +1183,7 @@ function AddResourceRow({
               <button
                 onClick={() => onAdd(weekGroup.weekStart)}
                 aria-label={`${label}, week of ${format(weekGroup.weekStart, 'd MMM')}`}
-                className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
+                className="border-dark-600 text-dark-500 hover:border-brand hover:bg-brand/10 hover:text-brand absolute inset-0.5 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-[10px] opacity-0 transition-all group-hover:opacity-100"
               >
                 <PlusIcon className="h-3 w-3" />
                 Add
@@ -1356,7 +1356,7 @@ function ProjectRow({
             href={getBCJobUrl(project.number, companyName)}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-dark-500 hover:text-knowall-green mr-2 flex-shrink-0 transition-colors"
+            className="text-dark-500 hover:text-brand mr-2 flex-shrink-0 transition-colors"
             title="Open in Business Central"
             onClick={(e) => e.stopPropagation()}
           >
@@ -1388,7 +1388,7 @@ function ProjectRow({
                       'border-dark-700 relative h-10 flex-1 border-l',
                       dayIsWeekend && 'bg-dark-700/60',
                       noProjectWorkClass(dayStr),
-                      dayIsToday && 'bg-knowall-green/5'
+                      dayIsToday && 'bg-brand/5'
                     )}
                   >
                     <PlanReviewDayMarker subjectNo={project.number} date={dayStr} />
@@ -1419,7 +1419,7 @@ function ProjectRow({
                 }).length === 0 && (
                   <button
                     onClick={() => onAddPlan(weekGroup.weekStart)}
-                    className="border-dark-600 text-dark-500 hover:border-knowall-green hover:bg-knowall-green/10 hover:text-knowall-green absolute inset-1 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-xs opacity-0 transition-all group-hover:opacity-100"
+                    className="border-dark-600 text-dark-500 hover:border-brand hover:bg-brand/10 hover:text-brand absolute inset-1 z-10 flex items-center justify-center gap-1 rounded-md border-2 border-dashed text-xs opacity-0 transition-all group-hover:opacity-100"
                   >
                     <PlusIcon className="h-3 w-3" />
                     Add
@@ -2196,7 +2196,7 @@ export function PlanPanel({
             onClick={() =>
               fetchTeamData(currentWeekStart, effectiveWeeksToShow, emailDomain, loadOptions)
             }
-            className="text-knowall-green hover:text-knowall-green-light underline"
+            className="text-brand hover:text-brand-hover underline"
           >
             Try again
           </button>
@@ -2221,7 +2221,7 @@ export function PlanPanel({
                     className={cn(
                       'flex items-center gap-2 rounded-l-lg px-3 py-1.5 text-sm font-medium transition-colors',
                       viewMode === 'team'
-                        ? 'bg-knowall-green text-dark-950'
+                        ? 'bg-brand text-brand-foreground'
                         : 'text-dark-400 hover:text-white'
                     )}
                   >
@@ -2233,7 +2233,7 @@ export function PlanPanel({
                     className={cn(
                       'flex items-center gap-2 rounded-r-lg px-3 py-1.5 text-sm font-medium transition-colors',
                       viewMode === 'projects'
-                        ? 'bg-knowall-green text-dark-950'
+                        ? 'bg-brand text-brand-foreground'
                         : 'text-dark-400 hover:text-white'
                     )}
                   >
@@ -2265,7 +2265,7 @@ export function PlanPanel({
                   aria-label={projectCode ? 'Search people or tasks' : 'Search'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="border-dark-600 bg-dark-800 text-dark-100 placeholder:text-dark-500 focus:border-knowall-green w-48 rounded-lg border py-1.5 pr-3 pl-9 text-sm focus:ring-1 focus:outline-none"
+                  className="border-dark-600 bg-dark-800 text-dark-100 placeholder:text-dark-500 focus:border-brand w-48 rounded-lg border py-1.5 pr-3 pl-9 text-sm focus:ring-1 focus:outline-none"
                 />
               </div>
 
@@ -2359,7 +2359,7 @@ export function PlanPanel({
                         className={cn(
                           'border-dark-700 flex flex-1 flex-col items-center justify-center border-l py-1',
                           dayIsWeekend && 'bg-dark-700/60',
-                          dayIsToday && 'bg-knowall-green/10',
+                          dayIsToday && 'bg-brand/10',
                           isWeekStart && index > 0 && 'border-l-2',
                           getNoProjectWorkReason(dayNotesIndex, format(day, 'yyyy-MM-dd')) &&
                             NO_PROJECT_WORK_CLASS
@@ -2377,7 +2377,7 @@ export function PlanPanel({
                           className={cn(
                             'text-xs font-medium',
                             dayIsToday
-                              ? 'text-knowall-green'
+                              ? 'text-brand'
                               : dayIsWeekend
                                 ? 'text-dark-400'
                                 : 'text-dark-200'
@@ -2396,7 +2396,7 @@ export function PlanPanel({
             {/* Loading State */}
             {showLoading && (
               <div className="flex h-64 items-center justify-center">
-                <div className="border-knowall-green h-8 w-8 animate-spin rounded-full border-b-2"></div>
+                <div className="border-brand h-8 w-8 animate-spin rounded-full border-b-2"></div>
               </div>
             )}
 

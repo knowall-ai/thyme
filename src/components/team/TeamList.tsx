@@ -401,7 +401,7 @@ export function TeamList() {
           <p className="mb-2 text-red-500">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="text-knowall-green hover:text-knowall-green-light underline"
+            className="text-brand hover:text-brand-hover underline"
           >
             Try again
           </button>
@@ -474,7 +474,7 @@ export function TeamList() {
 
         {isLoading ? (
           <div className="flex h-64 items-center justify-center">
-            <div className="border-knowall-green h-8 w-8 animate-spin rounded-full border-b-2"></div>
+            <div className="border-brand h-8 w-8 animate-spin rounded-full border-b-2"></div>
           </div>
         ) : (
           <>
@@ -619,7 +619,7 @@ export function TeamList() {
                 placeholder="Search team members..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="border-dark-600 bg-dark-800 text-dark-100 placeholder:text-dark-500 focus:border-knowall-green focus:ring-knowall-green w-full rounded-lg border py-2 pr-4 pl-10 focus:ring-1 focus:outline-none"
+                className="border-dark-600 bg-dark-800 text-dark-100 placeholder:text-dark-500 focus:border-brand focus:ring-brand w-full rounded-lg border py-2 pr-4 pl-10 focus:ring-1 focus:outline-none"
               />
             </div>
 

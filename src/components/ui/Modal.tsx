@@ -173,7 +173,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', className
             <button
               type="button"
               onClick={onClose}
-              className="text-dark-400 hover:bg-dark-700 focus:ring-knowall-green rounded-lg p-1 hover:text-white focus:ring-2 focus:outline-none"
+              className="text-dark-400 hover:bg-dark-700 focus:ring-brand rounded-lg p-1 hover:text-white focus:ring-2 focus:outline-none"
             >
               <XMarkIcon className="h-5 w-5" />
               <span className="sr-only">Close</span>

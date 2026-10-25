@@ -143,7 +143,7 @@ function CurrencyToggle({
           onClick={() => onChange(currency)}
           className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
             selected === currency
-              ? 'bg-knowall-green text-dark-950'
+              ? 'bg-brand text-brand-foreground'
               : 'text-dark-400 hover:text-white'
           }`}
         >
@@ -240,7 +240,7 @@ export default function PricingPage() {
   const ctaClass = (highlighted: boolean) =>
     `mt-8 block w-full rounded-lg px-6 py-3 text-center font-semibold transition-colors ${
       highlighted
-        ? 'bg-knowall-green text-dark-950 hover:bg-knowall-green-light'
+        ? 'bg-brand text-brand-foreground hover:bg-brand-hover'
         : 'border-dark-600 bg-dark-800 hover:bg-dark-700 border text-white'
     }`;
 
@@ -272,12 +272,12 @@ export default function PricingPage() {
             key={plan.name}
             className={`flex flex-col rounded-2xl border p-8 ${
               plan.highlighted
-                ? 'border-knowall-green bg-knowall-green/5 ring-knowall-green ring-1'
+                ? 'border-brand bg-brand/5 ring-brand ring-1'
                 : 'border-dark-700 bg-dark-800/50'
             }`}
           >
             <h2 className="text-2xl font-bold text-white">{plan.name}</h2>
-            <p className="text-knowall-green mt-1 text-sm font-medium">{plan.tagline}</p>
+            <p className="text-brand mt-1 text-sm font-medium">{plan.tagline}</p>
 
             <PriceDisplay plan={plan} currency={currency} rates={rates} />
 
@@ -286,7 +286,7 @@ export default function PricingPage() {
             <ul className="mt-8 flex-1 space-y-4">
               {plan.features.map((feature) => (
                 <li key={feature} className="flex items-start gap-3">
-                  <CheckIcon className="text-knowall-green mt-0.5 h-5 w-5 shrink-0" />
+                  <CheckIcon className="text-brand mt-0.5 h-5 w-5 shrink-0" />
                   <span className="text-dark-300">{feature}</span>
                 </li>
               ))}

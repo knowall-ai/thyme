@@ -3,11 +3,18 @@
 @plugin '@tailwindcss/typography';
 
 @theme {
-  /* KnowAll.ai brand colors - Dark theme with green accent */
-  --color-knowall-green: #00d26a;
-  --color-knowall-green-light: #00ff7f;
-  --color-knowall-green-dark: #00b359;
-  --color-knowall-green-glow: rgba(0, 210, 106, 0.3);
+  /* KnowAll.ai shared brand tokens. Text on brand must use brand-foreground (near-black),
+     never white. brand-on-light is the brand colour for text on white or light backgrounds.
+     Use opacity modifiers for tints (bg-brand/10, border-brand/50). */
+  --color-brand: #00d26a;
+  --color-brand-hover: #00ff7f;
+  --color-brand-foreground: var(--color-gray-950);
+  --color-brand-on-light: #00b359;
+
+  /* shadcn/ui aliases */
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: var(--color-brand-foreground);
+  --color-ring: var(--color-brand);
 
   /* Dark theme backgrounds */
   --color-dark-50: #f8fafc;
@@ -57,10 +64,10 @@
 
   @keyframes glow {
     0% {
-      box-shadow: 0 0 20px rgba(0, 210, 106, 0.2);
+      box-shadow: 0 0 20px color-mix(in srgb, var(--color-brand) 20%, transparent);
     }
     100% {
-      box-shadow: 0 0 30px rgba(0, 210, 106, 0.4);
+      box-shadow: 0 0 30px color-mix(in srgb, var(--color-brand) 40%, transparent);
     }
   }
 }
@@ -104,15 +111,15 @@ body {
   }
 
   .glow-green {
-    box-shadow: 0 0 20px rgba(0, 210, 106, 0.3);
+    box-shadow: 0 0 20px color-mix(in srgb, var(--color-brand) 30%, transparent);
   }
 
   .glow-green-lg {
-    box-shadow: 0 0 40px rgba(0, 210, 106, 0.4);
+    box-shadow: 0 0 40px color-mix(in srgb, var(--color-brand) 40%, transparent);
   }
 
   .gradient-text {
-    @apply from-knowall-green to-timmie-300 bg-gradient-to-r bg-clip-text text-transparent;
+    @apply from-brand to-timmie-300 bg-gradient-to-r bg-clip-text text-transparent;
   }
 
   .bg-grid-pattern {
@@ -144,7 +151,7 @@ body {
 
 /* Selection styling */
 ::selection {
-  background-color: rgba(0, 210, 106, 0.3);
+  background-color: color-mix(in srgb, var(--color-brand) 30%, transparent);
   color: white;
 }
 

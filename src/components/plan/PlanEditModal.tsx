@@ -381,7 +381,7 @@ export function PlanEditModal({
               href={getBCResourceUrl(allocation.resourceNumber, selectedCompany?.name)}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-dark-400 hover:text-knowall-green ml-2 transition-colors"
+              className="text-dark-400 hover:text-brand ml-2 transition-colors"
               title="Open in Business Central"
             >
               <ArrowTopRightOnSquareIcon className="h-4 w-4" />
@@ -400,7 +400,7 @@ export function PlanEditModal({
               href={getBCJobUrl(allocation.projectNumber, selectedCompany?.name)}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-dark-400 hover:text-knowall-green ml-2 transition-colors"
+              className="text-dark-400 hover:text-brand ml-2 transition-colors"
               title="Open in Business Central"
             >
               <ArrowTopRightOnSquareIcon className="h-4 w-4" />
@@ -426,7 +426,7 @@ export function PlanEditModal({
               <span className="text-dark-400 text-xs">Loading existing...</span>
             )}
             {!isLoadingExisting && hasExistingData && (
-              <span className="text-knowall-green text-xs">Editing existing allocation</span>
+              <span className="text-brand text-xs">Editing existing allocation</span>
             )}
           </div>
           <div className="grid grid-cols-7 gap-1">
@@ -455,7 +455,7 @@ export function PlanEditModal({
                     max="24"
                     step="0.25"
                     disabled={isLoadingExisting}
-                    className={`border-dark-600 bg-dark-700 text-dark-100 focus:ring-knowall-green h-8 w-full [appearance:textfield] rounded border px-1 text-right text-sm focus:ring-1 focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${hasExistingLine ? 'border-knowall-green/50' : ''}`}
+                    className={`border-dark-600 bg-dark-700 text-dark-100 focus:ring-brand h-8 w-full [appearance:textfield] rounded border px-1 text-right text-sm focus:ring-1 focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${hasExistingLine ? 'border-brand/50' : ''}`}
                     placeholder="0"
                   />
                 </div>

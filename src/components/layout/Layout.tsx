@@ -52,11 +52,11 @@ export function Layout({ children, hideSignInBanner = false }: LayoutProps) {
             {/* Print version */}
             <p className="text-dark-500 hidden text-center text-sm print:block">
               Want to get Timmie for Business Central? Go to{' '}
-              <a href="https://gettimm.ie" className="text-knowall-green">
+              <a href="https://gettimm.ie" className="text-brand">
                 gettimm.ie
               </a>
               . Built by{' '}
-              <a href="https://knowall.ai" className="text-knowall-green">
+              <a href="https://knowall.ai" className="text-brand">
                 KnowAll AI
               </a>
             </p>

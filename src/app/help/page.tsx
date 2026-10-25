@@ -34,7 +34,7 @@ export default async function HelpPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           <a
             href="#faqs"
-            className="border-dark-700 hover:border-knowall-green/50 hover:bg-dark-700/50 flex items-center gap-3 rounded-lg border p-4 transition-colors"
+            className="border-dark-700 hover:border-brand/50 hover:bg-dark-700/50 flex items-center gap-3 rounded-lg border p-4 transition-colors"
           >
             <span className="text-2xl">?</span>
             <div>
@@ -44,7 +44,7 @@ export default async function HelpPage() {
           </a>
           <a
             href="#troubleshooting"
-            className="border-dark-700 hover:border-knowall-green/50 hover:bg-dark-700/50 flex items-center gap-3 rounded-lg border p-4 transition-colors"
+            className="border-dark-700 hover:border-brand/50 hover:bg-dark-700/50 flex items-center gap-3 rounded-lg border p-4 transition-colors"
           >
             <span className="text-2xl">!</span>
             <div>
@@ -56,15 +56,15 @@ export default async function HelpPage() {
       </div>
 
       {/* Contact support */}
-      <div className="border-knowall-green/30 bg-knowall-green/10 mb-12 rounded-xl border p-6">
-        <h2 className="text-knowall-green mb-2 font-semibold">Need more help?</h2>
+      <div className="border-brand/30 bg-brand/10 mb-12 rounded-xl border p-6">
+        <h2 className="text-brand mb-2 font-semibold">Need more help?</h2>
         <p className="text-dark-300 mb-4">
           If you can&apos;t find what you&apos;re looking for, reach out to our support team.
         </p>
         <div className="flex flex-wrap gap-4">
           <a
             href="mailto:support@knowall.ai"
-            className="bg-knowall-green text-dark-950 hover:bg-knowall-green-light rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+            className="bg-brand text-brand-foreground hover:bg-brand-hover rounded-lg px-4 py-2 text-sm font-medium transition-colors"
           >
             Email Support
           </a>

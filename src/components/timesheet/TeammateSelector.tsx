@@ -96,7 +96,7 @@ export function TeammateSelector() {
           'border-dark-600 bg-dark-800 border',
           !isDisabled && 'hover:border-dark-500 hover:bg-dark-700',
           isDisabled && 'cursor-not-allowed opacity-50',
-          isOpen && 'border-knowall-green bg-dark-700',
+          isOpen && 'border-brand bg-dark-700',
           selectedTeammate && 'border-timmie-600'
         )}
         title={
@@ -138,7 +138,7 @@ export function TeammateSelector() {
                   placeholder="Search teammates..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="border-dark-600 bg-dark-700 placeholder:text-dark-400 focus:border-knowall-green w-full rounded-md border py-2 pr-3 pl-9 text-sm text-white focus:outline-none"
+                  className="border-dark-600 bg-dark-700 placeholder:text-dark-400 focus:border-brand w-full rounded-md border py-2 pr-3 pl-9 text-sm text-white focus:outline-none"
                 />
               </div>
             </div>
@@ -173,7 +173,7 @@ export function TeammateSelector() {
                       )}
                     </div>
                     {!selectedTeammate && (
-                      <CheckIcon className="text-knowall-green h-5 w-5 flex-shrink-0" />
+                      <CheckIcon className="text-brand h-5 w-5 flex-shrink-0" />
                     )}
                   </button>
                 </div>
@@ -220,9 +220,7 @@ export function TeammateSelector() {
                               <div className="text-dark-400 text-xs">{teammate.jobTitle}</div>
                             )}
                           </div>
-                          {isSelected && (
-                            <CheckIcon className="text-knowall-green h-5 w-5 flex-shrink-0" />
-                          )}
+                          {isSelected && <CheckIcon className="text-brand h-5 w-5 flex-shrink-0" />}
                         </button>
                       );
                     })}
