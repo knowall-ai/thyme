@@ -1,0 +1,66 @@
+name: security.txt Expiry
+
+# RFC 9116 needs an Expires date in security.txt. Opens an issue to renew it while there's
+# still time, so the unit test that fails once it lapses stays a backstop.
+on:
+  schedule:
+    - cron: '0 8 1 * *' # 08:00 UTC on the 1st of every month
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-expiry:
+    name: Check security.txt Expires
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Open a renewal issue if Expires is under 60 days away
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FILE: public/.well-known/security.txt
+          TITLE: Renew security.txt Expires date
+          WARN_DAYS: 60
+        run: |
+          expires=$(grep -i '^Expires:' "$FILE" | head -n 1 | cut -d' ' -f2- | tr -d '\r')
+          if [ -z "$expires" ]; then
+            echo "::error file=$FILE::No Expires field found"
+            exit 1
+          fi
+
+          # Parse on its own line: inside $(( )) a failed date would quietly count as 0
+          if ! expires_epoch=$(date -u -d "$expires" +%s); then
+            echo "::error file=$FILE::Expires is not a valid date: $expires"
+            exit 1
+          fi
+          days_left=$(( (expires_epoch - $(date -u +%s)) / 86400 ))
+          echo "Expires: $expires ($days_left days left)"
+          if [ "$days_left" -ge "$WARN_DAYS" ]; then
+            echo "More than $WARN_DAYS days left; nothing to do."
+            exit 0
+          fi
+
+          existing=$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            echo "Renewal issue #$existing is already open."
+            exit 0
+          fi
+
+          renew_by=$(date -u -d '+6 months' +%Y-%m-%dT00:00:00Z)
+          gh issue create --title "$TITLE" --body "$(cat <<EOF
+          \`$FILE\` expires on **$expires** ($days_left days from now). After that, security researchers and scanners treat it as stale (RFC 9116 §2.5.5), and the unit test in \`tests/unit/security/securityTxt.test.ts\` fails, which blocks PRs and releases.
+
+          To renew:
+
+          1. Set \`Expires\` to a date 6 to 9 months away, less than a year (for example \`$renew_by\`).
+          2. Check \`Contact\`, \`Canonical\` and \`Policy\` are still correct.
+          3. Open a PR, then release so production serves the new file.
+
+          Opened by the [security.txt Expiry workflow]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/security-txt-expiry.yml).
+          EOF
+          )"

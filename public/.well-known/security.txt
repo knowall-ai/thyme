@@ -1,0 +1,7 @@
+# Timmie security contact (RFC 9116)
+Contact: mailto:support@knowall.ai
+Expires: 2027-04-30T00:00:00Z
+Preferred-Languages: en, es
+Canonical: https://gettimm.ie/.well-known/security.txt
+Canonical: https://timmie.knowall.ai/.well-known/security.txt
+Policy: https://github.com/knowall-ai/timmie/blob/main/SECURITY.md

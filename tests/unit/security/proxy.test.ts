@@ -49,6 +49,7 @@ describe('isInvalidCompanyPath', () => {
     '/_next/static/chunk.js',
     '/screenshots/dashboard.png',
     '/.well-known/security.txt',
+    '/security.txt',
   ])('leaves %s alone', (path) => {
     expect(isInvalidCompanyPath(path)).toBe(false);
   });
