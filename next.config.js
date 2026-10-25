@@ -33,12 +33,17 @@ const nextConfig = {
     NEXT_PUBLIC_APP_VERSION: require('./package.json').version,
   },
   async redirects() {
-    return LEGACY_HOST_REDIRECTS.map(({ from, to }) => ({
-      source: '/:path*',
-      has: [{ type: 'host', value: from }],
-      destination: `${to}/:path*`,
-      permanent: true,
-    }));
+    return [
+      // Host redirects first, so a legacy host lands on the new host before anything else
+      ...LEGACY_HOST_REDIRECTS.map(({ from, to }) => ({
+        source: '/:path*',
+        has: [{ type: 'host', value: from }],
+        destination: `${to}/:path*`,
+        permanent: true,
+      })),
+      // RFC 9116 only requires /.well-known/security.txt, but many tools still try the root
+      { source: '/security.txt', destination: '/.well-known/security.txt', permanent: true },
+    ];
   },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
