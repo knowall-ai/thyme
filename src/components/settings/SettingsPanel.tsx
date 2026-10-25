@@ -9,6 +9,7 @@ import { LicenceAccessSettings } from './LicenceAccessSettings';
 import { bcClient } from '@/services/bc/bcClient';
 import { useAuth, useProfilePhoto } from '@/services/auth';
 import { useCompanyStore, useSettingsStore } from '@/hooks';
+import { useIsDemoMode } from '@/services/demo/useIsDemoMode';
 import {
   BuildingOffice2Icon,
   BuildingOfficeIcon,
@@ -36,6 +37,7 @@ export function SettingsPanel() {
   const { account, isAuthenticated } = useAuth();
   const { photoUrl } = useProfilePhoto(isAuthenticated);
   const { selectedCompany } = useCompanyStore();
+  const isDemo = useIsDemoMode();
   const { requireTimesheetComments, updateSettings } = useSettingsStore();
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -277,7 +279,11 @@ export function SettingsPanel() {
         <h2 className="mb-4 text-lg font-semibold text-white">Connection Status</h2>
         <div className="flex items-center gap-2">
           <div className="h-3 w-3 rounded-full bg-green-500"></div>
-          <p className="text-dark-100">Connected to Business Central</p>
+          <p className="text-dark-100">
+            {isDemo
+              ? 'Demo: sample data in this browser, not connected to Business Central'
+              : 'Connected to Business Central'}
+          </p>
         </div>
         <p className="text-dark-400 mt-2 text-sm">
           Environment:{' '}

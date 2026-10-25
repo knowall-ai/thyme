@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { IdentificationIcon } from '@heroicons/react/24/outline';
 import { Button, Card } from '@/components/ui';
 import { getLicenceToken, requestLicenceConsent } from '@/services/auth/licenceService';
+import { useIsDemoMode } from '@/services/demo/useIsDemoMode';
 
 /**
  * Lets a Microsoft 365 administrator grant Timmie the directory permission
@@ -14,6 +15,8 @@ export function LicenceAccessSettings() {
   // Undefined while checking
   const [granted, setGranted] = useState<boolean | undefined>();
   const [isRedirecting, setIsRedirecting] = useState(false);
+  // There's no Microsoft 365 directory behind the demo
+  const isDemo = useIsDemoMode();
 
   useEffect(() => {
     let cancelled = false;
@@ -36,7 +39,9 @@ export function LicenceAccessSettings() {
         Dynamics 365 administrators and Global Readers see the view.
       </p>
       <div className="mt-4">
-        {granted ? (
+        {isDemo ? (
+          <p className="text-dark-400 text-sm italic">Not available in the demo.</p>
+        ) : granted ? (
           <p className="text-timmie-400 text-sm">
             Directory access is granted. The licence tags and the Licences button show on the Team
             page for the administrators listed above.

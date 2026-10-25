@@ -3,6 +3,7 @@ import { bcTokenRequest, graphTokenRequest } from './msalConfig';
 import { msalInstance, initializeMsal } from './msalInstance';
 import { requestReauth } from './reauth';
 import { ReauthRequiredError, isInteractionRequiredError } from './reauthErrors';
+import { DEMO_ACCESS_TOKEN, isDemoMode } from '../demo/demoMode';
 
 // Track if Graph token acquisition has failed to prevent repeated attempts
 let graphTokenFailed = false;
@@ -19,6 +20,8 @@ let graphTokenFailed = false;
 export async function getAccessToken(
   scopes: string[] = bcTokenRequest.scopes
 ): Promise<string | null> {
+  // The demo has no Microsoft account: nothing is asked of Entra
+  if (isDemoMode()) return null;
   try {
     // Ensure MSAL is initialized before making any calls
     await initializeMsal();
@@ -66,6 +69,7 @@ export function isIdTokenFresh(claims: object | undefined, now: number = Date.no
 }
 
 export async function getIdToken(): Promise<string | null> {
+  if (isDemoMode()) return null;
   try {
     await initializeMsal();
     const account = msalInstance.getActiveAccount();
@@ -89,6 +93,8 @@ export async function getIdToken(): Promise<string | null> {
 }
 
 export async function getBCAccessToken(): Promise<string | null> {
+  // A stand-in the demo's own Business Central accepts; bcFetch never sends it anywhere
+  if (isDemoMode()) return DEMO_ACCESS_TOKEN;
   return getAccessToken(bcTokenRequest.scopes);
 }
 
@@ -99,6 +105,8 @@ export async function getBCAccessToken(): Promise<string | null> {
  * Caches failure state to prevent repeated token requests if consent is missing.
  */
 export async function getGraphAccessToken(): Promise<string | null> {
+  // No Microsoft Graph in the demo: photos fall back to initials
+  if (isDemoMode()) return null;
   // If already failed this session, don't retry (prevents log spam)
   if (graphTokenFailed) {
     return null;

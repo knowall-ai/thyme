@@ -21,6 +21,7 @@ import { cn, stripCompanyPrefix } from '@/utils';
 import { TimmieLogo } from '@/components/icons';
 import { CompanySwitcher } from './CompanySwitcher';
 import { useTenantAccess } from '@/components/access/useTenantAccess';
+import { useIsDemoMode } from '@/services/demo/useIsDemoMode';
 
 interface NavItem {
   name: string;
@@ -41,6 +42,7 @@ export function Header() {
   const pathname = usePathname();
   const { account, logout, login, isAuthenticated, isLoading } = useAuth();
   const { photoUrl } = useProfilePhoto(isAuthenticated);
+  const isDemo = useIsDemoMode();
   // Navigation and the company list are only for approved organisations
   const showApp = useTenantAccess().status === 'approved';
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -202,7 +204,7 @@ export function Header() {
                             className="text-dark-300 hover:bg-dark-700 flex w-full items-center gap-2 px-4 py-2 text-sm transition-colors hover:text-white"
                           >
                             <ArrowRightOnRectangleIcon className="h-4 w-4" />
-                            Sign out
+                            {isDemo ? 'Exit demo' : 'Sign out'}
                           </button>
                         </div>
                       )}

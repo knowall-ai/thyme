@@ -227,4 +227,10 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Storage unit tests read `undefined` after writing a value
 | `tests/unit/setup.ts` replaces `localStorage` with no-op Vitest mocks. For tests that need real storage semantics, use jsdom's `sessionStorage` (as in `legacyStorage.test.ts`) or provide a stateful Storage test double.
 
+| Time logged, plans or approvals made in the demo ("Try the demo") are gone
+| That's by design: the demo runs on sample data in the browser and keeps changes only in that tab's session storage. They're cleared by *Exit demo*, by closing the tab, and when the demo is first opened on a new day (so its dates stay current). Nothing is ever written to Business Central. To keep real work, *Sign in* and use your own company.
+
+| *Try the demo* says "The demo needs browser storage, which this browser is blocking"
+| The demo keeps its sample data in the tab's session storage. Allow site data (cookies and storage) for the Timmie site in the browser's privacy settings, or try a normal (non-private) window, then click *Try the demo* again.
+
 |===

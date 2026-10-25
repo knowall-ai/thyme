@@ -24,6 +24,8 @@ import {
 } from '@/utils/companyPath';
 import { Layout } from './Layout';
 import { SignInExpired } from './SignInExpired';
+import { isDemoCompany, startDemo } from '@/services/demo/demoMode';
+import { useIsDemoMode } from '@/services/demo/useIsDemoMode';
 
 interface CompanyRouteGateProps {
   environment: BCEnvironmentType;
@@ -42,6 +44,21 @@ interface CompanyRouteGateProps {
  * have it.
  */
 export function CompanyRouteGate({ environment, companyId, children }: CompanyRouteGateProps) {
+  // A link into the demo company opens the demo (it's the only place that company exists)
+  const isDemo = useIsDemoMode();
+  const openDemo = !isDemo && isDemoCompany(companyId);
+  useEffect(() => {
+    if (openDemo) startDemo(`${window.location.pathname}${window.location.search}`);
+  }, [openDemo]);
+  if (openDemo) {
+    return (
+      <div className="bg-dark-950 flex min-h-screen items-center justify-center" role="status">
+        <div className="border-knowall-green h-8 w-8 animate-spin rounded-full border-b-2" />
+        <span className="text-dark-400 ml-3 text-sm">Opening the demo...</span>
+      </div>
+    );
+  }
+
   return (
     <>
       <UnauthenticatedTemplate>

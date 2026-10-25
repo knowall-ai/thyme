@@ -4,8 +4,8 @@ import { ReactNode, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   MsalProvider,
-  AuthenticatedTemplate,
-  UnauthenticatedTemplate,
+  AuthenticatedTemplate as MsalAuthenticatedTemplate,
+  UnauthenticatedTemplate as MsalUnauthenticatedTemplate,
   useMsal,
   useIsAuthenticated,
 } from '@azure/msal-react';
@@ -16,6 +16,8 @@ import { clearProfilePhotoCache } from './graphService';
 import { clearResourceIdentityCache } from './resourceIdentity';
 import { clearReviewerPhotoCache } from './reviewerIdentity';
 import { resetGraphConsentState } from './tokenService';
+import { DEMO_ACCOUNT, clearDemoState, exitDemo } from '../demo/demoMode';
+import { useIsDemoMode } from '../demo/useIsDemoMode';
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -48,9 +50,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
 export function useAuth() {
   const { instance, accounts, inProgress } = useMsal();
   const isAuthenticated = useIsAuthenticated();
+  const isDemo = useIsDemoMode();
 
   const login = async () => {
     try {
+      // Signing in from the demo leaves it first, so the real session starts clean, and
+      // comes back to the landing page rather than the demo page it started from
+      if (isDemo) {
+        clearDemoState();
+        await instance.loginRedirect({
+          ...loginRequest,
+          redirectStartPage: `${window.location.origin}/`,
+        });
+        return;
+      }
       await instance.loginRedirect(loginRequest);
     } catch (error) {
       toast.error('Login failed. Please try again.');
@@ -78,6 +91,18 @@ export function useAuth() {
     return instance.getActiveAccount() || accounts[0] || null;
   };
 
+  // The demo plays a fictional user; any real Microsoft account stays untouched
+  if (isDemo) {
+    return {
+      isAuthenticated: true,
+      isLoading: false,
+      account: DEMO_ACCOUNT,
+      login,
+      logout: async () => exitDemo(),
+      instance,
+    };
+  }
+
   return {
     isAuthenticated,
     isLoading: inProgress !== InteractionStatus.None,
@@ -88,5 +113,16 @@ export function useAuth() {
   };
 }
 
-// Export template components for conditional rendering
-export { AuthenticatedTemplate, UnauthenticatedTemplate };
+/** Renders its children when signed in (in the demo, always) */
+export function AuthenticatedTemplate({ children }: { children?: ReactNode }) {
+  const isDemo = useIsDemoMode();
+  if (isDemo) return <>{children}</>;
+  return <MsalAuthenticatedTemplate>{children}</MsalAuthenticatedTemplate>;
+}
+
+/** Renders its children when signed out (in the demo, never) */
+export function UnauthenticatedTemplate({ children }: { children?: ReactNode }) {
+  const isDemo = useIsDemoMode();
+  if (isDemo) return null;
+  return <MsalUnauthenticatedTemplate>{children}</MsalUnauthenticatedTemplate>;
+}

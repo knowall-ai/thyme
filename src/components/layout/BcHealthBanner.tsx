@@ -5,6 +5,7 @@ import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui';
 import { BC_UNREACHABLE_EVENT, describeBcHealth } from '@/utils';
 import type { BcHealth } from '@/utils';
+import { isDemoMode } from '@/services/demo/demoMode';
 
 // Many calls fail at once in an outage: ask once for all of them
 const MIN_CHECK_INTERVAL_MS = 15_000;
@@ -26,6 +27,8 @@ export function BcHealthBanner() {
   const latestRequest = useRef(0);
 
   const check = useCallback(async (force = false) => {
+    // The demo has no Business Central to check on
+    if (isDemoMode()) return;
     if (!force && Date.now() - lastCheck.current < MIN_CHECK_INTERVAL_MS) return;
     lastCheck.current = Date.now();
     const requestId = ++latestRequest.current;
