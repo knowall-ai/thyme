@@ -99,7 +99,9 @@ export function LegalDocLayout({ content }: LegalDocLayoutProps) {
 
     const element = container.querySelector(`#${id}`);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Scroll only the content box; scrollIntoView would also scroll the page itself
+      const offset = element.getBoundingClientRect().top - container.getBoundingClientRect().top;
+      container.scrollTo({ top: container.scrollTop + offset - 16, behavior: 'smooth' });
       setActiveSection(id);
     }
   };
