@@ -12,6 +12,7 @@ import {
   useCompanyStore,
 } from '@/hooks';
 import { LandingPage } from '@/components/landing/LandingPage';
+import { TenantGate } from '@/components/access/TenantGate';
 import { Button, Card } from '@/components/ui';
 import type { BCEnvironmentType } from '@/types';
 import {
@@ -36,8 +37,9 @@ interface CompanyRouteGateProps {
  * Signed out: shows the landing page in place, so signing in from here returns to
  * this exact URL (MSAL navigates back to the page the login started from).
  *
- * Signed in: makes the URL's company the active one before rendering the page, or
- * explains that the user doesn't have it.
+ * Signed in: only from an approved organisation (TenantGate). Then makes the URL's
+ * company the active one before rendering the page, or explains that the user doesn't
+ * have it.
  */
 export function CompanyRouteGate({ environment, companyId, children }: CompanyRouteGateProps) {
   return (
@@ -46,9 +48,11 @@ export function CompanyRouteGate({ environment, companyId, children }: CompanyRo
         <LandingPage />
       </UnauthenticatedTemplate>
       <AuthenticatedTemplate>
-        <CompanySync environment={environment} companyId={companyId}>
-          {children}
-        </CompanySync>
+        <TenantGate>
+          <CompanySync environment={environment} companyId={companyId}>
+            {children}
+          </CompanySync>
+        </TenantGate>
       </AuthenticatedTemplate>
     </>
   );

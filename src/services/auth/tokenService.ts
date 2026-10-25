@@ -49,6 +49,45 @@ export async function getAccessToken(
   }
 }
 
+/**
+ * The signed-in user's Entra ID token (refreshed silently if it has expired), for
+ * Timmie's own server to verify. Returns null when there's no signed-in account or it
+ * couldn't be fetched for a transient reason.
+ *
+ * @throws ReauthRequiredError when Microsoft Entra needs the user to sign in again
+ */
+/** Seconds of life an ID token needs left to be sent; less and it's refreshed first */
+export const ID_TOKEN_MIN_LIFETIME_SECONDS = 60;
+
+/** True when the ID token's `exp` is more than a minute away; false when missing */
+export function isIdTokenFresh(claims: object | undefined, now: number = Date.now()): boolean {
+  const exp = (claims as { exp?: unknown } | undefined)?.exp;
+  return typeof exp === 'number' && exp * 1000 - now > ID_TOKEN_MIN_LIFETIME_SECONDS * 1000;
+}
+
+export async function getIdToken(): Promise<string | null> {
+  try {
+    await initializeMsal();
+    const account = msalInstance.getActiveAccount();
+    if (!account) return null;
+    const request = { scopes: ['openid', 'profile'], account };
+    let response = await msalInstance.acquireTokenSilent(request);
+    // MSAL only checks the cached access token's expiry, so it can hand back an ID token
+    // that has already expired (they last 60 minutes, access tokens 60-90)
+    if (!isIdTokenFresh(response.idTokenClaims)) {
+      response = await msalInstance.acquireTokenSilent({ ...request, forceRefresh: true });
+    }
+    return response.idToken || null;
+  } catch (error) {
+    if (isInteractionRequiredError(error)) {
+      void requestReauth();
+      throw new ReauthRequiredError(error);
+    }
+    console.warn('Silent ID token acquisition failed', error);
+    return null;
+  }
+}
+
 export async function getBCAccessToken(): Promise<string | null> {
   return getAccessToken(bcTokenRequest.scopes);
 }

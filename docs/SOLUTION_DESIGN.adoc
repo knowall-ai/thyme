@@ -204,6 +204,7 @@ returns 412/409), the save is refused and the user is asked to reload.
 === Authorization
 
 * Only authenticated KnowAll.ai users can access
+* Only approved organisations: the user's Entra tenant (`tid` claim) must be KnowAll's or listed in `APPROVED_TENANT_IDS`, checked against the server (`/api/tenant-access`, which verifies the user's ID token and reads `tid` from it) before anything company-scoped loads. Others see a "not set up yet" page with a request-access email link. Thyme is a browser app that calls Business Central directly, so this is a UI gate: the data itself is protected by Entra sign-in and Business Central's own licences and permissions
 * BC API access controlled by token scope
 * User can only see/edit own time entries (enforced in UI)
 
