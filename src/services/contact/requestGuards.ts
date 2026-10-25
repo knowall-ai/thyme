@@ -1,0 +1,91 @@
+/**
+ * Cheap guards for the public enquiry route: a same-site check and an in-memory rate
+ * limit. Timmie runs as a single App Service instance, so a limiter that resets on deploy
+ * is enough to stop one visitor (or a script) flooding hello@knowall.ai.
+ */
+
+const SITE_HOSTS = new Set(['gettimm.ie', 'www.gettimm.ie', 'timmie.knowall.ai']);
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1']);
+
+export const CONTACT_LIMITS = {
+  perIp: 5,
+  windowMs: 10 * 60 * 1000,
+  perDay: 200,
+};
+
+const MAX_TRACKED_IPS = 5000;
+const hitsByIp = new Map<string, number[]>();
+let daily = { day: '', used: 0 };
+
+/**
+ * Best-effort client address. App Service appends the real client as the last
+ * x-forwarded-for entry (as ip:port); earlier entries come from the client and can be
+ * forged, so they're ignored.
+ */
+export function clientIp(req: Request): string {
+  const forwarded = req.headers.get('x-forwarded-for');
+  if (forwarded) {
+    const last = forwarded.split(',').at(-1)!.trim();
+    const v6 = /^\[([^\]]+)\](?::\d+)?$/.exec(last);
+    if (v6) return v6[1];
+    // Strip a port from IPv4 (one colon); leave bare IPv6 alone
+    return /^[^:]+:\d+$/.test(last) ? last.slice(0, last.lastIndexOf(':')) : last;
+  }
+  return req.headers.get('x-real-ip') || 'unknown';
+}
+
+/** Take one enquiry for `ip`; retryAfter (seconds) when over the per-IP or daily limit */
+export function consumeEnquiry(
+  ip: string,
+  now = Date.now()
+): { ok: true } | { ok: false; retryAfter: number } {
+  const hits = (hitsByIp.get(ip) ?? []).filter((t) => now - t < CONTACT_LIMITS.windowMs);
+  if (hits.length >= CONTACT_LIMITS.perIp) {
+    hitsByIp.set(ip, hits);
+    return {
+      ok: false,
+      retryAfter: Math.ceil((hits[0] + CONTACT_LIMITS.windowMs - now) / 1000),
+    };
+  }
+
+  const day = new Date(now).toISOString().slice(0, 10);
+  if (daily.day !== day) daily = { day, used: 0 };
+  if (daily.used >= CONTACT_LIMITS.perDay) {
+    const d = new Date(now);
+    const midnight = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1);
+    return { ok: false, retryAfter: Math.ceil((midnight - now) / 1000) };
+  }
+
+  hits.push(now);
+  hitsByIp.delete(ip);
+  hitsByIp.set(ip, hits);
+  daily.used++;
+  // Keep the map bounded: Map order is least recently active first
+  for (const key of hitsByIp.keys()) {
+    if (hitsByIp.size <= MAX_TRACKED_IPS) break;
+    hitsByIp.delete(key);
+  }
+  return { ok: true };
+}
+
+/** True when the request's Origin (or Referer) is Timmie itself */
+export function isSameOrigin(req: Request): boolean {
+  const source = req.headers.get('origin') || req.headers.get('referer');
+  if (!source) return false;
+  let url: URL;
+  try {
+    url = new URL(source);
+  } catch {
+    return false;
+  }
+  if (SITE_HOSTS.has(url.hostname)) return true;
+  // Local dev: loopback origins only count when the request is to the same loopback host
+  if (LOOPBACK_HOSTS.has(url.hostname)) return url.host === req.headers.get('host');
+  return false;
+}
+
+/** For tests */
+export function resetContactLimits() {
+  hitsByIp.clear();
+  daily = { day: '', used: 0 };
+}
