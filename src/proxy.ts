@@ -21,6 +21,12 @@ const bcOrigin = originOf(process.env.NEXT_PUBLIC_BC_BASE_URL, DEFAULT_BC_BASE_U
 
 // Everything the browser talks to directly: Entra ID sign-in, Microsoft Graph,
 // Business Central and the public BTC price tickers.
+//
+// Ask Timmie (the public helper) needs nothing more here: its API calls are same-origin
+// ('self'), the server exchanges the WebRTC offer and answer with Azure OpenAI itself,
+// and the call's media and data channel are WebRTC, which connect-src doesn't govern.
+// Its reply audio plays from a MediaStream (srcObject), which media-src doesn't govern, and
+// its greeting clips (/timmie/greetings/*.mp3) are same-origin, allowed by default-src 'self'.
 const connectSources = [
   "'self'",
   'https://login.microsoftonline.com',
@@ -31,7 +37,17 @@ const connectSources = [
   'https://www.bitstamp.net',
 ];
 
-export function buildCsp(nonce: string, isDev: boolean): string {
+// Cloudflare Turnstile, Ask Timmie's optional bot check, renders in an iframe. Its script
+// is added by our own (nonce-trusted) code, which 'strict-dynamic' already allows.
+const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com';
+
+export function buildCsp(
+  nonce: string,
+  isDev: boolean,
+  options: { turnstile?: boolean } = {}
+): string {
+  const frameSources = ["'self'", 'https://login.microsoftonline.com'];
+  if (options.turnstile) frameSources.push(TURNSTILE_ORIGIN);
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ''}`,
@@ -42,7 +58,7 @@ export function buildCsp(nonce: string, isDev: boolean): string {
     "font-src 'self' https://fonts.gstatic.com",
     `connect-src ${connectSources.join(' ')}`,
     // MSAL's silent token renewal uses a hidden iframe to Entra ID
-    "frame-src 'self' https://login.microsoftonline.com",
+    `frame-src ${frameSources.join(' ')}`,
     "frame-ancestors 'self'",
     "object-src 'none'",
     "base-uri 'self'",
@@ -69,7 +85,12 @@ export function isInvalidCompanyPath(pathname: string): boolean {
 
 export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
-  const csp = buildCsp(nonce, process.env.NODE_ENV === 'development');
+  const csp = buildCsp(nonce, process.env.NODE_ENV === 'development', {
+    // Both Turnstile keys set: Ask Timmie shows Cloudflare's check (services/public-timmie/config.ts)
+    turnstile: !!(
+      process.env.PUBLIC_TURNSTILE_SITE_KEY?.trim() && process.env.PUBLIC_TURNSTILE_SECRET?.trim()
+    ),
+  });
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);

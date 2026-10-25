@@ -26,6 +26,36 @@ describe('buildCsp', () => {
     expect(connectSrc).toContain('https://graph.microsoft.com');
     expect(connectSrc).toContain('https://api.businesscentral.dynamics.com');
   });
+
+  it('Ask Timmie adds no connect-src: its API is same-origin and the server does the SDP exchange', () => {
+    const connectSrc = buildCsp('n', false)
+      .split('; ')
+      .find((d) => d.startsWith('connect-src'));
+    expect(connectSrc).not.toMatch(/openai|azure\.com|cloudflare/);
+  });
+
+  it("lets Timmie's greeting clips play: media falls back to default-src 'self'", () => {
+    const directives = buildCsp('n', false).split('; ');
+    expect(directives).toContain("default-src 'self'");
+    expect(directives.some((d) => d.startsWith('media-src'))).toBe(false);
+  });
+
+  it('allows the Turnstile frame only when Turnstile is configured', () => {
+    const frameSrc = (turnstile: boolean) =>
+      buildCsp('n', false, { turnstile })
+        .split('; ')
+        .find((d) => d.startsWith('frame-src'));
+    expect(frameSrc(false)).toBe("frame-src 'self' https://login.microsoftonline.com");
+    expect(frameSrc(true)).toBe(
+      "frame-src 'self' https://login.microsoftonline.com https://challenges.cloudflare.com"
+    );
+    // The rest of the policy is unchanged either way.
+    const rest = (turnstile: boolean) =>
+      buildCsp('n', false, { turnstile })
+        .split('; ')
+        .filter((d) => !d.startsWith('frame-src'));
+    expect(rest(true)).toEqual(rest(false));
+  });
 });
 
 describe('isInvalidCompanyPath', () => {

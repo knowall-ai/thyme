@@ -1,0 +1,505 @@
+= Ask Timmie: the public helper's design and threat model
+KnowAll AI
+:toc: left
+:toclevels: 2
+:sectnums:
+
+== Purpose
+
+Visitors to Timmie's public pages, signed out, can ask Timmie about the product, *mainly by voice*
+and also by text: what Timmie does, how it works with Business Central, the AI agent, the plans and
+pricing, what you need to run it, and common questions from the help page. For a demo, hosting,
+support or anything else it points them to the enquiry form at `/pricing#enquire`.
+
+Timmie is KnowAll AI's timekeeper: friendly, precise, British, with a little dry wit used
+sparingly. He is a *completely separate assistant* from anything in the signed-in app or the AI
+agent. He has no tools, no connection to Business Central, no sign-in, no settings and no secrets.
+There is nothing for him to leak: he cannot reach anyone's timesheets, projects, people or
+configuration, because he has none of them.
+
+Everything runs on *Azure OpenAI*, on Timmie's own resource: voice on *GPT-Live* (`gpt-live-1`),
+text on a small chat model, and the recorded greetings from Azure text-to-speech. There is no
+OpenAI API path, not even for development. Missing settings fail closed: the helper shows as
+unavailable, with the reason.
+
+== What visitors see
+
+The *Ask Timmie* avatar sits bottom right on the signed-out public pages only: the landing page
+(`/`, and the landing page shown in place of an app page when signed out), `/pricing`, `/help`,
+`/eula`, `/privacy` and `/terms`. It is never shown to a signed-in user or inside the app
+(`components/landing/AskTimmie.tsx` hides it while MSAL is signed in or still deciding).
+
+* *The avatar is the one talk button*: tap Timmie to start a voice call, tap him again to end it.
+* His *speech bubble* offers *Talk to Timmie* (the same as tapping him, the main choice) and
+  *Chat* (text).
+* During a call or a chat, a panel above him shows *live captions* of what he is saying. The
+  transcript is closed by default; *Read along* opens it. The visitor can always type as well.
+* There is *one speaker control* (Voice on / Muted), which mutes him everywhere: the greeting and
+  the call. It is remembered in `localStorage`.
+* The microphone permission is read before asking (`navigator.permissions.query({ name:
+  'microphone' })`, following `onchange`), so the bubble says "your browser will ask" or "your
+  browser is blocking the microphone" up front, and tapping Timmie with the microphone blocked
+  opens the chat instead. Where the browser can't say (Safari) the state is unknown until the call
+  asks.
+* When a mode isn't available, its choice is shown disabled with the reason; with nothing
+  configured, the bubble links to Help and the enquiry form.
+
+=== The greeting
+
+Like Sallie on the KnowAll website, Timmie greets visitors by himself:
+
+* About 600 ms after a public page loads, the bubble opens and types in one of five greetings
+  (`services/public-timmie/greetings.ts`, each with an id). Each is British, warm, under ten
+  seconds spoken, says his name and ends with one question.
+* He *says it aloud*, voice on by default, from a *pre-recorded* clip
+  (`public/timmie/greetings/<id>.mp3`), so a page view costs nothing and calls no API. Browsers
+  block autoplay, so a held clip plays on the first `pointerdown` or `keydown` anywhere (not Tab),
+  and the bubble says *Tap to hear Timmie*.
+* *Until the clips have been recorded* (see <<greetings>>), each greeting is text only: the bubble
+  shows it, nothing is played and there is no "tap to hear" for a file that was never made.
+  `services/public-timmie/greeting-clips.ts` lists the clips that exist.
+* He greets *once per browser session* (`sessionStorage`), not on every page change, and not again
+  after the visitor dismisses or mutes him. Clicking about shows the bubble again, silently.
+* With `prefers-reduced-motion` the text appears at once. Audio still follows the speaker control.
+* He only greets when at least one of voice and text works.
+
+[[seams]]
+=== Seams (moving to knowall-ai/agent-embed)
+
+Ask Timmie is intended to move into the shared package *knowall-ai/agent-embed*, so other KnowAll
+sites can embed their own agent. The browser code in `src/components/public-timmie/` is built
+behind these seams:
+
+[cols="1,3", options="header"]
+|===
+| Seam | Where
+
+| Persona: name, role, avatar, greetings (with ids and clips), chips, accent colour (default
+  lime `#9dff0a`) | `persona.ts` (`TIMMIE_PERSONA`). The accent is applied by overriding
+  `--color-brand` on the widget's root, so a different persona recolours it without new classes.
+| Transport (JSON chat) | `transport.ts`: the `ChatTransport` interface and
+  `createJsonChatTransport` for `/api/public/chat` (pass header, conversation id, one retry on 401).
+| Voice | `voice.ts`: the `VoiceAdapter` interface and `createLiveVoice` (GPT-Live over WebRTC,
+  placed and supervised by our server). Pluggable: the UI only sees `start`/`stop`/
+  `setSpeakerMuted`/`resumeAudio` and the status, speaking, caption and audio-blocked callbacks.
+| UI | Kept apart from the transport and voice code: the launcher, avatar and greeting bubble
+  (`PublicTimmieLauncher.tsx`, `TimmieAvatar.tsx`, `SpeakerToggle.tsx`), the captions and
+  transcript panel (`PublicTimmiePanel.tsx`), and hooks for the greeting (`useGreeting.ts`), the
+  speaker (`useSpeaker.ts`), the mic permission (`useMicPermission.ts`), the call
+  (`useVoiceCall.ts`) and Turnstile (`useTurnstile.ts`).
+|===
+
+The server side (`src/app/api/public/**`, `src/services/public-timmie/**`) stays in each site: its
+own prompt, knowledge and Azure resource.
+
+=== Four bugs not copied from Sallie's widget
+
+* *The mic reopening mid-reply*: there is no client-side mic loop at all; GPT-Live is full duplex
+  and owns turn-taking. "Speaking" starts as soon as the server sees Timmie's reply being
+  generated (its first output audio on the sideband), before it has reached the speaker. While the
+  recorded greeting plays, a call started over it keeps the microphone closed until it finishes.
+* *A held reply discarded on the next tap*: a greeting held by autoplay is queued and plays on the
+  next gesture, even when that gesture is *Talk* or *Chat*; nothing else stops it (only muting or
+  dismissing). A call started over it doesn't greet a second time.
+* *Long replies cut mid-sentence*: spoken text is never truncated; captions show each reply in full.
+  Nothing is spoken through separate TTS at runtime.
+* *Silent fallbacks*: if the greeting clip fails or is held, or the call's audio is held, the bubble
+  or panel shows *Tap to hear Timmie*.
+
+== Data flow
+
+.Text chat
+. The panel gets a *pass*: `GET /api/public/pass?for=chat` returns a challenge; the browser solves
+  it (or Cloudflare Turnstile, when configured) and `POST`s it back for a pass valid *10 minutes*,
+  bound to its IP and user agent, with a budget of 20 messages.
+. `POST /api/public/chat` with the pass (`x-timmie-pass` header), the conversation id and the
+  conversation (at most 20 messages, visitor messages at most 600 characters).
+. *Signed turns bind their context.* Each of Timmie's replies is HMAC-signed over the conversation
+  id, its position, a rolling hash of every turn before it, its text and an expiry (60 minutes).
+  The server verifies the whole chain on every request: a history that is forged, edited,
+  reordered, replayed from another conversation or expired is refused (409), so a visitor cannot
+  put words in his mouth. A question that got no answer is shown but left out of the chain.
+. The server calls the Responses API on the *public* Azure resource: public prompt, `tools: []`,
+  `tool_choice: 'none'`, `store: false`.
+. The reply is checked on the way out: images removed, links other than our public pages,
+  knowall.ai and the two repositories reduced to text, raw HTML stripped, and a reply that
+  reproduces the private rules replaced with a polite decline. An Azure content-filter refusal also
+  becomes a decline.
+
+.Voice (GPT-Live on Azure, WebRTC placed by our server)
+. The browser asks for the microphone first (a refusal does not use up a call), gets a *voice
+  pass* (`?for=voice`: a harder proof-of-work, a budget of two calls), and makes an *audio-only*
+  WebRTC offer: no data channel.
+. `POST /api/public/voice/session` with the offer. The server *refuses any offer with a data
+  channel or video* (`isAudioOnlyOffer`): without a data channel the browser has no way to send the
+  session a single control event; it can only send microphone audio and play Timmie's.
+. The server creates the session itself, `POST {resource}/openai/v1/live/sessions`, with the fixed
+  configuration: `model` (the gpt-live-1 deployment), the public instructions and Timmie's voice,
+  and *no delegation*, so the voice model has no tools and no backend to call. It returns only the
+  SDP answer and an opaque call key. No credential and not even the session id reach the browser.
+. Audio flows browser <-> Azure directly over WebRTC.
+. The server attaches to the session's *sideband*, `wss://{resource}/openai/v1/live/sessions/{id}/attach`,
+  and supervises the call (`services/public-timmie/live.ts`). It sends one thing: the opening
+  greeting, as a commentary append ("greet the visitor in one sentence"), skipped when the visitor
+  has just heard the recorded greeting.
+. What Timmie says comes back over the sideband as transcript deltas; the server relays them to the
+  browser as captions over server-sent events (`GET /api/public/voice/events?call=`, same origin).
+  The visitor's own transcript is never forwarded or logged.
+. Ending the call (tapping Timmie, closing the panel, leaving the page) posts
+  `/api/public/voice/end`; the server hangs up.
+
+Nothing is stored. Transcripts are not logged; see <<logging>>.
+
+=== The voice watchdog (fails closed)
+
+Every way a call ends, except the service itself reporting `session.closed`, goes through a
+*hangup*: `session.close` on the sideband if it is still open, *and always*
+`POST {resource}/openai/v1/live/sessions/{id}/hangup` (retried once). The server hangs up when:
+
+* *five minutes* have passed (the widget counts down too). The timer always ends in a hangup;
+* *any event outside a small allow-list* arrives on the sideband. Allowed: `session.started`, the
+  input and output audio and transcript deltas, `session.usage.updated`, `session.closed`, and the
+  receipt for our own greeting append. Everything else ends the call: any `session.update` or
+  `session.updated` (whatever it changes, including the voice or limits), `response.create` (with
+  or without its own instructions, tools or limits) and any `response.*` event, any
+  `conversation.item.create` or injected item (assistant, system, function), appended instructions,
+  thinking or commentary we didn't send, delegation, muting, `error`, or any event type we don't
+  recognise;
+* `session.started` doesn't match what we configured (instructions, model, voice), or arrives
+  twice, or anything arrives before it;
+* the *sideband closes or errors for any reason* before the call has ended;
+* the session doesn't start within 15 seconds;
+* the visitor's audio stops arriving for 20 seconds (the tab was closed or the connection lost);
+* the call has produced more than *40 replies*;
+* the visitor ends it.
+
+The Bookie-era rules for client events (a `session.update`, a `response.create` carrying its own
+fields, a `conversation.item.create`) are covered twice over: the browser has no data channel to
+send them on, and the allow-list hangs up if any of them, or anything else unexpected, appears.
+
+=== Browser security headers
+
+* *CSP* (`src/proxy.ts`): Ask Timmie adds *no* `connect-src` entries. Its API calls and the caption
+  stream are same-origin (`'self'`); the server, not the browser, talks to Azure; and the call's
+  media is WebRTC, which `connect-src` doesn't govern. The reply audio plays from a `MediaStream`
+  (`srcObject`), which `media-src` doesn't govern, the greeting clips are same-origin (covered by
+  `default-src 'self'`), and there are no workers. With Turnstile configured, `frame-src` gains
+  `https://challenges.cloudflare.com` for Cloudflare's iframe; its script is added by our own
+  nonce-trusted code, which `'strict-dynamic'` already allows. Nothing else in the policy changes.
+* *Permissions-Policy* (`next.config.js`): `microphone=(self)` (it was `microphone=()`, which
+  blocks the microphone outright). Our own origin only, never an embedded frame; the browser still
+  asks the visitor.
+
+== Threat model
+
+[cols="2,3", options="header"]
+|===
+| Threat | Mitigation
+
+| Extracting a customer's or KnowAll AI's timesheets, projects or people
+| There is none to extract. The public code cannot import sign-in, Business Central, Graph, the
+  enquiry mailer or the app: an ESLint `no-restricted-imports` rule on `src/app/api/public/**`,
+  `src/services/public-timmie/**` and `src/components/public-timmie/**`, and
+  `tests/unit/public-timmie/isolation.test.ts`, which walks the whole import graph and fails if it
+  reaches anything outside the helper's own modules (plus Timmie's import-free same-site check,
+  `services/contact/requestGuards.ts`) or any package beyond a short allow-list. The same test
+  checks the code reads only `PUBLIC_*` environment variables (plus the platform's managed identity
+  endpoint and the shared Front Door id).
+
+| Leaking secrets or ids through the prompt
+| The prompt holds only public site content. `prompt.test.ts` fails if it contains a GUID, an email
+  address, an API key shape, an environment variable name, an Azure resource name, an internal code
+  path, a demo company, a phone or registration number, a money amount or any secret value from the
+  environment.
+
+| Steering the voice session from the browser (new instructions, tools, voice, limits)
+| The browser can't: its offer must be audio-only, so there is no data channel to send events on.
+  The session is fixed server-side, with no delegation (no tools). The fail-closed watchdog hangs up
+  on anything unexpected anyway.
+
+| Prompt injection by voice or text: "ignore your instructions", "you are now the signed-in app"
+| The rules treat these as ordinary chat to decline. Even a successful jailbreak gains nothing: no
+  tools, no data.
+
+| Revealing the prompt
+| The rules say no; text output is checked for runs of the rules' text. The prompt contains nothing
+  sensitive anyway.
+
+| Exfiltration via markdown images or links
+| Images are stripped and only allow-listed links survive, on the server and again when the
+  widget renders (`services/public-timmie/links.ts`). The widget renders text itself; no HTML.
+
+| Forged or replayed conversation history
+| Replies are signed over the conversation id, position, the hash of everything before them, the
+  text and an expiry; the whole chain is verified on every request.
+
+| Spoofing the client IP to dodge limits
+| Behind Azure Front Door the right-most `X-Forwarded-For` is Front Door's own address, so it is
+  never used there. `X-Azure-SocketIP` is trusted only when `X-Azure-FDID` matches
+  `PUBLIC_FRONT_DOOR_ID` (or `FRONT_DOOR_ID`); a request without our Front Door id is refused (403).
+  See <<client-ip>>.
+
+| Cost abuse / free model proxy
+| Origin check, a human pass that lasts 10 minutes, is bound to IP and user agent and has a small
+  budget (20 messages; a voice pass, with a harder proof-of-work, allows 2 calls), per-IP and global
+  limits, *one call per IP and five at once*, a 5-minute call limit, message and turn limits, and
+  the Azure deployments' own quota as the final ceiling.
+
+| A missing or weak signing secret
+| In production, a missing, short (< 32 characters) or placeholder `PUBLIC_TIMMIE_SECRET` disables
+  the helper with a logged reason (`{"evt":"public_timmie","kind":"config","ok":false,...}`); there
+  is no silent fallback key. Outside production a random per-process key is used.
+
+| Unsafe advice
+| Rule 6: general product information only; legal, financial, tax, payroll and employment
+  questions go to a qualified adviser.
+
+| Being embedded by another site
+| `Origin` (or `Referer`) must be Timmie's own (gettimm.ie, timmie.knowall.ai, a loopback host
+  talking to itself, or `PUBLIC_TIMMIE_ALLOWED_ORIGINS`); the site already sends
+  `X-Frame-Options: SAMEORIGIN` and `frame-ancestors 'self'`.
+
+| Collecting personal data
+| Timmie doesn't take contact details, book meetings or send email; he points to the enquiry form.
+  The visitor's speech is transcribed by the service but never forwarded, stored or logged by us.
+
+| A leaked credential
+| Ask Timmie runs on its *own* Azure OpenAI resource, ideally with managed identity and no key at
+  all. A leaked key reaches only that resource's small deployments.
+|===
+
+=== What it cannot do
+
+* See, look up or change any organisation's timesheets, projects, plans, people or settings.
+* Sign anyone in, take contact details, book meetings or send email. It points to the enquiry form
+  at `/pricing#enquire`.
+* Remember anything between conversations. Text conversations live only in the open panel.
+
+== Abuse limits
+
+All in memory, per App Service instance. Timmie runs on *one* instance; scaled out, each instance
+keeps its own counts (multiply by the instance count) and a call can only be ended or captioned by
+the instance that placed it, so keep Ask Timmie on a single instance, or move these to a shared
+store first. Defined in `services/public-timmie/rate-limit.ts`, `pass.ts` and `shared.ts`.
+
+[cols="2,3", options="header"]
+|===
+| Limit | Value
+
+| Challenge requests (per IP) | 20 a minute, 100 an hour
+| Pass verifications (per IP) | 6 a minute, 30 an hour
+| Pass | 10 minutes, bound to the IP and user agent
+| Pass budget | Chat pass: 20 messages. Voice pass: 20 messages and 2 calls
+| Proof-of-work | 16 bits for a chat pass, 18 for a voice pass (`PUBLIC_TIMMIE_POW_BITS`, `PUBLIC_TIMMIE_VOICE_POW_BITS`)
+| Chat messages (per IP) | 10 a minute, 60 an hour, 150 a day
+| Chat messages (global) | 120 a minute, 3,000 a day (`PUBLIC_TIMMIE_CHAT_DAILY_CAP`)
+| Voice calls (per IP) | 2 a minute, 6 an hour, 10 a day; *one at a time*
+| Voice calls (global) | 20 an hour, 100 a day (`PUBLIC_TIMMIE_VOICE_DAILY_CAP`); 5 at once (`PUBLIC_TIMMIE_VOICE_MAX_CONCURRENT`)
+| Voice call length | 5 minutes, enforced by the server (hangup) and the widget
+| Replies per call | 40, then the server hangs up
+| Message length | 600 characters
+| Conversation length | 20 messages, then "start a new conversation"; signed turns expire after 60 minutes
+| Model output | 1,200 tokens per chat reply
+|===
+
+[[client-ip]]
+=== Client IP
+
+`services/public-timmie/client-ip.ts`:
+
+* *Front Door configured* (`PUBLIC_FRONT_DOOR_ID`, or the shared `FRONT_DOOR_ID`): the request must
+  carry that `X-Azure-FDID`; then `X-Azure-SocketIP` (the address that connected to Front Door) is
+  the visitor. Anything else gets 403. Also restrict the App Service to Front Door
+  (Access restrictions: the `AzureFrontDoor.Backend` service tag with this X-Azure-FDID).
+* *Not configured* (local development, or no Front Door in front): `X-Azure-*` headers are ignored,
+  because anyone could send them, and the address is the one that connected to App Service (or to
+  the Next server locally): the last `X-Forwarded-For` entry, which App Service appends itself. Do
+  not run production behind Front Door without setting the id.
+
+The enquiry form (`services/contact/requestGuards.ts`) still uses its own older rule; aligning it
+is a follow-up.
+
+=== Bot check
+
+* *Cloudflare Turnstile* when `PUBLIC_TURNSTILE_SITE_KEY` and `PUBLIC_TURNSTILE_SECRET` are both
+  set: the panel shows Cloudflare's check and the server verifies the token with `siteverify`.
+* Otherwise a *proof-of-work*: the server issues an HMAC-signed challenge, bound to the IP and user
+  agent and to its purpose, valid 5 minutes and single-use; the browser finds a nonce whose SHA-256
+  has the required leading zero bits (about 65,000 hashes for chat, 260,000 for voice). It does not
+  stop a determined script, but makes bulk abuse cost CPU on top of the rate limits.
+
+[[logging]]
+=== Logging
+
+Only counts and errors, one JSON line per event (`{"evt":"public_timmie","kind":"voice-end",
+"reason":"time-limit","seconds":300}`). Never message text, transcripts or IP addresses.
+
+=== Kill switch
+
+`PUBLIC_TIMMIE_ENABLED=false` (an App Service setting, no redeploy): every `/api/public/*` route
+returns 503 and the launcher does not appear. Removing the deployments on the public resource also
+stops it.
+
+== Environment variables
+
+All server-side App Service settings, read at request time (no rebuild). `PUBLIC_` here means
+"for the public helper", *not* "sent to the browser" (only `NEXT_PUBLIC_*` reaches the browser).
+
+[cols="2,3", options="header"]
+|===
+| Variable | Purpose
+
+| `PUBLIC_TIMMIE_ENABLED` | `false` turns the helper off (default on).
+| `PUBLIC_TIMMIE_SECRET` | *Required in production.* 32+ random characters signing passes and replies (`openssl rand -base64 48`). Missing or a placeholder: the helper is disabled, with a logged reason.
+| `PUBLIC_LIVE_ENDPOINT` | Voice: Timmie's Azure OpenAI resource, `https://<resource>.openai.azure.com`. The v1 surface (`/openai/v1/live/sessions`) is used; Azure only.
+| `PUBLIC_LIVE_DEPLOYMENT` | Voice: the gpt-live-1 deployment name (e.g. `gpt-live-1`), sent as the session's model.
+| `PUBLIC_LIVE_API_KEY` | Voice: fallback only. The App Service's managed identity is used first.
+| `PUBLIC_TIMMIE_VOICE` | GPT-Live voice, default `vesper`.
+| `PUBLIC_AZURE_OPENAI_ENDPOINT` | Text chat: the same public resource, `https://<resource>.openai.azure.com`.
+| `PUBLIC_TIMMIE_CHAT_DEPLOYMENT` | Text chat: the chat model deployment. Unset: chat is off.
+| `PUBLIC_AZURE_OPENAI_API_KEY` | Text chat: fallback only. The managed identity is used first.
+| `PUBLIC_FRONT_DOOR_ID` (or `FRONT_DOOR_ID`) | The Azure Front Door profile id; see <<client-ip>>.
+| `PUBLIC_TURNSTILE_SITE_KEY`, `PUBLIC_TURNSTILE_SECRET` | Cloudflare Turnstile; both set to use it (and to allow its frame in the CSP).
+| `PUBLIC_TIMMIE_POW_BITS`, `PUBLIC_TIMMIE_VOICE_POW_BITS` | Proof-of-work difficulty, 8 to 24 (16 and 18 by default; voice is never easier than chat).
+| `PUBLIC_TIMMIE_ALLOWED_ORIGINS` | Extra allowed origins, comma-separated, e.g. a staging slot. gettimm.ie and timmie.knowall.ai are built in.
+| `PUBLIC_TIMMIE_CHAT_DAILY_CAP`, `PUBLIC_TIMMIE_VOICE_DAILY_CAP`, `PUBLIC_TIMMIE_VOICE_MAX_CONCURRENT` | Global caps (3,000, 100 and 5 by default).
+| `PUBLIC_TIMMIE_DISABLE_AI=1` | Tests: chat answers with a fixed offline reply, voice is unavailable, no model calls.
+|===
+
+The managed identity is App Service's own (`IDENTITY_ENDPOINT` and `IDENTITY_HEADER`, set by the
+platform when the system-assigned identity is on); the token is for
+`https://cognitiveservices.azure.com/.default` and is refreshed before it expires.
+
+[[azure]]
+== Setting it up on Azure
+
+These steps create billable Azure resources. Ben approves them separately; nothing here is created
+by the code or the PR.
+
+. *A dedicated Azure OpenAI resource* for the public helper only, following Bookie's pattern
+  (`ka-bookie-public-swc`): for example *`ka-timmie-public-swc`* in *Sweden Central*
+  (`swedencentral`; gpt-live-1, version 2026-09-10, is also offered in `eastus2`), in its own
+  resource group or at least with its own budget:
++
+[source,bash]
+----
+az group create -n rg-timmie-public -l swedencentral
+az cognitiveservices account create -n ka-timmie-public-swc -g rg-timmie-public \
+  -l swedencentral --kind OpenAI --sku S0 --custom-domain ka-timmie-public-swc
+----
+. *Three deployments, each with a low quota* (the quota is the hard ceiling on spend whatever
+  happens to the app's limits):
+** `gpt-live-1` (model `gpt-live-1`, version `2026-09-10`): the voice;
+** a small chat model from the GPT-5 family or later (the chat request sends
+   `reasoning: { effort: 'low' }`), e.g. named `timmie-public-chat`;
+** `gpt-4o-mini-tts`: used once, offline, to record the greetings.
++
+[source,bash]
+----
+az cognitiveservices account deployment create -n ka-timmie-public-swc -g rg-timmie-public \
+  --deployment-name gpt-live-1 --model-name gpt-live-1 --model-version 2026-09-10 \
+  --model-format OpenAI --sku-name GlobalStandard --sku-capacity 1
+az cognitiveservices account deployment create -n ka-timmie-public-swc -g rg-timmie-public \
+  --deployment-name timmie-public-chat --model-name <chat-model> --model-version <version> \
+  --model-format OpenAI --sku-name GlobalStandard --sku-capacity 10
+az cognitiveservices account deployment create -n ka-timmie-public-swc -g rg-timmie-public \
+  --deployment-name gpt-4o-mini-tts --model-name gpt-4o-mini-tts --model-version <version> \
+  --model-format OpenAI --sku-name GlobalStandard --sku-capacity 1
+----
+. *Managed identity, not keys*: turn on the Timmie App Service's system-assigned identity and give
+  it *Cognitive Services OpenAI User* on this resource only. Then disable local (key)
+  authentication on the resource, or, if a key is needed, keep it in Key Vault as a Key Vault
+  reference, rotated on its own schedule.
++
+[source,bash]
+----
+az webapp identity assign -g <app-rg> -n <app>
+az role assignment create --assignee <principal-id-from-above> \
+  --role "Cognitive Services OpenAI User" \
+  --scope $(az cognitiveservices account show -n ka-timmie-public-swc -g rg-timmie-public --query id -o tsv)
+----
+. Keep the *default content filters* on. Diagnostic metrics to Application Insights are fine, but
+  no request/response logging.
+. *A monthly budget with alerts* (e.g. 50%, 80%, 100%) on the resource group.
+. *App Service settings*: `PUBLIC_TIMMIE_SECRET`, `PUBLIC_LIVE_ENDPOINT`, `PUBLIC_LIVE_DEPLOYMENT`,
+  `PUBLIC_AZURE_OPENAI_ENDPOINT`, `PUBLIC_TIMMIE_CHAT_DEPLOYMENT`, and, behind Front Door,
+  `PUBLIC_FRONT_DOOR_ID`.
+. *Optional, Cloudflare Turnstile*: create a Turnstile widget for gettimm.ie and timmie.knowall.ai
+  (mode *Managed*), then set `PUBLIC_TURNSTILE_SITE_KEY` and `PUBLIC_TURNSTILE_SECRET`.
+. *Record the greetings* (<<greetings>>), then commit the clips.
+. *Check it*: open the landing page signed out, tap Timmie, allow the microphone, ask a question and
+  hear him answer with captions; then try *Chat*. Run the red team below.
+
+[[greetings]]
+=== Recording the greetings
+
+Once the resource and its `gpt-4o-mini-tts` deployment exist, run once (with `az login`, or the
+key in the environment; neither is printed):
+
+[source,bash]
+----
+PUBLIC_AZURE_OPENAI_ENDPOINT=https://ka-timmie-public-swc.openai.azure.com \
+PUBLIC_TIMMIE_TTS_DEPLOYMENT=gpt-4o-mini-tts \
+bun scripts/generate-timmie-greetings.ts
+----
+
+It writes `public/timmie/greetings/<id>.mp3` (mono, 48 kbit/s, about 50 KB each) and lists them in
+`services/public-timmie/greeting-clips.ts`; commit both. GPT-Live's `vesper` is not a
+text-to-speech voice, so the clips use the closest one, `fable`, with British (RP) delivery
+instructions (`--voice` to change it). Change a greeting's text, then re-run it with
+`--only <id>`.
+
+== The voice: `vesper`
+
+GPT-Live's voices are `aster`, `beacon`, `cinder`, `marin`, `stone` and `vesper`; Bookie's `cedar`
+is not one of them. Recordings of each were classified by an audio model: `stone` and `vesper` come
+out as British (RP) male, `beacon` and `cinder` as American male, `marin` as female. `vesper` was
+judged British RP male, thirties, "clear, professional" consistently, so it is the default;
+`stone` (a little older, "confident") is the alternative. Set `PUBLIC_TIMMIE_VOICE` to change it.
+
+NOTE: The voice comparison and one end-to-end WebRTC test call (an audio-only offer, the sideband
+and the REST hangup) were run against OpenAI's own GPT-Live endpoint during development, before
+the rule that every agent uses Azure only and before Timmie's Azure resource existed. Nothing in
+the code can call the OpenAI API. Confirm the voice and the call flow on the Azure resource once it
+exists (see the PR's test plan).
+
+== Protocol references
+
+* OpenAI, *Connect a browser to GPT-Live* (WebRTC, server-placed session):
+  https://developers.openai.com/api/docs/guides/voice-webrtc
+* OpenAI, *Server-side controls* (the sideband WebSocket, `session.close`):
+  https://developers.openai.com/api/docs/guides/voice-server-controls
+* OpenAI API reference, *Create a Live WebRTC session* and *Hang up*:
+  https://developers.openai.com/api/reference/python/resources/live/methods/create ,
+  https://developers.openai.com/api/reference/python/resources/live/subresources/sessions/methods/hangup
+* Azure: GPT-Live is served on the unversioned v1 surface,
+  `https://<resource>.openai.azure.com/openai/v1/live/sessions`, with the deployment as the
+  session's model (KnowAll's agent-presence uses this over WebSocket). The same v1 paths are used
+  here for the WebRTC create, the sideband attach and the hangup.
+
+== Tests
+
+* `tests/unit/public-timmie/isolation.test.ts`: import graph, packages, environment variables,
+  the ESLint rule, and that the signed-in check sits outside the helper.
+* `tests/unit/public-timmie/prompt.test.ts`: prompt hardening, persona, no addresses in voice, and
+  that the knowledge still matches the pricing and landing pages.
+* `tests/unit/public-timmie/live.test.ts`: the audio-only offer, the fixed session (no delegation),
+  the watchdog event filter, and the hangup on sideband close or error, the time limit, tampering,
+  the visitor going quiet, no start, too many replies and the visitor ending it.
+* `tests/unit/public-timmie/pass.test.ts`: proof-of-work tiers, the 10-minute pass bound to IP and
+  user agent, the per-pass budget, the signed chain and its replay, reorder, edit and expiry
+  rejection, and the missing-secret refusal.
+* `tests/unit/public-timmie/config.test.ts`: the Front Door check on the client IP, the production
+  secret rules, Azure only (never the OpenAI API), and fail-closed configuration.
+* `tests/unit/public-timmie/azure.test.ts`: the chat request (no tools, not stored) and managed
+  identity before the key.
+* `tests/unit/public-timmie/{rate-limit,sanitize}.test.ts`: the limits, one call per IP, sanitising.
+* `tests/unit/public-timmie/greetings.test.ts`, `greeting-hook.test.ts`, `widget.test.ts`: the
+  greetings and their (optional) clips, once per session, the speaker control, the queued greeting,
+  "tap to hear", text only without a clip, the transport, and microphone permission detection.
+* `tests/unit/public-timmie/routes.test.ts`: status, kill switch, missing secret, Front Door 403,
+  passes, the signed chain end to end, limits, and that voice returns only the SDP answer and a
+  call key, allows one call per IP and hangs up a session that never starts.
+* `scripts/redteam-public-timmie.ts`: about 25 adversarial prompts against a running, configured
+  server with the real model: `bun scripts/redteam-public-timmie.ts http://localhost:3101 --out
+  /tmp/redteam.json`. Prints pass/fail only; keep the `--out` file outside the repository.
