@@ -243,8 +243,20 @@ Hosted Timmie is charged per user, in sats, as on the pricing page, and the agen
 * *Who counts:* each person with a time sheet in that month in a company Timmie is connected to.
   The worker sees this already, so it records monthly active resources per tenant in a usage
   table. No extra tracking in the web app.
-* *Billing:* a monthly invoice paid over Lightning, with the usage figures attached. A Microsoft
-  marketplace (transactable SaaS) listing could add fiat billing later.
+* *Who pays:* the organisation, never the individual. Per user is only how the amount is worked
+  out. People using Timmie never see a bill, an invoice or a wallet.
+* *Billing contact:* a `Timmie.Admin` sets the billing contact in a new *Settings > Billing* page,
+  which also shows this month's active users, the balance and past invoices.
+* *One bill a month* per organisation, with the usage figures attached. Ways to pay:
+** *Payment link:* the billing contact gets an email with a link to a payment page, which creates
+   a fresh Lightning invoice when opened. (A Lightning invoice expires, so we email the link, not
+   the invoice.)
+** *Prepaid balance:* the admin tops up sats in advance and each month's charge is taken from it,
+   with a warning when it runs low. No monthly chasing.
+** *Auto-pay:* the admin connects a wallet with Nostr Wallet Connect and a monthly spending limit,
+   and the bill is paid automatically.
+* *Fiat:* a Microsoft marketplace (transactable SaaS) listing could add card or invoice billing
+  later, again billed to the organisation.
 * *Unpaid:* after a grace period the worker skips the tenant and sets its heartbeat status to
   "Subscription inactive". Data in BC is untouched.
 * *Your own agent* costs nothing extra; self-hosted stays free.
@@ -255,6 +267,8 @@ Hosted Timmie is charged per user, in sats, as on the pricing page, and the agen
   Depends on how cheap idle is versus start-up time for a review.
 * Whether the BC extension should create the agent's app user itself from a setup page, which
   removes the fiddliest onboarding step.
+* Which ways to pay at launch. The payment link is the simplest; a prepaid balance is the least
+  chasing.
 * Trial terms: how long, and whether the agent is in the trial.
 * Whether the nudge endpoint is worth it at launch, or polling every few minutes is fine for the
   first customers.
