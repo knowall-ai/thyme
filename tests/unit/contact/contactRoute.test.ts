@@ -96,6 +96,37 @@ describe('request guards', () => {
     expect(clientIp(req)).toBe('198.51.100.9');
   });
 
+  describe('with FRONT_DOOR_ID set', () => {
+    beforeEach(() => {
+      vi.stubEnv('FRONT_DOOR_ID', 'FB60DCA5-0000-4000-8000-000000000001');
+    });
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it('trusts the socket IP from our Front Door (case-insensitive id)', () => {
+      const req = new Request('https://gettimm.ie', {
+        headers: {
+          'x-azure-socketip': '198.51.100.9',
+          'x-azure-fdid': 'fb60dca5-0000-4000-8000-000000000001',
+          'x-forwarded-for': '10.0.0.1:443',
+        },
+      });
+      expect(clientIp(req)).toBe('198.51.100.9');
+    });
+
+    it('ignores a socket IP from any other Front Door, or none', () => {
+      for (const fdid of ['00000000-0000-4000-8000-000000000000', undefined]) {
+        const headers: Record<string, string> = {
+          'x-azure-socketip': '198.51.100.9',
+          'x-forwarded-for': '1.2.3.4, 203.0.113.7:51234',
+        };
+        if (fdid) headers['x-azure-fdid'] = fdid;
+        expect(clientIp(new Request('https://gettimm.ie', { headers }))).toBe('203.0.113.7');
+      }
+    });
+  });
+
   it('caps the day and gives a slot back when it is released', () => {
     const now = Date.UTC(2026, 9, 25, 12);
     const reservations = [];

@@ -19,14 +19,23 @@ let daily = { day: '', used: 0 };
 
 /**
  * Best-effort client address. Behind Azure Front Door, `x-azure-socketip` is the address
- * that connected to Front Door, i.e. the visitor. Without it, App Service appends the
- * real peer as the last x-forwarded-for entry (as ip:port); earlier entries come from the
- * client and can be forged, so they're ignored. Someone reaching the App Service directly
- * could forge `x-azure-socketip` too, which is why the daily cap doesn't depend on it.
+ * that connected to Front Door, i.e. the visitor. (Not `x-azure-clientip`, which Front Door
+ * can derive from a client-supplied x-forwarded-for.) The App Service only accepts traffic
+ * from our Front Door, but as a second check, when `FRONT_DOOR_ID` is set the socket IP is
+ * trusted only on requests carrying that Front Door's `x-azure-fdid`. Without it, App
+ * Service appends the real peer as the last x-forwarded-for entry (as ip:port); earlier
+ * entries come from the client and can be forged, so they're ignored.
  */
+/** True unless FRONT_DOOR_ID is set and the request didn't come through that Front Door */
+function fromOurFrontDoor(req: Request): boolean {
+  const expected = process.env.FRONT_DOOR_ID?.trim().toLowerCase();
+  if (!expected) return true;
+  return req.headers.get('x-azure-fdid')?.trim().toLowerCase() === expected;
+}
+
 export function clientIp(req: Request): string {
   const socketIp = req.headers.get('x-azure-socketip')?.trim();
-  if (socketIp) return socketIp;
+  if (socketIp && fromOurFrontDoor(req)) return socketIp;
   const forwarded = req.headers.get('x-forwarded-for');
   if (forwarded) {
     const last = forwarded.split(',').at(-1)!.trim();

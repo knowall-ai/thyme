@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { buildCsp, isInvalidCompanyPath } from '@/proxy';
 
 describe('buildCsp', () => {
+  // MSAL keeps tokens in localStorage (msalConfig.ts), so this exact policy is what stops
+  // injected scripts reading them: don't relax this test to make a change pass
   it('allows scripts only by nonce in production', () => {
     const csp = buildCsp('abc123', false);
     const scriptSrc = csp.split('; ').find((d) => d.startsWith('script-src'));

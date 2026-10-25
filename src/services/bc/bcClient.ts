@@ -607,7 +607,11 @@ class BusinessCentralClient {
     // One company for the project and the names it's compared with
     const customBase = this.customApiBaseUrl;
     const [project, companyNames] = await Promise.all([
-      this.fetchCustomApi<BCProject>(`/projects(${projectId})`, {}, customBase),
+      this.fetchCustomApi<BCProject>(
+        `/projects(${requireSystemId(projectId, 'project')})`,
+        {},
+        customBase
+      ),
       this.getCompanyNames(),
     ]);
     return withBillToIsCompany(normalizeBCProject(project), companyNames);
@@ -655,14 +659,19 @@ class BusinessCentralClient {
    * Reads the project first for a fresh ETag, as BC requires If-Match for PATCH.
    */
   async updateProjectName(projectId: string, name: string): Promise<BCProject> {
-    const current = await this.fetchCustomApi<BCProject>(`/projects(${projectId})`);
-    const project = await this.fetchCustomApi<BCProject>(`/projects(${projectId})`, {
-      method: 'PATCH',
-      headers: {
-        'If-Match': current['@odata.etag'] || '*',
-      },
-      body: JSON.stringify({ displayName: name }),
-    });
+    const current = await this.fetchCustomApi<BCProject>(
+      `/projects(${requireSystemId(projectId, 'project')})`
+    );
+    const project = await this.fetchCustomApi<BCProject>(
+      `/projects(${requireSystemId(projectId, 'project')})`,
+      {
+        method: 'PATCH',
+        headers: {
+          'If-Match': current['@odata.etag'] || '*',
+        },
+        body: JSON.stringify({ displayName: name }),
+      }
+    );
     return normalizeBCProject(project);
   }
 
@@ -706,7 +715,7 @@ class BusinessCentralClient {
   }
 
   async getCustomer(customerId: string): Promise<BCCustomer> {
-    return this.fetch<BCCustomer>(`/customers(${customerId})`);
+    return this.fetch<BCCustomer>(`/customers(${requireSystemId(customerId, 'customer')})`);
   }
 
   // Employees
@@ -720,7 +729,7 @@ class BusinessCentralClient {
   }
 
   async getEmployee(employeeId: string): Promise<BCEmployee> {
-    return this.fetch<BCEmployee>(`/employees(${employeeId})`);
+    return this.fetch<BCEmployee>(`/employees(${requireSystemId(employeeId, 'employee')})`);
   }
 
   // Jobs (Legacy - use getProjects instead)
@@ -734,7 +743,7 @@ class BusinessCentralClient {
   }
 
   async getJob(jobId: string): Promise<BCJob> {
-    return this.fetch<BCJob>(`/jobs(${jobId})`);
+    return this.fetch<BCJob>(`/jobs(${requireSystemId(jobId, 'job')})`);
   }
 
   // Job Tasks - requires Timmie BC Extension
@@ -770,7 +779,7 @@ class BusinessCentralClient {
   }
 
   async getJobTask(jobTaskId: string): Promise<BCJobTask> {
-    return this.fetch<BCJobTask>(`/jobTasks(${jobTaskId})`);
+    return this.fetch<BCJobTask>(`/jobTasks(${requireSystemId(jobTaskId, 'job task')})`);
   }
 
   // Decode BC's OData enum encoding on planning-line fields so downstream code
@@ -1070,7 +1079,7 @@ class BusinessCentralClient {
       }
 
       // Use SystemId (GUID) as the key - this is the standard BC API pattern
-      const url = `${this.customApiBaseUrl}/jobPlanningLines(${id})`;
+      const url = `${this.customApiBaseUrl}/jobPlanningLines(${requireSystemId(id, 'planning line')})`;
 
       const updateBody: Record<string, unknown> = {};
       if (params.quantity !== undefined) {
@@ -1135,7 +1144,7 @@ class BusinessCentralClient {
       }
 
       // Use SystemId (GUID) as the key - this is the standard BC API pattern
-      const url = `${this.customApiBaseUrl}/jobPlanningLines(${id})`;
+      const url = `${this.customApiBaseUrl}/jobPlanningLines(${requireSystemId(id, 'planning line')})`;
 
       const headers: Record<string, string> = {
         Authorization: `Bearer ${token}`,
@@ -1240,7 +1249,9 @@ class BusinessCentralClient {
       const { ExtensionNotInstalledError } = await import('./timeEntryService');
       throw new ExtensionNotInstalledError();
     }
-    return this.customApiFetch<BCResource>(`/resources(${resourceId})`);
+    return this.customApiFetch<BCResource>(
+      `/resources(${requireSystemId(resourceId, 'resource')})`
+    );
   }
 
   /**
@@ -1446,17 +1457,20 @@ class BusinessCentralClient {
     updates: Partial<BCJobJournalLine>,
     etag: string
   ): Promise<BCJobJournalLine> {
-    return this.fetch<BCJobJournalLine>(`/jobJournalLines(${lineId})`, {
-      method: 'PATCH',
-      headers: {
-        'If-Match': etag,
-      },
-      body: JSON.stringify(updates),
-    });
+    return this.fetch<BCJobJournalLine>(
+      `/jobJournalLines(${requireSystemId(lineId, 'journal line')})`,
+      {
+        method: 'PATCH',
+        headers: {
+          'If-Match': etag,
+        },
+        body: JSON.stringify(updates),
+      }
+    );
   }
 
   async deleteJobJournalLine(lineId: string, etag: string): Promise<void> {
-    await this.fetch(`/jobJournalLines(${lineId})`, {
+    await this.fetch(`/jobJournalLines(${requireSystemId(lineId, 'journal line')})`, {
       method: 'DELETE',
       headers: {
         'If-Match': etag,
@@ -1618,13 +1632,16 @@ class BusinessCentralClient {
     updates: BCTimeSuggestionUpdate,
     etag?: string
   ): Promise<BCTimeSuggestion> {
-    return this.customApiFetch<BCTimeSuggestion>(`/timeSuggestions(${id})`, {
-      method: 'PATCH',
-      headers: {
-        'If-Match': etag || '*',
-      },
-      body: JSON.stringify(updates),
-    });
+    return this.customApiFetch<BCTimeSuggestion>(
+      `/timeSuggestions(${requireSystemId(id, 'time suggestion')})`,
+      {
+        method: 'PATCH',
+        headers: {
+          'If-Match': etag || '*',
+        },
+        body: JSON.stringify(updates),
+      }
+    );
   }
 
   // ============================================
@@ -1757,15 +1774,18 @@ class BusinessCentralClient {
     updates: Partial<Omit<BCProjectSourceLinkInput, 'jobNo'>>,
     etag?: string
   ): Promise<BCProjectSourceLink> {
-    return this.customApiFetch<BCProjectSourceLink>(`/projectSourceLinks(${id})`, {
-      method: 'PATCH',
-      headers: { 'If-Match': etag || '*' },
-      body: JSON.stringify(updates),
-    });
+    return this.customApiFetch<BCProjectSourceLink>(
+      `/projectSourceLinks(${requireSystemId(id, 'source link')})`,
+      {
+        method: 'PATCH',
+        headers: { 'If-Match': etag || '*' },
+        body: JSON.stringify(updates),
+      }
+    );
   }
 
   async deleteProjectSourceLink(id: string, etag?: string): Promise<void> {
-    await this.customApiFetch<void>(`/projectSourceLinks(${id})`, {
+    await this.customApiFetch<void>(`/projectSourceLinks(${requireSystemId(id, 'source link')})`, {
       method: 'DELETE',
       headers: { 'If-Match': etag || '*' },
     });
@@ -2041,7 +2061,9 @@ class BusinessCentralClient {
 
   /** Re-read one suggestion request (progress polling). */
   async getSuggestionRequest(id: string): Promise<BCSuggestionRequest> {
-    return this.customApiFetch<BCSuggestionRequest>(`/suggestionRequests(${id})`);
+    return this.customApiFetch<BCSuggestionRequest>(
+      `/suggestionRequests(${requireSystemId(id, 'suggestion request')})`
+    );
   }
 
   /**
