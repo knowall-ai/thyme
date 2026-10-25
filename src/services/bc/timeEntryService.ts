@@ -243,7 +243,7 @@ export const timeEntryService = {
 
   /**
    * Version stamp of the current timesheet as loaded: the latest lastModifiedDateTime
-   * across its lines and details (compared with Poppie's review to spot changes).
+   * across its lines and details (compared with the agent's review to spot changes).
    */
   getCurrentVersionStamp(): string | null {
     return computeVersionStamp(this._currentTimesheetLines, this._currentTimesheetDetails);

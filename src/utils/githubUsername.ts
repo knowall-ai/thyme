@@ -1,6 +1,6 @@
 /**
  * Each person's GitHub username, stored on their BC resource (Timmie BC Extension 1.21+), so
- * Poppie knows whose GitHub pull requests and issues are whose. (Their Azure DevOps user is
+ * the agent knows whose GitHub pull requests and issues are whose. (Their Azure DevOps user is
  * their Microsoft 365 sign-in, so Timmie doesn't ask for it.)
  *
  * A Timmie administrator can change anyone's and a person their own; BC decides and tells

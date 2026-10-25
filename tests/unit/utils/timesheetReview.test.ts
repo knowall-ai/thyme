@@ -257,19 +257,21 @@ describe('timesheet review requests', () => {
     expect(isOpenTimesheetReviewRequest({ status: 'Failed' })).toBe(false);
   });
 
-  it("says how far Poppie has got, or that it's queued", () => {
-    expect(timesheetReviewRequestText({ status: 'Running', progress: 'Checking lines…' })).toBe(
-      'Checking lines…'
+  it("says how far Timmie has got, or that it's queued", () => {
+    expect(
+      timesheetReviewRequestText('Timmie', { status: 'Running', progress: 'Checking lines…' })
+    ).toBe('Checking lines…');
+    expect(timesheetReviewRequestText('Timmie', { status: 'Running', progress: '' })).toBe(
+      'Reviewing…'
     );
-    expect(timesheetReviewRequestText({ status: 'Running', progress: '' })).toBe('Reviewing…');
-    expect(timesheetReviewRequestText({ status: 'Requested', progress: '' })).toBe(
-      'Queued: Poppie will look within 10 minutes.'
+    expect(timesheetReviewRequestText('Timmie', { status: 'Requested', progress: '' })).toBe(
+      'Queued: Timmie will look within 10 minutes.'
     );
-    expect(timesheetReviewRequestText({ status: 'Requested', progress: '' }, true)).toBe(
-      'Queued: Poppie will look within 10 minutes.'
+    expect(timesheetReviewRequestText('Timmie', { status: 'Requested', progress: '' }, true)).toBe(
+      'Queued: Timmie will look within 10 minutes.'
     );
-    expect(timesheetReviewRequestText({ status: 'Requested', progress: '' }, false)).toBe(
-      "Queued: Poppie will pick this up when she's back online."
+    expect(timesheetReviewRequestText('Timmie', { status: 'Requested', progress: '' }, false)).toBe(
+      "Queued: Timmie will pick this up when it's back online."
     );
   });
 });

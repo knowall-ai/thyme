@@ -246,13 +246,12 @@ describe('bcClient plan reviews', () => {
       body: JSON.stringify({
         error: {
           code: 'Application_DialogException',
-          message:
-            'The plan changed since Poppie looked. Ask her to re-review.  CorrelationId: abc',
+          message: 'The plan changed since Timmie looked. Ask it to re-review.  CorrelationId: abc',
         },
       }),
     }));
     const error = await bcClient.applyPlanReviewFinding(FINDING_ID).catch((e) => e);
-    expect(bcErrorText(error)).toBe('The plan changed since Poppie looked. Ask her to re-review.');
+    expect(bcErrorText(error)).toBe('The plan changed since Timmie looked. Ask it to re-review.');
   });
 
   it('asks for an extension update when the action is missing (404)', async () => {

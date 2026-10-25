@@ -37,7 +37,7 @@ export interface AllocationBlock {
   totalHours: number;
   /**
    * The line's hours before quarter-hour rounding (hoursPerDay is rounded for the grid).
-   * Poppie's plan hash is built from these, so Timmie can tell whether her review is current.
+   * the agent's plan hash is built from these, so Timmie can tell whether its review is current.
    */
   rawHours: number;
   color: string;

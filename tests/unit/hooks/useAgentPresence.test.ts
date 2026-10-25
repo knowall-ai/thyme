@@ -19,7 +19,7 @@ describe('useAgentPresence', () => {
 
   it('is online with a fresh heartbeat', async () => {
     getAgentHeartbeats.mockResolvedValue([
-      { id: '1', agentName: 'POPPIE', lastSeenAt: new Date(Date.now() - 30_000).toISOString() },
+      { id: '1', agentName: 'TIMMIE', lastSeenAt: new Date(Date.now() - 30_000).toISOString() },
     ]);
     const { result } = renderHook(() => useAgentPresence(true));
     await waitFor(() => expect(result.current.isAvailable).toBe(true));
@@ -43,7 +43,7 @@ describe('useAgentPresence', () => {
   it('goes offline when the heartbeat stops, re-reading every minute', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const seen = new Date(Date.now() - 60_000).toISOString();
-    getAgentHeartbeats.mockResolvedValue([{ id: '1', agentName: 'POPPIE', lastSeenAt: seen }]);
+    getAgentHeartbeats.mockResolvedValue([{ id: '1', agentName: 'TIMMIE', lastSeenAt: seen }]);
     const { result } = renderHook(() => useAgentPresence(true));
     await waitFor(() => expect(result.current.state).toBe('online'));
 

@@ -30,7 +30,7 @@ interface TimeEntriesStore {
   // Week the missing timesheet is for, captured with the resource so Create can't drift
   missingTimesheetWeek: Date | null;
   // When the current timesheet last changed: BC's latest timestamp when loaded, moved to
-  // "now" by edits made here (compared with Poppie's review to tell it's out of date)
+  // "now" by edits made here (compared with the agent's review to tell it's out of date)
   timesheetVersionStamp: string | null;
 
   // Entry operations

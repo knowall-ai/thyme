@@ -24,11 +24,11 @@ import {
 import { useTeammateFromUrl } from '@/hooks/useTeammateFromUrl';
 import { useAuth } from '@/services/auth';
 import { Button, Card, WeekNavigation, ExtensionPreviewWrapper } from '@/components/ui';
-import { PoppieReviewPanel } from '@/components/review';
+import { AgentReviewPanel } from '@/components/review';
 import { BillableTargetBadge } from '@/components/targets';
 import { TimeEntryCell } from './TimeEntryCell';
 import { TimeEntryModal } from './TimeEntryModal';
-import { PoppieSuggestionsPanel } from './PoppieSuggestionsPanel';
+import { AgentSuggestionsPanel } from './AgentSuggestionsPanel';
 import type { TimeEntry } from '@/types';
 import {
   getWeekDays,
@@ -124,15 +124,15 @@ export function WeeklyTimesheet() {
   // Pick a random quote on mount
   const quote = useMemo(() => getRandomQuote(), []);
 
-  // Poppie's AI review of your own timesheet, so you can amend it before it's approved
-  const poppieReview = useTimesheetReview(currentTimesheet?.number, undefined, undefined, {
+  // the agent's AI review of your own timesheet, so you can amend it before it's approved
+  const agentReview = useTimesheetReview(currentTimesheet?.number, undefined, undefined, {
     submitted: timesheetStatus === 'Submitted' || timesheetStatus === 'Partially Submitted',
     versionStamp: timesheetVersionStamp,
     enabled: !isViewingTeammate,
   });
-  const hasPoppieReview = poppieReview.status === 'current' || poppieReview.status === 'outOfDate';
+  const hasAgentReview = agentReview.status === 'current' || agentReview.status === 'outOfDate';
 
-  // Names a timesheet line in Poppie's notes by its project and description
+  // Names a timesheet line in the agent's notes by its project and description
   const getReviewLineLabel = (lineNo: number): string | undefined => {
     const entry = entries.find((e) => e.bcTimeSheetLineNo === lineNo);
     if (!entry) return undefined;
@@ -143,7 +143,7 @@ export function WeeklyTimesheet() {
   // Determine if editing is allowed
   const canEdit = !isViewingTeammate && isTimesheetEditable();
 
-  // Why Poppie's suggestions can't be added to the timesheet on screen
+  // Why the agent's suggestions can't be added to the timesheet on screen
   const suggestionsReadOnlyReason = isViewingTeammate
     ? `Read-only: this is ${selectedTeammate.displayName}'s timesheet`
     : timesheetStatus === 'Approved'
@@ -670,10 +670,10 @@ Thank you!`)}`}
           </div>
         )}
 
-        {/* Poppie's review of the timesheet on screen */}
+        {/* the agent's review of the timesheet on screen */}
         {currentTimesheet && !isViewingTeammate && (
-          <PoppieReviewPanel
-            result={poppieReview}
+          <AgentReviewPanel
+            result={agentReview}
             variant="submitter"
             lineLabel={getReviewLineLabel}
             collapsible
@@ -762,7 +762,7 @@ Thank you!`)}`}
                     onEditEntry={handleEditEntry}
                     onMoveEntry={handleMoveEntry}
                     readOnly={!canEdit}
-                    reviewNotesByLine={hasPoppieReview ? poppieReview.notesByLine : undefined}
+                    reviewNotesByLine={hasAgentReview ? agentReview.notesByLine : undefined}
                     billableTarget={billableTarget}
                   />
                 );
@@ -795,8 +795,8 @@ Thank you!`)}`}
           )}
         </Card>
 
-        {/* Poppie's suggested entries for this week */}
-        <PoppieSuggestionsPanel
+        {/* the agent's suggested entries for this week */}
+        <AgentSuggestionsPanel
           resourceNo={selectedTeammate?.resourceNo ?? currentTimesheet?.resourceNo ?? null}
           weekStart={currentWeekStart}
           entries={entries}

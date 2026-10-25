@@ -6,7 +6,7 @@ import type { BCSuggestionRequest } from '@/types';
 import { formatDate, getWeekEnd } from '@/utils';
 import { isOpenRequest } from '@/utils/suggestionRequests';
 
-// Poppie updates progress as she checks each source; every few seconds keeps it live
+// the agent updates progress as it checks each source; every few seconds keeps it live
 export const REQUEST_POLL_INTERVAL_MS = 5 * 1000;
 
 export interface SuggestionRequestState {
@@ -22,8 +22,8 @@ export interface SuggestionRequestState {
 }
 
 /**
- * Lets the user ask Poppie to generate suggestions for the resource and week on screen,
- * and follows the request while she works: polls it every few seconds while it's open,
+ * Lets the user ask the agent to generate suggestions for the resource and week on screen,
+ * and follows the request while it works: polls it every few seconds while it's open,
  * and calls onFinished when it reaches Done or Failed (so the suggestions can refresh).
  * Hidden (canRequest false) on extensions without the suggestionRequests API, and for
  * people BC says may not request for this resource.
@@ -78,7 +78,7 @@ export function useSuggestionRequest(
     })();
   }, [resourceNo, fromDate, toDate]);
 
-  // Follow an open request until Poppie finishes it
+  // Follow an open request until the agent finishes it
   const openId = request && isOpenRequest(request) ? request.id : null;
   useEffect(() => {
     if (!openId) return;
@@ -130,7 +130,7 @@ export function useSuggestionRequest(
         setError(
           err instanceof Error && /not allowed/i.test(err.message)
             ? "You can't request suggestions for this timesheet."
-            : "Couldn't ask Poppie for suggestions. Please try again."
+            : `Couldn't ask ${agentName} for suggestions. Please try again.`
         );
       }
     } finally {

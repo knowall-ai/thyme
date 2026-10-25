@@ -215,7 +215,7 @@ describe('useTimesheetReview', () => {
     expect(result.current.status).toBe('awaiting');
     expect(getTimesheetReviews).toHaveBeenCalledTimes(1);
 
-    // Poppie reviews it before the next check
+    // the agent reviews it before the next check
     getTimesheetReviews.mockResolvedValue([review('TS0001', 7)]);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(REVIEW_REFRESH_INTERVAL_MS);
@@ -293,7 +293,7 @@ const reviewRequest = (
   ...overrides,
 });
 
-describe('useTimesheetReview: asking Poppie to look again', () => {
+describe('useTimesheetReview: asking Timmie to look again', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useTimesheetReviewStore.getState().reset();
@@ -375,7 +375,7 @@ describe('useTimesheetReview: asking Poppie to look again', () => {
     expect(createTimesheetReviewRequest).toHaveBeenCalledWith('TS0001');
     expect(result.current.request?.status).toBe('Requested');
 
-    // Poppie starts on it
+    // the agent starts on it
     getTimesheetReviewRequests.mockResolvedValue([
       reviewRequest('Running', { progress: 'Checking the lines…' }),
     ]);
@@ -415,7 +415,7 @@ describe('useTimesheetReview: asking Poppie to look again', () => {
 
     getTimesheetReviewRequests.mockResolvedValue([]);
     getTimesheetReviewRequest.mockResolvedValue(
-      reviewRequest('Failed', { errorMessage: 'Poppie could not read the timesheet.' })
+      reviewRequest('Failed', { errorMessage: 'Timmie could not read the timesheet.' })
     );
     await act(async () => {
       await vi.advanceTimersByTimeAsync(REVIEW_REQUEST_POLL_MS);
@@ -423,7 +423,7 @@ describe('useTimesheetReview: asking Poppie to look again', () => {
     expect(result.current.request).toEqual(
       expect.objectContaining({
         status: 'Failed',
-        errorMessage: 'Poppie could not read the timesheet.',
+        errorMessage: 'Timmie could not read the timesheet.',
       })
     );
     expect(getTimesheetReviews).toHaveBeenCalledTimes(1);
@@ -458,11 +458,11 @@ describe('useTimesheetReview: asking Poppie to look again', () => {
       new Error('BC API Error (403): You are not allowed to do this')
     );
     await expect(result.current.requestReview()).rejects.toThrow(
-      "You can't ask Poppie to review this timesheet."
+      "You can't ask Timmie to review this timesheet."
     );
     createTimesheetReviewRequest.mockRejectedValue(new Error('BC API Error (500)'));
     await expect(result.current.requestReview()).rejects.toThrow(
-      "Couldn't ask Poppie to look again. Please try again."
+      "Couldn't ask Timmie to look again. Please try again."
     );
     // Only a duplicate refusal goes looking for someone else's request
     expect(getTimesheetReviewRequests).not.toHaveBeenCalledWith(['TS0001']);

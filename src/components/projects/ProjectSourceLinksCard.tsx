@@ -1,4 +1,5 @@
 'use client';
+import { useAgentName } from '@/hooks/useAgentSettingsStore';
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import toast from 'react-hot-toast';
@@ -49,12 +50,14 @@ const EMPTY_DRAFT: Draft = { type: 'GitHubRepo', value: '', jobTaskNo: '', useMo
 
 /**
  * "Linked sources" on the project page: the repos, DevOps projects, meeting keywords and
- * attendee domains whose time belongs to this project, which Poppie uses to map her time
+ * attendee domains whose time belongs to this project, which the agent uses to map its time
  * suggestions. Timmie administrators and the project's manager can add, edit and remove them;
  * everyone else sees them read-only. Hidden when the Timmie BC Extension has no
  * projectSourceLinks API (older than 1.20).
  */
 export function ProjectSourceLinksCard() {
+  const agentName = useAgentName();
+
   const { project, tasks } = useProjectDetailsStore();
   const { selectedCompany } = useCompanyStore();
   const jobNo = project?.code ?? '';
@@ -112,7 +115,7 @@ export function ProjectSourceLinksCard() {
   const taskName = useMemo(() => new Map(tasks.map((t) => [t.code, t.name])), [tasks]);
   const taskOptions = useMemo(
     () => [
-      { value: '', label: 'Let Poppie pick the task' },
+      { value: '', label: `Let ${agentName} pick the task` },
       ...tasks.map((t) => ({ value: t.code, label: `${t.code} - ${t.name}` })),
     ],
     [tasks]
@@ -269,7 +272,7 @@ export function ProjectSourceLinksCard() {
             : 'Time goes to the task named after the month (e.g. “Block 7 - October”).'
           : draft.jobTaskNo
             ? 'Time always goes to this task.'
-            : "Poppie picks the month's block if the project has them, otherwise its only task."}
+            : `${agentName} picks the month's block if the project has them, otherwise its only task.`}
       </p>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" size="sm" onClick={cancel} disabled={saving}>
@@ -294,7 +297,7 @@ export function ProjectSourceLinksCard() {
           <h2 className="text-lg font-semibold text-white">Linked sources</h2>
           <p className="text-dark-400 mt-1 text-sm">
             Repos, DevOps projects, meeting keywords and attendee domains whose time belongs to this
-            project. Poppie uses them to put suggested time here.
+            project. {agentName} uses them to put suggested time here.
           </p>
         </div>
         {canEdit && links !== undefined && links !== null && editing === null && (
@@ -361,7 +364,7 @@ export function ProjectSourceLinksCard() {
                         {link.learned && (
                           <span
                             className="inline-flex shrink-0 items-center gap-1 rounded-full bg-purple-500/15 px-2 py-0.5 text-xs text-purple-300"
-                            title="Poppie learned this from approved time. Edit it to make it yours."
+                            title={`${agentName} learned this from approved time. Edit it to make it yours.`}
                           >
                             <SparklesIcon className="h-3 w-3" aria-hidden="true" />
                             Learned
@@ -375,7 +378,7 @@ export function ProjectSourceLinksCard() {
                           ? `${link.jobTaskNo}${taskName.get(link.jobTaskNo) ? ` - ${taskName.get(link.jobTaskNo)}` : ''}`
                           : link.useMonthlyBlock
                             ? "The month's block"
-                            : 'Poppie picks the task'}
+                            : `${agentName} picks the task`}
                       </div>
                       {link.jobTaskNo && link.useMonthlyBlock && (
                         <div className="text-dark-400">or the month&apos;s block</div>

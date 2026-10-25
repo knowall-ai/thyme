@@ -1,4 +1,5 @@
 'use client';
+import { useAgentName } from '@/hooks/useAgentSettingsStore';
 
 import { useEffect, useId, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
@@ -17,10 +18,12 @@ import type { BCResource } from '@/types';
 
 /**
  * Settings card where people set their own GitHub username (on their BC resource in the
- * selected company), so Poppie can suggest time for their pull requests and issues. Hidden
+ * selected company), so the agent can suggest time for their pull requests and issues. Hidden
  * when they have no resource here or the Timmie BC Extension predates GitHub usernames (1.21).
  */
 export function ConnectedAccountsSettings() {
+  const agentName = useAgentName();
+
   const inputId = useId();
   const { account } = useAuth();
   const { companyVersion } = useCompanyStore();
@@ -91,7 +94,7 @@ export function ConnectedAccountsSettings() {
         <h2 className="text-lg font-semibold text-white">Connected accounts</h2>
       </div>
       <p className="text-dark-400 mb-4 text-sm">
-        So Poppie can suggest time for your work outside Timmie. Saved on your resource in this
+        So {agentName} can suggest time for your work outside Timmie. Saved on your resource in this
         company.
       </p>
 

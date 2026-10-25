@@ -1,3 +1,4 @@
+import { useAgentName } from './useAgentSettingsStore';
 import { useCallback, useEffect, useMemo } from 'react';
 import type { BCTimesheetReview, BCTimesheetReviewLine, BCTimesheetReviewRequest } from '@/types';
 import {
@@ -44,19 +45,19 @@ export interface TimesheetReviewResult {
   currentStamp: string | null;
   /** The latest "look again" request: an open one, or one that failed */
   request: BCTimesheetReviewRequest | null;
-  /** Whether "Ask Poppie to look again" can be offered (the extension has requests, and there's a review) */
+  /** Whether "Ask the agent to look again" can be offered (the extension has requests, and there's a review) */
   canRequestReview: boolean;
-  /** Ask Poppie to look again now. Throws a message fit to show. */
+  /** Ask the agent to look again now. Throws a message fit to show. */
   requestReview: () => Promise<void>;
 }
 
 /**
- * Poppie's latest review of a timesheet, and whether it still matches the timesheet.
+ * the agent's latest review of a timesheet, and whether it still matches the timesheet.
  *
  * `lines` and `details` are the timesheet's records as loaded: the latest of their
  * lastModifiedDateTime values is compared with the review's versionStamp to tell when
- * the timesheet has changed since Poppie looked. Reviews are fetched in batches across
- * every timesheet on screen and re-checked while any of them is waiting on Poppie.
+ * the timesheet has changed since the agent looked. Reviews are fetched in batches across
+ * every timesheet on screen and re-checked while any of them is waiting on the agent.
  */
 export function useTimesheetReview(
   timeSheetNo: string | null | undefined,
@@ -64,6 +65,7 @@ export function useTimesheetReview(
   details: Stamped | undefined,
   { submitted, versionStamp, enabled = true, versionReady = true }: UseTimesheetReviewOptions
 ): TimesheetReviewResult {
+  const agentName = useAgentName();
   const available = useTimesheetReviewStore((s) => s.available);
   const cached = useTimesheetReviewStore((s) => (timeSheetNo ? s.reviews[timeSheetNo] : undefined));
   const failed = useTimesheetReviewStore((s) => (timeSheetNo ? !!s.failed[timeSheetNo] : false));
@@ -116,8 +118,8 @@ export function useTimesheetReview(
   const notesByLine = useMemo(() => groupNotesByLine(notes), [notes]);
 
   const requestReview = useCallback(async () => {
-    if (timeSheetNo) await askForReview(timeSheetNo);
-  }, [timeSheetNo, askForReview]);
+    if (timeSheetNo) await askForReview(timeSheetNo, agentName);
+  }, [timeSheetNo, askForReview, agentName]);
 
   return {
     status,

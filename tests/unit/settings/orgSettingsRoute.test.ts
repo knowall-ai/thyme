@@ -56,7 +56,7 @@ async function put(token: string, body: unknown) {
   );
 }
 
-const POPPIE = { kind: 'custom', name: 'Poppie' };
+const CUSTOM_AGENT = { kind: 'custom', name: 'Poppie' };
 
 beforeEach(() => {
   vi.stubEnv('NEXT_PUBLIC_AZURE_CLIENT_ID', CLIENT_ID);
@@ -81,7 +81,7 @@ describe('GET /api/org-settings', () => {
   it("returns the organisation's own agent, and canEdit for admins", async () => {
     await store.setAgent(CONTOSO, { kind: 'custom', name: 'Poppie' }, 'x');
     const response = await get(await idToken(CONTOSO, [TIMMIE_ADMIN_ROLE]));
-    expect(await response.json()).toEqual({ agent: POPPIE, canEdit: true });
+    expect(await response.json()).toEqual({ agent: CUSTOM_AGENT, canEdit: true });
   });
 
   it("never returns another organisation's settings", async () => {
@@ -117,8 +117,8 @@ describe('PUT /api/org-settings', () => {
       agent: { kind: 'custom', name: '  Poppie  ' },
     });
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ agent: POPPIE, canEdit: true });
-    expect(await store.getAgent(CONTOSO)).toEqual(POPPIE);
+    expect(await response.json()).toEqual({ agent: CUSTOM_AGENT, canEdit: true });
+    expect(await store.getAgent(CONTOSO)).toEqual(CUSTOM_AGENT);
   });
 
   it("switches back to Timmie's agent, whatever name is sent", async () => {
@@ -129,7 +129,7 @@ describe('PUT /api/org-settings', () => {
   });
 
   it('refuses a user without the Timmie.Admin role', async () => {
-    const response = await put(await idToken(CONTOSO, ['Something.Else']), { agent: POPPIE });
+    const response = await put(await idToken(CONTOSO, ['Something.Else']), { agent: CUSTOM_AGENT });
     expect(response.status).toBe(403);
     expect(await store.getAgent(CONTOSO)).toBeNull();
   });

@@ -7,7 +7,7 @@ import {
 import { TIMMIE_AGENT, type AgentSettings } from '@/utils/agentSettings';
 
 /**
- * The organisation's AI agent (Timmie's, or its own such as Poppie), loaded once per
+ * The organisation's AI agent (Timmie's, or its own such as the agent), loaded once per
  * session after the organisation is approved. Until it loads, or if it can't, Timmie's
  * agent is assumed.
  */
@@ -46,7 +46,7 @@ export const useAgentSettingsStore = create<AgentSettingsStore>((set, get) => ({
   },
 }));
 
-/** The organisation's agent's name, e.g. "Timmie" or "Poppie" */
+/** The organisation's agent's name, e.g. "Timmie" or "the agent" */
 export function useAgentName(): string {
   return useAgentSettingsStore((state) => state.agent.name);
 }

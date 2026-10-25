@@ -9,12 +9,12 @@ interface ReviewerLookups {
 }
 
 /**
- * Works out which directory user an AI reviewer is from the name on its reviews (e.g. "Poppie").
+ * Works out which directory user an AI reviewer is from the name on its reviews (e.g. "the agent").
  * Agents usually have an Entra account named after them, sometimes with a surname
- * ("Poppie Contoso"), so:
+ * ("the agent Contoso"), so:
  * 1. exactly one user whose display name is the reviewer name -> that user;
  * 2. otherwise exactly one user whose display name starts with the reviewer name as a whole
- *    word ("Poppie ..." but not "Poppies") -> that user;
+ *    word ("the agent ..." but not "Agents") -> that user;
  * 3. otherwise null (ambiguous or unknown - callers show the initial).
  * Throws if Graph is unreachable so the caller doesn't cache a guess.
  */

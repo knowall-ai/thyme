@@ -83,7 +83,7 @@ describe('agentPresence', () => {
 });
 
 describe('offlineText', () => {
-  it('says when Poppie was last seen', () => {
+  it('says when the agent was last seen', () => {
     expect(offlineText('Poppie', new Date(now - 2 * 3_600_000), new Date(now))).toBe(
       'Poppie is offline (last seen about 2 hours ago)'
     );

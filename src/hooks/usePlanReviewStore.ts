@@ -13,7 +13,7 @@ import { bcClient } from '@/services/bc';
 import { isOpenPlanReviewRequest, pickLatestPlanReviews, planReviewKey } from '@/utils';
 import { useCompanyStore } from './useCompanyStore';
 
-// Poppie sweeps changed plans on Thursdays; every couple of minutes is plenty to pick that up
+// the agent sweeps changed plans on Thursdays; every couple of minutes is plenty to pick that up
 export const PLAN_REVIEW_REFRESH_INTERVAL_MS = 2 * 60 * 1000;
 // While someone's request is open, follow it every few seconds (as Request suggestions does)
 export const PLAN_REVIEW_REQUEST_POLL_MS = 5 * 1000;
@@ -48,11 +48,12 @@ interface PlanReviewStore {
    * left alone unless `retry` is set.
    */
   loadChanges: (entryNos: number[], options?: { retry?: boolean }) => Promise<void>;
-  /** Ask Poppie to (re-)review a subject-week. Throws with a message to show. */
+  /** Ask the agent to (re-)review a subject-week. Throws with a message to show. */
   requestReview: (
     subjectType: PlanReviewSubjectType,
     subjectNo: string,
-    weekStart: string
+    weekStart: string,
+    agentName: string
   ) => Promise<void>;
   /**
    * Apply a finding's changes: BC does it in one transaction (bcClient.applyPlanReviewFinding).
@@ -242,7 +243,7 @@ export const usePlanReviewStore = create<PlanReviewStore>((set, get) => ({
     }
   },
 
-  requestReview: async (subjectType, subjectNo, weekStart) => {
+  requestReview: async (subjectType, subjectNo, weekStart, agentName) => {
     const key = planReviewKey(subjectType, subjectNo, weekStart);
     const startedIn = companyKey();
     const isCurrent = () => companyKey() === startedIn;
@@ -267,8 +268,8 @@ export const usePlanReviewStore = create<PlanReviewStore>((set, get) => ({
       }
       throw new Error(
         error instanceof Error && /not allowed|permission/i.test(error.message)
-          ? "You can't ask Poppie to review this plan."
-          : "Couldn't ask Poppie to review. Please try again."
+          ? `You can't ask ${agentName} to review this plan.`
+          : `Couldn't ask ${agentName} to review. Please try again.`
       );
     }
   },

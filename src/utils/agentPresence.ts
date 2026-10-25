@@ -37,7 +37,7 @@ export function agentPresence(
   };
 }
 
-/** "Poppie is offline (last seen 2 hours ago)", for the disabled Request button. */
+/** "the agent is offline (last seen 2 hours ago)", for the disabled Request button. */
 export function offlineText(
   agentName: string,
   lastSeenAt: Date | null,

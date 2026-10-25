@@ -1,4 +1,5 @@
 'use client';
+import { useAgentName } from '@/hooks/useAgentSettingsStore';
 
 import {
   useCallback,
@@ -17,7 +18,7 @@ import {
   formatTime,
   TIMESHEET_STATUS_COLORS,
 } from '@/utils';
-import { PoppieLineNotes } from '@/components/review';
+import { AgentLineNotes } from '@/components/review';
 
 // Re-exported from its old home, where its tests import it (the Plan's day notes popover
 // uses it from @/utils too)
@@ -61,6 +62,8 @@ export function TimeEntryDetailsPopover({
   onMouseLeave,
   onBlur,
 }: TimeEntryDetailsPopoverProps) {
+  const agentName = useAgentName();
+
   const popoverRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
 
@@ -166,8 +169,10 @@ export function TimeEntryDetailsPopover({
 
       {reviewNotes && reviewNotes.length > 0 && (
         <div className="border-dark-700 mt-2 border-t pt-2">
-          <p className="text-dark-400 text-[11px] font-medium tracking-wide uppercase">Poppie</p>
-          <PoppieLineNotes notes={reviewNotes} />
+          <p className="text-dark-400 text-[11px] font-medium tracking-wide uppercase">
+            {agentName}
+          </p>
+          <AgentLineNotes notes={reviewNotes} />
         </div>
       )}
     </div>,

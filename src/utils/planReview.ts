@@ -17,7 +17,7 @@ import type { VerdictDisplay } from './timesheetReview';
 // Labels
 // ============================================
 
-/** The hash a review header carries while Poppie is still writing it (never a real review) */
+/** The hash a review header carries while the agent is still writing it (never a real review) */
 export const PLAN_REVIEW_PENDING_HASH = 'PENDING';
 
 /** SHA-256 of the empty string: the plan hash of a week with no planning lines */
@@ -106,7 +106,7 @@ export async function sha256Hex(text: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-/** A subject-week's planHash, the version stamp Poppie puts on her review */
+/** A subject-week's planHash, the version stamp the agent puts on its review */
 export function computePlanHash(entries: PlanHashEntry[]): Promise<string> {
   return sha256Hex(canonicalPlanText(entries));
 }
@@ -309,14 +309,14 @@ export function pickLatestPlanReviews(reviews: BCPlanReview[]): Record<string, B
   return latest;
 }
 
-/** Requested or Running: Poppie hasn't finished it yet */
+/** Requested or Running: the agent hasn't finished it yet */
 export function isOpenPlanReviewRequest(request: Pick<BCPlanReviewRequest, 'status'>): boolean {
   return request.status === 'Requested' || request.status === 'Running';
 }
 
 /**
  * Where a subject-week's review stands:
- * - awaiting: someone asked Poppie to (re-)review it and she hasn't finished
+ * - awaiting: someone asked the agent to (re-)review it and it hasn't finished
  * - none: never reviewed
  * - outOfDate: the plan changed after the review (its hash differs)
  * - current: the review describes the plan as it is now (or the hash isn't known yet)
@@ -418,7 +418,7 @@ export function formatPlanReviewWeekLabel(summary: PlanReviewWeekSummary): strin
   return worstVerdict === 'Query' ? `${worstCount} need changes` : `${worstCount} to check`;
 }
 
-/** A request's state in a few words: "Queued…", or Poppie's progress while she works */
+/** A request's state in a few words: "Queued…", or the agent's progress while it works */
 export function planReviewRequestText(
   request: Pick<BCPlanReviewRequest, 'status' | 'progress'>
 ): string {
@@ -430,7 +430,7 @@ export function planReviewRequestText(
 // Findings
 // ============================================
 
-/** Findings most severe first, then in Poppie's order */
+/** Findings most severe first, then in the agent's order */
 export function sortPlanReviewLines(lines: BCPlanReviewLine[]): BCPlanReviewLine[] {
   return [...lines].sort(
     (a, b) => severityRank(a.severity) - severityRank(b.severity) || a.lineNo - b.lineNo

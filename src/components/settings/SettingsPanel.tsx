@@ -130,7 +130,7 @@ export function SettingsPanel() {
         </div>
       </Card>
 
-      {/* The user's own GitHub username, for Poppie (Timmie BC Extension 1.21+) */}
+      {/* The user's own GitHub username, for the agent (Timmie BC Extension 1.21+) */}
       <ConnectedAccountsSettings />
 
       {/* Company Information */}

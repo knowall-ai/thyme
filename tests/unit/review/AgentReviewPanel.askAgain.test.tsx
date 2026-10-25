@@ -11,7 +11,7 @@ vi.mock('@/services/auth/reviewerIdentity', () => ({
   useReviewerPhoto: () => null,
 }));
 
-import { PoppieReviewPanel } from '@/components/review/PoppieReviewPanel';
+import { AgentReviewPanel } from '@/components/review/AgentReviewPanel';
 
 const request = (
   status: BCTimesheetReviewRequest['status'],
@@ -51,41 +51,41 @@ function result(overrides: Partial<TimesheetReviewResult> = {}): TimesheetReview
   };
 }
 
-const button = () => screen.queryByRole('button', { name: 'Ask Poppie to look again' });
+const button = () => screen.queryByRole('button', { name: 'Ask Timmie to look again' });
 
-describe('PoppieReviewPanel: Ask Poppie to look again', () => {
+describe('AgentReviewPanel: Ask Timmie to look again', () => {
   beforeEach(() => {
     presence.mockReturnValue({ isAvailable: true, state: 'online', lastSeenAt: null });
   });
 
   it('offers the button on an out-of-date review, and says so in the banner', () => {
-    render(<PoppieReviewPanel result={result()} variant="submitter" />);
+    render(<AgentReviewPanel result={result()} variant="submitter" />);
     expect(button()).toBeInTheDocument();
     expect(
       screen.getByText(
-        'This timesheet changed after Poppie reviewed it. Ask her to look again, or she will once it’s resubmitted.'
+        'This timesheet changed after Timmie reviewed it. Ask it to look again, or it will once it’s resubmitted.'
       )
     ).toBeInTheDocument();
   });
 
   it('offers it on a current review too, as the plan does', () => {
-    render(<PoppieReviewPanel result={result({ status: 'current' })} variant="approver" />);
+    render(<AgentReviewPanel result={result({ status: 'current' })} variant="approver" />);
     expect(button()).toBeInTheDocument();
   });
 
   it('hides the button, and keeps the old banner, on an extension without requests', () => {
-    render(<PoppieReviewPanel result={result({ canRequestReview: false })} variant="submitter" />);
+    render(<AgentReviewPanel result={result({ canRequestReview: false })} variant="submitter" />);
     expect(button()).not.toBeInTheDocument();
     expect(
       screen.getByText(
-        'This timesheet changed after Poppie reviewed it. Poppie will take another look once it’s resubmitted.'
+        'This timesheet changed after Timmie reviewed it. Timmie will take another look once it’s resubmitted.'
       )
     ).toBeInTheDocument();
   });
 
   it('asks when clicked', async () => {
     const value = result();
-    render(<PoppieReviewPanel result={value} variant="submitter" />);
+    render(<AgentReviewPanel result={value} variant="submitter" />);
     fireEvent.click(button()!);
     await waitFor(() => expect(value.requestReview).toHaveBeenCalledTimes(1));
   });
@@ -94,40 +94,40 @@ describe('PoppieReviewPanel: Ask Poppie to look again', () => {
     const value = result({
       requestReview: vi
         .fn()
-        .mockRejectedValue(new Error("You can't ask Poppie to review this timesheet.")),
+        .mockRejectedValue(new Error("You can't ask Timmie to review this timesheet.")),
     });
-    render(<PoppieReviewPanel result={value} variant="submitter" />);
+    render(<AgentReviewPanel result={value} variant="submitter" />);
     fireEvent.click(button()!);
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      "You can't ask Poppie to review this timesheet."
+      "You can't ask Timmie to review this timesheet."
     );
     expect(button()).toBeInTheDocument();
   });
 
-  it('shows the queue while waiting, and checks whether Poppie is online', () => {
+  it('shows the queue while waiting, and checks whether Timmie is online', () => {
     render(
-      <PoppieReviewPanel result={result({ request: request('Requested') })} variant="submitter" />
+      <AgentReviewPanel result={result({ request: request('Requested') })} variant="submitter" />
     );
     expect(button()).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent(
-      'Queued: Poppie will look within 10 minutes.'
+      'Queued: Timmie will look within 10 minutes.'
     );
     expect(presence).toHaveBeenCalledWith(true);
   });
 
-  it('says when Poppie is offline', () => {
+  it('says when Timmie is offline', () => {
     presence.mockReturnValue({ isAvailable: true, state: 'offline', lastSeenAt: null });
     render(
-      <PoppieReviewPanel result={result({ request: request('Requested') })} variant="submitter" />
+      <AgentReviewPanel result={result({ request: request('Requested') })} variant="submitter" />
     );
     expect(screen.getByRole('status')).toHaveTextContent(
-      "Queued: Poppie will pick this up when she's back online."
+      "Queued: Timmie will pick this up when it's back online."
     );
   });
 
-  it("shows Poppie's progress while she works", () => {
+  it("shows Timmie's progress while it works", () => {
     render(
-      <PoppieReviewPanel
+      <AgentReviewPanel
         result={result({ request: request('Running', { progress: 'Checking the lines…' }) })}
         variant="approver"
       />
@@ -138,7 +138,7 @@ describe('PoppieReviewPanel: Ask Poppie to look again', () => {
 
   it('says why a request failed and offers the button again', () => {
     render(
-      <PoppieReviewPanel
+      <AgentReviewPanel
         result={result({ request: request('Failed', { errorMessage: 'No lines to review.' }) })}
         variant="submitter"
       />

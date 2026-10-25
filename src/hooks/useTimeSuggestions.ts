@@ -6,7 +6,7 @@ import type { BCTimeSuggestion, BCTimeSuggestionUpdate } from '@/types';
 import { formatDate, getWeekEnd } from '@/utils';
 import { buildAcceptUpdate, buildDismissUpdate } from '@/utils/timeSuggestions';
 
-// Poppie writes suggestions through the day, so re-check every few minutes while visible
+// the agent writes suggestions through the day, so re-check every few minutes while visible
 export const SUGGESTIONS_POLL_INTERVAL_MS = 5 * 60 * 1000;
 // Don't refetch on every focus flicker (e.g. alt-tabbing back and forth)
 const MIN_FOCUS_REFETCH_GAP_MS = 30 * 1000;
@@ -33,7 +33,7 @@ export interface TimeSuggestionsState {
 }
 
 /**
- * Loads Poppie's pending time suggestions for a resource and week, and keeps them
+ * Loads the agent's pending time suggestions for a resource and week, and keeps them
  * fresh: on week change, on window focus, and every few minutes while the page is
  * visible. Accept/dismiss write the status back to BC and update the list at once.
  */
@@ -153,7 +153,7 @@ export function useTimeSuggestions(
   const accept = useCallback(
     async (suggestion: BCTimeSuggestion, timeSheetNo: string, timeSheetLineNo: number | null) => {
       // The entry already exists by now, so it leaves the list even if the write-back
-      // fails; the week's duplicate check keeps it hidden until Poppie catches up.
+      // fails; the week's duplicate check keeps it hidden until the agent catches up.
       removeLocally(suggestion.id);
       await writeStatus(suggestion, buildAcceptUpdate(timeSheetNo, timeSheetLineNo));
     },

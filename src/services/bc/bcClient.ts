@@ -1583,11 +1583,11 @@ class BusinessCentralClient {
   }
 
   // ============================================
-  // Time Suggestions (Poppie)
+  // Time Suggestions (the agent)
   // ============================================
 
   /**
-   * Get Poppie's pending time suggestions for a resource within a date range.
+   * Get the agent's pending time suggestions for a resource within a date range.
    * Returns null when the extension doesn't have the timeSuggestions endpoint yet
    * (or isn't installed), so callers can hide the feature rather than show an error.
    * @param resourceNo - The resource number (employee)
@@ -1645,7 +1645,7 @@ class BusinessCentralClient {
   }
 
   // ============================================
-  // Suggestion Requests (ask Poppie for suggestions now)
+  // Suggestion Requests (ask the agent for suggestions now)
   // ============================================
 
   /**
@@ -1693,7 +1693,7 @@ class BusinessCentralClient {
   }
 
   // ============================================
-  // Project Source Links (what Poppie maps to a project)
+  // Project Source Links (what the agent maps to a project)
   // ============================================
 
   /**
@@ -1849,7 +1849,7 @@ class BusinessCentralClient {
   }
 
   // ============================================
-  // Plan reviews (Poppie's review of a person's or a project's week on the Plan)
+  // Plan reviews (the agent's review of a person's or a project's week on the Plan)
   // ============================================
 
   /**
@@ -1906,8 +1906,8 @@ class BusinessCentralClient {
   }
 
   /**
-   * Poppie's plan reviews for some subjects (people or projects) in a set of weeks (their
-   * Mondays, YYYY-MM-DD), newest first. Headers she is still writing (plan hash PENDING) are
+   * the agent's plan reviews for some subjects (people or projects) in a set of weeks (their
+   * Mondays, YYYY-MM-DD), newest first. Headers it is still writing (plan hash PENDING) are
    * left out. Undefined when the extension has no planReviews API yet.
    */
   async getPlanReviews(
@@ -2010,7 +2010,7 @@ class BusinessCentralClient {
   }
 
   /**
-   * Ask Poppie to (re-)review a subject-week. BC checks the caller may change plans and
+   * Ask the agent to (re-)review a subject-week. BC checks the caller may change plans and
    * rejects a second open request for the same subject-week.
    */
   async createPlanReviewRequest(
@@ -2034,9 +2034,9 @@ class BusinessCentralClient {
 
   /**
    * Apply a plan-review finding's changes. BC checks the caller may change the plan,
-   * re-checks every cell (empty or a single Budget line, still holding the hours Poppie saw)
+   * re-checks every cell (empty or a single Budget line, still holding the hours the agent saw)
    * and writes them all in one transaction, so it's all or nothing. Its refusals come back as
-   * errors with BC's message (e.g. "The plan changed since Poppie looked. Ask her to
+   * errors with BC's message (e.g. "The plan changed since the agent looked. Ask it to
    * re-review."): show them with bcErrorText.
    *
    * The company URL is taken once, when this is called, so a company switch while it runs
@@ -2067,7 +2067,7 @@ class BusinessCentralClient {
   }
 
   /**
-   * Ask Poppie to generate suggestions for a resource's week. BC checks the caller may
+   * Ask the agent to generate suggestions for a resource's week. BC checks the caller may
    * (the resource's owner or approver, or a Timmie administrator) and rejects a second
    * open request for the same week.
    */
@@ -2230,7 +2230,7 @@ class BusinessCentralClient {
     return response.value;
   }
 
-  // Poppie's timesheet reviews - requires the Timmie BC Extension review tables.
+  // the agent's timesheet reviews - requires the Timmie BC Extension review tables.
   // Both return null when the endpoint doesn't exist (extension not installed or too old),
   // so callers can hide the feature rather than show an error. They skip the cached
   // isExtensionInstalled() check on purpose: a transient failure there is cached as
@@ -2238,7 +2238,7 @@ class BusinessCentralClient {
 
   /**
    * Get the reviews for one or more timesheets in a single query, newest first.
-   * A timesheet can have several reviews (one per version Poppie saw).
+   * A timesheet can have several reviews (one per version the agent saw).
    */
   async getTimesheetReviews(timeSheetNos: string[]): Promise<BCTimesheetReview[] | null> {
     if (timeSheetNos.length === 0) return [];
@@ -2314,7 +2314,7 @@ class BusinessCentralClient {
   }
 
   /**
-   * Ask Poppie to (re-)review a timesheet now. BC checks the caller is its owner or an
+   * Ask the agent to (re-)review a timesheet now. BC checks the caller is its owner or an
    * approver and rejects a second open request for the same timesheet.
    */
   async createTimesheetReviewRequest(timeSheetNo: string): Promise<BCTimesheetReviewRequest> {

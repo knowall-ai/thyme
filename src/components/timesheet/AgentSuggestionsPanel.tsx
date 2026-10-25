@@ -1,4 +1,5 @@
 'use client';
+import { useAgentName } from '@/hooks/useAgentSettingsStore';
 
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import toast from 'react-hot-toast';
@@ -80,7 +81,7 @@ const confidenceDots: Record<TimeSuggestionConfidence, string> = {
   Low: 'bg-dark-400',
 };
 
-interface PoppieSuggestionsPanelProps {
+interface AgentSuggestionsPanelProps {
   // Resource whose timesheet is on screen (yours or a teammate's)
   resourceNo: string | null;
   weekStart: Date;
@@ -95,13 +96,13 @@ interface PoppieSuggestionsPanelProps {
 }
 
 /**
- * Poppie's suggested time entries for the week on screen. Add creates the entry the
+ * the agent's suggested time entries for the week on screen. Add creates the entry the
  * same way the grid's "+ Add" does; Edit opens the entry modal pre-filled; Dismiss
- * hides it (with undo). "Request suggestions" asks Poppie to check the week now (past
- * weeks, a quiet current week, or a teammate's week when BC allows) and shows her progress.
+ * hides it (with undo). "Request suggestions" asks the agent to check the week now (past
+ * weeks, a quiet current week, or a teammate's week when BC allows) and shows its progress.
  * Hidden entirely when the BC extension has no timeSuggestions API.
  */
-export function PoppieSuggestionsPanel({
+export function AgentSuggestionsPanel({
   resourceNo,
   weekStart,
   entries,
@@ -110,7 +111,9 @@ export function PoppieSuggestionsPanel({
   canEdit,
   readOnlyReason,
   personName,
-}: PoppieSuggestionsPanelProps) {
+}: AgentSuggestionsPanelProps) {
+  const agentName = useAgentName();
+
   const { account } = useAuth();
   const userId = account?.localAccountId || '';
   const { addEntry } = useTimeEntriesStore();
@@ -118,7 +121,7 @@ export function PoppieSuggestionsPanel({
   const { suggestions, isLoading, isAvailable, refetch, accept, dismiss, restore } =
     useTimeSuggestions(resourceNo, weekStart);
 
-  // Poppie finished a requested run: show what she wrote straight away
+  // the agent finished a requested run: show what it wrote straight away
   const handleRequestFinished = useCallback(
     (request: BCSuggestionRequest) => {
       if (request.status === 'Done') refetch();
@@ -133,7 +136,7 @@ export function PoppieSuggestionsPanel({
     error: requestError,
     requestSuggestions,
   } = useSuggestionRequest(resourceNo, weekStart, handleRequestFinished);
-  // Poppie's heartbeat: only worth reading where requesting is possible at all
+  // the agent's heartbeat: only worth reading where requesting is possible at all
   const presence = useAgentPresence(canRequest);
   const agentOffline = presence.isAvailable && presence.state === 'offline';
 
@@ -187,7 +190,7 @@ export function PoppieSuggestionsPanel({
     try {
       await accept(s, entry.bcTimeSheetNo || '', lineNo);
     } catch {
-      toast.error("Entry added, but Poppie's suggestion couldn't be marked as accepted.");
+      toast.error(`Entry added, but ${agentName}'s suggestion couldn't be marked as accepted.`);
     }
   };
 
@@ -343,10 +346,10 @@ export function PoppieSuggestionsPanel({
   });
 
   const emptyText = requestOpen
-    ? 'Suggestions will appear here when Poppie has finished.'
+    ? `Suggestions will appear here when ${agentName} has finished.`
     : offerRequest && timing === 'past'
-      ? 'No suggestions for this week. Request suggestions and Poppie will check calendars, GitHub and Azure DevOps.'
-      : 'No suggestions yet — Poppie checks calendars, GitHub and DevOps through the day.';
+      ? `No suggestions for this week. Request suggestions and ${agentName} will check calendars, GitHub and Azure DevOps.`
+      : `No suggestions yet — ${agentName} checks calendars, GitHub and DevOps through the day.`;
 
   return (
     <>
@@ -355,7 +358,7 @@ export function PoppieSuggestionsPanel({
         <div className="border-dark-700 flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
           <div className="flex items-center gap-2">
             <SparklesIcon className="text-timmie-400 h-5 w-5" />
-            <h3 className="text-sm font-semibold text-white">Poppie&apos;s suggestions</h3>
+            <h3 className="text-sm font-semibold text-white">{agentName}&apos;s suggestions</h3>
             {visible.length > 0 && (
               <span className="bg-dark-700 text-dark-300 rounded px-1.5 py-0.5 text-xs">
                 {visible.length}
@@ -366,8 +369,8 @@ export function PoppieSuggestionsPanel({
                 className="text-dark-400 ml-1 flex items-center gap-1.5 text-xs"
                 title={
                   agentOffline
-                    ? offlineText(presence.lastSeenAt)
-                    : 'Poppie checks for requests every minute'
+                    ? offlineText(agentName, presence.lastSeenAt)
+                    : `${agentName} checks for requests every minute`
                 }
               >
                 <span
@@ -377,14 +380,14 @@ export function PoppieSuggestionsPanel({
                   )}
                   aria-hidden="true"
                 />
-                {agentOffline ? 'Poppie offline' : 'Poppie online'}
+                {agentOffline ? `${agentName} offline` : `${agentName} online`}
               </span>
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {offerRequest && (
               // The title sits on a wrapper too: a disabled button gets no hover in some browsers
-              <span title={agentOffline ? offlineText(presence.lastSeenAt) : undefined}>
+              <span title={agentOffline ? offlineText(agentName, presence.lastSeenAt) : undefined}>
                 <Button
                   variant="outline"
                   size="sm"
@@ -392,15 +395,15 @@ export function PoppieSuggestionsPanel({
                   disabled={isSubmitting || agentOffline}
                   title={
                     agentOffline
-                      ? offlineText(presence.lastSeenAt)
-                      : 'Ask Poppie to check calendars, GitHub and Azure DevOps for this week now'
+                      ? offlineText(agentName, presence.lastSeenAt)
+                      : `Ask ${agentName} to check calendars, GitHub and Azure DevOps for this week now`
                   }
                 >
                   <ArrowPathIcon
                     className={cn('h-4 w-4 sm:mr-2', isSubmitting && 'animate-spin')}
                   />
                   <span className="hidden sm:inline">
-                    {isSubmitting ? 'Asking Poppie...' : 'Request suggestions'}
+                    {isSubmitting ? `Asking ${agentName}...` : 'Request suggestions'}
                   </span>
                 </Button>
               </span>
@@ -444,6 +447,7 @@ export function PoppieSuggestionsPanel({
             />
             <span className="text-dark-200">
               {requestProgressText(
+                agentName,
                 request,
                 Date.now(),
                 presence.isAvailable ? !agentOffline : undefined
@@ -471,7 +475,7 @@ export function PoppieSuggestionsPanel({
             <span className="text-dark-200">
               {requestError ||
                 request?.errorMessage ||
-                "Poppie couldn't finish checking this week. Please try again."}
+                `${agentName} couldn't finish checking this week. Please try again.`}
             </span>
           </div>
         )}

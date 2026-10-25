@@ -188,7 +188,7 @@ describe('readableEvidence / evidenceLines', () => {
     'Issue tools#9 "Login fails": opened 12:30; project PR00060 by repo/project; task 300 (default task)' +
     ' | refs: github:contoso/tools@2026-10-13 github:contoso/tools#pr5 github:contoso/tools#issue9';
 
-  it('drops the machine refs Poppie keeps for herself', () => {
+  it('drops the machine refs Timmie keeps for herself', () => {
     expect(readableEvidence(grouped)).not.toContain('refs:');
     expect(readableEvidence(grouped)).toMatch(/task 300 \(default task\)$/);
   });
