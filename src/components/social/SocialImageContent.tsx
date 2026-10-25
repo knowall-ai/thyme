@@ -40,7 +40,7 @@ export function SocialImageContent() {
           transform: 'translate(-50%, -50%)',
           width: '800px',
           height: '800px',
-          background: 'radial-gradient(circle, rgba(0, 210, 106, 0.15) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(157, 255, 10, 0.15) 0%, transparent 70%)',
           borderRadius: '50%',
         }}
       />
@@ -60,11 +60,11 @@ export function SocialImageContent() {
             width: '80px',
             height: '80px',
             borderRadius: '16px',
-            background: '#00D26A',
+            background: '#9dff0a',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 0 40px rgba(0, 210, 106, 0.4)',
+            boxShadow: '0 0 40px rgba(157, 255, 10, 0.4)',
           }}
         >
           <svg width="56" height="56" viewBox="2 2 28 28" fill="none">
@@ -122,7 +122,7 @@ export function SocialImageContent() {
           style={{
             fontSize: '42px',
             fontWeight: 600,
-            color: '#00D26A',
+            color: '#9dff0a',
           }}
         >
           Perfectly Synced
