@@ -313,7 +313,7 @@ export interface BCTimeSheetDetail {
   '@odata.etag'?: string;
 }
 
-// Time Suggestion - a time entry the agent (the AI agent) proposes from calendars,
+// Time Suggestion - a time entry the AI agent proposes from calendars,
 // GitHub and Azure DevOps activity. Requires the Timmie BC Extension timeSuggestions API.
 export type TimeSuggestionSource = 'Calendar' | 'GitHub' | 'DevOps' | 'Other';
 export type TimeSuggestionConfidence = 'High' | 'Medium' | 'Low';
@@ -375,7 +375,7 @@ export interface BCSuggestionRequest {
 
 // A project's linked source (Timmie BC Extension 1.20+ projectSourceLinks API): work in this
 // GitHub repo / DevOps project or repo, or a meeting with this keyword / attendee domain, is
-// time on the project. the agent uses them to map its time suggestions.
+// time on the project. The agent uses them to map its time suggestions.
 export type ProjectSourceLinkType =
   | 'GitHubRepo'
   | 'DevOpsProject'
@@ -443,7 +443,7 @@ export interface BCDayNoteInput {
   noProjectWork: boolean;
 }
 
-// When an AI agent (the agent) was last seen (Timmie BC Extension 1.18+ agentHeartbeats API).
+// When the AI agent was last seen (Timmie BC Extension 1.18+ agentHeartbeats API).
 // lastSeenAt is stamped by BC on every poll the agent makes.
 export interface BCAgentHeartbeat {
   id: string;
@@ -453,8 +453,8 @@ export interface BCAgentHeartbeat {
   version?: string;
 }
 
-// the agent's timesheet reviews - requires the Timmie BC Extension review tables.
-// the agent (an AI agent) reviews submitted timesheets and writes one review per version.
+// The agent's timesheet reviews - requires the Timmie BC Extension review tables.
+// The AI agent reviews submitted timesheets and writes one review per version.
 export type TimesheetReviewVerdict = 'Approve' | 'Check' | 'Query';
 export type TimesheetReviewSeverity = 'Info' | 'Warning' | 'Issue';
 
@@ -497,7 +497,7 @@ export interface BCTimesheetReviewRequest {
   finishedAt?: string;
 }
 
-// the agent's plan reviews (Timmie BC Extension planReviews, planReviewLines, planReviewChanges and
+// The agent's plan reviews (Timmie BC Extension planReviews, planReviewLines, planReviewChanges and
 // planReviewRequests APIs). the agent reviews the Plan one subject-week at a time - a person's
 // week (Resource) or a project's week (Project) - and stamps each review with the planHash of
 // the plan it saw, so Timmie can tell when it's out of date.

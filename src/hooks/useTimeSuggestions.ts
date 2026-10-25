@@ -6,7 +6,7 @@ import type { BCTimeSuggestion, BCTimeSuggestionUpdate } from '@/types';
 import { formatDate, getWeekEnd } from '@/utils';
 import { buildAcceptUpdate, buildDismissUpdate } from '@/utils/timeSuggestions';
 
-// the agent writes suggestions through the day, so re-check every few minutes while visible
+// The agent writes suggestions through the day, so re-check every few minutes while visible
 export const SUGGESTIONS_POLL_INTERVAL_MS = 5 * 60 * 1000;
 // Don't refetch on every focus flicker (e.g. alt-tabbing back and forth)
 const MIN_FOCUS_REFETCH_GAP_MS = 30 * 1000;

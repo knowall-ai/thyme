@@ -1906,7 +1906,7 @@ class BusinessCentralClient {
   }
 
   /**
-   * the agent's plan reviews for some subjects (people or projects) in a set of weeks (their
+   * The agent's plan reviews for some subjects (people or projects) in a set of weeks (their
    * Mondays, YYYY-MM-DD), newest first. Headers it is still writing (plan hash PENDING) are
    * left out. Undefined when the extension has no planReviews API yet.
    */
@@ -2230,7 +2230,7 @@ class BusinessCentralClient {
     return response.value;
   }
 
-  // the agent's timesheet reviews - requires the Timmie BC Extension review tables.
+  // The agent's timesheet reviews - requires the Timmie BC Extension review tables.
   // Both return null when the endpoint doesn't exist (extension not installed or too old),
   // so callers can hide the feature rather than show an error. They skip the cached
   // isExtensionInstalled() check on purpose: a transient failure there is cached as

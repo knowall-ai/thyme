@@ -124,7 +124,7 @@ export function WeeklyTimesheet() {
   // Pick a random quote on mount
   const quote = useMemo(() => getRandomQuote(), []);
 
-  // the agent's AI review of your own timesheet, so you can amend it before it's approved
+  // The agent's AI review of your own timesheet, so you can amend it before it's approved
   const agentReview = useTimesheetReview(currentTimesheet?.number, undefined, undefined, {
     submitted: timesheetStatus === 'Submitted' || timesheetStatus === 'Partially Submitted',
     versionStamp: timesheetVersionStamp,
@@ -670,7 +670,7 @@ Thank you!`)}`}
           </div>
         )}
 
-        {/* the agent's review of the timesheet on screen */}
+        {/* The agent's review of the timesheet on screen */}
         {currentTimesheet && !isViewingTeammate && (
           <AgentReviewPanel
             result={agentReview}
@@ -795,7 +795,7 @@ Thank you!`)}`}
           )}
         </Card>
 
-        {/* the agent's suggested entries for this week */}
+        {/* The agent's suggested entries for this week */}
         <AgentSuggestionsPanel
           resourceNo={selectedTeammate?.resourceNo ?? currentTimesheet?.resourceNo ?? null}
           weekStart={currentWeekStart}

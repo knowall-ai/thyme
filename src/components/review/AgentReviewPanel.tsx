@@ -46,7 +46,7 @@ function formatReviewedAt(reviewedAt: string): string | null {
 }
 
 /**
- * "the agent's recommendation": the AI reviewer's verdict on a submitted timesheet,
+ * "The agent's recommendation": the AI reviewer's verdict on a submitted timesheet,
  * its summary and notes. Renders nothing when reviews aren't available (an older
  * extension) or there's nothing to show.
  */
@@ -202,7 +202,7 @@ export function AgentReviewPanel({
 
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-dark-500 text-xs">
-              {`Reviewed by ${review.reviewer || `${agentName}`} (AI)${reviewedAgo ? ` ${reviewedAgo}` : ''}.`}
+              {`Reviewed by ${review.reviewer || agentName} (AI)${reviewedAgo ? ` ${reviewedAgo}` : ''}.`}
             </p>
             {showRejectAction && (
               <Button
@@ -234,7 +234,7 @@ function AskAgentAgain({ result }: { result: TimesheetReviewResult }) {
   const [error, setError] = useState<string | null>(null);
   const { request, canRequestReview, requestReview } = result;
   const isOpen = !!request && isOpenTimesheetReviewRequest(request);
-  // the agent's heartbeat: only worth reading while a request waits for it
+  // The agent's heartbeat: only worth reading while a request waits for it
   const presence = useAgentPresence(isOpen && request.status === 'Requested');
 
   if (!canRequestReview) return null;

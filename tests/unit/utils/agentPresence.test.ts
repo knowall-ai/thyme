@@ -61,12 +61,23 @@ describe('agentPresence', () => {
       now
     );
     expect(p.state).toBe('offline');
+  });
+
+  it('falls back to any agent when none has the configured name', () => {
+    // An organisation that hasn't named its agent yet: Timmie (the default) vs a POPPIE heartbeat
     expect(
-      agentPresence([{ agentName: 'CONTOSO BOT', lastSeenAt: ago(10_000) }], 'Poppie', now)
-    ).toEqual({
-      state: 'offline',
-      lastSeenAt: null,
-    });
+      agentPresence([{ agentName: 'POPPIE', lastSeenAt: ago(10_000) }], 'Timmie', now).state
+    ).toBe('online');
+    expect(
+      agentPresence(
+        [
+          { agentName: 'CONTOSO BOT', lastSeenAt: ago(3_600_000) },
+          { agentName: 'POPPIE', lastSeenAt: ago(7_200_000) },
+        ],
+        'Timmie',
+        now
+      )
+    ).toEqual({ state: 'offline', lastSeenAt: new Date(now - 3_600_000) });
   });
 
   it('treats a heartbeat ahead of this clock (skew) as now', () => {

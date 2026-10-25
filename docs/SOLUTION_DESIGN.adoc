@@ -131,9 +131,10 @@ GET  /companies({id})/resources               # Fetch employees
 POST /companies({id})/jobJournalLines         # Create time entry
 ----
 
-=== Linked sources (Poppie's project mapping)
+=== Linked sources (the agent's project mapping)
 
-Poppie, the AI agent, suggests time entries from people's calendars, GitHub and Azure DevOps.
+The organisation's AI agent (Timmie's own, or its own agent; see _Organisation settings_ below)
+suggests time entries from people's calendars, GitHub and Azure DevOps.
 Which project that time belongs to comes from each project's *linked sources* in Business
 Central (Timmie BC Extension 1.20+ `projectSourceLinks`): GitHub repos, DevOps projects and
 repos, meeting keywords and attendee domains, each optionally with a task. They're per company,
@@ -145,7 +146,7 @@ so every company maps its own projects.
   (`src/utils/projectSourceLinks.ts`), and BC re-checks.
 * Adding a "Choose project" suggestion offers *Always map this to the chosen project and task*,
   which creates the link (repo, DevOps repo or project, meeting subject or attendee domain).
-* Links Poppie learns from approved time appear as *Learned*.
+* Links the agent learns from approved time appear as *Learned*.
 
 === Day notes
 
@@ -191,6 +192,29 @@ returns 412/409), the save is refused and the user is asked to reload.
 * A weekly capacity is capped at the person's working day times the weekdays left that week: a
   37.5h week with one off-site day expects 30h, while a 15h part-timer's week still fits in the
   four days left and stays 15h. Weekend notes don't reduce the week.
+
+=== Organisation settings (the AI agent)
+
+Each organisation chooses which AI agent Timmie works with: Timmie's own (called Timmie, the
+default) or its own agent, by name. The name is what Timmie shows ("Ask Timmie to look again",
+"Timmie's suggestions") and how it recognises the agent's heartbeat in Business Central
+(`agentHeartbeats.agentName`, matched ignoring case; if no heartbeat has the name, the newest
+heartbeat of any agent counts, so a connected agent isn't shown offline because of its name).
+Review panels show the reviewer name each review carries.
+
+Settings live in Timmie, not Business Central, keyed by the organisation's Entra tenant ID:
+
+* `GET /api/org-settings` and `PUT /api/org-settings` (`src/app/api/org-settings/route.ts`). The
+  browser sends its ID token; the server verifies it and uses the token's own `tid`, so a caller
+  can only read or change its own organisation's settings. The organisation must be approved
+  (`APPROVED_TENANT_IDS`), and `PUT` needs the `Timmie.Admin` app role. Names are validated on
+  both sides (`src/utils/agentSettings.ts`).
+* Stored in an Azure Table (`OrgSettings`, `ORG_SETTINGS_TABLE_ENDPOINT`) through the App
+  Service's managed identity (`src/services/settings/orgSettingsStore.ts`). Development servers
+  without the setting keep settings in memory; production servers without it refuse to save
+  and everyone gets Timmie's agent.
+* The browser loads them once per session (`src/hooks/useAgentSettingsStore.ts`); components
+  read the name with `useAgentName()`.
 
 == Security Considerations
 

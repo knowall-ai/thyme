@@ -3,7 +3,9 @@ import { NextRequest } from 'next/server';
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT, type JWK } from 'jose';
 import { GET, PUT } from '@/app/api/org-settings/route';
 import {
+  getOrgSettingsStore,
   memoryOrgSettingsStore,
+  unconfiguredOrgSettingsStore,
   setOrgSettingsStore,
   type OrgSettingsStore,
 } from '@/services/settings/orgSettingsStore';
@@ -75,13 +77,13 @@ describe('GET /api/org-settings', () => {
     const response = await get(await idToken(CONTOSO));
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toBe('no-store');
-    expect(await response.json()).toEqual({ agent: TIMMIE_AGENT, canEdit: false });
+    expect(await response.json()).toEqual({ agent: TIMMIE_AGENT, canEdit: false, canSave: true });
   });
 
   it("returns the organisation's own agent, and canEdit for admins", async () => {
     await store.setAgent(CONTOSO, { kind: 'custom', name: 'Poppie' }, 'x');
     const response = await get(await idToken(CONTOSO, [TIMMIE_ADMIN_ROLE]));
-    expect(await response.json()).toEqual({ agent: CUSTOM_AGENT, canEdit: true });
+    expect(await response.json()).toEqual({ agent: CUSTOM_AGENT, canEdit: true, canSave: true });
   });
 
   it("never returns another organisation's settings", async () => {
@@ -104,6 +106,7 @@ describe('GET /api/org-settings', () => {
   it('answers 503 when the store fails', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     setOrgSettingsStore({
+      writable: true,
       getAgent: () => Promise.reject(new Error('table down')),
       setAgent: () => Promise.reject(new Error('table down')),
     });
@@ -117,7 +120,7 @@ describe('PUT /api/org-settings', () => {
       agent: { kind: 'custom', name: '  Poppie  ' },
     });
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ agent: CUSTOM_AGENT, canEdit: true });
+    expect(await response.json()).toEqual({ agent: CUSTOM_AGENT, canEdit: true, canSave: true });
     expect(await store.getAgent(CONTOSO)).toEqual(CUSTOM_AGENT);
   });
 
@@ -143,5 +146,33 @@ describe('PUT /api/org-settings', () => {
   ])('refuses %s with 400', async (_label, body) => {
     const response = await put(await idToken(CONTOSO, [TIMMIE_ADMIN_ROLE]), body);
     expect(response.status).toBe(400);
+  });
+});
+
+describe('without settings storage (production, no ORG_SETTINGS_TABLE_ENDPOINT)', () => {
+  beforeEach(() => setOrgSettingsStore(unconfiguredOrgSettingsStore()));
+
+  it("gives Timmie's agent and says settings can't be saved", async () => {
+    const response = await get(await idToken(CONTOSO, [TIMMIE_ADMIN_ROLE]));
+    expect(await response.json()).toEqual({ agent: TIMMIE_AGENT, canEdit: true, canSave: false });
+  });
+
+  it('refuses to save', async () => {
+    const response = await put(await idToken(CONTOSO, [TIMMIE_ADMIN_ROLE]), {
+      agent: CUSTOM_AGENT,
+    });
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ code: 'settings_not_configured' });
+  });
+
+  it('is what a production server without the setting uses', () => {
+    setOrgSettingsStore(null);
+    vi.stubEnv('ORG_SETTINGS_TABLE_ENDPOINT', '');
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(getOrgSettingsStore().writable).toBe(false);
+    setOrgSettingsStore(null);
+    vi.stubEnv('NODE_ENV', 'development');
+    expect(getOrgSettingsStore().writable).toBe(true);
   });
 });

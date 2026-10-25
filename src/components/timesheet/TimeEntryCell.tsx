@@ -235,7 +235,7 @@ interface TimeEntryCellProps {
   onEditEntry: (entry: TimeEntry) => void;
   onMoveEntry?: (entryId: string, newDate: string) => void;
   readOnly?: boolean;
-  /** the agent's review notes by timesheet line number, to flag the entries they refer to */
+  /** The agent's review notes by timesheet line number, to flag the entries they refer to */
   reviewNotesByLine?: Map<number, BCTimesheetReviewLine[]>;
   /** The person's billable target; the day's billable % is coloured against it when set */
   billableTarget?: BillableTarget | null;

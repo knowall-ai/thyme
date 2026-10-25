@@ -4,13 +4,14 @@
  * the token's own `tid`, so nobody can read or change another organisation's settings.
  *
  * GET: any signed-in user of an approved organisation. Returns the agent (Timmie's by
- * default) and whether this user may change it.
+ * default), whether this user may change it (`canEdit`) and whether this server can store
+ * settings at all (`canSave`, false when ORG_SETTINGS_TABLE_ENDPOINT isn't set in production).
  * PUT `{ agent: { kind: 'timmie' } | { kind: 'custom', name } }`: users with the
  * `Timmie.Admin` app role only.
  *
  * 401 no token or one that fails verification, 403 an unapproved organisation (or a PUT
- * by a non-admin), 400 invalid settings, 503 the server can't verify tokens or reach
- * the settings store.
+ * by a non-admin), 400 invalid settings, 503 the server can't verify tokens, has no settings
+ * store (`settings_not_configured`) or can't reach it.
  */
 
 import type { NextRequest } from 'next/server';
@@ -58,8 +59,12 @@ export async function GET(request: NextRequest): Promise<Response> {
   if ('error' in caller) return caller.error;
 
   try {
-    const agent = (await getOrgSettingsStore().getAgent(caller.tenantId)) ?? TIMMIE_AGENT;
-    return Response.json({ agent, canEdit: isTimmieAdmin(caller.payload.roles) }, { headers });
+    const store = getOrgSettingsStore();
+    const agent = (await store.getAgent(caller.tenantId)) ?? TIMMIE_AGENT;
+    return Response.json(
+      { agent, canEdit: isTimmieAdmin(caller.payload.roles), canSave: store.writable },
+      { headers }
+    );
   } catch (error) {
     return storeUnavailable(error);
   }
@@ -70,6 +75,11 @@ export async function PUT(request: NextRequest): Promise<Response> {
   if ('error' in caller) return caller.error;
   if (!isTimmieAdmin(caller.payload.roles)) {
     return Response.json({ code: 'not_admin' }, { status: 403, headers });
+  }
+
+  const store = getOrgSettingsStore();
+  if (!store.writable) {
+    return Response.json({ code: 'settings_not_configured' }, { status: 503, headers });
   }
 
   let body: unknown;
@@ -84,8 +94,8 @@ export async function PUT(request: NextRequest): Promise<Response> {
   // Who changed it, for support: the user's sign-in name, or their object ID
   const updatedBy = String(caller.payload.preferred_username ?? caller.payload.oid ?? '');
   try {
-    await getOrgSettingsStore().setAgent(caller.tenantId, agent, updatedBy);
-    return Response.json({ agent, canEdit: true }, { headers });
+    await store.setAgent(caller.tenantId, agent, updatedBy);
+    return Response.json({ agent, canEdit: true, canSave: true }, { headers });
   } catch (error) {
     return storeUnavailable(error);
   }

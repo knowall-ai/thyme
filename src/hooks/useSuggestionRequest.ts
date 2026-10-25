@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { bcClient } from '@/services/bc/bcClient';
+import { useAgentName } from '@/hooks/useAgentSettingsStore';
 import type { BCSuggestionRequest } from '@/types';
 import { formatDate, getWeekEnd } from '@/utils';
 import { isOpenRequest } from '@/utils/suggestionRequests';
 
-// the agent updates progress as it checks each source; every few seconds keeps it live
+// The agent updates progress as it checks each source; every few seconds keeps it live
 export const REQUEST_POLL_INTERVAL_MS = 5 * 1000;
 
 export interface SuggestionRequestState {
@@ -33,6 +34,7 @@ export function useSuggestionRequest(
   weekStart: Date,
   onFinished?: (request: BCSuggestionRequest) => void
 ): SuggestionRequestState {
+  const agentName = useAgentName();
   const fromDate = formatDate(weekStart);
   const toDate = formatDate(getWeekEnd(weekStart));
 
@@ -136,7 +138,7 @@ export function useSuggestionRequest(
     } finally {
       if (scope === scopeRef.current) setIsSubmitting(false);
     }
-  }, [resourceNo, fromDate, toDate, isSubmitting]);
+  }, [resourceNo, fromDate, toDate, isSubmitting, agentName]);
 
   return { canRequest, request, finishedHere, isSubmitting, error, requestSuggestions };
 }

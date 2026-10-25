@@ -21,7 +21,8 @@ import {
  */
 export function AgentSettings() {
   const nameId = useId();
-  const { agent, canEdit, loaded, load, save } = useAgentSettingsStore();
+  const { agent, canEdit: isAdmin, canSave, loaded, load, save } = useAgentSettingsStore();
+  const canEdit = isAdmin && canSave;
   const [kind, setKind] = useState<AgentKind>(agent.kind);
   const [name, setName] = useState(agent.kind === 'custom' ? agent.name : '');
   const [error, setError] = useState<string | null>(null);
@@ -137,6 +138,11 @@ export function AgentSettings() {
               {isSaving ? 'Saving...' : 'Save'}
             </Button>
           </div>
+        ) : isAdmin ? (
+          <p className="text-dark-400 text-sm">
+            This Timmie server has no settings storage set up, so the agent can’t be changed. Ask
+            whoever runs it to set <code>ORG_SETTINGS_TABLE_ENDPOINT</code>.
+          </p>
         ) : (
           <p className="text-dark-400 text-sm">
             Only Timmie administrators (the <code>{TIMMIE_ADMIN_ROLE}</code> role) can change this.

@@ -93,7 +93,7 @@ export function ApprovalCard({
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  // the agent's AI review (renders nothing if the extension has no review endpoints)
+  // The agent's AI review (renders nothing if the extension has no review endpoints)
   const agentReview = useTimesheetReview(timeSheet.number, lines, details, {
     submitted: timeSheet.submittedExists,
     // Daily details can carry the latest change, so don't call a review current without them
@@ -184,7 +184,7 @@ export function ApprovalCard({
       return days.length > 0 ? days : [{ line, dayIndex: null, hours: line.totalQuantity }];
     });
     const order = (dayIndex: number | null) => dayIndex ?? weekDays.length;
-    // the agent's notes are per line, not per day, so a split line shows them once, on its first day
+    // The agent's notes are per line, not per day, so a split line shows them once, on its first day
     const seen = new Set<number>();
     return rows
       .sort((a, b) => order(a.dayIndex) - order(b.dayIndex))
@@ -505,7 +505,7 @@ export function ApprovalCard({
                       </p>
                     )}
                   </div>
-                  {/* the agent's notes on the entry, marked by severity and opened in a popover */}
+                  {/* The agent's notes on the entry, marked by severity and opened in a popover */}
                   <div className="flex w-8 shrink-0 justify-center">
                     {isFirstOfLine && (
                       <AgentLineNotesPopover

@@ -55,7 +55,7 @@ export function AgentAvatar({
 }) {
   const agentName = useAgentName();
 
-  const name = reviewer?.trim() || `${agentName}`;
+  const name = reviewer?.trim() || agentName;
   const photoUrl = useReviewerPhoto(reviewer);
   const shape = 'inline-flex h-7 w-7 shrink-0 rounded-full';
 
@@ -100,7 +100,7 @@ export function SeverityIcon({ severity, className }: { severity: string; classN
   );
 }
 
-/** the agent's notes for one timesheet line, shown next to that line */
+/** The agent's notes for one timesheet line, shown next to that line */
 export function AgentLineNotes({
   notes,
   className,
@@ -129,7 +129,7 @@ export function AgentLineNotes({
 const SEVERITY_RANK: Record<TimesheetReviewSeverity, number> = { Issue: 2, Warning: 1, Info: 0 };
 
 /**
- * the agent's notes for one timesheet line as a compact icon, marked with the most serious note's
+ * The agent's notes for one timesheet line as a compact icon, marked with the most serious note's
  * severity, that opens the notes in a popover on hover, focus or click (for touch).
  */
 export function AgentLineNotesPopover({
@@ -215,7 +215,7 @@ export function AgentLineNotesPopover({
   const worst = notes.reduce((a, b) =>
     (SEVERITY_RANK[b.severity] ?? 0) > (SEVERITY_RANK[a.severity] ?? 0) ? b : a
   );
-  const name = reviewer?.trim() || `${agentName}`;
+  const name = reviewer?.trim() || agentName;
 
   return (
     <span className={cn('inline-flex', className)}>

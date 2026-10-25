@@ -15,8 +15,11 @@ export interface AgentPresence {
 /**
  * Online when the agent's newest heartbeat is younger than AGENT_OFFLINE_AFTER_MS; offline
  * when it's older or there is none. The agent is matched by name, ignoring case (BC
- * upper-cases it); other agents' heartbeats don't count. Heartbeats from the future (clock
- * skew) count as now.
+ * upper-cases it), and other agents' heartbeats don't count. If no heartbeat carries the
+ * name at all (e.g. the organisation hasn't set its agent's name in Settings yet, so it's
+ * still "Timmie" while its own agent beats as "POPPIE"), the newest heartbeat of any agent
+ * is used instead, so a connected agent never shows as offline just because of its name.
+ * Heartbeats from the future (clock skew) count as now.
  */
 export function agentPresence(
   heartbeats: Pick<BCAgentHeartbeat, 'lastSeenAt' | 'agentName'>[],
@@ -24,9 +27,10 @@ export function agentPresence(
   now: number = Date.now(),
   offlineAfterMs: number = AGENT_OFFLINE_AFTER_MS
 ): AgentPresence {
+  const wanted = agentName.trim().toUpperCase();
+  const named = heartbeats.filter((h) => (h.agentName || '').trim().toUpperCase() === wanted);
   let newest: number | null = null;
-  for (const h of heartbeats) {
-    if ((h.agentName || '').toUpperCase() !== agentName.toUpperCase()) continue;
+  for (const h of named.length > 0 ? named : heartbeats) {
     const t = Date.parse(h.lastSeenAt);
     if (Number.isFinite(t) && t > 0 && (newest === null || t > newest)) newest = t;
   }
@@ -37,7 +41,7 @@ export function agentPresence(
   };
 }
 
-/** "the agent is offline (last seen 2 hours ago)", for the disabled Request button. */
+/** "Timmie is offline (last seen 2 hours ago)", for the disabled Request button. */
 export function offlineText(
   agentName: string,
   lastSeenAt: Date | null,

@@ -116,6 +116,7 @@ CONTACT_MAIL_TENANT_ID=<knowall-tenant-id>
 CONTACT_MAIL_CLIENT_ID=<mail-app-client-id>
 CONTACT_MAIL_CLIENT_SECRET=<mail-app-secret>
 FRONT_DOOR_ID=<front-door-profile-id>
+ORG_SETTINGS_TABLE_ENDPOINT=https://<storage-account>.table.core.windows.net
 ----
 
 === Approved organisations (`APPROVED_TENANT_IDS`)
@@ -161,6 +162,22 @@ Without the first three, the form says it's unavailable and asks visitors to ema
 The App Service only accepts traffic from Timmie's Azure Front Door profile: an access restriction allows the `AzureFrontDoor.Backend` service tag *with* an `X-Azure-FDID` header equal to our profile's ID, and denies everything else, so the `azurewebsites.net` address returns 403. The service tag alone isn't enough, because every Front Door customer shares it.
 
 Set `FRONT_DOOR_ID` to the same ID (Front Door profile → *Overview* → *Front Door ID*, or `az afd profile show --query frontDoorId`). Server routes that rate-limit by visitor (`/api/contact`) then trust Front Door's `X-Azure-SocketIP` only on requests carrying that ID, as a second line of defence if the access restriction is ever loosened. Without it, the socket IP is trusted whenever present.
+
+=== Organisation settings (`ORG_SETTINGS_TABLE_ENDPOINT`)
+
+Each organisation's Timmie settings (for now, which AI agent it uses and its name, under *Settings > AI Agent*) are kept by the server in an Azure Table, keyed by the organisation's Entra tenant ID. The App Service reaches the table with its managed identity, so there is no key or connection string.
+
+. Create (or reuse) a storage account, and in it a table named `OrgSettings`.
+. Turn on the App Service's *system-assigned* managed identity (*Settings* → *Identity*), and give it the *Storage Table Data Contributor* role on the storage account. Do the same for each deployment slot, because each slot has its own identity.
+. Set `ORG_SETTINGS_TABLE_ENDPOINT` to the account's table endpoint, e.g. `https://<storage-account>.table.core.windows.net` (no table name). Use the same table for every slot, so a swap keeps the settings.
+
+Don't set `AZURE_CLIENT_ID` on the App Service. The Azure SDK would take it as a user-assigned identity and fail to reach the table.
+
+Without `ORG_SETTINGS_TABLE_ENDPOINT`, a production server can't keep settings: every organisation gets Timmie's own agent, *Settings > AI Agent* tells administrators that settings can't be saved, and saving answers 503. (A development server keeps them in memory until it restarts.)
+
+Who can change them: users with the *Timmie administrator* app role (`Timmie.Admin`, defined on the Timmie app registration). Each organisation assigns it in its own Entra ID: *Enterprise applications* → Timmie → *Users and groups* → *Add user/group* → choose the person or group and the *Timmie administrator* role. Assign it to whoever manages Timmie for the organisation (usually its IT admin or the person who set Timmie up). The user signs out and back in to pick it up. Everyone else can see the setting but not change it.
+
+IMPORTANT: An organisation that runs its own agent should set its name straight after deploying a version with this setting: *Settings > AI Agent* → *Your own agent* → the name the agent signs its reviews with (and writes its heartbeat under) → *Save*. Until then Timmie calls the agent "Timmie". Its presence still works, because Timmie falls back to any agent's heartbeat when none has the configured name.
 
 == CI/CD Pipeline (GitHub Actions)
 
@@ -299,3 +316,4 @@ az webapp deployment source config-zip \
 - [ ] Test time entry creation
 - [ ] Verify timer functionality
 - [ ] Test on mobile devices
+- [ ] *Settings > AI Agent* shows the organisation's agent, and an administrator can save it (no "no settings storage" message)

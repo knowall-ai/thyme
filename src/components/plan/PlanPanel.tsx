@@ -1983,7 +1983,7 @@ export function PlanPanel({
     }
   };
 
-  // the agent's plan reviews: the Team view reviews people's weeks, the Projects view projects'
+  // The agent's plan reviews: the Team view reviews people's weeks, the Projects view projects'
   const reviewSubjectType: PlanReviewSubjectType = viewMode === 'team' ? 'Resource' : 'Project';
   const reviewWeekStarts = useMemo(
     () => headerWeekGroups.map((group) => format(group.weekStart, 'yyyy-MM-dd')),
@@ -2175,6 +2175,7 @@ export function PlanPanel({
       },
     };
   }, [
+    agentName,
     reviewsAvailable,
     planResources,
     planProjects,
@@ -2327,7 +2328,7 @@ export function PlanPanel({
                       <span className="text-dark-300 text-xs font-medium">
                         {weekGroup.weekNumber}
                       </span>
-                      {/* the agent's review of the week, at the right */}
+                      {/* The agent's review of the week, at the right */}
                       <span className="absolute right-1 flex max-w-[calc(50%-1rem)] justify-end">
                         <PlanReviewWeekChip
                           weekStart={format(weekGroup.weekStart, 'yyyy-MM-dd')}

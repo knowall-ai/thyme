@@ -1,6 +1,6 @@
 // Project source links (Timmie BC Extension 1.20+ projectSourceLinks): which GitHub repos,
 // Azure DevOps projects and repos, meeting keywords and attendee domains belong to a project.
-// the agent reads them to map activity to projects when it suggests time. Pure helpers: value
+// The agent reads them to map activity to projects when it suggests time. Pure helpers: value
 // normalisation and validation (mirroring the extension, so errors show before saving),
 // link-out URLs, and the links a suggestion could become ("Always map this").
 import type { BCTimeSuggestion, ProjectSourceLinkType } from '@/types';

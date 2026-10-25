@@ -48,6 +48,7 @@ describe('isInvalidCompanyPath', () => {
     `/Sandbox/${guid}/projects/PR00100`,
     '/projects/PR00100',
     '/api/health/bc',
+    '/api/org-settings',
     '/_next/static/chunk.js',
     '/screenshots/dashboard.png',
     '/.well-known/security.txt',

@@ -96,7 +96,7 @@ interface AgentSuggestionsPanelProps {
 }
 
 /**
- * the agent's suggested time entries for the week on screen. Add creates the entry the
+ * The agent's suggested time entries for the week on screen. Add creates the entry the
  * same way the grid's "+ Add" does; Edit opens the entry modal pre-filled; Dismiss
  * hides it (with undo). "Request suggestions" asks the agent to check the week now (past
  * weeks, a quiet current week, or a teammate's week when BC allows) and shows its progress.
@@ -121,7 +121,7 @@ export function AgentSuggestionsPanel({
   const { suggestions, isLoading, isAvailable, refetch, accept, dismiss, restore } =
     useTimeSuggestions(resourceNo, weekStart);
 
-  // the agent finished a requested run: show what it wrote straight away
+  // The agent finished a requested run: show what it wrote straight away
   const handleRequestFinished = useCallback(
     (request: BCSuggestionRequest) => {
       if (request.status === 'Done') refetch();
@@ -136,7 +136,7 @@ export function AgentSuggestionsPanel({
     error: requestError,
     requestSuggestions,
   } = useSuggestionRequest(resourceNo, weekStart, handleRequestFinished);
-  // the agent's heartbeat: only worth reading where requesting is possible at all
+  // The agent's heartbeat: only worth reading where requesting is possible at all
   const presence = useAgentPresence(canRequest);
   const agentOffline = presence.isAvailable && presence.state === 'offline';
 

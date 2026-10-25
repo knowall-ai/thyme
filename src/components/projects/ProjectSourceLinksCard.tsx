@@ -118,7 +118,7 @@ export function ProjectSourceLinksCard() {
       { value: '', label: `Let ${agentName} pick the task` },
       ...tasks.map((t) => ({ value: t.code, label: `${t.code} - ${t.name}` })),
     ],
-    [tasks]
+    [tasks, agentName]
   );
 
   const normalised = draft.value.trim() ? normaliseSourceLinkValue(draft.type, draft.value) : null;

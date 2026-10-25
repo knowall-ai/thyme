@@ -9,9 +9,9 @@ interface ReviewerLookups {
 }
 
 /**
- * Works out which directory user an AI reviewer is from the name on its reviews (e.g. "the agent").
+ * Works out which directory user an AI reviewer is from the name on its reviews.
  * Agents usually have an Entra account named after them, sometimes with a surname
- * ("the agent Contoso"), so:
+ * ("Timmie Contoso"), so:
  * 1. exactly one user whose display name is the reviewer name -> that user;
  * 2. otherwise exactly one user whose display name starts with the reviewer name as a whole
  *    word ("the agent ..." but not "Agents") -> that user;

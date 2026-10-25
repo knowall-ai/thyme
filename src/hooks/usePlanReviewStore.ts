@@ -13,7 +13,7 @@ import { bcClient } from '@/services/bc';
 import { isOpenPlanReviewRequest, pickLatestPlanReviews, planReviewKey } from '@/utils';
 import { useCompanyStore } from './useCompanyStore';
 
-// the agent sweeps changed plans on Thursdays; every couple of minutes is plenty to pick that up
+// The agent sweeps changed plans on Thursdays; every couple of minutes is plenty to pick that up
 export const PLAN_REVIEW_REFRESH_INTERVAL_MS = 2 * 60 * 1000;
 // While someone's request is open, follow it every few seconds (as Request suggestions does)
 export const PLAN_REVIEW_REQUEST_POLL_MS = 5 * 1000;

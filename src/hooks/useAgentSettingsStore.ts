@@ -7,13 +7,15 @@ import {
 import { TIMMIE_AGENT, type AgentSettings } from '@/utils/agentSettings';
 
 /**
- * The organisation's AI agent (Timmie's, or its own such as the agent), loaded once per
+ * The organisation's AI agent (Timmie's, or the organisation's own), loaded once per
  * session after the organisation is approved. Until it loads, or if it can't, Timmie's
  * agent is assumed.
  */
 interface AgentSettingsStore {
   agent: AgentSettings;
   canEdit: boolean;
+  /** Can the server store settings? (False: it isn't configured with settings storage) */
+  canSave: boolean;
   loaded: boolean;
 
   /** Load the settings (no-op once loaded or while loading) */
@@ -27,6 +29,7 @@ let inFlight: Promise<void> | null = null;
 export const useAgentSettingsStore = create<AgentSettingsStore>((set, get) => ({
   agent: TIMMIE_AGENT,
   canEdit: false,
+  canSave: true,
   loaded: false,
 
   load: () => {
@@ -46,7 +49,7 @@ export const useAgentSettingsStore = create<AgentSettingsStore>((set, get) => ({
   },
 }));
 
-/** The organisation's agent's name, e.g. "Timmie" or "the agent" */
+/** The display name of the organisation's AI agent, e.g. "Timmie" */
 export function useAgentName(): string {
   return useAgentSettingsStore((state) => state.agent.name);
 }

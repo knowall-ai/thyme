@@ -11,6 +11,8 @@ export interface OrgSettings {
   agent: AgentSettings;
   /** May this user change the settings (the Timmie.Admin role)? */
   canEdit: boolean;
+  /** Can this Timmie server store settings at all? */
+  canSave: boolean;
 }
 
 /** Thrown when the server refuses a save, with a message to show the admin */
@@ -30,14 +32,27 @@ async function request(init: RequestInit = {}): Promise<OrgSettings> {
     throw new OrgSettingsError('Only Timmie administrators can change this.');
   }
   if (response.status === 400) throw new OrgSettingsError('That agent name isn’t valid.');
+  if (response.status === 503) {
+    const { code } = (await response.json().catch(() => ({}))) as { code?: unknown };
+    if (code === 'settings_not_configured') {
+      throw new OrgSettingsError(
+        'This Timmie server has no settings storage, so it can’t save this.'
+      );
+    }
+  }
   if (!response.ok) {
     throw new OrgSettingsError(`Settings are unavailable right now (${response.status}).`);
   }
 
-  const body = (await response.json()) as { agent?: unknown; canEdit?: unknown };
+  const body = (await response.json()) as {
+    agent?: unknown;
+    canEdit?: unknown;
+    canSave?: unknown;
+  };
   const agent = normaliseAgentSettings(body.agent);
   if (!agent) throw new OrgSettingsError('The server sent settings Timmie doesn’t understand.');
-  return { agent, canEdit: body.canEdit === true };
+  // Servers from before canSave could always save
+  return { agent, canEdit: body.canEdit === true, canSave: body.canSave !== false };
 }
 
 export function fetchOrgSettings(): Promise<OrgSettings> {

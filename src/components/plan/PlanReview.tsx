@@ -106,7 +106,7 @@ const SEVERITY_DOT_CLASS: Record<TimesheetReviewSeverity, string> = {
 
 const dayLabel = (date: string) => format(parseISO(date), 'EEE d');
 
-/** the agent's findings for a subject's day (worst first), from that week's review */
+/** The agent's findings for a subject's day (worst first), from that week's review */
 function findingsForDay(context: PlanReviewContextValue, subjectNo: string, date: string) {
   const weekStart = format(startOfWeek(parseISO(date), { weekStartsOn: 1 }), 'yyyy-MM-dd');
   const subject = context.weeks.get(weekStart)?.find((s) => s.subjectNo === subjectNo);
@@ -150,7 +150,7 @@ export function PlanReviewDayMarker({ subjectNo, date }: { subjectNo: string; da
 }
 
 /**
- * the agent's verdict for a week across the subjects in view, in the week-number header: the
+ * The agent's verdict for a week across the subjects in view, in the week-number header: the
  * worst verdict and how many have it, dashed when any is out of date. A button that opens the
  * week's reviews. Weeks without a review show nothing, or a quiet "Ask the agent" for people who
  * may ask it to review.

@@ -90,7 +90,7 @@ export function isGuessedProject(suggestion: BCTimeSuggestion): boolean {
 }
 
 /** Notes for the time entry a suggestion becomes, trimmed to BC's field length. */
-// the agent appends the item refs it needs to recognise a suggestion again ("… | refs: github:…").
+// The agent appends the item refs it needs to recognise a suggestion again ("… | refs: github:…").
 const REFS_MARKER = ' | refs: ';
 // Evidence segments (one item, or one reason) are separated by "; " and never contain it.
 const SEGMENT_SEPARATOR = '; ';

@@ -56,7 +56,7 @@ export function requestProgressText(
 }
 
 /**
- * What to say when a request is Done. the agent's own summary first; when the suggestions
+ * What to say when a request is Done. The agent's own summary first; when the suggestions
  * aren't visible here (an approver asking for someone else), say where they went.
  */
 export function requestDoneText(

@@ -52,7 +52,7 @@ export interface TimesheetReviewResult {
 }
 
 /**
- * the agent's latest review of a timesheet, and whether it still matches the timesheet.
+ * The agent's latest review of a timesheet, and whether it still matches the timesheet.
  *
  * `lines` and `details` are the timesheet's records as loaded: the latest of their
  * lastModifiedDateTime values is compared with the review's versionStamp to tell when
