@@ -4,9 +4,64 @@ import { useEffect, useState } from 'react';
 
 interface AsciidocContentProps {
   content: string;
+  /** Show each row of a two-column table as an expandable question and answer */
+  collapsibleTables?: boolean;
 }
 
-export function AsciidocContent({ content }: AsciidocContentProps) {
+const CHEVRON =
+  '<svg class="text-dark-400 mt-1 h-5 w-5 shrink-0 transition-transform group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" /></svg>';
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 80);
+}
+
+// Replace each table's rows (first cell: question, second: answer) with <details> elements
+function tablesToDisclosures(html: string): string {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const usedIds = new Set<string>();
+
+  doc.querySelectorAll('table').forEach((table) => {
+    const list = doc.createElement('div');
+    list.className = 'border-dark-700 divide-dark-700 not-prose my-6 divide-y rounded-xl border';
+
+    table.querySelectorAll('tbody tr').forEach((row) => {
+      const [question, answer] = Array.from(row.querySelectorAll('td'));
+      if (!question || !answer) return;
+
+      const title = question.textContent?.trim() ?? '';
+      let id = slugify(title);
+      for (let n = 2; usedIds.has(id); n++) id = `${slugify(title)}-${n}`;
+      usedIds.add(id);
+
+      const details = doc.createElement('details');
+      details.id = id;
+      details.className = 'group scroll-mt-24';
+
+      const summary = doc.createElement('summary');
+      summary.className =
+        'hover:bg-dark-800/60 flex cursor-pointer list-none items-start justify-between gap-4 px-5 py-4 font-medium text-white transition-colors group-open:text-knowall-green [&::-webkit-details-marker]:hidden';
+      summary.innerHTML = `<span>${question.querySelector('p')?.innerHTML ?? question.innerHTML}</span>${CHEVRON}`;
+
+      const body = doc.createElement('div');
+      body.className =
+        'text-dark-300 space-y-3 px-5 pb-5 leading-relaxed [&_a]:text-knowall-green [&_a:hover]:underline [&_code]:bg-dark-800 [&_code]:text-knowall-green [&_code]:rounded [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-sm [&_code]:break-words [&_strong]:text-white';
+      body.innerHTML = answer.innerHTML;
+
+      details.append(summary, body);
+      list.append(details);
+    });
+
+    table.replaceWith(list);
+  });
+
+  return doc.body.innerHTML;
+}
+
+export function AsciidocContent({ content, collapsibleTables = false }: AsciidocContentProps) {
   const [html, setHtml] = useState<string>('');
 
   useEffect(() => {
@@ -21,9 +76,19 @@ export function AsciidocContent({ content }: AsciidocContentProps) {
           'source-highlighter': 'highlight.js',
         },
       });
-      setHtml(doc as string);
+      setHtml(collapsibleTables ? tablesToDisclosures(doc as string) : (doc as string));
     });
-  }, [content]);
+  }, [content, collapsibleTables]);
+
+  // A link to one question (e.g. /help#timer-state-lost-on-refresh) opens it
+  useEffect(() => {
+    if (!html || !collapsibleTables || !window.location.hash) return;
+    const target = document.getElementById(decodeURIComponent(window.location.hash.slice(1)));
+    if (target instanceof HTMLDetailsElement) {
+      target.open = true;
+      target.scrollIntoView({ block: 'start' });
+    }
+  }, [html, collapsibleTables]);
 
   if (!html) {
     return (

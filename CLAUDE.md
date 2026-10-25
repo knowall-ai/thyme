@@ -86,7 +86,7 @@ The `npm version` command updates `package.json`, creates a commit, and creates 
 
 **Important**: When encountering and resolving issues that admins or users might face, add them to `docs/TROUBLESHOOTING.adoc`.
 
-The troubleshooting doc uses a simple 2-column table format:
+The troubleshooting doc is split into `==` sections by area (Signing in, Timesheets, Plan, Developers and self-hosting, etc.), each with a 2-column table. Add new entries to the table in the matching section. The help page (`/help`) shows each row as an expandable question, so keep the Problem cell short enough to read as a heading:
 
 ```asciidoc
 | Problem | Solution
