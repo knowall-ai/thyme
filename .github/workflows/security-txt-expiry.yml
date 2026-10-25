@@ -33,7 +33,12 @@ jobs:
             exit 1
           fi
 
-          days_left=$(( ($(date -u -d "$expires" +%s) - $(date -u +%s)) / 86400 ))
+          # Parse on its own line: inside $(( )) a failed date would quietly count as 0
+          if ! expires_epoch=$(date -u -d "$expires" +%s); then
+            echo "::error file=$FILE::Expires is not a valid date: $expires"
+            exit 1
+          fi
+          days_left=$(( (expires_epoch - $(date -u +%s)) / 86400 ))
           echo "Expires: $expires ($days_left days left)"
           if [ "$days_left" -ge "$WARN_DAYS" ]; then
             echo "More than $WARN_DAYS days left; nothing to do."

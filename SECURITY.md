@@ -39,7 +39,7 @@ Out of scope:
 
 If you research in good faith and follow these rules, we won't take legal action against you or ask anyone else to, and we'll treat your work as authorised.
 
-- Only test with accounts, Business Central tenants and data that you own.
+- Only test with accounts, Business Central tenants and data that you own. Timmie is open source, so the easiest way is to run your own copy. Only approved organisations can sign in to gettimm.ie, so email us first if you need to test the hosted service.
 - Never access, change or keep other customers' data. If you come across any by accident, stop, don't share it, and tell us.
 - No denial-of-service or volumetric testing, including load tests and heavy automated scanning.
 - No social engineering (phishing, for example) of our staff or customers, and no physical attacks.
