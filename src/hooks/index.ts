@@ -8,6 +8,7 @@ export { useTeammateStore } from './useTeammateStore';
 export { useApprovalStore } from './useApprovalStore';
 export { usePlanStore } from './usePlanStore';
 export { useBillableTargetStore } from './useBillableTargetStore';
+export { useAgentSettingsStore, useAgentName } from './useAgentSettingsStore';
 export { useCompanyBillableDefault } from './useCompanyBillableDefault';
 export { useViewedBillableTarget } from './useViewedBillableTarget';
 export { useTimer } from './useTimer';

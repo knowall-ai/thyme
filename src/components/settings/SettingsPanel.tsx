@@ -6,6 +6,7 @@ import { Card } from '@/components/ui';
 import { CompanyBillableTargetSettings } from '@/components/targets';
 import { ConnectedAccountsSettings } from './ConnectedAccountsSettings';
 import { LicenceAccessSettings } from './LicenceAccessSettings';
+import { AgentSettings } from './AgentSettings';
 import { bcClient } from '@/services/bc/bcClient';
 import { useAuth, useProfilePhoto } from '@/services/auth';
 import { useCompanyStore, useSettingsStore } from '@/hooks';
@@ -269,6 +270,8 @@ export function SettingsPanel() {
 
       {/* Company default billable target (hidden on older Timmie BC Extensions) */}
       <CompanyBillableTargetSettings />
+
+      <AgentSettings />
 
       <LicenceAccessSettings />
 
