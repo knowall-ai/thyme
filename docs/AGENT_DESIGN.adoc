@@ -245,20 +245,25 @@ Hosted Timmie is charged per user, in sats, as on the pricing page, and the agen
   table. No extra tracking in the web app.
 * *Who pays:* the organisation, never the individual. Per user is only how the amount is worked
   out. People using Timmie never see a bill, an invoice or a wallet.
-* *Billing contact:* a `Timmie.Admin` sets the billing contact in a new *Settings > Billing* page,
-  which also shows this month's active users, the balance and past invoices.
-* *One bill a month* per organisation, with the usage figures attached. Ways to pay:
-** *Payment link:* the billing contact gets an email with a link to a payment page, which creates
-   a fresh Lightning invoice when opened. (A Lightning invoice expires, so we email the link, not
-   the invoice.)
-** *Prepaid balance:* the admin tops up sats in advance and each month's charge is taken from it,
-   with a warning when it runs low. No monthly chasing.
-** *Auto-pay:* the admin connects a wallet with Nostr Wallet Connect and a monthly spending limit,
-   and the bill is paid automatically.
-* *Fiat:* a Microsoft marketplace (transactable SaaS) listing could add card or invoice billing
-  later, again billed to the organisation.
-* *Unpaid:* after a grace period the worker skips the tenant and sets its heartbeat status to
-  "Subscription inactive". Data in BC is untouched.
+* *Credit account:* each organisation has a balance in sats, managed by its `Timmie.Admin` users
+  in a new *Settings > Billing* page (the admin centre). Nobody else sees it.
+* *Topping up:* the admin chooses an amount and pays a Lightning invoice shown on the page (QR
+  code and copy button). The credit lands as soon as the payment settles, with a receipt by email.
+* *Monthly charge:* on the first of each month the previous month's active users are counted and
+  the charge is taken from the balance. The page lists every top-up and charge, with the user
+  count behind each charge, like a bank statement.
+* *Running low:* the page shows how many months the balance covers at the current headcount. The
+  billing contacts are emailed when it covers less than a month, and again when a charge can't be
+  covered.
+* *Not enough credit:* the charge is taken anyway, so the balance can go below zero for a grace
+  period. If it isn't topped up by then, the worker skips the tenant and sets its heartbeat
+  status to "Subscription inactive". The next top-up clears the debt and turns the agent back on.
+  Data in BC is untouched throughout.
+* *Auto top-up (later):* the admin connects a wallet with Nostr Wallet Connect and a spending
+  limit, and the balance is topped up automatically when it runs low.
+* *Fiat (later):* a Microsoft marketplace (transactable SaaS) listing could add card or invoice
+  billing, again billed to the organisation.
+* *Leaving:* unused credit is refunded to a Lightning address the admin gives us.
 * *Your own agent* costs nothing extra; self-hosted stays free.
 
 == Open questions
@@ -267,8 +272,8 @@ Hosted Timmie is charged per user, in sats, as on the pricing page, and the agen
   Depends on how cheap idle is versus start-up time for a review.
 * Whether the BC extension should create the agent's app user itself from a setup page, which
   removes the fiddliest onboarding step.
-* Which ways to pay at launch. The payment link is the simplest; a prepaid balance is the least
-  chasing.
+* How long the grace period is, and how far below zero a balance may go.
+* Whether credit is held in sats only, or the price is fixed in fiat and converted at top-up.
 * Trial terms: how long, and whether the agent is in the trial.
 * Whether the nudge endpoint is worth it at launch, or polling every few minutes is fine for the
   first customers.
