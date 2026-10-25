@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { connection } from 'next/server';
 import './globals.css';
 import { AuthProvider } from '@/services/auth';
 import { Toaster } from 'react-hot-toast';
@@ -38,7 +39,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Render per request so Next.js can stamp the CSP nonce from src/proxy.ts on its scripts
+  await connection();
   return (
     <html lang="en" className="dark">
       <body className="bg-dark-950 font-sans text-white">
