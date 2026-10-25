@@ -245,13 +245,15 @@ const DECLINE: Record<Exclude<Expect, 'helpful'>, RegExp> = {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function fetchRetry(url: string, init: RequestInit): Promise<Response> {
-  for (;;) {
-    const res = await fetch(url, init);
+  // Bounded: a daily cap can return 429 for hours, and a stalled server must not hang the run.
+  for (let attempt = 0; attempt < 15; attempt++) {
+    const res = await fetch(url, { ...init, signal: AbortSignal.timeout(60_000) });
     if (res.status !== 429) return res;
     const wait = Number(res.headers.get('retry-after') ?? 10) * 1000;
     process.stdout.write(`  (rate limited, waiting ${Math.round(wait / 1000)}s)\n`);
     await sleep(Math.min(wait + 500, 120_000));
   }
+  throw new Error(`Still rate limited after 15 attempts: ${url}`);
 }
 
 function zeroBits(d: Buffer) {

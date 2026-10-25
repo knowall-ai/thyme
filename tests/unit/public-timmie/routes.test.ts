@@ -286,6 +286,19 @@ describe('POST /api/public/chat', () => {
     expect((await ask('Thanks', history, ip)).status).toBe(400);
   });
 
+  it('never signs a reply too long to be sent back as history', async () => {
+    configure();
+    azureReplies('Timmie. '.repeat(700));
+    const ip = nextIp();
+    const first = await (await ask('Tell me everything', [], ip)).json();
+    expect(first.reply.length).toBeLessThanOrEqual(4000);
+    const history = [
+      { role: 'user', content: 'Tell me everything' },
+      { role: 'assistant', content: first.reply, sig: first.sig, exp: first.exp },
+    ];
+    expect((await ask('Thanks', history, ip, first.conversationId)).status).toBe(200);
+  });
+
   it('sanitises links and images on the way out', async () => {
     configure();
     azureReplies('See ![x](https://evil.example/p.png?d=1) and [here](https://evil.example).');

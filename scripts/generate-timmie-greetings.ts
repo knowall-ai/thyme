@@ -156,9 +156,14 @@ async function main() {
  * Timmie's own resource). A greeting not listed here shows as text only, with no audio
  * and no "tap to hear".
  */
-export const GREETING_CLIPS: readonly string[] = ${JSON.stringify(all)};
+export const GREETING_CLIPS: readonly string[] = [${all.map((id) => `'${id}'`).join(', ')}];
 `
   );
+  // Leave it as the repository's formatter would (`bun run check` runs Prettier).
+  execFileSync('bunx', ['prettier', '--write', 'src/services/public-timmie/greeting-clips.ts'], {
+    cwd: root,
+    stdio: 'ignore',
+  });
   console.log(`Recorded ${made.length}; ${all.length} greetings now have clips.`);
 }
 

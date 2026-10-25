@@ -247,8 +247,8 @@ export function superviseLiveCall(
   const connect =
     deps.connect ??
     ((url: string, headers: Record<string, string>) =>
-      // The `ws` package: it sends our auth headers, and works on Node 20 (App Service's
-      // runtime), which has no global WebSocket.
+      // The `ws` package: it can send our auth headers, which the standard WebSocket
+      // constructor cannot (and it doesn't depend on a global WebSocket, absent before Node 22).
       new NodeWebSocket(url, { headers }) as unknown as SidebandSocket);
 
   const ctx: WatchdogContext = {

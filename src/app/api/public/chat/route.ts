@@ -1,7 +1,7 @@
 import { publicChat, UpstreamError } from '@/services/public-timmie/azure';
 import { publicAiDisabled, publicAzureConfig } from '@/services/public-timmie/config';
 import { globalLimit, guard, jsonError, logEvent, readJson } from '@/services/public-timmie/guard';
-import { modelTurns, parseChat } from '@/services/public-timmie/messages';
+import { MAX_TURN_CHARS, modelTurns, parseChat } from '@/services/public-timmie/messages';
 import {
   CHAIN_TTL_MS,
   newConversationId,
@@ -79,7 +79,8 @@ export async function POST(request: Request) {
   try {
     const raw = await publicChat(config, turns);
     const leaked = leaksPrompt(raw);
-    const text = leaked ? DECLINE_REPLY : sanitizeReply(raw);
+    // Never sign a reply longer than the history may carry it back.
+    const text = leaked ? DECLINE_REPLY : sanitizeReply(raw).slice(0, MAX_TURN_CHARS);
     logEvent({ kind: 'chat', ok: true, turns: turns.length, ms: Date.now() - started, leaked });
     return sign(text || DECLINE_REPLY);
   } catch (err) {

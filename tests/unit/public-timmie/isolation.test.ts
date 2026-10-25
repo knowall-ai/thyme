@@ -25,7 +25,8 @@ const ALLOWED_PACKAGES = [
   'next/link',
   '@heroicons/react/24/outline',
   'node:crypto',
-  // The server's sideband WebSocket client (Node 20 has no global WebSocket).
+  // The server's sideband WebSocket client. It sends auth headers, which the standard
+  // WebSocket constructor cannot.
   'ws',
 ];
 const FORBIDDEN = [

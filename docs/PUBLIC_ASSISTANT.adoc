@@ -484,8 +484,8 @@ exists (see the PR's test plan).
   https://developers.openai.com/api/docs/guides/voice-webrtc
 * OpenAI, *Server-side controls* (the sideband WebSocket, `session.close`):
   https://developers.openai.com/api/docs/guides/voice-server-controls
-* The sideband client is the `ws` package: App Service runs Node 20, which has no global
-  `WebSocket`, and the sideband needs our auth headers.
+* The sideband client is the `ws` package. The sideband must send our auth headers, and the
+  standard `WebSocket` constructor cannot send custom headers (it also isn't global before Node 22).
 * OpenAI API reference, *Create a Live WebRTC session* and *Hang up*:
   https://developers.openai.com/api/reference/python/resources/live/methods/create ,
   https://developers.openai.com/api/reference/python/resources/live/subresources/sessions/methods/hangup

@@ -4,6 +4,12 @@ import { PUBLIC_LIMITS } from './shared';
 // Control characters other than tab and newline.
 const CONTROL = /[\u0000-\u0008\u000b-\u001f\u007f]/g;
 
+/**
+ * Longest single turn the server accepts back, and so the longest reply it signs (kept
+ * apart from PUBLIC_LIMITS, which the widget uses for the visitor's own messages).
+ */
+export const MAX_TURN_CHARS = 4000;
+
 export interface ChatRequest {
   /** Absent on the first message: the server starts a conversation. */
   conversationId?: string;
@@ -27,7 +33,8 @@ export function parseChat(body: unknown): ChatRequest | undefined {
   for (const m of messages as Record<string, unknown>[]) {
     if (!m || typeof m !== 'object') return undefined;
     if (m.role !== 'user' && m.role !== 'assistant') return undefined;
-    if (typeof m.content !== 'string' || !m.content || m.content.length > 4000) return undefined;
+    if (typeof m.content !== 'string' || !m.content || m.content.length > MAX_TURN_CHARS)
+      return undefined;
     if (m.sig !== undefined && (typeof m.sig !== 'string' || m.sig.length > 64)) return undefined;
     if (m.exp !== undefined && (typeof m.exp !== 'number' || !Number.isFinite(m.exp))) {
       return undefined;
