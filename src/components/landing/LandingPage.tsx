@@ -181,8 +181,17 @@ export function LandingPage() {
       <Header />
 
       {/* Hero Section: Timmie on the right (above the text on phones), the pitch on the left */}
-      <section className="relative z-10 overflow-hidden">
-        <div className="absolute inset-x-0 top-0 h-80 sm:h-[26rem] lg:inset-y-0 lg:right-0 lg:left-auto lg:h-auto lg:w-[66%]">
+      {/* No z-index here: a stacking context would stop the image blending with the page behind it */}
+      <section className="relative overflow-hidden">
+        {/* `lighten` lets the page's grid and glow show through the image's dark background, so
+            there's no visible rectangle; the mask fades his body out at the bottom */}
+        <div
+          className="absolute inset-x-0 top-0 h-80 mix-blend-lighten sm:h-[26rem] lg:inset-y-0 lg:right-0 lg:left-auto lg:h-auto lg:w-[66%]"
+          style={{
+            maskImage: 'linear-gradient(to bottom, black 70%, transparent)',
+            WebkitMaskImage: 'linear-gradient(to bottom, black 70%, transparent)',
+          }}
+        >
           <Image
             src="/timmie/hero.webp"
             alt="Timmie, the AI timekeeper, holding a glowing stopwatch"
@@ -191,10 +200,6 @@ export function LandingPage() {
             sizes="(min-width: 1024px) 66vw, 100vw"
             className="object-cover object-[78%_center] lg:object-right"
           />
-          {/* Blend the image's edges into the page */}
-          <div className="from-dark-950 absolute inset-x-0 top-0 h-16 bg-gradient-to-b to-transparent" />
-          <div className="from-dark-950 absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t to-transparent" />
-          <div className="from-dark-950 via-dark-950/60 absolute inset-y-0 left-0 hidden w-1/2 bg-gradient-to-r to-transparent lg:block" />
         </div>
 
         <div className="relative mx-auto max-w-7xl px-4 pt-72 pb-16 sm:px-6 sm:pt-96 lg:px-8 lg:py-36">
