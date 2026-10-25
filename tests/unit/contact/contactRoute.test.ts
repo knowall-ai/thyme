@@ -5,8 +5,9 @@ import { resetMailTokenCache } from '@/services/contact/graphMail';
 import {
   CONTACT_LIMITS,
   clientIp,
-  consumeEnquiry,
+  consumeAttempt,
   isSameOrigin,
+  reserveDailyMail,
   resetContactLimits,
 } from '@/services/contact/requestGuards';
 
@@ -88,6 +89,28 @@ describe('request guards', () => {
     expect(clientIp(req)).toBe('203.0.113.7');
   });
 
+  it("prefers Front Door's socket IP over x-forwarded-for", () => {
+    const req = new Request('https://gettimm.ie', {
+      headers: { 'x-azure-socketip': '198.51.100.9', 'x-forwarded-for': '10.0.0.1:443' },
+    });
+    expect(clientIp(req)).toBe('198.51.100.9');
+  });
+
+  it('caps the day and gives a slot back when it is released', () => {
+    const now = Date.UTC(2026, 9, 25, 12);
+    const reservations = [];
+    for (let i = 0; i < CONTACT_LIMITS.perDay; i++) {
+      const r = reserveDailyMail(now);
+      expect(r.ok).toBe(true);
+      reservations.push(r);
+    }
+    expect(reserveDailyMail(now).ok).toBe(false);
+    const last = reservations.at(-1)!;
+    if (last.ok) last.release();
+    expect(reserveDailyMail(now).ok).toBe(true);
+    expect(reserveDailyMail(now + 24 * 60 * 60 * 1000).ok).toBe(true);
+  });
+
   it('allows Timmie origins and same-host loopback, nothing else', () => {
     const at = (origin: string, host = 'gettimm.ie') =>
       isSameOrigin(new Request('https://gettimm.ie', { headers: { origin, host } }));
@@ -102,11 +125,11 @@ describe('request guards', () => {
   it('limits each IP within the window', () => {
     const now = Date.UTC(2026, 9, 25, 12);
     for (let i = 0; i < CONTACT_LIMITS.perIp; i++) {
-      expect(consumeEnquiry('203.0.113.7', now).ok).toBe(true);
+      expect(consumeAttempt('203.0.113.7', now).ok).toBe(true);
     }
-    expect(consumeEnquiry('203.0.113.7', now).ok).toBe(false);
-    expect(consumeEnquiry('198.51.100.1', now).ok).toBe(true);
-    expect(consumeEnquiry('203.0.113.7', now + CONTACT_LIMITS.windowMs).ok).toBe(true);
+    expect(consumeAttempt('203.0.113.7', now).ok).toBe(false);
+    expect(consumeAttempt('198.51.100.1', now).ok).toBe(true);
+    expect(consumeAttempt('203.0.113.7', now + CONTACT_LIMITS.windowMs).ok).toBe(true);
   });
 });
 
@@ -181,6 +204,30 @@ describe('POST /api/contact', () => {
     mockGraph(403);
     const res = await POST(request(valid));
     expect(res.status).toBe(502);
+  });
+
+  it("doesn't let invalid posts use up the day's quota", async () => {
+    for (let i = 0; i < CONTACT_LIMITS.perDay + 5; i++) {
+      const res = await POST(
+        request({ ...valid, email: 'nope' }, { 'x-azure-socketip': `10.0.${i >> 8}.${i & 255}` })
+      );
+      expect(res.status).toBe(400);
+    }
+    mockGraph();
+    expect((await POST(request(valid))).status).toBe(200);
+  });
+
+  it('gives the daily slot back when Graph refuses the message', async () => {
+    for (let i = 0; i < CONTACT_LIMITS.perDay; i++) {
+      resetMailTokenCache();
+      mockGraph(i === 0 ? 403 : 202);
+      const res = await POST(request(valid, { 'x-azure-socketip': `10.1.${i >> 8}.${i & 255}` }));
+      expect(res.status).toBe(i === 0 ? 502 : 200);
+    }
+    resetMailTokenCache();
+    mockGraph();
+    expect((await POST(request(valid))).status).toBe(200);
+    expect((await POST(request(valid, { 'x-azure-socketip': '10.9.9.9' }))).status).toBe(429);
   });
 
   it('rate limits repeat senders', async () => {

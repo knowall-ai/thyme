@@ -18,11 +18,15 @@ const hitsByIp = new Map<string, number[]>();
 let daily = { day: '', used: 0 };
 
 /**
- * Best-effort client address. App Service appends the real client as the last
- * x-forwarded-for entry (as ip:port); earlier entries come from the client and can be
- * forged, so they're ignored.
+ * Best-effort client address. Behind Azure Front Door, `x-azure-socketip` is the address
+ * that connected to Front Door, i.e. the visitor. Without it, App Service appends the
+ * real peer as the last x-forwarded-for entry (as ip:port); earlier entries come from the
+ * client and can be forged, so they're ignored. Someone reaching the App Service directly
+ * could forge `x-azure-socketip` too, which is why the daily cap doesn't depend on it.
  */
 export function clientIp(req: Request): string {
+  const socketIp = req.headers.get('x-azure-socketip')?.trim();
+  if (socketIp) return socketIp;
   const forwarded = req.headers.get('x-forwarded-for');
   if (forwarded) {
     const last = forwarded.split(',').at(-1)!.trim();
@@ -34,8 +38,11 @@ export function clientIp(req: Request): string {
   return req.headers.get('x-real-ip') || 'unknown';
 }
 
-/** Take one enquiry for `ip`; retryAfter (seconds) when over the per-IP or daily limit */
-export function consumeEnquiry(
+/**
+ * Count one attempt from `ip`, valid or not; retryAfter (seconds) once it's over the
+ * per-IP limit. Runs before the body is read, so junk posts are throttled too.
+ */
+export function consumeAttempt(
   ip: string,
   now = Date.now()
 ): { ok: true } | { ok: false; retryAfter: number } {
@@ -48,6 +55,24 @@ export function consumeEnquiry(
     };
   }
 
+  hits.push(now);
+  hitsByIp.delete(ip);
+  hitsByIp.set(ip, hits);
+  // Keep the map bounded: Map order is least recently active first
+  for (const key of hitsByIp.keys()) {
+    if (hitsByIp.size <= MAX_TRACKED_IPS) break;
+    hitsByIp.delete(key);
+  }
+  return { ok: true };
+}
+
+/**
+ * Reserve one of the day's emails, across all visitors. Only called for a valid enquiry
+ * that's about to be sent, so malformed or honeypot posts can't use up the day.
+ */
+export function reserveDailyMail(
+  now = Date.now()
+): { ok: true; release: () => void } | { ok: false; retryAfter: number } {
   const day = new Date(now).toISOString().slice(0, 10);
   if (daily.day !== day) daily = { day, used: 0 };
   if (daily.used >= CONTACT_LIMITS.perDay) {
@@ -55,17 +80,14 @@ export function consumeEnquiry(
     const midnight = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1);
     return { ok: false, retryAfter: Math.ceil((midnight - now) / 1000) };
   }
-
-  hits.push(now);
-  hitsByIp.delete(ip);
-  hitsByIp.set(ip, hits);
   daily.used++;
-  // Keep the map bounded: Map order is least recently active first
-  for (const key of hitsByIp.keys()) {
-    if (hitsByIp.size <= MAX_TRACKED_IPS) break;
-    hitsByIp.delete(key);
-  }
-  return { ok: true };
+  return {
+    ok: true,
+    // Give the slot back if the email couldn't be sent
+    release: () => {
+      if (daily.day === day && daily.used > 0) daily.used--;
+    },
+  };
 }
 
 /** True when the request's Origin (or Referer) is Timmie itself */

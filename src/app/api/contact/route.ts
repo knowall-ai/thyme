@@ -8,7 +8,12 @@
 
 import { enquiryEmail, parseEnquiry } from '@/services/contact/enquiry';
 import { mailConfig, sendMail } from '@/services/contact/graphMail';
-import { clientIp, consumeEnquiry, isSameOrigin } from '@/services/contact/requestGuards';
+import {
+  clientIp,
+  consumeAttempt,
+  isSameOrigin,
+  reserveDailyMail,
+} from '@/services/contact/requestGuards';
 
 /** Largest request we'll read: the form's field limits fit well inside this */
 const MAX_BODY_BYTES = 16 * 1024;
@@ -43,7 +48,7 @@ async function readBody(req: Request, limit: number): Promise<string | null> {
 export async function POST(req: Request): Promise<Response> {
   if (!isSameOrigin(req)) return reply({ error: 'Forbidden' }, 403);
 
-  const limit = consumeEnquiry(clientIp(req));
+  const limit = consumeAttempt(clientIp(req));
   if (!limit.ok) {
     return reply({ error: `Too many messages right now. ${FALLBACK}` }, 429, {
       'retry-after': String(limit.retryAfter),
@@ -71,6 +76,13 @@ export async function POST(req: Request): Promise<Response> {
     return reply({ error: `The enquiry form is unavailable right now. ${FALLBACK}` }, 503);
   }
 
+  const quota = reserveDailyMail();
+  if (!quota.ok) {
+    return reply({ error: `Too many messages today. ${FALLBACK}` }, 429, {
+      'retry-after': String(quota.retryAfter),
+    });
+  }
+
   const { subject, text } = enquiryEmail(enquiry);
   try {
     await sendMail(config, {
@@ -79,6 +91,7 @@ export async function POST(req: Request): Promise<Response> {
       replyTo: { name: enquiry.name, address: enquiry.email },
     });
   } catch (err) {
+    quota.release();
     console.error('Enquiry form: send failed', err);
     return reply({ error: `Could not send your message. ${FALLBACK}` }, 502);
   }
