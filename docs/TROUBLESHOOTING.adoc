@@ -137,6 +137,9 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | "No Approval Access" on Timesheet Approvals page
 | To approve timesheets, configure the approver in Business Central: (1) *Make user a Time Sheet Admin:* Search for "User Setup" → find your user (or create a new entry) → check the "Time Sheet Admin" checkbox. This allows the user to approve any timesheet. (2) *Or link approver to specific resources:* Search for "Resources" → open each Resource Card for employees you manage → set "Time Sheet Approver User ID" to your BC user ID. This allows you to approve only timesheets for those specific resources.
 
+| The pricing page's enquiry form says "The enquiry form is unavailable right now"
+| The server has no mail settings. Set `CONTACT_MAIL_TENANT_ID`, `CONTACT_MAIL_CLIENT_ID` and `CONTACT_MAIL_CLIENT_SECRET` in the App Service settings (see _Enquiry form_ in DEPLOYMENT.adoc) and apply. If it says "Could not send your message" instead, Graph refused the email: check the app still has *Mail.Send* for the sending mailbox and that its secret hasn't expired; the App Service log shows the Graph status code.
+
 | Azure managed SSL certificate fails with "A record must point to..."
 | Azure App Service managed certificates require a proper A record for root domains, not a CNAME or ALIAS. Configure DNS with an A record for `@` pointing to the App Service IP shown in the error message. CNAME records are technically not allowed on root domains by DNS standards. The `www` subdomain can use a CNAME pointing to your App Service hostname.
 
