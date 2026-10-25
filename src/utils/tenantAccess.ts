@@ -1,5 +1,5 @@
 /**
- * Which organisations may use Thyme. Only organisations KnowAll has approved can sign
+ * Which organisations may use Timmie. Only organisations KnowAll has approved can sign
  * in: the KnowAll tenant itself (its members, and guests invited into it, who sign in
  * through it), plus any Microsoft Entra tenant listed in `APPROVED_TENANT_IDS`.
  *

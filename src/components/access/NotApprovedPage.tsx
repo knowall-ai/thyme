@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { ArrowRightIcon } from '@heroicons/react/24/outline';
-import { ThymeLogo } from '@/components/icons';
+import { TimmieLogo } from '@/components/icons';
 import { useAuth } from '@/services/auth';
 import { getOrganisationName } from '@/services/auth/tenantAccessService';
 import { ACCESS_REQUEST_EMAIL, accessRequestMailto } from '@/utils/tenantAccess';
 
-const APP_NAME = 'Thyme';
+const APP_NAME = 'Timmie';
 
 interface NotApprovedPageProps {
   /** The signed-in organisation's tenant ID (null when the sign-in had none) */
@@ -22,7 +22,7 @@ interface NotApprovedPageProps {
 
 /**
  * Shown to someone signed in from an organisation KnowAll hasn't approved yet: what
- * Thyme looks like, and two ways to ask for access. No app data and no navigation.
+ * Timmie looks like, and two ways to ask for access. No app data and no navigation.
  */
 export function NotApprovedPage({
   tenantId,
@@ -49,7 +49,7 @@ export function NotApprovedPage({
 
   return (
     <main className="bg-dark-950 relative isolate flex min-h-screen flex-col overflow-hidden">
-      {/* The visual: Thyme's timesheet, big and tilted, behind a dark gradient */}
+      {/* The visual: Timmie's timesheet, big and tilted, behind a dark gradient */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
         <div className="bg-grid-pattern bg-grid absolute inset-0 opacity-20" />
         <div className="bg-knowall-green/20 absolute top-24 -right-24 h-[28rem] w-[28rem] rounded-full blur-3xl lg:top-1/4 lg:right-0 lg:h-[40rem] lg:w-[40rem]" />
@@ -72,7 +72,7 @@ export function NotApprovedPage({
       <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-5 sm:px-6 lg:px-8">
         <div className="flex items-center gap-2">
           <div className="bg-knowall-green shadow-knowall-green/20 flex h-8 w-8 items-center justify-center rounded-lg shadow-lg">
-            <ThymeLogo className="text-dark-950 h-5 w-5" />
+            <TimmieLogo className="text-dark-950 h-5 w-5" />
           </div>
           <span className="text-xl font-bold text-white">{APP_NAME}</span>
         </div>
@@ -102,8 +102,8 @@ export function NotApprovedPage({
           </h1>
           <p className="text-dark-200 mb-8 text-lg sm:text-xl">
             {onRetry
-              ? 'Thyme couldn’t confirm your organisation’s access. Try again in a moment, or get in touch if it keeps happening.'
-              : 'Thyme is open to organisations KnowAll has approved. Get in touch and we’ll set yours up.'}
+              ? 'Timmie couldn’t confirm your organisation’s access. Try again in a moment, or get in touch if it keeps happening.'
+              : 'Timmie is open to organisations KnowAll has approved. Get in touch and we’ll set yours up.'}
           </p>
 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">

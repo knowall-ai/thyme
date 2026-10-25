@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Asks Thyme's server whether the signed-in organisation is approved (see
+ * Asks Timmie's server whether the signed-in organisation is approved (see
  * `/api/tenant-access`), and Microsoft Graph for the organisation's name to show
  * someone who isn't approved yet.
  */

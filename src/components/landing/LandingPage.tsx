@@ -145,6 +145,16 @@ export function LandingPage() {
   if (tenantAccess.status === 'denied') {
     return <NotApprovedPage tenantId={tenantAccess.tenantId} email={tenantAccess.email} />;
   }
+  // The check itself failed (an outage or a rejected token): offer a retry, as TenantGate does
+  if (tenantAccess.status === 'error') {
+    return (
+      <NotApprovedPage
+        tenantId={tenantAccess.tenantId}
+        email={tenantAccess.email}
+        onRetry={tenantAccess.retry}
+      />
+    );
+  }
 
   return (
     <div className="bg-dark-950 flex min-h-screen flex-col">

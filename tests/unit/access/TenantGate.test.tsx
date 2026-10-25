@@ -12,7 +12,7 @@ const FABRIKAM = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
 const URL_COMPANY = '00000000-0000-0000-0000-000000000001';
 const OTHER_COMPANY = '00000000-0000-0000-0000-000000000002';
 
-// The signed-in account (MSAL's AccountInfo, as far as Thyme reads it)
+// The signed-in account (MSAL's AccountInfo, as far as Timmie reads it)
 const auth = vi.hoisted(() => ({
   account: null as null | { username: string; idTokenClaims: Record<string, unknown> },
   logout: vi.fn(),
@@ -174,7 +174,7 @@ describe('TenantGate on company pages', () => {
     renderCompanyPage();
 
     expect(
-      await screen.findByRole('heading', { name: /isn.t set up on Thyme yet/ })
+      await screen.findByRole('heading', { name: /isn.t set up on Timmie yet/ })
     ).toBeInTheDocument();
     expect(screen.queryByText('Timesheet data')).not.toBeInTheDocument();
     // Not even the company list is asked for
@@ -184,7 +184,7 @@ describe('TenantGate on company pages', () => {
     const request = screen.getByRole('link', { name: /Request access/ });
     const href = new URL(request.getAttribute('href')!);
     expect(href.pathname).toBe('hello@knowall.ai');
-    expect(href.searchParams.get('subject')).toBe('Thyme access request');
+    expect(href.searchParams.get('subject')).toBe('Timmie access request');
     expect(href.searchParams.get('body')).toContain(`Tenant ID: ${FABRIKAM}`);
     expect(href.searchParams.get('body')).toContain('Email: alex@contoso.com');
     // The organisation's name, once Graph answers, goes on the page and in the request
@@ -208,7 +208,7 @@ describe('TenantGate on company pages', () => {
     signIn(undefined);
     store.state = { ...store.state, companiesLoaded: false };
     renderCompanyPage();
-    expect(screen.getByRole('heading', { name: /isn.t set up on Thyme yet/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /isn.t set up on Timmie yet/ })).toBeInTheDocument();
     expect(screen.queryByText('Timesheet data')).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalledWith(
       expect.stringContaining('/api/tenant-access'),
@@ -221,7 +221,7 @@ describe('TenantGate on company pages', () => {
   it('blocks a malformed tid rather than falling back to a default tenant', async () => {
     signIn('common');
     renderCompanyPage();
-    expect(screen.getByRole('heading', { name: /isn.t set up on Thyme yet/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /isn.t set up on Timmie yet/ })).toBeInTheDocument();
     expect(screen.queryByText('Timesheet data')).not.toBeInTheDocument();
     expect(screen.getByText('Tenant ID:').nextSibling).toHaveTextContent('Unknown');
     expect(await screen.findByText('Contoso Ltd')).toBeInTheDocument();

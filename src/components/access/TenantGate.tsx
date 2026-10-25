@@ -5,7 +5,7 @@ import { NotApprovedPage } from './NotApprovedPage';
 import { useTenantAccess } from './useTenantAccess';
 
 /**
- * Only organisations KnowAll has approved can use Thyme. Wraps everything a signed-in
+ * Only organisations KnowAll has approved can use Timmie. Wraps everything a signed-in
  * user sees under a company, so nothing loads from Business Central (not even the
  * company list) until their organisation (the `tid` claim) is approved. Everyone else
  * gets the "not set up yet" page. Per-user rules (company access, permissions) still

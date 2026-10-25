@@ -27,7 +27,7 @@ export function resetTenantAccessCache(): void {
 }
 
 /**
- * Is the signed-in user's organisation (the `tid` claim) approved to use Thyme? A
+ * Is the signed-in user's organisation (the `tid` claim) approved to use Timmie? A
  * missing or malformed `tid` is 'denied'; KnowAll's own tenant is approved at once.
  */
 export function useTenantAccess() {

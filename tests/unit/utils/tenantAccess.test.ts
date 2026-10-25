@@ -74,7 +74,7 @@ describe('getAccountTenantId', () => {
 describe('accessRequestMailto', () => {
   it('addresses hello@knowall.ai with the app, organisation, tenant and email', () => {
     const href = accessRequestMailto({
-      app: 'Thyme',
+      app: 'Timmie',
       organisationName: 'Contoso Ltd',
       tenantId: CONTOSO,
       email: 'alex@contoso.com',
@@ -82,9 +82,9 @@ describe('accessRequestMailto', () => {
     const url = new URL(href);
     expect(url.protocol).toBe('mailto:');
     expect(url.pathname).toBe('hello@knowall.ai');
-    expect(url.searchParams.get('subject')).toBe('Thyme access request');
+    expect(url.searchParams.get('subject')).toBe('Timmie access request');
     const body = url.searchParams.get('body')!;
-    expect(body).toContain('App: Thyme');
+    expect(body).toContain('App: Timmie');
     expect(body).toContain('Organisation: Contoso Ltd');
     expect(body).toContain(`Tenant ID: ${CONTOSO}`);
     expect(body).toContain('Email: alex@contoso.com');
@@ -92,7 +92,7 @@ describe('accessRequestMailto', () => {
 
   it('says Unknown for anything not known', () => {
     const body = new URL(
-      accessRequestMailto({ app: 'Thyme', organisationName: null, tenantId: null, email: null })
+      accessRequestMailto({ app: 'Timmie', organisationName: null, tenantId: null, email: null })
     ).searchParams.get('body')!;
     expect(body).toContain('Organisation: Unknown');
     expect(body).toContain('Tenant ID: Unknown');

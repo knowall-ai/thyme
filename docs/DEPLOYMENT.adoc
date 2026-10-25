@@ -116,12 +116,12 @@ APPROVED_TENANT_IDS=<tenant-guid>,<tenant-guid>
 
 === Approved organisations (`APPROVED_TENANT_IDS`)
 
-Only organisations KnowAll has approved can use Thyme. A signed-in user gets in when their Microsoft Entra tenant ID (the `tid` claim of their ID token) is:
+Only organisations KnowAll has approved can use Timmie. A signed-in user gets in when their Microsoft Entra tenant ID (the `tid` claim of their ID token) is:
 
 * the KnowAll tenant (`f36f6414-cb7d-4545-9cf2-7574f7b5c584`), which includes guests invited into it (B2B), or
 * listed in `APPROVED_TENANT_IDS`: comma-separated tenant GUIDs, compared case-insensitively. Anything that isn't a GUID is ignored.
 
-Everyone else (including a sign-in with no `tid`) sees "Your organisation isn't set up on Thyme yet", with a *Request access* button that emails `hello@knowall.ai` with their organisation, tenant ID and email. Per-user rules still apply on top: Business Central licences and permissions, and which companies the user can open.
+Everyone else (including a sign-in with no `tid`) sees "Your organisation isn't set up on Timmie yet", with a *Request access* button that emails `hello@knowall.ai` with their organisation, tenant ID and email. Per-user rules still apply on top: Business Central licences and permissions, and which companies the user can open.
 
 The list is read by the server at request time (`/api/tenant-access`), not built into the app, so approving an organisation needs no release. The browser sends the user's ID token (`Authorization: Bearer`), and the server verifies it against Entra's signing keys (RS256, audience `NEXT_PUBLIC_AZURE_CLIENT_ID`, issuer matching the token's own `tid`) before deciding from that `tid`. It never takes a tenant ID from the request, so it can't be asked about other organisations. Without `NEXT_PUBLIC_AZURE_CLIENT_ID` it answers 503 and nobody outside KnowAll gets in.
 
@@ -133,7 +133,7 @@ To approve an organisation:
 
 IMPORTANT: Set `APPROVED_TENANT_IDS` for every existing customer organisation *before* deploying a version with this check. Otherwise every organisation except KnowAll is shown the "not set up yet" page.
 
-NOTE: Thyme signs in through the tenant in `NEXT_PUBLIC_AZURE_TENANT_ID` (`common` when unset). With KnowAll's tenant there, every sign-in's `tid` is KnowAll's (members and invited guests alike), so the list only matters once Thyme signs in other organisations' users directly (`common` or `organizations`).
+NOTE: Timmie signs in through the tenant in `NEXT_PUBLIC_AZURE_TENANT_ID` (`common` when unset). With KnowAll's tenant there, every sign-in's `tid` is KnowAll's (members and invited guests alike), so the list only matters once Timmie signs in other organisations' users directly (`common` or `organizations`).
 
 == CI/CD Pipeline (GitHub Actions)
 

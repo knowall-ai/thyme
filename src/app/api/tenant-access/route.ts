@@ -1,5 +1,5 @@
 /**
- * Is the signed-in organisation approved to use Thyme? Thyme's pages ask before showing
+ * Is the signed-in organisation approved to use Timmie? Timmie's pages ask before showing
  * anything company-scoped. The caller sends its Entra ID token
  * (`Authorization: Bearer <id token>`); the server verifies it and decides from the
  * token's own `tid`, so nobody can ask about a tenant they didn't sign in from.

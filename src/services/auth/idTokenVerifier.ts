@@ -25,7 +25,7 @@ export function bearerToken(header: string | null): string | null {
 }
 
 /**
- * Verifies the signature (RS256 only), expiry and audience (Thyme's client ID), and
+ * Verifies the signature (RS256 only), expiry and audience (Timmie's client ID), and
  * that the issuer is the token's own tenant. Throws when any of these fail.
  */
 export async function verifyIdToken(
