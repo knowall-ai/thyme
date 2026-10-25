@@ -54,13 +54,17 @@ export function useAuth() {
 
   const login = async () => {
     try {
-      // Signing in from the demo leaves it first, so the real session starts clean, and
-      // comes back to the landing page rather than the demo page it started from
+      // Signing in from the demo leaves it at the last moment (as the page navigates to
+      // Microsoft, so nothing on it runs outside the demo), and comes back to the landing
+      // page rather than the demo page it started from
       if (isDemo) {
-        clearDemoState();
         await instance.loginRedirect({
           ...loginRequest,
           redirectStartPage: `${window.location.origin}/`,
+          onRedirectNavigate: () => {
+            clearDemoState();
+            return true;
+          },
         });
         return;
       }

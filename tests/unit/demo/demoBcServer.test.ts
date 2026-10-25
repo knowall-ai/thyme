@@ -234,6 +234,20 @@ describe('DemoBcServer', () => {
     expect(countOf(await get(`/timeSuggestions`))).toBe(before + 1);
   });
 
+  it('finishes a request once, however many calls arrive together', async () => {
+    const { get, send, advance, server } = serverAt();
+    const before = countOf(await get('/timeSuggestions'));
+    const created = await send('/suggestionRequests', 'POST', {
+      resourceNo: DEMO_USER_RESOURCE_NO,
+      fromDate: WEEK,
+      toDate: format(addDays(new Date(WEEK), 6), 'yyyy-MM-dd'),
+    });
+    expect(created.status).toBe(201);
+    advance(DEMO_AGENT_FINISH_MS);
+    await Promise.all([get('/timeSheets'), get('/projects'), get('/resources')]);
+    expect(server.snapshot.tables.timeSuggestions).toHaveLength(before + 1);
+  });
+
   it('writes a timesheet review when one is asked for', async () => {
     const { get, send, advance } = serverAt();
     const [sheet] = (

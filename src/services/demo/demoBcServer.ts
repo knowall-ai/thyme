@@ -116,6 +116,9 @@ export class DemoBcServer {
   private readonly storage: Storage | null;
   private readonly now: () => Date;
   private ready: Promise<void> | null = null;
+  // Poppie works through requests one pass at a time, so concurrent calls can't finish
+  // the same request twice
+  private agentPass: Promise<void> = Promise.resolve();
 
   constructor({ storage = null, now = () => new Date() }: DemoBcServerOptions = {}) {
     this.storage = storage;
@@ -747,7 +750,12 @@ export class DemoBcServer {
   // ============================================
 
   /** Move open requests along: picked up after a moment, done a few seconds later */
-  private async runAgent(): Promise<void> {
+  private runAgent(): Promise<void> {
+    this.agentPass = this.agentPass.then(() => this.agentStep());
+    return this.agentPass;
+  }
+
+  private async agentStep(): Promise<void> {
     const now = this.now().getTime();
     const tables = this.data.tables;
     let changed = false;

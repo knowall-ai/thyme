@@ -36,8 +36,13 @@ export function DemoBanner() {
       event.stopPropagation();
       toast("Opening Business Central isn't available in the demo.", { icon: 'ℹ️' });
     };
+    // auxclick: a middle-click opening the link in a new tab
     document.addEventListener('click', onClick, true);
-    return () => document.removeEventListener('click', onClick, true);
+    document.addEventListener('auxclick', onClick, true);
+    return () => {
+      document.removeEventListener('click', onClick, true);
+      document.removeEventListener('auxclick', onClick, true);
+    };
   }, [isDemo]);
 
   if (!isDemo) return null;
