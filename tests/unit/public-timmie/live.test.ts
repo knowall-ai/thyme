@@ -140,6 +140,18 @@ describe('watchdog event filter (fail closed)', () => {
     expect(watchdogVerdict({ type: 'session.commentary.appended' }, c)).toMatch(/^hang-up:/);
   });
 
+  it('refuses a session.started it cannot verify (no instructions or model reported)', () => {
+    expect(watchdogVerdict({ type: 'session.started' }, ctx({ started: false }))).toBe(
+      'hang-up:instructions'
+    );
+    expect(
+      watchdogVerdict(
+        { type: 'session.started', session: { instructions: INSTRUCTIONS } },
+        ctx({ started: false })
+      )
+    ).toBe('hang-up:model');
+  });
+
   it('hangs up when the session isn’t the one we configured', () => {
     const changed = (session: object) =>
       watchdogVerdict(
@@ -160,9 +172,9 @@ describe('watchdog event filter (fail closed)', () => {
 class FakeSocket {
   readyState = 1;
   sent: string[] = [];
-  onmessage: ((m: { data: string }) => void) | null = null;
-  onclose: (() => void) | null = null;
-  onerror: (() => void) | null = null;
+  onmessage: ((m: { data: unknown }) => void) | null = null;
+  onclose: ((event?: unknown) => void) | null = null;
+  onerror: ((event?: unknown) => void) | null = null;
   send(data: string) {
     this.sent.push(data);
   }
@@ -193,6 +205,21 @@ describe('supervising a call', () => {
     vi.restoreAllMocks();
   });
 
+  it('keeps the call’s slot until the hangup is confirmed, retrying', async () => {
+    hangUp.mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValue(true);
+    const call = await supervise();
+    socket.emit(started);
+    let freed = false;
+    void call.done.then(() => (freed = true));
+    call.end('visitor');
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(freed).toBe(false); // first hangup unconfirmed: still holding the slot
+    await vi.advanceTimersByTimeAsync(31_000);
+    expect(hangUp).toHaveBeenCalledTimes(3);
+    expect(freed).toBe(true);
+    expect(await call.done).toBe('visitor');
+  });
+
   const supervise = async (greet = false) => {
     const call = superviseLiveCall(
       config,
@@ -202,7 +229,7 @@ describe('supervising a call', () => {
         connect: (url, headers) => {
           connectedTo = url;
           headersSent = headers;
-          return socket as unknown as WebSocket;
+          return socket;
         },
         hangUp,
         now: () => Date.now(),

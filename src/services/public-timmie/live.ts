@@ -1,3 +1,4 @@
+import NodeWebSocket from 'ws';
 import { authHeaders } from './auth';
 import type { PublicLiveConfig } from './config';
 import { publicTimmieInstructions } from './prompt';
@@ -163,11 +164,11 @@ export function watchdogVerdict(event: LiveEvent, ctx: WatchdogContext): Verdict
   if (type === 'session.started') {
     if (ctx.started) return 'hang-up:restarted';
     const s = event.session ?? {};
-    // The session must be exactly the one we configured.
-    if (s.instructions !== undefined && s.instructions !== ctx.instructions) {
-      return 'hang-up:instructions';
-    }
-    if (s.model !== undefined && s.model !== ctx.model) return 'hang-up:model';
+    // The session must be exactly the one we configured: its instructions and model must be
+    // reported and match (an unverifiable session is refused), and the voice must match
+    // whenever it is reported.
+    if (s.instructions !== ctx.instructions) return 'hang-up:instructions';
+    if (s.model !== ctx.model) return 'hang-up:model';
     const voice = s.audio?.output?.voice;
     if (voice !== undefined && voice !== ctx.voice) return 'hang-up:voice';
     ctx.started = true;
@@ -198,12 +199,28 @@ export type CallUpdate =
   | { type: 'caption'; text: string; final: boolean }
   | { type: 'ended'; reason: string };
 
+/** The bits of a WebSocket the supervisor uses (the `ws` package, or a test double). */
+export interface SidebandSocket {
+  readyState: number;
+  send(data: string): void;
+  close(): void;
+  onmessage: ((event: { data: unknown }) => void) | null;
+  onclose: ((event: unknown) => void) | null;
+  onerror: ((event: unknown) => void) | null;
+}
+
 export interface SupervisorDeps {
   /** Opens the sideband; injectable for tests. */
-  connect: (url: string, headers: Record<string, string>) => WebSocket;
+  connect: (url: string, headers: Record<string, string>) => SidebandSocket;
   hangUp: () => Promise<boolean>;
   now: () => number;
+  /** Waits between hangup retries; injectable for tests. */
+  sleep: (ms: number) => Promise<void>;
 }
+
+/** How long to keep retrying a hangup that the service hasn't confirmed. */
+const HANGUP_RETRY_MS = 15_000;
+const HANGUP_RETRIES = 20;
 
 export interface SupervisedCall {
   /** Resolves with the reason once the call is over (always after a hangup, bar 'ended'). */
@@ -226,11 +243,13 @@ export function superviseLiveCall(
 ): SupervisedCall {
   const now = deps.now ?? Date.now;
   const hangUp = deps.hangUp ?? (() => hangUpLive(config, sessionId));
+  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const connect =
     deps.connect ??
     ((url: string, headers: Record<string, string>) =>
-      // Node's WebSocket (undici) accepts headers; this only ever runs on the server.
-      new WebSocket(url, { headers } as unknown as string[]));
+      // The `ws` package: it sends our auth headers, and works on Node 20 (App Service's
+      // runtime), which has no global WebSocket.
+      new NodeWebSocket(url, { headers }) as unknown as SidebandSocket);
 
   const ctx: WatchdogContext = {
     model: config.model,
@@ -239,7 +258,7 @@ export function superviseLiveCall(
     started: false,
     pendingAppends: 0,
   };
-  let ws: WebSocket | undefined;
+  let ws: SidebandSocket | undefined;
   let finished = false;
   let responses = 0;
   let caption = '';
@@ -263,9 +282,6 @@ export function superviseLiveCall(
       } catch {
         // Closed already; the REST hangup still runs.
       }
-      void hangUp().then((ok) => {
-        if (!ok) console.warn(JSON.stringify({ evt: 'public_timmie', kind: 'hangup', ok: false }));
-      });
     }
     try {
       ws?.close();
@@ -274,7 +290,18 @@ export function superviseLiveCall(
     }
     if (caption) options.onUpdate({ type: 'caption', text: caption, final: true });
     options.onUpdate({ type: 'ended', reason });
-    resolveDone(reason);
+    if (reason === 'ended') return resolveDone(reason);
+    // `done` (which frees the call's slot) resolves only once the service has confirmed the
+    // hangup. An unconfirmed hangup is retried for several minutes, keeping the slot taken,
+    // so an unsupervised session can never make room for another.
+    void (async () => {
+      for (let attempt = 0; attempt < HANGUP_RETRIES; attempt++) {
+        if (await hangUp()) return resolveDone(reason);
+        console.warn(JSON.stringify({ evt: 'public_timmie', kind: 'hangup', ok: false, attempt }));
+        await sleep(HANGUP_RETRY_MS);
+      }
+      resolveDone(`${reason}+hangup-unconfirmed`);
+    })();
   };
 
   // The hard five-minute limit always ends in a hangup.

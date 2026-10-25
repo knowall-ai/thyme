@@ -144,6 +144,11 @@ export function createLiveVoice(options: {
             name === 'NotFoundError' ? options.messages.noMic : options.messages.micDenied
           );
         }
+        if (stopped) {
+          // Ended while the browser was asking for the microphone: release it at once.
+          mic.getTracks().forEach((t) => t.stop());
+          throw new Error('stopped');
+        }
         if (micHold) {
           // Timmie is still speaking (his recorded greeting): don't let the mic hear him.
           mic.getAudioTracks().forEach((t) => (t.enabled = false));

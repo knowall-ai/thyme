@@ -22,14 +22,22 @@ export function useTurnstile() {
   const boxRef = useRef<HTMLDivElement>(null);
   const resolveRef = useRef<((token: string) => void) | null>(null);
 
-  const render = useCallback(
-    (key: string) =>
-      new Promise<string>((resolve) => {
-        resolveRef.current = resolve;
-        setSiteKey(key);
-      }),
-    []
-  );
+  // One check on screen at a time: a second request (chat and voice both asking) waits for
+  // the first to finish rather than replacing it and leaving the first waiting for ever.
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const render = useCallback((key: string) => {
+    const next = queue.current.then(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveRef.current = resolve;
+          // Cleared then set, so the effect runs again even for the same site key.
+          setSiteKey(null);
+          setTimeout(() => setSiteKey(key), 0);
+        })
+    );
+    queue.current = next.catch(() => undefined);
+    return next;
+  }, []);
 
   useEffect(() => {
     if (!siteKey || !boxRef.current) return;

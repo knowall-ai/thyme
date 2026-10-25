@@ -8,6 +8,18 @@ import { issuePass, leadingZeroBits, resetPassUsage } from '@/services/public-ti
 import { DECLINE_REPLY, OFFLINE_REPLY, PUBLIC_RULES } from '@/services/public-timmie/prompt';
 import { PASS_HEADER } from '@/services/public-timmie/shared';
 
+// The sideband never connects anywhere in these tests.
+vi.mock('ws', () => ({
+  default: class {
+    readyState = 0;
+    onmessage = null;
+    onclose = null;
+    onerror = null;
+    send() {}
+    close() {}
+  },
+}));
+
 const SITE = 'https://gettimm.ie';
 const UA = 'Mozilla/5.0 (route test)';
 let ipCounter = 10;
@@ -348,14 +360,6 @@ describe('POST /api/public/voice/session', () => {
       return new Response(null, { status: 200 });
     });
     vi.stubGlobal('fetch', fetchMock);
-    vi.stubGlobal(
-      'WebSocket',
-      class {
-        readyState = 0;
-        send() {}
-        close() {}
-      }
-    );
     vi.useFakeTimers();
     const ip = nextIp();
     const res = await place(ip);

@@ -87,6 +87,9 @@ export function PublicTimmiePanel({
   const textTurns = messages.filter((m) => !m.via && !m.failed);
   const atLimit = textTurns.length >= PUBLIC_LIMITS.maxMessages - 1;
 
+  // Bumped by "New conversation", so a reply to the old one can't land in the new one.
+  const generation = useRef(0);
+
   const send = async (raw: string) => {
     const question = raw.trim().slice(0, PUBLIC_LIMITS.maxMessageChars);
     if (!question || busy || atLimit || !status.chat) return;
@@ -96,7 +99,9 @@ export function PublicTimmiePanel({
     setBusy(true);
     setError(null);
     try {
+      const sentIn = generation.current;
       const { reply, sig, exp } = await transport.send(history);
+      if (sentIn !== generation.current) return;
       setMessages((m) => [...m, { role: 'assistant', content: reply, sig, exp }]);
     } catch (err) {
       // Keep the question on screen, but out of the history the server verifies.
@@ -168,10 +173,11 @@ export function PublicTimmiePanel({
           </p>
         </div>
         <SpeakerToggle name={persona.name} muted={speaker.muted} onChange={speaker.setMuted} />
-        {messages.length > 0 && !inCall && (
+        {messages.length > 0 && !inCall && !busy && (
           <button
             type="button"
             onClick={() => {
+              generation.current += 1;
               setMessages([]);
               setError(null);
               transport.reset();

@@ -154,7 +154,10 @@ Nothing is stored. Transcripts are not logged; see <<logging>>.
 
 Every way a call ends, except the service itself reporting `session.closed`, goes through a
 *hangup*: `session.close` on the sideband if it is still open, *and always*
-`POST {resource}/openai/v1/live/sessions/{id}/hangup` (retried once). The server hangs up when:
+`POST {resource}/openai/v1/live/sessions/{id}/hangup`. The call keeps its concurrency slot until
+the service confirms the hangup; an unconfirmed one is retried every 15 seconds for five minutes
+(logged as `kind: "hangup", ok: false`), so an unsupervised session can never make room for
+another. The server hangs up when:
 
 * *five minutes* have passed (the widget counts down too). The timer always ends in a hangup;
 * *any event outside a small allow-list* arrives on the sideband. Allowed: `session.started`, the
@@ -165,8 +168,8 @@ Every way a call ends, except the service itself reporting `session.closed`, goe
   `conversation.item.create` or injected item (assistant, system, function), appended instructions,
   thinking or commentary we didn't send, delegation, muting, `error`, or any event type we don't
   recognise;
-* `session.started` doesn't match what we configured (instructions, model, voice), or arrives
-  twice, or anything arrives before it;
+* `session.started` doesn't report the instructions and model we configured (missing counts as
+  wrong), reports a different voice, arrives twice, or anything arrives before it;
 * the *sideband closes or errors for any reason* before the call has ended;
 * the session doesn't start within 15 seconds;
 * the visitor's audio stops arriving for 20 seconds (the tab was closed or the connection lost);
@@ -237,7 +240,8 @@ send them on, and the allow-list hangs up if any of them, or anything else unexp
 | Behind Azure Front Door the right-most `X-Forwarded-For` is Front Door's own address, so it is
   never used there. `X-Azure-SocketIP` is trusted only when `X-Azure-FDID` matches
   `PUBLIC_FRONT_DOOR_ID` (or `FRONT_DOOR_ID`); a request without our Front Door id is refused (403).
-  See <<client-ip>>.
+  Because the id isn't secret, the App Service must also accept traffic only from Front Door (an
+  access restriction on the service tag and this id). See <<client-ip>>.
 
 | Cost abuse / free model proxy
 | Origin check, a human pass that lasts 10 minutes, is bound to IP and user agent and has a small
@@ -309,8 +313,19 @@ store first. Defined in `services/public-timmie/rate-limit.ts`, `pass.ts` and `s
 
 * *Front Door configured* (`PUBLIC_FRONT_DOOR_ID`, or the shared `FRONT_DOOR_ID`): the request must
   carry that `X-Azure-FDID`; then `X-Azure-SocketIP` (the address that connected to Front Door) is
-  the visitor. Anything else gets 403. Also restrict the App Service to Front Door
-  (Access restrictions: the `AzureFrontDoor.Backend` service tag with this X-Azure-FDID).
+  the visitor. Anything else gets 403.
+* *Required with Front Door: restrict the App Service to it.* The profile id is not a secret
+  (anyone can learn it), so on its own it doesn't prove a request came through Front Door. Add an
+  App Service access restriction that allows only the `AzureFrontDoor.Backend` service tag *with
+  this X-Azure-FDID* and denies everything else, so nobody can reach the app directly and forge
+  `X-Azure-SocketIP`:
++
+[source,bash]
+----
+az webapp config access-restriction add -g <app-rg> -n <app> --priority 100 \
+  --rule-name front-door --action Allow --service-tag AzureFrontDoor.Backend \
+  --http-header x-azure-fdid=<front-door-profile-id>
+----
 * *Not configured* (local development, or no Front Door in front): `X-Azure-*` headers are ignored,
   because anyone could send them, and the address is the one that connected to App Service (or to
   the Next server locally): the last `X-Forwarded-For` entry, which App Service appends itself. Do
@@ -469,6 +484,8 @@ exists (see the PR's test plan).
   https://developers.openai.com/api/docs/guides/voice-webrtc
 * OpenAI, *Server-side controls* (the sideband WebSocket, `session.close`):
   https://developers.openai.com/api/docs/guides/voice-server-controls
+* The sideband client is the `ws` package: App Service runs Node 20, which has no global
+  `WebSocket`, and the sideband needs our auth headers.
 * OpenAI API reference, *Create a Live WebRTC session* and *Hang up*:
   https://developers.openai.com/api/reference/python/resources/live/methods/create ,
   https://developers.openai.com/api/reference/python/resources/live/subresources/sessions/methods/hangup

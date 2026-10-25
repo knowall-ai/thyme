@@ -187,7 +187,7 @@ See link:PUBLIC_ASSISTANT.adoc[PUBLIC_ASSISTANT.adoc] for the design, threat mod
 | `PUBLIC_AZURE_OPENAI_ENDPOINT` | Text chat: the same public resource
 | `PUBLIC_TIMMIE_CHAT_DEPLOYMENT` | Text chat: its chat deployment (a small GPT-5-family or later reasoning model). Unset: chat is off
 | `PUBLIC_AZURE_OPENAI_API_KEY` | Optional fallback key for chat (a Key Vault reference)
-| `PUBLIC_FRONT_DOOR_ID` (or the shared `FRONT_DOOR_ID`) | Behind Azure Front Door: its profile id. Then `X-Azure-SocketIP` is the visitor's address, and requests without this `X-Azure-FDID` get 403. Without it, the last `X-Forwarded-For` entry is used
+| `PUBLIC_FRONT_DOOR_ID` (or the shared `FRONT_DOOR_ID`) | Behind Azure Front Door: its profile id. Then `X-Azure-SocketIP` is the visitor's address, and requests without this `X-Azure-FDID` get 403. *Also add an App Service access restriction* allowing only the `AzureFrontDoor.Backend` service tag with this `x-azure-fdid` (the id is not secret). Without the setting, the last `X-Forwarded-For` entry is used
 | `PUBLIC_TURNSTILE_SITE_KEY`, `PUBLIC_TURNSTILE_SECRET` | Optional. Cloudflare Turnstile instead of the built-in proof-of-work check (both needed)
 | `PUBLIC_TIMMIE_ENABLED` | Optional. `false` is the kill switch: no avatar, every `/api/public/*` route answers 503
 | `PUBLIC_TIMMIE_ALLOWED_ORIGINS` | Optional. Extra site origins (comma-separated), e.g. a staging slot
