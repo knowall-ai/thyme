@@ -115,6 +115,7 @@ APPROVED_TENANT_IDS=<tenant-guid>,<tenant-guid>
 CONTACT_MAIL_TENANT_ID=<knowall-tenant-id>
 CONTACT_MAIL_CLIENT_ID=<mail-app-client-id>
 CONTACT_MAIL_CLIENT_SECRET=<mail-app-secret>
+FRONT_DOOR_ID=<front-door-profile-id>
 ----
 
 === Approved organisations (`APPROVED_TENANT_IDS`)
@@ -154,6 +155,12 @@ The *Talk to us* form on `/pricing` posts to `/api/contact`, which emails each e
 |===
 
 Without the first three, the form says it's unavailable and asks visitors to email `hello@knowall.ai`. The route only accepts posts from Timmie's own origins (`gettimm.ie`, `timmie.knowall.ai`, or the same loopback host in development), allows 5 enquiries per visitor every 10 minutes and 200 a day in total, and silently drops posts that fill its hidden honeypot field.
+
+=== Front Door only (`FRONT_DOOR_ID`)
+
+The App Service only accepts traffic from Timmie's Azure Front Door profile: an access restriction allows the `AzureFrontDoor.Backend` service tag *with* an `X-Azure-FDID` header equal to our profile's ID, and denies everything else, so the `azurewebsites.net` address returns 403. The service tag alone isn't enough, because every Front Door customer shares it.
+
+Set `FRONT_DOOR_ID` to the same ID (Front Door profile → *Overview* → *Front Door ID*, or `az afd profile show --query frontDoorId`). Server routes that rate-limit by visitor (`/api/contact`) then trust Front Door's `X-Azure-SocketIP` only on requests carrying that ID, as a second line of defence if the access restriction is ever loosened. Without it, the socket IP is trusted whenever present.
 
 == CI/CD Pipeline (GitHub Actions)
 

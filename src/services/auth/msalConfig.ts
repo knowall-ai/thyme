@@ -20,6 +20,10 @@ export const msalConfig: Configuration = {
     navigateToLoginRequestUrl: true,
   },
   cache: {
+    // localStorage, so one sign-in covers every tab and survives a restart (sessionStorage
+    // would mean signing in again in each new tab). Tokens there are readable by any script
+    // on the page, so this relies on the nonce-only script CSP in src/proxy.ts; the test
+    // "allows scripts only by nonce in production" fails if that policy is ever loosened.
     cacheLocation: 'localStorage',
     storeAuthStateInCookie: false,
   },
