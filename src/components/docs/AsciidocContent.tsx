@@ -26,7 +26,8 @@ function tablesToDisclosures(html: string): string {
 
   doc.querySelectorAll('table').forEach((table) => {
     const list = doc.createElement('div');
-    list.className = 'border-dark-700 divide-dark-700 not-prose my-6 divide-y rounded-xl border';
+    list.className =
+      'border-dark-700 divide-dark-700 not-prose my-6 divide-y overflow-hidden rounded-xl border';
 
     table.querySelectorAll('tbody tr').forEach((row) => {
       const [question, answer] = Array.from(row.querySelectorAll('td'));
@@ -39,16 +40,16 @@ function tablesToDisclosures(html: string): string {
 
       const details = doc.createElement('details');
       details.id = id;
-      details.className = 'group scroll-mt-24';
+      details.className = 'group open:bg-dark-800/50 scroll-mt-24 transition-colors';
 
       const summary = doc.createElement('summary');
       summary.className =
-        'hover:bg-dark-800/60 flex cursor-pointer list-none items-start justify-between gap-4 px-5 py-4 font-medium text-white transition-colors group-open:text-knowall-green [&::-webkit-details-marker]:hidden';
+        'hover:bg-dark-800/60 group-open:hover:bg-transparent flex cursor-pointer list-none items-start justify-between gap-4 px-5 py-4 font-medium text-white transition-colors group-open:text-knowall-green [&::-webkit-details-marker]:hidden';
       summary.innerHTML = `<span>${question.querySelector('p')?.innerHTML ?? question.innerHTML}</span>${CHEVRON}`;
 
       const body = doc.createElement('div');
       body.className =
-        'text-dark-300 space-y-3 px-5 pb-5 leading-relaxed [&_a]:text-knowall-green [&_a:hover]:underline [&_code]:bg-dark-800 [&_code]:text-knowall-green [&_code]:rounded [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-sm [&_code]:break-words [&_strong]:text-white';
+        'text-dark-300 border-dark-700/70 mx-5 space-y-3 border-t pt-4 pb-6 leading-relaxed [&_a]:text-knowall-green [&_a:hover]:underline [&_code]:bg-dark-950/70 [&_code]:text-knowall-green [&_code]:rounded [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-sm [&_code]:break-words [&_strong]:text-white';
       body.innerHTML = answer.innerHTML;
 
       details.append(summary, body);
