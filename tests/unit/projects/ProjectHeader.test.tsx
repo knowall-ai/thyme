@@ -33,7 +33,7 @@ import { ProjectHeader } from '@/components/projects/ProjectHeader';
 
 describe('ProjectHeader', () => {
   it('prints the page from the Print button, named for the PDF file, then restores the title', () => {
-    document.title = 'Thyme';
+    document.title = 'Timmie';
     let titleWhilePrinting = '';
     const print = vi.spyOn(window, 'print').mockImplementation(() => {
       titleWhilePrinting = document.title;
@@ -48,7 +48,7 @@ describe('ProjectHeader', () => {
     expect(print).toHaveBeenCalledTimes(1);
     expect(titleWhilePrinting).toBe('Contoso Ltd. - PR-CONTOSO - Project Report');
     window.dispatchEvent(new Event('afterprint'));
-    expect(document.title).toBe('Thyme');
+    expect(document.title).toBe('Timmie');
     print.mockRestore();
   });
 });

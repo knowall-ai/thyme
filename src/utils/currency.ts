@@ -2,16 +2,16 @@ import type { BCJobPlanningLine, BCTimeEntry } from '@/types';
 
 // A project (BC Job) can be priced in a currency other than the company's: its "Currency
 // Code". BC keeps each amount in that project currency and in the company's local currency
-// (LCY). Thyme shows customer prices (Billable Price, Invoiced Price, the Spend vs Budget
+// (LCY). Timmie shows customer prices (Billable Price, Invoiced Price, the Spend vs Budget
 // chart) in the project currency and internal costs (Budget Cost, Actual Cost) in LCY, so
 // every figure sums amounts of a single currency.
 //
-// Thyme BC Extension 1.14.0.0 added the fields this needs. Older versions don't return them,
-// so each helper falls back to what those versions return, which is what Thyme showed before.
+// Timmie BC Extension 1.14.0.0 added the fields this needs. Older versions don't return them,
+// so each helper falls back to what those versions return, which is what Timmie showed before.
 
 /**
  * The currency of a project's prices: its BC Currency Code, or the company currency when
- * that's blank (BC's "local currency") or not returned (Thyme BC Extension before 1.14.0.0).
+ * that's blank (BC's "local currency") or not returned (Timmie BC Extension before 1.14.0.0).
  */
 export function getProjectCurrencyCode(
   projectCurrencyCode: string | null | undefined,

@@ -70,15 +70,15 @@ interface TeamMember {
   weeklyBase: Pick<WeeklyCapacity, 'hoursPerDay' | 'defaultHours'>;
   billablePercent: number; // percentage of total hours that are billable
   isCurrentUser: boolean; // Whether this resource belongs to the logged-in user
-  // The person's own billable target from BC (undefined on older Thyme BC Extensions)
+  // The person's own billable target from BC (undefined on older Timmie BC Extensions)
   billableTargetPercent?: number;
   billableTargetSet?: boolean;
-  // The person's own weekly capacity from BC (undefined on older Thyme BC Extensions)
+  // The person's own weekly capacity from BC (undefined on older Timmie BC Extensions)
   weeklyCapacityHours?: number;
   weeklyCapacitySet?: boolean;
   flexibleWorkingDays?: boolean;
   // Their GitHub username ('' = not set) and whether the signed-in user may change it
-  // (Thyme BC Extension 1.21+; undefined on older versions)
+  // (Timmie BC Extension 1.21+; undefined on older versions)
   githubUsername?: string;
   canEditConnectedAccounts?: boolean;
 }
@@ -117,13 +117,13 @@ export function TeamList() {
   const [error, setError] = useState<string | null>(null);
   const [currentUserInList, setCurrentUserInList] = useState(true);
   const [extensionNotInstalled, setExtensionNotInstalled] = useState(false);
-  // Whether the Thyme BC Extension returns billable targets on resources
+  // Whether the Timmie BC Extension returns billable targets on resources
   const [targetFieldsPresent, setTargetFieldsPresent] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
-  // Whether the Thyme BC Extension returns weekly capacity on resources (1.19+)
+  // Whether the Timmie BC Extension returns weekly capacity on resources (1.19+)
   const [capacityFieldsPresent, setCapacityFieldsPresent] = useState(false);
   const [editingCapacityMemberId, setEditingCapacityMemberId] = useState<string | null>(null);
-  // Whether the Thyme BC Extension stores GitHub usernames on resources (1.21+)
+  // Whether the Timmie BC Extension stores GitHub usernames on resources (1.21+)
   const [githubFieldPresent, setGitHubFieldPresent] = useState(false);
   const [editingGitHubMemberId, setEditingGitHubMemberId] = useState<string | null>(null);
 
@@ -134,8 +134,8 @@ export function TeamList() {
   useEffect(() => {
     if (targetFieldsPresent) void loadCompanyDefault(companyVersion);
   }, [targetFieldsPresent, companyVersion, loadCompanyDefault]);
-  // Show targets only once this company's Thyme Setup has loaded, so another company's
-  // default is never used, and not at all on extensions without Thyme Setup
+  // Show targets only once this company's Timmie Setup has loaded, so another company's
+  // default is never used, and not at all on extensions without Timmie Setup
   const targetsEnabled =
     targetFieldsPresent && setupAvailable === true && loadedForCompanyVersion === companyVersion;
 
@@ -420,7 +420,7 @@ export function TeamList() {
             href={getBCResourcesListUrl()}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-thyme-400 hover:text-thyme-300 flex items-center gap-1"
+            className="text-timmie-400 hover:text-timmie-300 flex items-center gap-1"
           >
             Resources
             <ArrowTopRightOnSquareIcon className="h-4 w-4" />
@@ -429,7 +429,7 @@ export function TeamList() {
             <button
               type="button"
               onClick={() => setIsLicencesOpen(true)}
-              className="text-thyme-400 hover:text-thyme-300 ml-auto flex items-center gap-1"
+              className="text-timmie-400 hover:text-timmie-300 ml-auto flex items-center gap-1"
             >
               <IdentificationIcon className="h-4 w-4" />
               Licences

@@ -12,6 +12,7 @@ import type {
 import { format, startOfWeek } from 'date-fns';
 import { isBillableEntry } from '@/utils';
 import { computeVersionStamp } from '@/utils/timesheetReview';
+import { BC_EXTENSION_GITHUB_URL } from '@/utils/bcUrls';
 
 // Error thrown when no resource record exists in BC for the user
 export class NoResourceError extends Error {
@@ -19,7 +20,7 @@ export class NoResourceError extends Error {
 
   constructor(userEmail: string) {
     super(
-      `No Resource record found in Business Central for email "${userEmail}". A Resource record must be created before you can use Thyme.`
+      `No Resource record found in Business Central for email "${userEmail}". A Resource record must be created before you can use Timmie.`
     );
     this.name = 'NoResourceError';
     this.userEmail = userEmail;
@@ -30,8 +31,8 @@ export class NoResourceError extends Error {
 export class ExtensionNotInstalledError extends Error {
   constructor() {
     super(
-      'The Thyme BC Extension is not installed or is outdated. ' +
-        'Please install the latest version from https://github.com/knowall-ai/thyme-bc-extension'
+      'The Timmie BC Extension is not installed or is outdated. ' +
+        `Please install the latest version from ${BC_EXTENSION_GITHUB_URL}`
     );
     this.name = 'ExtensionNotInstalledError';
   }

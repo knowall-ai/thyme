@@ -1,2 +1,2 @@
-export { ThymeLogo } from './ThymeLogo';
+export { TimmieLogo } from './TimmieLogo';
 export { BitcoinLightningLogo } from './BitcoinLightningLogo';

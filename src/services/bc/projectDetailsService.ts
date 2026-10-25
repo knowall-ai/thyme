@@ -1,3 +1,4 @@
+import { migrateLegacyStorageKey } from '@/utils/legacyStorage';
 import { bcClient } from './bcClient';
 import type { Project, Task, BCJobPlanningLine, BCTimeEntry } from '@/types';
 import { getProjectCustomer, getProjectCustomerName } from '@/utils/projectCustomer';
@@ -153,7 +154,9 @@ interface TeamBreakdownItem extends StatusHours {
 }
 
 // Local storage key for favorites (shared with projectService)
-const FAVORITES_KEY = 'thyme_favorite_projects';
+const FAVORITES_KEY = 'timmie_favorite_projects';
+
+migrateLegacyStorageKey('thyme_favorite_projects', FAVORITES_KEY);
 
 function getFavorites(): string[] {
   if (typeof window === 'undefined') return [];
@@ -192,7 +195,7 @@ export const projectDetailsService = {
     const startDate = bcProject.startingDate;
     const endDate = bcProject.endingDate;
 
-    // Map BC status to Thyme status — blocked projects are archived
+    // Map BC status to Timmie status — blocked projects are archived
     const isBlocked = bcProject.blocked && bcProject.blocked !== ' ';
     const status: Project['status'] = isBlocked
       ? 'archived'

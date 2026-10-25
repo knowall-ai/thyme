@@ -1,14 +1,14 @@
 # Responsiveness Issues Report
 
 **Created:** 2026-01-04
-**Branch:** `claude/test-thyme-responsiveness-Cy1Ba`
+**Branch:** `claude/test-timmie-responsiveness-Cy1Ba`
 **Status:** Issues Found
 
 ---
 
 ## Summary
 
-Thyme has **partial responsive support**. While the app uses Tailwind CSS and includes some responsive patterns, there are **critical issues** on mobile viewports that need to be addressed.
+Timmie has **partial responsive support**. While the app uses Tailwind CSS and includes some responsive patterns, there are **critical issues** on mobile viewports that need to be addressed.
 
 ---
 
@@ -147,4 +147,4 @@ Once fixes are applied, test at these breakpoints:
 
 ---
 
-_Report generated during responsiveness verification on branch `claude/test-thyme-responsiveness-Cy1Ba`_
+_Report generated during responsiveness verification on branch `claude/test-timmie-responsiveness-Cy1Ba`_

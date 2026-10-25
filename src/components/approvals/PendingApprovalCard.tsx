@@ -43,7 +43,7 @@ export function PendingApprovalCard() {
     <Link href={toHref('/approvals')}>
       <Card
         variant="bordered"
-        className="hover:bg-dark-750 group hover:border-thyme-600/50 cursor-pointer p-4 transition-all"
+        className="hover:bg-dark-750 group hover:border-timmie-600/50 cursor-pointer p-4 transition-all"
       >
         <div className="flex items-center justify-between">
           <div>
@@ -55,7 +55,7 @@ export function PendingApprovalCard() {
               <ClockIcon className="h-4 w-4" />
               <span>{pendingHours.toFixed(1)} hrs</span>
             </div>
-            <div className="text-thyme-500 mt-2 flex items-center gap-1 text-xs opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="text-timmie-500 mt-2 flex items-center gap-1 text-xs opacity-0 transition-opacity group-hover:opacity-100">
               <span>View all</span>
               <ArrowRightIcon className="h-3 w-3" />
             </div>

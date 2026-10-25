@@ -1,6 +1,11 @@
+import { migrateLegacyStorageKey } from '@/utils/legacyStorage';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { UserSettings } from '@/types';
+
+const SETTINGS_STORAGE_KEY = 'timmie-settings-storage';
+
+migrateLegacyStorageKey('thyme-settings-storage', SETTINGS_STORAGE_KEY);
 
 interface SettingsStore extends UserSettings {
   updateSettings: (settings: Partial<UserSettings>) => void;
@@ -30,7 +35,7 @@ export const useSettingsStore = create<SettingsStore>()(
       },
     }),
     {
-      name: 'thyme-settings-storage',
+      name: SETTINGS_STORAGE_KEY,
     }
   )
 );

@@ -51,7 +51,7 @@ function Check({ checked }: { checked: boolean }) {
       aria-hidden="true"
       className={cn(
         'flex h-4 w-4 shrink-0 items-center justify-center rounded border',
-        checked ? 'border-thyme-500 bg-thyme-500 text-white' : 'border-dark-500'
+        checked ? 'border-timmie-500 bg-timmie-500 text-white' : 'border-dark-500'
       )}
     >
       {checked && <CheckIcon className="h-3 w-3" strokeWidth={3} />}
@@ -159,8 +159,8 @@ export function FilterMenu({
         className={cn(
           'flex h-10 items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
           'border-dark-600 bg-dark-700 hover:border-dark-500 hover:bg-dark-600 border',
-          'focus:border-thyme-500 focus:ring-thyme-500 focus:ring-1 focus:outline-none',
-          (isOpen || !noneSelected) && 'border-thyme-500'
+          'focus:border-timmie-500 focus:ring-timmie-500 focus:ring-1 focus:outline-none',
+          (isOpen || !noneSelected) && 'border-timmie-500'
         )}
       >
         <TriggerIcon className="text-dark-400 h-4 w-4 shrink-0" />
@@ -191,7 +191,7 @@ export function FilterMenu({
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search…"
                   aria-label={`Search ${label.toLowerCase()} list`}
-                  className="border-dark-600 bg-dark-700 text-dark-100 focus:border-thyme-500 focus:ring-thyme-500 w-full rounded-md border py-1.5 pr-2 pl-8 text-sm focus:ring-1 focus:outline-none"
+                  className="border-dark-600 bg-dark-700 text-dark-100 focus:border-timmie-500 focus:ring-timmie-500 w-full rounded-md border py-1.5 pr-2 pl-8 text-sm focus:ring-1 focus:outline-none"
                 />
               </div>
             </div>

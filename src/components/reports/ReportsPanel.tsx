@@ -133,7 +133,7 @@ function BillableInfo({ label }: { label: string }) {
     >
       <button
         type="button"
-        className="focus:ring-thyme-500 focus:ring-offset-dark-800 flex cursor-help rounded text-gray-600 hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none"
+        className="focus:ring-timmie-500 focus:ring-offset-dark-800 flex cursor-help rounded text-gray-600 hover:text-gray-400 focus:ring-1 focus:ring-offset-1 focus:outline-none"
         // Keyboard focus opens it; a tap (which may also focus) is handled by onClick
         onFocus={(e) => e.currentTarget.matches(':focus-visible') && setIsOpen(true)}
         onBlur={() => setIsOpen(false)}
@@ -441,15 +441,15 @@ export function ReportsPanel() {
   const selectedPerson = resourceNos.length === 1 ? (selectedPeople[0] ?? null) : null;
   const entries = useMemo(() => selectedPeople.flatMap((p) => p.entries), [selectedPeople]);
 
-  // Billable targets: each person's own (or the company default). Null on Thyme BC
-  // Extensions without targets, and until this company's Thyme Setup has loaded.
+  // Billable targets: each person's own (or the company default). Null on Timmie BC
+  // Extensions without targets, and until this company's Timmie Setup has loaded.
   const { companyDefaultPercent, setupAvailable, loadedForCompanyVersion, loadCompanyDefault } =
     useBillableTargetStore();
   const targetFieldsPresent = hasBillableTargetFields(resources);
   useEffect(() => {
     if (targetFieldsPresent) void loadCompanyDefault(companyVersion);
   }, [targetFieldsPresent, companyVersion, loadCompanyDefault]);
-  // Only once this company's Thyme Setup has loaded (never another company's default)
+  // Only once this company's Timmie Setup has loaded (never another company's default)
   const targetsEnabled =
     targetFieldsPresent && setupAvailable === true && loadedForCompanyVersion === companyVersion;
   const companyDefault = targetsEnabled ? resolveCompanyDefault(companyDefaultPercent) : null;
@@ -752,7 +752,7 @@ export function ReportsPanel() {
                 setFilter(NO_REPORT_FILTER);
                 setResourceNos([]);
               }}
-              className="text-dark-300 hover:text-thyme-400 flex h-10 items-center gap-1 rounded-lg px-2 text-sm transition-colors"
+              className="text-dark-300 hover:text-timmie-400 flex h-10 items-center gap-1 rounded-lg px-2 text-sm transition-colors"
             >
               <XMarkIcon className="h-4 w-4" />
               Clear filters
@@ -766,8 +766,8 @@ export function ReportsPanel() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4 print:grid-cols-4">
           <Card variant="bordered" className="p-4">
             <div className="flex items-center gap-3">
-              <div className="bg-thyme-500/20 rounded-lg p-2">
-                <ClockIcon className="text-thyme-500 h-5 w-5" />
+              <div className="bg-timmie-500/20 rounded-lg p-2">
+                <ClockIcon className="text-timmie-500 h-5 w-5" />
               </div>
               <div>
                 <p className="text-dark-400 text-sm">Total Hours</p>
@@ -858,9 +858,9 @@ export function ReportsPanel() {
               aria-selected={view === id}
               onClick={() => setView(id)}
               className={cn(
-                'focus-visible:ring-thyme-500 flex items-center gap-2 rounded-md px-4 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-1',
+                'focus-visible:ring-timmie-500 flex items-center gap-2 rounded-md px-4 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-1',
                 view === id
-                  ? 'bg-thyme-600 text-white shadow-sm'
+                  ? 'bg-timmie-600 text-white shadow-sm'
                   : 'hover:bg-dark-700 text-gray-400 hover:text-white'
               )}
             >
@@ -882,7 +882,7 @@ export function ReportsPanel() {
             </div>
             {isLoading ? (
               <div className="text-dark-400 py-12 text-center">
-                <div className="border-dark-600 border-t-thyme-500 mx-auto h-8 w-8 animate-spin rounded-full border-2"></div>
+                <div className="border-dark-600 border-t-timmie-500 mx-auto h-8 w-8 animate-spin rounded-full border-2"></div>
                 <p className="mt-4">Loading...</p>
               </div>
             ) : error ? (
@@ -890,7 +890,7 @@ export function ReportsPanel() {
                 <p className="mb-2 text-red-500">{error}</p>
                 <button
                   onClick={() => window.location.reload()}
-                  className="text-thyme-500 hover:text-thyme-400 underline"
+                  className="text-timmie-500 hover:text-timmie-400 underline"
                 >
                   Try again
                 </button>
@@ -961,7 +961,7 @@ export function ReportsPanel() {
               </div>
               {isLoading ? (
                 <div className="text-dark-400 py-12 text-center">
-                  <div className="border-dark-600 border-t-thyme-500 mx-auto h-8 w-8 animate-spin rounded-full border-2"></div>
+                  <div className="border-dark-600 border-t-timmie-500 mx-auto h-8 w-8 animate-spin rounded-full border-2"></div>
                   <p className="mt-4">Loading...</p>
                 </div>
               ) : error ? (
@@ -969,7 +969,7 @@ export function ReportsPanel() {
                   <p className="mb-2 text-red-500">{error}</p>
                   <button
                     onClick={() => window.location.reload()}
-                    className="text-thyme-500 hover:text-thyme-400 underline"
+                    className="text-timmie-500 hover:text-timmie-400 underline"
                   >
                     Try again
                   </button>
@@ -1034,7 +1034,7 @@ export function ReportsPanel() {
                 </h2>
                 <div className="flex items-center gap-4 text-sm">
                   <div className="flex items-center gap-2">
-                    <div className="bg-thyme-600 h-3 w-3 rounded-sm" />
+                    <div className="bg-timmie-600 h-3 w-3 rounded-sm" />
                     <span className="text-dark-300">Billable</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1045,7 +1045,7 @@ export function ReportsPanel() {
               </div>
               {isLoading ? (
                 <div className="text-dark-400 py-12 text-center">
-                  <div className="border-dark-600 border-t-thyme-500 mx-auto h-8 w-8 animate-spin rounded-full border-2"></div>
+                  <div className="border-dark-600 border-t-timmie-500 mx-auto h-8 w-8 animate-spin rounded-full border-2"></div>
                   <p className="mt-4">Loading...</p>
                 </div>
               ) : error ? (
@@ -1053,7 +1053,7 @@ export function ReportsPanel() {
                   <p className="mb-2 text-red-500">{error}</p>
                   <button
                     onClick={() => window.location.reload()}
-                    className="text-thyme-500 hover:text-thyme-400 underline"
+                    className="text-timmie-500 hover:text-timmie-400 underline"
                   >
                     Try again
                   </button>
@@ -1083,7 +1083,7 @@ export function ReportsPanel() {
                               {/* Billable segment */}
                               {row.billableHours > 0 && (
                                 <div
-                                  className="bg-thyme-600 flex h-full items-center overflow-hidden px-2 transition-all duration-500"
+                                  className="bg-timmie-600 flex h-full items-center overflow-hidden px-2 transition-all duration-500"
                                   style={{
                                     width: `${billableWidth}%`,
                                     minWidth: '24px',
@@ -1116,7 +1116,7 @@ export function ReportsPanel() {
                           )}
                         </div>
                         <span className="text-dark-300 w-36 text-right text-xs">
-                          <span className="text-thyme-400">{formatTime(row.billableHours)}</span>
+                          <span className="text-timmie-400">{formatTime(row.billableHours)}</span>
                           {' + '}
                           <span className="text-slate-400">{formatTime(unbillableHours)}</span>
                           {row.capacity > 0 && (

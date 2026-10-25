@@ -21,7 +21,7 @@ export function SignInExpired() {
           <p className="text-dark-300 mb-6 text-sm">
             {redirecting
               ? 'Taking you to Microsoft to sign in again. You’ll come back to this page afterwards.'
-              : 'Microsoft needs you to sign in again (or verify it’s you) before Thyme can reach Business Central. You’ll come back to this page afterwards.'}
+              : 'Microsoft needs you to sign in again (or verify it’s you) before Timmie can reach Business Central. You’ll come back to this page afterwards.'}
           </p>
           <Button onClick={() => void signInAgain()} isLoading={redirecting}>
             Sign in again

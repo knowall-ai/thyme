@@ -109,7 +109,7 @@ export function DatePicker({
         aria-expanded={isOpen}
         className={cn(
           'border-dark-600 bg-dark-700 flex h-10 items-center gap-2 rounded-lg border text-sm transition-colors',
-          'hover:border-dark-500 focus:border-thyme-500 focus:ring-thyme-500 focus:ring-1 focus:outline-none',
+          'hover:border-dark-500 focus:border-timmie-500 focus:ring-timmie-500 focus:ring-1 focus:outline-none',
           iconOnly ? 'w-10 justify-center' : 'w-full px-3',
           selectedDate ? 'text-white' : 'text-dark-400'
         )}

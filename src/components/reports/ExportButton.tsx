@@ -22,7 +22,7 @@ export function ExportButton({ entries, projects, fileSuffix }: ExportButtonProp
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `thyme-export-${fileSuffix}.csv`;
+    link.download = `timmie-export-${fileSuffix}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

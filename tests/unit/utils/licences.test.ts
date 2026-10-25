@@ -57,7 +57,7 @@ const users = [
 ];
 
 describe('licence catalogue', () => {
-  it('names the licences Thyme knows, and groups unknown Business Central ones with them', () => {
+  it('names the licences Timmie knows, and groups unknown Business Central ones with them', () => {
     expect(getLicenceSku('DYN365_BUSCENTRAL_ESSENTIAL').name).toBe('Business Central Essentials');
     expect(getLicenceSku('ENTERPRISEPACK').name).toBe('Office 365 E3');
     expect(getLicenceSku('DYN365_BUSCENTRAL_DEVICE').category).toBe('businessCentral');

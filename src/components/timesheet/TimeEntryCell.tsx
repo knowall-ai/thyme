@@ -25,7 +25,7 @@ import { SeverityIcon } from '@/components/review';
 import { BillableTargetBadge } from '@/components/targets';
 import { TimeEntryDetailsPopover, describeEntry } from './TimeEntryDetails';
 
-const DRAG_MIME_TYPE = 'application/x-thyme-entry-id';
+const DRAG_MIME_TYPE = 'application/x-timmie-entry-id';
 
 /** How long the pointer rests on an entry before its details show, so sweeping across the
  *  grid doesn't flash popovers; and the grace period to move onto the popover itself */
@@ -188,7 +188,7 @@ function TimeEntryCard({
         onDragEnd={draggable ? () => setIsDragging(false) : undefined}
         className={cn(
           'w-full cursor-pointer rounded-md p-2 text-left transition-colors',
-          'focus-visible:ring-thyme-500 focus-visible:ring-2 focus-visible:outline-none',
+          'focus-visible:ring-timmie-500 focus-visible:ring-2 focus-visible:outline-none',
           !readOnly && 'hover:bg-dark-600/50',
           draggable && 'cursor-grab active:cursor-grabbing',
           // Flag entries Poppie commented on

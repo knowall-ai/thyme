@@ -1,10 +1,10 @@
-= Thyme FAQs
+= Timmie FAQs
 
 == Time Entry Behaviour
 
 === Why does adding a new time entry create a separate line in Business Central?
 
-When you add a new time entry in Thyme, it always creates a new timesheet line in Business Central, even if you select the same project and task as an existing entry.
+When you add a new time entry in Timmie, it always creates a new timesheet line in Business Central, even if you select the same project and task as an existing entry.
 
 *Reason:* Business Central allows multiple timesheet lines for the same project and task combination, each with its own description (notes). This design enables you to:
 

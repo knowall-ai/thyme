@@ -1,7 +1,7 @@
 /**
  * Per-person weekly capacity.
  *
- * Thyme BC Extension 1.19+ lets each resource have its own weekly capacity (e.g. 15h for
+ * Timmie BC Extension 1.19+ lets each resource have its own weekly capacity (e.g. 15h for
  * someone who works two days a week) and flexible working days (any days, not fixed
  * weekdays). Without them (older extensions, or "not set") a person's week is their
  * hours per day x 5. An explicit 0 means the person is listed but not counted: they're
@@ -46,7 +46,7 @@ const isValidHours = (value: unknown): value is number =>
   value <= MAX_WEEKLY_CAPACITY_HOURS;
 
 /**
- * Whether the installed Thyme BC Extension exposes weekly capacity on resources.
+ * Whether the installed Timmie BC Extension exposes weekly capacity on resources.
  * Older versions don't return the fields at all.
  */
 export function hasWeeklyCapacityFields(resources: Pick<BCResource, 'weeklyCapacitySet'>[]) {
@@ -137,7 +137,7 @@ export function describeCapacitySaveError(error: unknown): string {
   }
   // An extension without the fields: the endpoint or the property doesn't exist
   if (message.includes('(404)') || (message.includes('(400)') && /does not exist/i.test(message))) {
-    return 'Weekly capacity needs a newer version of the Thyme BC Extension.';
+    return 'Weekly capacity needs a newer version of the Timmie BC Extension.';
   }
   // Any other 400 is BC rejecting the value; show its reason
   if (message.includes('(400)')) {

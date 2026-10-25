@@ -4,7 +4,7 @@ test.describe('Timer Functionality', () => {
   test.beforeEach(async ({ page }) => {
     // Clear timer state
     await page.addInitScript(() => {
-      window.localStorage.removeItem('thyme-timer-storage');
+      window.localStorage.removeItem('timmie-timer-storage');
     });
   });
 
@@ -13,7 +13,7 @@ test.describe('Timer Functionality', () => {
 
     // Timer state should be saved to localStorage
     const timerState = await page.evaluate(() => {
-      return window.localStorage.getItem('thyme-timer-storage');
+      return window.localStorage.getItem('timmie-timer-storage');
     });
 
     // Initially null or default state

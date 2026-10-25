@@ -53,7 +53,7 @@ export function explainBcError(error: unknown): BcErrorExplanation {
   if (/failed to fetch|network|load failed/i.test(text)) {
     return {
       message:
-        "Thyme couldn't reach Business Central. Check your connection; if it's fine, Business Central may be having problems.",
+        "Timmie couldn't reach Business Central. Check your connection; if it's fine, Business Central may be having problems.",
       retryable: true,
     };
   }

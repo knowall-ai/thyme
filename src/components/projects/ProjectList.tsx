@@ -254,7 +254,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
     return (
       <ExtensionPreviewWrapper extensionNotInstalled={extensionNotInstalled} pageName="Projects">
         <div className="flex h-64 items-center justify-center">
-          <div className="border-thyme-600 h-8 w-8 animate-spin rounded-full border-b-2"></div>
+          <div className="border-timmie-600 h-8 w-8 animate-spin rounded-full border-b-2"></div>
         </div>
       </ExtensionPreviewWrapper>
     );
@@ -270,7 +270,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
             href={getBCJobsListUrl()}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-thyme-400 hover:text-thyme-300 flex items-center gap-1"
+            className="text-timmie-400 hover:text-timmie-300 flex items-center gap-1"
           >
             Projects
             <ArrowTopRightOnSquareIcon className="h-4 w-4" />
@@ -279,7 +279,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
             href={getBCCustomersListUrl()}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-thyme-400 hover:text-thyme-300 flex items-center gap-1"
+            className="text-timmie-400 hover:text-timmie-300 flex items-center gap-1"
           >
             Customers
             <ArrowTopRightOnSquareIcon className="h-4 w-4" />
@@ -377,7 +377,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
                     Billing
                     {getSortIndicator('billing')}
                     {isLoadingBillingModes && (
-                      <span className="border-t-thyme-500 ml-1 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-500" />
+                      <span className="border-t-timmie-500 ml-1 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-500" />
                     )}
                   </span>
                 </th>
@@ -399,7 +399,7 @@ export function ProjectList({ onSelectProject }: ProjectListProps) {
                     Spent
                     {getSortIndicator('spent')}
                     {isLoadingHours && (
-                      <span className="border-t-thyme-500 ml-1 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-500" />
+                      <span className="border-t-timmie-500 ml-1 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-500" />
                     )}
                   </span>
                 </th>
@@ -625,7 +625,7 @@ function ProjectRow({
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className="hover:bg-dark-600 hover:text-thyme-400 rounded p-1 text-gray-400 transition-colors"
+            className="hover:bg-dark-600 hover:text-timmie-400 rounded p-1 text-gray-400 transition-colors"
             title="Open in Business Central"
           >
             <ArrowTopRightOnSquareIcon className="h-5 w-5" />

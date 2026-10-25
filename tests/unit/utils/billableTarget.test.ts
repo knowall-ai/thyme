@@ -51,7 +51,7 @@ describe('resolveBillableTarget', () => {
 });
 
 describe('resolveCompanyDefault', () => {
-  it('uses the Thyme Setup default when valid', () => {
+  it('uses the Timmie Setup default when valid', () => {
     expect(resolveCompanyDefault(70)).toBe(70);
   });
 

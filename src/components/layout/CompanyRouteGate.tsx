@@ -135,7 +135,7 @@ function CompanySync({ environment, companyId, children }: CompanyRouteGateProps
             </h1>
             <p className="text-dark-300 mb-6 text-sm">
               {error ||
-                `Companies in the ${ENVIRONMENT_LABELS[environment]} environment didn't load, so Thyme can't open this one yet.`}
+                `Companies in the ${ENVIRONMENT_LABELS[environment]} environment didn't load, so Timmie can't open this one yet.`}
             </p>
             <Button onClick={() => fetchCompanies()} isLoading={isLoading}>
               Try again

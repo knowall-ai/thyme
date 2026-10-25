@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "thyme",
+      "name": "timmie",
       "dependencies": {
         "@azure/msal-browser": "^4.27.0",
         "@azure/msal-react": "^3.0.23",

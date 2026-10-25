@@ -226,7 +226,7 @@ function ProjectName({ projectId, name }: ProjectNameProps) {
             ref={editButtonRef}
             type="button"
             onClick={startEditing}
-            className="focus:ring-thyme-500 focus:ring-offset-dark-800 hover:text-thyme-400 rounded p-1 text-gray-500 transition-colors focus:ring-1 focus:ring-offset-1 focus:outline-none print:hidden"
+            className="focus:ring-timmie-500 focus:ring-offset-dark-800 hover:text-timmie-400 rounded p-1 text-gray-500 transition-colors focus:ring-1 focus:ring-offset-1 focus:outline-none print:hidden"
             title="Rename project"
             aria-label="Rename project"
           >
@@ -267,12 +267,12 @@ function ProjectName({ projectId, name }: ProjectNameProps) {
           disabled={isSaving}
           aria-label="Project name"
           aria-invalid={error ? true : undefined}
-          className="border-dark-600 bg-dark-700 focus:border-thyme-500 focus:ring-thyme-500 w-full max-w-xl rounded-lg border px-3 py-1 text-2xl font-bold text-white focus:ring-1 focus:outline-none disabled:opacity-60"
+          className="border-dark-600 bg-dark-700 focus:border-timmie-500 focus:ring-timmie-500 w-full max-w-xl rounded-lg border px-3 py-1 text-2xl font-bold text-white focus:ring-1 focus:outline-none disabled:opacity-60"
         />
         <button
           type="submit"
           disabled={isSaving}
-          className="bg-thyme-600 hover:bg-thyme-500 rounded-lg p-2 text-white transition-colors disabled:opacity-50"
+          className="bg-timmie-600 hover:bg-timmie-500 rounded-lg p-2 text-white transition-colors disabled:opacity-50"
           title="Save name"
           aria-label="Save name"
         >
@@ -396,7 +396,7 @@ export function ProjectHeader() {
           <button
             type="button"
             onClick={handlePrint}
-            className="border-dark-600 bg-dark-700 hover:border-thyme-500/50 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm text-gray-300 transition-colors hover:text-white print:hidden"
+            className="border-dark-600 bg-dark-700 hover:border-timmie-500/50 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm text-gray-300 transition-colors hover:text-white print:hidden"
             title="Print, or save as PDF (hidden amounts stay masked)"
             aria-label="Print"
           >
@@ -409,7 +409,7 @@ export function ProjectHeader() {
             href={getBCJobUrl(project.code, selectedCompany?.name)}
             target="_blank"
             rel="noopener noreferrer"
-            className="border-dark-600 bg-dark-700 hover:border-thyme-500/50 flex items-center gap-2 rounded-lg border px-4 py-2 text-sm text-gray-300 transition-colors hover:text-white"
+            className="border-dark-600 bg-dark-700 hover:border-timmie-500/50 flex items-center gap-2 rounded-lg border px-4 py-2 text-sm text-gray-300 transition-colors hover:text-white"
           >
             <ArrowTopRightOnSquareIcon className="h-4 w-4" />
             <span className="hidden sm:inline">Open in Business Central</span>

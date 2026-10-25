@@ -23,18 +23,18 @@
   --color-dark-900: #0f172a;
   --color-dark-950: #020617;
 
-  /* Thyme accent (matching KnowAll green) */
-  --color-thyme-50: #ecfdf5;
-  --color-thyme-100: #d1fae5;
-  --color-thyme-200: #a7f3d0;
-  --color-thyme-300: #6ee7b7;
-  --color-thyme-400: #34d399;
-  --color-thyme-500: #00d26a;
-  --color-thyme-600: #00b359;
-  --color-thyme-700: #059669;
-  --color-thyme-800: #047857;
-  --color-thyme-900: #065f46;
-  --color-thyme-950: #022c22;
+  /* Timmie accent (matching KnowAll green) */
+  --color-timmie-50: #ecfdf5;
+  --color-timmie-100: #d1fae5;
+  --color-timmie-200: #a7f3d0;
+  --color-timmie-300: #6ee7b7;
+  --color-timmie-400: #34d399;
+  --color-timmie-500: #00d26a;
+  --color-timmie-600: #00b359;
+  --color-timmie-700: #059669;
+  --color-timmie-800: #047857;
+  --color-timmie-900: #065f46;
+  --color-timmie-950: #022c22;
 
   /* Fonts */
   --font-family-sans: 'Inter', system-ui, sans-serif;
@@ -112,7 +112,7 @@ body {
   }
 
   .gradient-text {
-    @apply from-knowall-green to-thyme-300 bg-gradient-to-r bg-clip-text text-transparent;
+    @apply from-knowall-green to-timmie-300 bg-gradient-to-r bg-clip-text text-transparent;
   }
 
   .bg-grid-pattern {

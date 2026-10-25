@@ -155,7 +155,7 @@ export function PoppieSuggestionsPanel({
     return { project, task };
   };
 
-  // One click only when Thyme knows the project and task; otherwise the modal fills the gaps
+  // One click only when Timmie knows the project and task; otherwise the modal fills the gaps
   // Why Add has to open the entry form instead of saving straight away (null = it can save)
   const quickAddBlocker = (s: BCTimeSuggestion): string | null => {
     const { project, task } = resolve(s);
@@ -255,7 +255,7 @@ export function PoppieSuggestionsPanel({
                 toast.dismiss(t.id);
                 handleUndoDismiss(s);
               }}
-              className="text-thyme-400 hover:text-thyme-300 font-medium"
+              className="text-timmie-400 hover:text-timmie-300 font-medium"
             >
               Undo
             </button>
@@ -354,7 +354,7 @@ export function PoppieSuggestionsPanel({
         {/* Header */}
         <div className="border-dark-700 flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
           <div className="flex items-center gap-2">
-            <SparklesIcon className="text-thyme-400 h-5 w-5" />
+            <SparklesIcon className="text-timmie-400 h-5 w-5" />
             <h3 className="text-sm font-semibold text-white">Poppie&apos;s suggestions</h3>
             {visible.length > 0 && (
               <span className="bg-dark-700 text-dark-300 rounded px-1.5 py-0.5 text-xs">
@@ -436,10 +436,10 @@ export function PoppieSuggestionsPanel({
           <div
             role="status"
             aria-live="polite"
-            className="border-dark-700 bg-thyme-500/5 flex items-center gap-3 border-b px-4 py-2.5 text-sm"
+            className="border-dark-700 bg-timmie-500/5 flex items-center gap-3 border-b px-4 py-2.5 text-sm"
           >
             <span
-              className="border-thyme-400 h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-t-transparent"
+              className="border-timmie-400 h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-t-transparent"
               aria-hidden="true"
             />
             <span className="text-dark-200">
@@ -555,7 +555,7 @@ export function PoppieSuggestionsPanel({
                               href={s.sourceUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-dark-400 hover:text-thyme-400"
+                              className="text-dark-400 hover:text-timmie-400"
                               title={`Open in ${sourceLabels[s.source] ?? s.source}`}
                             >
                               <ArrowTopRightOnSquareIcon className="h-4 w-4" />

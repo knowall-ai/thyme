@@ -1,9 +1,9 @@
-= Thyme Testing Guide
+= Timmie Testing Guide
 :toc:
 
 == Overview
 
-Thyme uses a comprehensive testing strategy with:
+Timmie uses a comprehensive testing strategy with:
 
 * **Vitest** - Unit and integration tests
 * **Playwright** - End-to-end tests
@@ -80,7 +80,7 @@ Unit tests (Vitest):
   header marker, person markers, the popover (read-only vs. edit controls, keyboard, conflicts)
   and the Plan's capacity outlines
 
-Manual test, in a sandbox company (e.g. CRONUS UK Ltd.) with Thyme BC Extension 1.22.0.0+:
+Manual test, in a sandbox company (e.g. CRONUS UK Ltd.) with Timmie BC Extension 1.22.0.0+:
 
 . As a user who can write planning lines, open *Plan* and click a date in the header. The popover
   opens with focus inside it; *Escape* closes it and returns focus to the date.

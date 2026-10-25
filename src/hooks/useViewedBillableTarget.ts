@@ -10,7 +10,7 @@ import { useCompanyStore } from './useCompanyStore';
  * The billable target of whoever's timesheet is on screen: the teammate with
  * `resourceNo`, or the signed-in user when it's null. Their own target when set,
  * otherwise the company default - the same rule as the Team page. Null while loading
- * and on Thyme BC Extension versions without billable targets.
+ * and on Timmie BC Extension versions without billable targets.
  */
 export function useViewedBillableTarget(
   resourceNo: string | null,

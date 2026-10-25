@@ -22,7 +22,7 @@ const byline = (note: BCProjectNote) => {
 /**
  * The project's status: its latest Note in Business Central (the Notes factbox on the
  * Project card), with who wrote it and when, a way to post a new one, and the earlier
- * notes a click away. Nothing on Thyme BC Extensions before 1.25, which can't read notes.
+ * notes a click away. Nothing on Timmie BC Extensions before 1.25, which can't read notes.
  */
 export function ProjectStatusNote({ jobNo }: { jobNo: string }) {
   const companyVersion = useCompanyStore((state) => state.companyVersion);
@@ -59,7 +59,7 @@ export function ProjectStatusNote({ jobNo }: { jobNo: string }) {
     return loadError ? (
       <p className="mt-3 text-sm text-gray-500">
         Couldn&apos;t load the project&apos;s status.{' '}
-        <button type="button" onClick={() => void load()} className="text-thyme-400 underline">
+        <button type="button" onClick={() => void load()} className="text-timmie-400 underline">
           Retry
         </button>
       </p>
@@ -71,7 +71,7 @@ export function ProjectStatusNote({ jobNo }: { jobNo: string }) {
   return (
     <div className="mt-3 max-w-3xl">
       {latest ? (
-        <div className="border-thyme-500/60 bg-dark-800/60 rounded-r-lg border-l-2 py-2 pr-3 pl-3">
+        <div className="border-timmie-500/60 bg-dark-800/60 rounded-r-lg border-l-2 py-2 pr-3 pl-3">
           <p className="text-sm whitespace-pre-line text-gray-200">{latest.note}</p>
           <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
             <span>{byline(latest)}</span>
@@ -79,7 +79,7 @@ export function ProjectStatusNote({ jobNo }: { jobNo: string }) {
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
-                className="text-thyme-400 hover:text-thyme-300"
+                className="text-timmie-400 hover:text-timmie-300"
               >
                 Update status
               </button>
@@ -99,7 +99,7 @@ export function ProjectStatusNote({ jobNo }: { jobNo: string }) {
         <button
           type="button"
           onClick={() => setIsEditing(true)}
-          className="hover:text-thyme-400 flex items-center gap-1.5 text-sm text-gray-500 print:hidden"
+          className="hover:text-timmie-400 flex items-center gap-1.5 text-sm text-gray-500 print:hidden"
         >
           <PencilSquareIcon className="h-4 w-4" />
           Add a status note
@@ -130,7 +130,7 @@ export function ProjectStatusNote({ jobNo }: { jobNo: string }) {
               key={note.id}
               className={cn(
                 'rounded-lg border p-3',
-                i === 0 ? 'border-thyme-500/40 bg-thyme-500/5' : 'border-dark-600'
+                i === 0 ? 'border-timmie-500/40 bg-timmie-500/5' : 'border-dark-600'
               )}
             >
               <p className="text-sm whitespace-pre-line text-gray-200">{note.note}</p>
@@ -229,7 +229,7 @@ function NewNoteModal({
           maxLength={MAX_NOTE_LENGTH}
           rows={4}
           autoFocus
-          className="border-dark-600 bg-dark-700 focus:border-thyme-500 focus:ring-thyme-500 w-full rounded-lg border px-3 py-2 text-sm text-white placeholder-gray-500 focus:ring-1 focus:outline-none"
+          className="border-dark-600 bg-dark-700 focus:border-timmie-500 focus:ring-timmie-500 w-full rounded-lg border px-3 py-2 text-sm text-white placeholder-gray-500 focus:ring-1 focus:outline-none"
           placeholder="One line, or a short paragraph"
         />
         {error && <p className="text-sm text-red-400">{error}</p>}

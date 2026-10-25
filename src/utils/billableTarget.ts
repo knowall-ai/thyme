@@ -2,7 +2,7 @@
  * Billable targets.
  *
  * Each person's effective billable target is their own (set on their BC resource) or,
- * if they don't have one, the company default (Thyme Setup in BC). Older Thyme BC
+ * if they don't have one, the company default (the Thyme Setup page in BC). Older Timmie BC
  * Extension versions don't have targets at all; then nothing here is shown.
  */
 
@@ -40,7 +40,7 @@ const isValidPercent = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100;
 
 /**
- * Whether the installed Thyme BC Extension exposes billable targets on resources.
+ * Whether the installed Timmie BC Extension exposes billable targets on resources.
  * Older versions don't return the fields at all.
  */
 export function hasBillableTargetFields(resources: Pick<BCResource, 'billableTargetSet'>[]) {
@@ -63,7 +63,7 @@ export function resolveBillableTarget(
 
 /**
  * A person's effective billable target when the company default may not be known
- * (null: Thyme Setup not loaded yet, or its request failed): their own target never
+ * (null: Timmie Setup not loaded yet, or its request failed): their own target never
  * depends on it, so it's shown regardless; without one, the company default when known,
  * else null.
  */
@@ -79,7 +79,7 @@ export function resolveBillableTargetIfKnown(
     : { percent: companyDefaultPercent, isDefault: true };
 }
 
-/** The company default from Thyme Setup, or the config fallback when BC has none */
+/** The company default from Timmie Setup, or the config fallback when BC has none */
 export function resolveCompanyDefault(defaultPercent: number | null | undefined): number {
   return isValidPercent(defaultPercent)
     ? defaultPercent
@@ -162,7 +162,7 @@ export function describeTargetSaveError(error: unknown): string {
     return 'Someone else changed this target in the meantime. Refresh and try again.';
   }
   if (message.includes('(404)')) {
-    return 'Billable targets need a newer version of the Thyme BC Extension.';
+    return 'Billable targets need a newer version of the Timmie BC Extension.';
   }
   return 'Failed to save the billable target. Please try again.';
 }

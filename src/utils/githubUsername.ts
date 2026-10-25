@@ -1,10 +1,10 @@
 /**
- * Each person's GitHub username, stored on their BC resource (Thyme BC Extension 1.21+), so
+ * Each person's GitHub username, stored on their BC resource (Timmie BC Extension 1.21+), so
  * Poppie knows whose GitHub pull requests and issues are whose. (Their Azure DevOps user is
- * their Microsoft 365 sign-in, so Thyme doesn't ask for it.)
+ * their Microsoft 365 sign-in, so Timmie doesn't ask for it.)
  *
- * A Thyme administrator can change anyone's and a person their own; BC decides and tells
- * Thyme per resource (`canEditConnectedAccounts`).
+ * A Timmie administrator can change anyone's and a person their own; BC decides and tells
+ * Timmie per resource (`canEditConnectedAccounts`).
  */
 
 import type { BCResource } from '@/types';
@@ -19,7 +19,7 @@ const GITHUB_LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9]))*$/;
 const GITHUB_PROFILE_PREFIX = /^(?:https?:\/\/)?(?:www\.)?github\.com\//i;
 
 /**
- * Whether the installed Thyme BC Extension stores GitHub usernames on resources. Older
+ * Whether the installed Timmie BC Extension stores GitHub usernames on resources. Older
  * versions don't return the field at all.
  */
 export function hasGitHubUsernameField(resources: Pick<BCResource, 'githubUsername'>[]) {
@@ -28,7 +28,7 @@ export function hasGitHubUsernameField(resources: Pick<BCResource, 'githubUserna
 
 /**
  * A GitHub login from what was typed, as BC normalises it: trimmed, without a leading @ or a
- * github.com profile URL around it (Thyme also drops a ?query or #fragment from the URL).
+ * github.com profile URL around it (Timmie also drops a ?query or #fragment from the URL).
  * '' when blank (clears it); null when it isn't a valid login (letters, digits and single
  * hyphens, not starting or ending with a hyphen, at most 39 characters).
  */
@@ -58,7 +58,7 @@ export function describeGitHubUsernameSaveError(error: unknown): string {
   }
   // An extension without the action
   if (message.includes('(404)') || (message.includes('(400)') && /does not exist/i.test(message))) {
-    return 'GitHub usernames need a newer version of the Thyme BC Extension (1.21 or later).';
+    return 'GitHub usernames need a newer version of the Timmie BC Extension (1.21 or later).';
   }
   if (message.includes('(400)')) {
     // The body is JSON ({"error":{"message":...}}); BC appends "  CorrelationId:  <guid>."

@@ -231,14 +231,14 @@ describe('PlanReview popover', () => {
       context([subject()], {
         canApply: () => true,
         onApply: vi.fn(async () => {
-          throw new Error('Update the Thyme BC Extension to apply changes');
+          throw new Error('Update the Timmie BC Extension to apply changes');
         }),
       })
     );
     openPopover();
     fireEvent.click(screen.getByRole('button', { name: 'Apply change' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Update the Thyme BC Extension to apply changes'
+      'Update the Timmie BC Extension to apply changes'
     );
   });
 

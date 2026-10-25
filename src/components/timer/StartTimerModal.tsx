@@ -7,6 +7,7 @@ import { useTimer, useProjectsStore } from '@/hooks';
 import { useAuth } from '@/services/auth';
 import { bcClient } from '@/services/bc/bcClient';
 import type { SelectOption } from '@/types';
+import { BC_EXTENSION_GITHUB_URL } from '@/utils/bcUrls';
 
 interface StartTimerModalProps {
   isOpen: boolean;
@@ -88,18 +89,14 @@ export function StartTimerModal({ isOpen, onClose }: StartTimerModalProps) {
           </div>
           <h3 className="mb-2 text-lg font-semibold text-white">Extension Required</h3>
           <p className="text-dark-300 mb-4 max-w-sm text-sm">
-            The Thyme BC Extension is required to start a timer. It provides the project tasks
+            The Timmie BC Extension is required to start a timer. It provides the project tasks
             needed by Business Central.
           </p>
           <div className="flex gap-3">
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button
-              onClick={() =>
-                window.open('https://github.com/knowall-ai/thyme-bc-extension', '_blank')
-              }
-            >
+            <Button onClick={() => window.open(BC_EXTENSION_GITHUB_URL, '_blank')}>
               Learn More
             </Button>
           </div>
@@ -140,7 +137,7 @@ export function StartTimerModal({ isOpen, onClose }: StartTimerModalProps) {
             rows={2}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="border-dark-600 bg-dark-700 text-dark-100 placeholder:text-dark-400 focus:ring-thyme-500 flex w-full rounded-lg border px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:outline-none"
+            className="border-dark-600 bg-dark-700 text-dark-100 placeholder:text-dark-400 focus:ring-timmie-500 flex w-full rounded-lg border px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:outline-none"
             placeholder="What are you working on?"
           />
         </div>

@@ -5,9 +5,9 @@ import { PublicPageLayout } from '@/components/docs/PublicPageLayout';
 import { LegalDocLayout } from '@/components/docs/LegalDocLayout';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service - Thyme by KnowAll.ai',
+  title: 'Terms of Service - Timmie by KnowAll.ai',
   description:
-    'Read the Terms of Service for Thyme, the time tracking application for Microsoft Dynamics 365 Business Central.',
+    'Read the Terms of Service for Timmie, the time tracking application for Microsoft Dynamics 365 Business Central.',
 };
 
 export default async function TermsPage() {

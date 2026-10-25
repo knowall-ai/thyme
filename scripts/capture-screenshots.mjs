@@ -1,4 +1,4 @@
-// Capture the landing page / README screenshots from a running Thyme dev server.
+// Capture the landing page / README screenshots from a running Timmie dev server.
 //
 // Connects to a browser you've already signed in to (started with
 // --remote-debugging-port=9222), opens each page under /{environment}/{companyId}/…
@@ -10,7 +10,7 @@
 //     [--project PR00010] [--week 2026-10-12] [--only plan,plan-review] [--base-url http://localhost:3000]
 //
 // Every option can also come from an environment variable:
-//   THYME_ENV, THYME_COMPANY_ID, THYME_PROJECT, THYME_WEEK, THYME_ONLY, THYME_BASE_URL, CDP_URL
+//   TIMMIE_ENV, TIMMIE_COMPANY_ID, TIMMIE_PROJECT, TIMMIE_WEEK, TIMMIE_ONLY, TIMMIE_BASE_URL, CDP_URL
 //
 // Use the demo company CRONUS UK Ltd. in a sandbox: the repository is public, so the
 // screenshots must not show real client names or monetary amounts.
@@ -44,18 +44,19 @@ if (args.help) {
   process.exit(0);
 }
 
-const environment = (args.env ?? process.env.THYME_ENV ?? 'sandbox').toLowerCase();
-const companyId = (args.company ?? process.env.THYME_COMPANY_ID ?? '').toLowerCase();
-const projectNumber = args.project ?? process.env.THYME_PROJECT;
-const week = args.week ?? process.env.THYME_WEEK;
-const only = (args.only ?? process.env.THYME_ONLY ?? '')
+const environment = (args.env ?? process.env.TIMMIE_ENV ?? 'sandbox').toLowerCase();
+const companyId = (args.company ?? process.env.TIMMIE_COMPANY_ID ?? '').toLowerCase();
+const projectNumber = args.project ?? process.env.TIMMIE_PROJECT;
+const week = args.week ?? process.env.TIMMIE_WEEK;
+const only = (args.only ?? process.env.TIMMIE_ONLY ?? '')
   .split(',')
   .map((name) => name.trim())
   .filter(Boolean);
-const baseUrl = (args['base-url'] ?? process.env.THYME_BASE_URL ?? 'http://localhost:3000').replace(
-  /\/$/,
-  ''
-);
+const baseUrl = (
+  args['base-url'] ??
+  process.env.TIMMIE_BASE_URL ??
+  'http://localhost:3000'
+).replace(/\/$/, '');
 const cdpUrl = args['cdp-url'] ?? process.env.CDP_URL ?? 'http://localhost:9222';
 
 if (!['sandbox', 'production'].includes(environment)) {
@@ -64,8 +65,8 @@ if (!['sandbox', 'production'].includes(environment)) {
 }
 if (!GUID_PATTERN.test(companyId)) {
   console.error(
-    '--company (or THYME_COMPANY_ID) must be the Business Central company GUID.\n' +
-      'Open the company in Thyme and copy it from the URL: /{environment}/{companyId}/time'
+    '--company (or TIMMIE_COMPANY_ID) must be the Business Central company GUID.\n' +
+      'Open the company in Timmie and copy it from the URL: /{environment}/{companyId}/time'
   );
   process.exit(1);
 }
@@ -156,7 +157,7 @@ const shots = [
   {
     name: 'projects',
     path: projectNumber ? `/projects/${encodeURIComponent(projectNumber)}` : null,
-    skipReason: 'pass --project <number> (or THYME_PROJECT) to capture a project page',
+    skipReason: 'pass --project <number> (or TIMMIE_PROJECT) to capture a project page',
     ready: 'text=/vs Budget/i',
   },
   {
@@ -268,10 +269,10 @@ async function captureScreenshots() {
   const context = browser.contexts()[0];
   const page = await context.newPage();
 
-  // Keep the "Introducing Thyme Bot" promo banner out of the shots (it stays dismissed,
+  // Keep the "Introducing Timmie Bot" promo banner out of the shots (it stays dismissed,
   // as if you'd closed it)
   await page.addInitScript(() => {
-    localStorage.setItem('thyme_teams_bot_banner_dismissed', 'true');
+    localStorage.setItem('timmie_teams_bot_banner_dismissed', 'true');
   });
 
   // Auto-dismiss any dialogs

@@ -30,7 +30,7 @@ describe('BcHealthBanner', () => {
     const fetchMock = stubHealth('down');
     render(<BcHealthBanner />);
     await callFailed();
-    expect(await screen.findByRole('alert')).toHaveTextContent(/Microsoft issue, not Thyme/);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Microsoft issue, not Timmie/);
     expect(fetchMock).toHaveBeenCalledWith('/api/health/bc', { cache: 'no-store' });
     expect(screen.getByRole('link', { name: /Service health/ })).toHaveAttribute(
       'href',

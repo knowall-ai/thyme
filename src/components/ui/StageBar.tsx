@@ -10,8 +10,8 @@ export interface StageSegment {
 // Same colours as the Hours per Week bars; posted is the darker, settled green
 export function getStageSegments(stages: Omit<StageHours, 'total'>): StageSegment[] {
   return [
-    { label: 'Posted', hours: stages.posted, color: 'bg-thyme-700' },
-    { label: 'Approved', hours: stages.approved, color: 'bg-thyme-500' },
+    { label: 'Posted', hours: stages.posted, color: 'bg-timmie-700' },
+    { label: 'Approved', hours: stages.approved, color: 'bg-timmie-500' },
     { label: 'Submitted', hours: stages.submitted, color: 'bg-amber-500' },
     { label: 'Unsubmitted', hours: stages.unsubmitted, color: 'bg-amber-500/40' },
   ];

@@ -3,14 +3,18 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/16/solid';
-import { ThymeLogo } from '@/components/icons';
+import { TimmieLogo } from '@/components/icons';
 
 const footerSections = [
   {
     title: 'Product',
     links: [
       { href: '/pricing', label: 'Pricing' },
-      { href: 'https://github.com/user/thyme-bc-extension', label: 'BC Extension', external: true },
+      {
+        href: 'https://github.com/knowall-ai/timmie-bc-extension',
+        label: 'BC Extension',
+        external: true,
+      },
       { href: 'https://appsource.microsoft.com', label: 'AppSource', external: true },
     ],
   },
@@ -20,7 +24,7 @@ const footerSections = [
       { href: '/help', label: 'Help & FAQs' },
       { href: 'mailto:support@knowall.ai', label: 'Contact Support', external: true },
       {
-        href: 'https://github.com/knowall-ai/thyme/issues',
+        href: 'https://github.com/knowall-ai/timmie/issues',
         label: 'Report an Issue',
         external: true,
       },
@@ -46,9 +50,9 @@ export function PublicFooter() {
           <div className="lg:col-span-2">
             <div className="flex items-center gap-3">
               <div className="bg-knowall-green shadow-knowall-green/20 flex h-10 w-10 items-center justify-center rounded-lg shadow-lg">
-                <ThymeLogo className="text-dark-950 h-6 w-6" />
+                <TimmieLogo className="text-dark-950 h-6 w-6" />
               </div>
-              <span className="text-xl font-bold text-white">Thyme</span>
+              <span className="text-xl font-bold text-white">Timmie</span>
             </div>
             <p className="text-dark-400 mt-4 max-w-xs text-sm leading-relaxed">
               Modern time tracking for Microsoft Dynamics 365 Business Central.

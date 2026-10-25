@@ -62,7 +62,7 @@ export function SettingsPanel() {
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div className="border-thyme-600 h-8 w-8 animate-spin rounded-full border-b-2"></div>
+        <div className="border-timmie-600 h-8 w-8 animate-spin rounded-full border-b-2"></div>
       </div>
     );
   }
@@ -72,7 +72,7 @@ export function SettingsPanel() {
       {/* User Information */}
       <Card variant="bordered" className="p-6">
         <div className="mb-4 flex items-center gap-3">
-          <UserCircleIcon className="text-thyme-500 h-6 w-6" />
+          <UserCircleIcon className="text-timmie-500 h-6 w-6" />
           <h2 className="text-lg font-semibold text-white">Your Account</h2>
         </div>
         <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2">
@@ -84,11 +84,11 @@ export function SettingsPanel() {
                 <img
                   src={photoUrl}
                   alt={account?.name ? `${account.name}'s profile photo` : 'User profile photo'}
-                  className="border-thyme-500/30 h-16 w-16 rounded-full border-2 object-cover"
+                  className="border-timmie-500/30 h-16 w-16 rounded-full border-2 object-cover"
                 />
               ) : (
-                <div className="border-thyme-500/30 bg-thyme-500/20 flex h-16 w-16 items-center justify-center rounded-full border-2">
-                  <span className="text-thyme-500 text-xl font-medium">
+                <div className="border-timmie-500/30 bg-timmie-500/20 flex h-16 w-16 items-center justify-center rounded-full border-2">
+                  <span className="text-timmie-500 text-xl font-medium">
                     {account?.name
                       ?.trim()
                       .split(/\s+/)
@@ -117,7 +117,7 @@ export function SettingsPanel() {
               {account?.username ? (
                 <a
                   href={`mailto:${account.username}`}
-                  className="text-dark-100 hover:text-thyme-400 hover:underline"
+                  className="text-dark-100 hover:text-timmie-400 hover:underline"
                 >
                   {account.username}
                 </a>
@@ -129,13 +129,13 @@ export function SettingsPanel() {
         </div>
       </Card>
 
-      {/* The user's own GitHub username, for Poppie (Thyme BC Extension 1.21+) */}
+      {/* The user's own GitHub username, for Poppie (Timmie BC Extension 1.21+) */}
       <ConnectedAccountsSettings />
 
       {/* Company Information */}
       <Card variant="bordered" className="p-6">
         <div className="mb-4 flex items-center gap-3">
-          <BuildingOffice2Icon className="text-thyme-500 h-6 w-6" />
+          <BuildingOffice2Icon className="text-timmie-500 h-6 w-6" />
           <h2 className="text-lg font-semibold text-white">Business Central Company</h2>
         </div>
         {error ? (
@@ -158,7 +158,7 @@ export function SettingsPanel() {
                   {companyInfo.email ? (
                     <a
                       href={`mailto:${companyInfo.email}`}
-                      className="text-dark-100 hover:text-thyme-400 hover:underline"
+                      className="text-dark-100 hover:text-timmie-400 hover:underline"
                     >
                       {companyInfo.email}
                     </a>
@@ -180,7 +180,7 @@ export function SettingsPanel() {
                       }
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-dark-100 hover:text-thyme-400 hover:underline"
+                      className="text-dark-100 hover:text-timmie-400 hover:underline"
                     >
                       {companyInfo.website}
                     </a>
@@ -234,7 +234,7 @@ export function SettingsPanel() {
             <input
               type="number"
               defaultValue={40}
-              className="border-dark-600 bg-dark-800 text-dark-100 focus:ring-thyme-500 w-20 rounded-lg border px-3 py-2 focus:ring-2 focus:outline-none"
+              className="border-dark-600 bg-dark-800 text-dark-100 focus:ring-timmie-500 w-20 rounded-lg border px-3 py-2 focus:ring-2 focus:outline-none"
             />
           </div>
           <div className="flex items-center justify-between">
@@ -244,7 +244,7 @@ export function SettingsPanel() {
             </div>
             <label className="relative inline-flex cursor-pointer items-center">
               <input type="checkbox" defaultChecked className="peer sr-only" />
-              <div className="peer bg-dark-600 peer-checked:bg-thyme-600 peer-focus:ring-thyme-500 h-6 w-11 rounded-full peer-focus:ring-2 peer-focus:outline-none after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full"></div>
+              <div className="peer bg-dark-600 peer-checked:bg-timmie-600 peer-focus:ring-timmie-500 h-6 w-11 rounded-full peer-focus:ring-2 peer-focus:outline-none after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full"></div>
             </label>
           </div>
           <div className="flex items-center justify-between">
@@ -261,13 +261,13 @@ export function SettingsPanel() {
                 onChange={(e) => updateSettings({ requireTimesheetComments: e.target.checked })}
                 className="peer sr-only"
               />
-              <div className="peer bg-dark-600 peer-checked:bg-thyme-600 peer-focus:ring-thyme-500 h-6 w-11 rounded-full peer-focus:ring-2 peer-focus:outline-none after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full"></div>
+              <div className="peer bg-dark-600 peer-checked:bg-timmie-600 peer-focus:ring-timmie-500 h-6 w-11 rounded-full peer-focus:ring-2 peer-focus:outline-none after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full"></div>
             </label>
           </div>
         </div>
       </Card>
 
-      {/* Company default billable target (hidden on older Thyme BC Extensions) */}
+      {/* Company default billable target (hidden on older Timmie BC Extensions) */}
       <CompanyBillableTargetSettings />
 
       <LicenceAccessSettings />

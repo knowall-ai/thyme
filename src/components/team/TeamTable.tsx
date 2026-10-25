@@ -56,7 +56,7 @@ export interface TeamTableRow {
   /** Whether this resource belongs to the signed-in user */
   isCurrentUser: boolean;
   photoUrl: string | null;
-  /** Their GitHub username ('' = not set); undefined on Thyme BC Extensions before 1.21 */
+  /** Their GitHub username ('' = not set); undefined on Timmie BC Extensions before 1.21 */
   githubUsername?: string;
   /** Whether the signed-in user may change their GitHub username */
   canEditConnectedAccounts?: boolean;
@@ -141,7 +141,7 @@ export interface TeamTableProps {
    * with all their capacity would mislead
    */
   showCapacity?: boolean;
-  /** Show GitHub usernames under names (Thyme BC Extension 1.21+) */
+  /** Show GitHub usernames under names (Timmie BC Extension 1.21+) */
   showGitHub?: boolean;
   /** The company's name, for links to each resource in BC */
   companyName?: string;
@@ -619,7 +619,7 @@ function LicenceTagButton({ tag, name }: { tag: LicenceTag; name: string }) {
         aria-describedby={detailsId}
         aria-label={`${name}'s licence: ${tag.label}`}
         className={cn(
-          'focus-visible:ring-thyme-500 rounded px-1.5 py-0.5 text-xs font-normal focus:outline-none focus-visible:ring-1',
+          'focus-visible:ring-timmie-500 rounded px-1.5 py-0.5 text-xs font-normal focus:outline-none focus-visible:ring-1',
           tag.warn ? 'bg-amber-500/15 text-amber-300' : 'bg-dark-600 text-gray-300'
         )}
       >
