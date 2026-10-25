@@ -1,0 +1,72 @@
+<!doctype html>
+<!-- Developer-only preview of Timmie's avatar; not served by the app. Open the file in a browser. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Timmie avatar preview</title>
+    <style>
+      body {
+        background: #111827;
+        color: #e5e7eb;
+        font-family: system-ui, sans-serif;
+        margin: 2rem;
+      }
+      .row {
+        display: flex;
+        gap: 2rem;
+        align-items: end;
+        flex-wrap: wrap;
+        margin-bottom: 2rem;
+      }
+      figure {
+        margin: 0;
+        text-align: center;
+      }
+      .round {
+        border-radius: 50%;
+      }
+      .light {
+        background: #f3f4f6;
+        padding: 1rem;
+        border-radius: 0.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Timmie</h1>
+    <div class="row">
+      <figure>
+        <img src="timmie-avatar.svg" width="256" height="256" alt="" />
+        <figcaption>Animated SVG</figcaption>
+      </figure>
+      <figure>
+        <img src="timmie-profile-512.png" width="256" height="256" alt="" />
+        <figcaption>Profile</figcaption>
+      </figure>
+      <figure>
+        <img src="timmie-head-512.png" width="256" height="256" alt="" />
+        <figcaption>Head crop</figcaption>
+      </figure>
+      <figure>
+        <img src="timmie-cutout-1024.png" width="256" height="256" alt="" />
+        <figcaption>Cut-out</figcaption>
+      </figure>
+    </div>
+    <div class="row">
+      <figure>
+        <img class="round" src="timmie-head-512.png" width="48" height="48" alt="" />
+        <figcaption>48 dark</figcaption>
+      </figure>
+      <figure class="light">
+        <img class="round" src="timmie-head-512.png" width="48" height="48" alt="" />
+        <figcaption style="color: #111">48 light</figcaption>
+      </figure>
+      <figure>
+        <img class="round" src="timmie-head-512.png" width="64" height="64" alt="" />
+        <figcaption>64</figcaption>
+      </figure>
+    </div>
+    <h2>With the family</h2>
+    <img src="timmie-family-check.png" alt="Timmie beside Sallie, Poppie, Winnie and Bookie" />
+  </body>
+</html>
