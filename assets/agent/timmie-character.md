@@ -98,3 +98,18 @@ Reject and regenerate on any failure:
 6. **No pencil** (an early concept had one and models bring it back).
 7. **No text:** nothing readable anywhere; tick marks only on any dial.
 8. **Small size:** the head crop still reads as Timmie at 48 px.
+
+## Presence (live call avatar), when Timmie gets a call surface
+
+Not made yet: Timmie has no Teams call surface. The shared renderer (`agent-presence`,
+`docs/AVATAR-IDENTITY.md`, `PRESENCE_AVATAR_CONFIG`) takes identity as data, so it needs:
+
+1. **A plate:** `timmie-agent.png`, 1536×1024 RGBA, a transparent cut-out with **no eyes and no
+   dashed line** drawn in (the renderer draws the eyes, which blink, and the mouth, which follows
+   his voice). Everything else is baked in: chassis, stopwatch crown and pushers, lanyard. For the
+   default bottom anchor, his shoulders sit on the bottom edge.
+2. **`timmie-avatar.json`**, measured on that plate as 0–1 fractions: `plate.eye` (both disc
+   centres and radii), `plate.eye_color` `[157, 255, 10]`, `plate.mouth` (where the dashed line
+   sits) with `mouth_style: "dotted"` (his dashed line is the mouth), `plate.visor` and
+   `plate.glass`, framing (`scale`, `anchor`, `offset_y`), `badge: "TIMMIE"`, and a `backdrop`.
+3. Ask the agent-presence maintainers to check the eye and mouth fractions in a render.
