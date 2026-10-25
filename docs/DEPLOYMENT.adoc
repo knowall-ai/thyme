@@ -177,7 +177,7 @@ Without `ORG_SETTINGS_TABLE_ENDPOINT`, a production server can't keep settings: 
 
 Who can change them: users with the *Timmie administrator* app role (`Timmie.Admin`, defined on the Timmie app registration). Each organisation assigns it in its own Entra ID: *Enterprise applications* → Timmie → *Users and groups* → *Add user/group* → choose the person or group and the *Timmie administrator* role. Assign it to whoever manages Timmie for the organisation (usually its IT admin or the person who set Timmie up). The user signs out and back in to pick it up. Everyone else can see the setting but not change it.
 
-IMPORTANT: An organisation that runs its own agent should set its name straight after deploying a version with this setting: *Settings > AI Agent* → *Your own agent* → the name the agent signs its reviews with (and writes its heartbeat under) → *Save*. Until then Timmie calls the agent "Timmie". Its presence still works, because Timmie falls back to any agent's heartbeat when none has the configured name.
+IMPORTANT: An organisation that runs its own agent should set its name straight after deploying a version with this setting: *Settings > AI Agent* → *Your own agent* → the name the agent signs its reviews with (and writes its heartbeat under) → *Save*. Until then Timmie calls the agent "Timmie", though its online/offline status still works (on Timmie's own agent, any agent's heartbeat counts). Once a custom name is set, Timmie only counts heartbeats with that name, so it must match the name the agent writes its heartbeat under.
 
 == CI/CD Pipeline (GitHub Actions)
 

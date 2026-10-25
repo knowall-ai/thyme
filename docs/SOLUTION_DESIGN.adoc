@@ -198,8 +198,10 @@ returns 412/409), the save is refused and the user is asked to reload.
 Each organisation chooses which AI agent Timmie works with: Timmie's own (called Timmie, the
 default) or its own agent, by name. The name is what Timmie shows ("Ask Timmie to look again",
 "Timmie's suggestions") and how it recognises the agent's heartbeat in Business Central
-(`agentHeartbeats.agentName`, matched ignoring case; if no heartbeat has the name, the newest
-heartbeat of any agent counts, so a connected agent isn't shown offline because of its name).
+(`agentHeartbeats.agentName`, matched ignoring case). While an organisation is on Timmie's own
+agent and no heartbeat is named Timmie, the newest heartbeat of any agent counts, so an
+organisation that hasn't named its own agent yet doesn't see it as offline. A custom agent is
+matched by name only.
 Review panels show the reviewer name each review carries.
 
 Settings live in Timmie, not Business Central, keyed by the organisation's Entra tenant ID:

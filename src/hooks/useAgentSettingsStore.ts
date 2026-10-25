@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import {
+  OrgSettingsError,
   fetchOrgSettings,
   saveAgentSettings,
   type OrgSettings,
@@ -17,8 +18,10 @@ interface AgentSettingsStore {
   /** Can the server store settings? (False: it isn't configured with settings storage) */
   canSave: boolean;
   loaded: boolean;
+  /** Why the last load failed (cleared when a load starts), or null */
+  loadError: string | null;
 
-  /** Load the settings (no-op once loaded or while loading) */
+  /** Load the settings (no-op once loaded or while loading; after a failure it tries again) */
   load: () => Promise<void>;
   /** Save new settings (admins only); throws OrgSettingsError on failure */
   save: (agent: AgentSettings) => Promise<void>;
@@ -31,12 +34,20 @@ export const useAgentSettingsStore = create<AgentSettingsStore>((set, get) => ({
   canEdit: false,
   canSave: true,
   loaded: false,
+  loadError: null,
 
   load: () => {
     if (get().loaded) return Promise.resolve();
+    if (!inFlight) set({ loadError: null });
     inFlight ??= fetchOrgSettings()
-      .then((settings: OrgSettings) => set({ ...settings, loaded: true }))
-      .catch((error) => console.warn('Could not load organisation settings', error))
+      .then((settings: OrgSettings) => set({ ...settings, loaded: true, loadError: null }))
+      .catch((error) => {
+        console.warn('Could not load organisation settings', error);
+        set({
+          loadError:
+            error instanceof OrgSettingsError ? error.message : 'Settings couldn’t be loaded.',
+        });
+      })
       .finally(() => {
         inFlight = null;
       });
@@ -45,7 +56,7 @@ export const useAgentSettingsStore = create<AgentSettingsStore>((set, get) => ({
 
   save: async (agent) => {
     const settings = await saveAgentSettings(agent);
-    set({ ...settings, loaded: true });
+    set({ ...settings, loaded: true, loadError: null });
   },
 }));
 

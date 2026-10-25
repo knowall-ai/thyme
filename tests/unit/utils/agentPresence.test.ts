@@ -63,21 +63,36 @@ describe('agentPresence', () => {
     expect(p.state).toBe('offline');
   });
 
-  it('falls back to any agent when none has the configured name', () => {
-    // An organisation that hasn't named its agent yet: Timmie (the default) vs a POPPIE heartbeat
-    expect(
-      agentPresence([{ agentName: 'POPPIE', lastSeenAt: ago(10_000) }], 'Timmie', now).state
-    ).toBe('online');
+  it('with fallbackToAnyAgent, uses any agent when none has the name', () => {
+    // An organisation that hasn't named its own agent yet: Timmie (the default) vs CONTOSO BOT
+    const bot = [{ agentName: 'CONTOSO BOT', lastSeenAt: ago(10_000) }];
+    expect(agentPresence(bot, 'Timmie', now, undefined, true).state).toBe('online');
+    expect(agentPresence(bot, 'Timmie', now).state).toBe('offline');
     expect(
       agentPresence(
         [
           { agentName: 'CONTOSO BOT', lastSeenAt: ago(3_600_000) },
-          { agentName: 'POPPIE', lastSeenAt: ago(7_200_000) },
+          { agentName: 'FABRIKAM BOT', lastSeenAt: ago(7_200_000) },
         ],
         'Timmie',
-        now
+        now,
+        undefined,
+        true
       )
     ).toEqual({ state: 'offline', lastSeenAt: new Date(now - 3_600_000) });
+    // A heartbeat with the name still wins over other agents'
+    expect(
+      agentPresence(
+        [
+          { agentName: 'CONTOSO BOT', lastSeenAt: ago(10_000) },
+          { agentName: 'TIMMIE', lastSeenAt: ago(3_600_000) },
+        ],
+        'Timmie',
+        now,
+        undefined,
+        true
+      ).state
+    ).toBe('offline');
   });
 
   it('treats a heartbeat ahead of this clock (skew) as now', () => {

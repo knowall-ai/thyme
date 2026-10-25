@@ -21,7 +21,15 @@ import {
  */
 export function AgentSettings() {
   const nameId = useId();
-  const { agent, canEdit: isAdmin, canSave, loaded, load, save } = useAgentSettingsStore();
+  const {
+    agent,
+    canEdit: isAdmin,
+    canSave,
+    loaded,
+    loadError,
+    load,
+    save,
+  } = useAgentSettingsStore();
   const canEdit = isAdmin && canSave;
   const [kind, setKind] = useState<AgentKind>(agent.kind);
   const [name, setName] = useState(agent.kind === 'custom' ? agent.name : '');
@@ -39,7 +47,24 @@ export function AgentSettings() {
     setError(null);
   }, [agent]);
 
-  if (!loaded) return null;
+  if (!loaded) {
+    if (!loadError) return null;
+    return (
+      <Card variant="bordered" className="p-6">
+        <div className="mb-4 flex items-center gap-3">
+          <SparklesIcon className="text-timmie-500 h-6 w-6" />
+          <h2 className="text-lg font-semibold text-white">AI Agent</h2>
+        </div>
+        <p role="alert" className="mb-4 text-sm text-red-400">
+          Couldn’t load your organisation’s agent: {loadError} Until it loads, Timmie uses its own
+          agent.
+        </p>
+        <Button size="sm" variant="secondary" onClick={() => void load()}>
+          Try again
+        </Button>
+      </Card>
+    );
+  }
 
   const customName = normaliseAgentName(name);
   const next: Agent | null =

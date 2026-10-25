@@ -15,22 +15,26 @@ export interface AgentPresence {
 /**
  * Online when the agent's newest heartbeat is younger than AGENT_OFFLINE_AFTER_MS; offline
  * when it's older or there is none. The agent is matched by name, ignoring case (BC
- * upper-cases it), and other agents' heartbeats don't count. If no heartbeat carries the
- * name at all (e.g. the organisation hasn't set its agent's name in Settings yet, so it's
- * still "Timmie" while its own agent beats as "POPPIE"), the newest heartbeat of any agent
- * is used instead, so a connected agent never shows as offline just because of its name.
- * Heartbeats from the future (clock skew) count as now.
+ * upper-cases it), and other agents' heartbeats don't count. Heartbeats from the future
+ * (clock skew) count as now.
+ *
+ * With fallbackToAnyAgent (the organisation still has Timmie's default agent), when no
+ * heartbeat carries the name at all the newest heartbeat of any agent is used instead: an
+ * organisation that hasn't named its own agent in Settings yet (so it's still "Timmie" while
+ * its agent beats as, say, "CONTOSO BOT") doesn't see its connected agent as offline. A
+ * custom agent is always matched by name, so a wrong name shows as offline.
  */
 export function agentPresence(
   heartbeats: Pick<BCAgentHeartbeat, 'lastSeenAt' | 'agentName'>[],
   agentName: string,
   now: number = Date.now(),
-  offlineAfterMs: number = AGENT_OFFLINE_AFTER_MS
+  offlineAfterMs: number = AGENT_OFFLINE_AFTER_MS,
+  fallbackToAnyAgent = false
 ): AgentPresence {
   const wanted = agentName.trim().toUpperCase();
   const named = heartbeats.filter((h) => (h.agentName || '').trim().toUpperCase() === wanted);
   let newest: number | null = null;
-  for (const h of named.length > 0 ? named : heartbeats) {
+  for (const h of named.length > 0 || !fallbackToAnyAgent ? named : heartbeats) {
     const t = Date.parse(h.lastSeenAt);
     if (Number.isFinite(t) && t > 0 && (newest === null || t > newest)) newest = t;
   }

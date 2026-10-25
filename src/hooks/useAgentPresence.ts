@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { bcClient } from '@/services/bc/bcClient';
 import type { BCAgentHeartbeat } from '@/types';
 import { agentPresence, type AgentPresence } from '@/utils/agentPresence';
-import { useAgentName } from './useAgentSettingsStore';
+import { useAgentSettingsStore } from './useAgentSettingsStore';
 
 // Fresh enough to notice the agent going offline within a minute or so of the 5-minute threshold
 export const AGENT_PRESENCE_POLL_INTERVAL_MS = 60 * 1000;
@@ -22,7 +22,7 @@ export interface AgentPresenceResult extends AgentPresence {
 export function useAgentPresence(enabled: boolean): AgentPresenceResult {
   const [heartbeats, setHeartbeats] = useState<BCAgentHeartbeat[] | undefined>(undefined);
   const [now, setNow] = useState(() => Date.now());
-  const agentName = useAgentName();
+  const agent = useAgentSettingsStore((state) => state.agent);
 
   useEffect(() => {
     if (!enabled) return;
@@ -47,5 +47,9 @@ export function useAgentPresence(enabled: boolean): AgentPresenceResult {
   if (!enabled || heartbeats === undefined) {
     return { isAvailable: false, state: 'offline', lastSeenAt: null };
   }
-  return { isAvailable: true, ...agentPresence(heartbeats, agentName, now) };
+  return {
+    isAvailable: true,
+    // Timmie's default agent: any connected agent counts until the organisation names its own
+    ...agentPresence(heartbeats, agent.name, now, undefined, agent.kind === 'timmie'),
+  };
 }

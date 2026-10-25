@@ -8,6 +8,8 @@ vi.mock('@/services/bc/bcClient', () => ({
 }));
 
 import { useAgentPresence, AGENT_PRESENCE_POLL_INTERVAL_MS } from '@/hooks/useAgentPresence';
+import { useAgentSettingsStore } from '@/hooks/useAgentSettingsStore';
+import { TIMMIE_AGENT } from '@/utils/agentSettings';
 
 describe('useAgentPresence', () => {
   beforeEach(() => {
@@ -15,6 +17,34 @@ describe('useAgentPresence', () => {
   });
   afterEach(() => {
     vi.useRealTimers();
+    useAgentSettingsStore.setState({ agent: TIMMIE_AGENT });
+  });
+
+  it("counts any agent's heartbeat while the organisation has Timmie's default agent", async () => {
+    getAgentHeartbeats.mockResolvedValue([
+      {
+        id: '1',
+        agentName: 'CONTOSO BOT',
+        lastSeenAt: new Date(Date.now() - 30_000).toISOString(),
+      },
+    ]);
+    const { result } = renderHook(() => useAgentPresence(true));
+    await waitFor(() => expect(result.current.isAvailable).toBe(true));
+    expect(result.current.state).toBe('online');
+  });
+
+  it('matches a custom agent by name only', async () => {
+    useAgentSettingsStore.setState({ agent: { kind: 'custom', name: 'Contoso Bot' } });
+    getAgentHeartbeats.mockResolvedValue([
+      {
+        id: '1',
+        agentName: 'FABRIKAM BOT',
+        lastSeenAt: new Date(Date.now() - 30_000).toISOString(),
+      },
+    ]);
+    const { result } = renderHook(() => useAgentPresence(true));
+    await waitFor(() => expect(result.current.isAvailable).toBe(true));
+    expect(result.current.state).toBe('offline');
   });
 
   it('is online with a fresh heartbeat', async () => {
