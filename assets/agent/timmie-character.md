@@ -74,6 +74,8 @@ Build every prompt as `$IDENTITY $FACE {SCENE / POSE / FRAMING} $NEVER`.
 ## Command
 
 ```sh
+source assets/agent/prompts/blocks.sh   # sets IDENTITY, FACE, NEVER and SCENE
+SCENE="Profile picture: head and shoulders, centred, facing the viewer. Background: plain flat mid-grey."
 GEN=~/.claude/skills/gen-image/generate.py
 python3 "$GEN" --model gpt-image-2.5-flare --input-fidelity high \
   --ref assets/agent/timmie-identity.png \
