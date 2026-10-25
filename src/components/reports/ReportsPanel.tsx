@@ -1090,7 +1090,7 @@ export function ReportsPanel() {
                                   }}
                                 >
                                   {billableWidth >= MIN_LABELLED_SEGMENT && (
-                                    <span className="text-xs font-medium whitespace-nowrap text-white">
+                                    <span className="text-brand-foreground text-xs font-medium whitespace-nowrap">
                                       {formatTime(row.billableHours)}
                                     </span>
                                   )}
