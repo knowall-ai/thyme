@@ -106,6 +106,14 @@ const benefits = [
     description: 'The AI agent suggests entries from the work you have already done',
   },
   {
+    title: 'Cleaner timesheets to approve',
+    description: 'The AI agent flags missing comments, short days and overruns before you approve',
+  },
+  {
+    title: 'Plans that hit their targets',
+    description: 'The AI agent spots missed billable targets and overbooking, and proposes fixes',
+  },
+  {
     title: 'Real-time project profitability',
     description: 'See spend against the estimate before it is too late',
   },
@@ -265,53 +273,27 @@ export function LandingPage() {
       {/* Benefits Section */}
       <section className="relative z-10 py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
-            <div>
-              <h2 className="mb-6 text-3xl font-bold text-white sm:text-4xl">
-                Why <span className="text-knowall-green">Timmie</span>?
-              </h2>
-              <p className="text-dark-400 mb-8 text-lg">
-                Stop losing revenue to unbilled hours and late timesheets. Timmie gives you the
-                visibility and control you need to run profitable projects.
-              </p>
-
-              <ul className="space-y-4">
-                {benefits.map((benefit, index) => (
-                  <li key={index} className="flex items-start gap-3">
-                    <CheckCircleIcon className="text-knowall-green mt-0.5 h-5 w-5 shrink-0" />
-                    <div>
-                      <span className="font-medium text-white">{benefit.title}</span>
-                      <p className="text-dark-400 text-sm">{benefit.description}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="border-dark-700 bg-dark-800 rounded-2xl border p-8">
-              <div className="text-center">
-                <div className="bg-knowall-green/10 mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl">
-                  <svg className="h-10 w-10" viewBox="0 0 21 21" fill="none">
-                    <rect x="1" y="1" width="9" height="9" fill="#F25022" />
-                    <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
-                    <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
-                    <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
-                  </svg>
-                </div>
-                <h3 className="mb-3 text-xl font-semibold text-white">Sign in with Microsoft</h3>
-                <p className="text-dark-400 mb-6">
-                  Use your Microsoft Entra ID account to access Timmie securely.
-                </p>
-                <button
-                  onClick={handleLogin}
-                  disabled={isLoading}
-                  className="bg-knowall-green text-dark-950 hover:bg-knowall-green-light w-full rounded-lg px-6 py-3 font-semibold transition-colors disabled:opacity-50"
-                >
-                  Sign in to Get Started
-                </button>
-              </div>
-            </div>
+          <div className="mb-12 text-center">
+            <h2 className="mb-4 text-3xl font-bold text-white sm:text-4xl">
+              Why <span className="text-knowall-green">Timmie</span>?
+            </h2>
+            <p className="text-dark-400 mx-auto max-w-2xl text-lg">
+              Stop losing revenue to unbilled hours and late timesheets. Timmie gives you the
+              visibility and control you need to run profitable projects.
+            </p>
           </div>
+
+          <ul className="mx-auto grid max-w-5xl grid-cols-1 gap-x-12 gap-y-6 md:grid-cols-2">
+            {benefits.map((benefit, index) => (
+              <li key={index} className="flex items-start gap-3">
+                <CheckCircleIcon className="text-knowall-green mt-0.5 h-5 w-5 shrink-0" />
+                <div>
+                  <span className="font-medium text-white">{benefit.title}</span>
+                  <p className="text-dark-400 text-sm">{benefit.description}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
