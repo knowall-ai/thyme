@@ -10,6 +10,8 @@ const client = vi.hoisted(() => ({
   getTimeSheetDetailsForJob: vi.fn(),
   getJobPlanningLines: vi.fn(),
   getResourceUnitsOfMeasure: vi.fn(async () => []),
+  // An extension before 1.28.0.0: no jobCostEntries, so timeEntries is used
+  getJobCostEntries: vi.fn(async () => null),
   getTimeEntries: vi.fn(),
   getJobTasks: vi.fn(async () => []),
 }));
@@ -40,7 +42,7 @@ const entry = (overrides: Partial<BCTimeEntry>): BCTimeEntry => ({
   id: 'e1',
   jobNo: 'PR00010',
   jobTaskNo: '100',
-  resourceNo: 'R0010',
+  number: 'R0010',
   quantity: 8,
   totalCost: 400, // GBP
   totalPrice: 830, // GBP

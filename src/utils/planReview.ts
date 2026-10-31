@@ -11,6 +11,7 @@ import type {
   TimesheetReviewVerdict,
 } from '@/types';
 import { convertToHours, type UOMConversionMap } from './unitConversion';
+import { isAiResource } from './aiResources';
 import type { VerdictDisplay } from './timesheetReview';
 
 // ============================================
@@ -114,6 +115,7 @@ export function computePlanHash(entries: PlanHashEntry[]): Promise<string> {
 /**
  * Hash entries from raw BC planning lines: only Resource lines with a quantity above 0 count
  * (the lines the Plan grid shows), their quantity converted to hours from the resource's unit.
+ * AI usage resources aren't on the grid (their quantity is money), so they don't count.
  */
 export function planHashEntriesFromLines(
   lines: Pick<
@@ -123,7 +125,7 @@ export function planHashEntriesFromLines(
   uomConversionMap: UOMConversionMap
 ): PlanHashEntry[] {
   return lines
-    .filter((line) => line.type === 'Resource' && line.quantity > 0)
+    .filter((line) => line.type === 'Resource' && line.quantity > 0 && !isAiResource(line.number))
     .map((line) => ({
       jobNo: line.jobNo,
       jobTaskNo: line.jobTaskNo,

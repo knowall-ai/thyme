@@ -193,6 +193,24 @@ describe('usePlanStore planned hours beyond the weeks in view', () => {
     expect(totals(teamMembers[0].plannedDays)).toEqual({ all: 18, fromToday: 10 });
   });
 
+  it('never counts an AI-USAGE line (quantity in money) as planned hours or an allocation', async () => {
+    const today = new Date();
+    const week = startOfWeek(today, { weekStartsOn: 1 });
+    getJobPlanningLines.mockResolvedValue([
+      lineOn(today, 4, 1),
+      // £37.50 of AI usage on the same day: a cost, not 37.5h
+      { ...lineOn(today, 37.5, 2), number: 'AI-USAGE' },
+    ]);
+
+    await usePlanStore.getState().fetchTeamData(week, 1);
+
+    const { projects, teamMembers, allAllocations } = usePlanStore.getState();
+    expect(projects[0].totalHours).toBe(4);
+    expect(totals(projects[0].plannedDays)).toEqual({ all: 4, fromToday: 4 });
+    expect(allAllocations.map((a) => a.resourceNumber)).toEqual(['RES01']);
+    expect(teamMembers.map((m) => m.totalHours)).toEqual([4]);
+  });
+
   it("shows a project's Sell-to customer, the client the work is for", async () => {
     getJobPlanningLines.mockResolvedValue([]);
     await usePlanStore.getState().fetchTeamData(startOfWeek(new Date(), { weekStartsOn: 1 }), 1);

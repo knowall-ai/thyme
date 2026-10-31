@@ -239,8 +239,7 @@ export interface BCTimeEntry {
   id: string;
   jobNo: string;
   jobTaskNo: string;
-  resourceNo: string;
-  quantity: number; // Hours posted
+  quantity: number; // Hours posted (Resource entries; see `type` and `resourceType`)
   totalCost: number; // Internal: actual cost (quantity × unitCost), in LCY
   totalPrice: number; // Customer: invoiced price (quantity × unitPrice), in LCY
   // Project currency (blank = LCY) and the price in it -
@@ -249,7 +248,22 @@ export interface BCTimeEntry {
   totalPriceProjectCurrency?: number;
   postingDate: string;
   description?: string;
+  // Job Ledger Entry type: "Resource", "Item" or "G/L Account" (decoded from BC's
+  // "G_x002F_L_x0020_Account"). Always "Resource" on /timeEntries; any of the three on
+  // /jobCostEntries. Only Resource entries' quantity is hours.
+  type?: string;
+  number?: string; // The resource, item or G/L account number
+  // The resource's type, "Person" or "Machine" (e.g. AI usage), on Resource entries from
+  // /jobCostEntries (Timmie BC Extension 1.28.0.0+); blank on other entries, undefined before
+  resourceType?: string;
+  entryType?: string; // "Usage" or "Sale"
 }
+
+/**
+ * A project's Job Ledger Entry of any type, from /jobCostEntries (Timmie BC Extension
+ * 1.28.0.0+): the same fields as /timeEntries, which only has Resource entries
+ */
+export type BCJobCostEntry = BCTimeEntry;
 
 // Time Sheet status types
 export type TimeSheetStatus = 'Open' | 'Submitted' | 'Rejected' | 'Approved' | 'Posted';

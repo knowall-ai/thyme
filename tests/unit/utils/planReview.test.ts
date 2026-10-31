@@ -59,9 +59,10 @@ const referenceLines = [
     planningDate: '2026-10-20',
     quantity: 0.5,
   }),
-  // Left out: an Item line and a quantity-0 line
+  // Left out: an Item line, a quantity-0 line, and AI usage (its quantity is money, not hours)
   line({ lineNo: 4, type: 'Item', number: 'ITEM1', quantity: 3 }),
   line({ lineNo: 5, planningDate: '2026-10-23', quantity: 0 }),
+  line({ lineNo: 6, number: 'AI-USAGE', planningDate: '2026-10-21', quantity: 37.5 }),
 ];
 
 describe('plan hash', () => {

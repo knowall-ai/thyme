@@ -22,6 +22,8 @@ import {
   withoutAbsenceLines,
   planningLineCostLCY,
   timeEntryPriceProjectCurrency,
+  isAiResource,
+  loadAiResources,
 } from '@/utils';
 
 // Color palette for projects (same as projectService)
@@ -38,12 +40,53 @@ const PROJECT_COLORS = [
   '#6366f1', // indigo
 ];
 
-// Breakdown by line type (Resource, Item, G/L Account)
+// Breakdown by line type: Resource (people's and agents' time), AI (AI usage resources:
+// Machine resources or TIMMIE_AI_RESOURCES), Item and G/L Account
 export interface CostBreakdown {
   resource: number;
+  ai: number;
   item: number;
   glAccount: number;
   total: number;
+}
+
+const emptyCostBreakdown = (): CostBreakdown => ({
+  resource: 0,
+  ai: 0,
+  item: 0,
+  glAccount: 0,
+  total: 0,
+});
+
+/**
+ * Which breakdown line a ledger entry or planning line belongs to. A Resource that's AI usage
+ * (a Machine resource, or one of TIMMIE_AI_RESOURCES) is AI, not Resource: it's a cost, not hours.
+ */
+export function breakdownKey(
+  type: string | undefined,
+  number: string | undefined,
+  resourceType?: string
+): Exclude<keyof CostBreakdown, 'total'> | null {
+  if (type === 'Resource') return isAiResource(number, resourceType) ? 'ai' : 'resource';
+  if (type === 'Item') return 'item';
+  if (type === 'G/L Account') return 'glAccount';
+  return null;
+}
+
+/** Sum lines into a breakdown by type, with every line in the total */
+function sumBreakdown<T>(
+  lines: T[],
+  keyOf: (line: T) => Exclude<keyof CostBreakdown, 'total'> | null,
+  amountOf: (line: T) => number
+): CostBreakdown {
+  const breakdown = emptyCostBreakdown();
+  for (const line of lines) {
+    const amount = amountOf(line);
+    breakdown.total += amount;
+    const key = keyOf(line);
+    if (key) breakdown[key] += amount;
+  }
+  return breakdown;
 }
 
 // Billing mode derived from Job Planning Line configuration (see getBillingModeFromLines)
@@ -72,7 +115,7 @@ export interface ProjectAnalytics {
   futurePlannedByResource: ResourceHours[]; // Future planned work split by person, most hours first
   forecastEndDate?: string; // When the future planned work finishes: the latest planningDate (YYYY-MM-DD)
   hoursThisWeek: number;
-  hoursPosted: number; // From timeEntries (Job Ledger Entry) - posted to ledger
+  hoursPosted: number; // Posted Resource Job Ledger Entries only (never G/L or Item quantities)
   /** Posted hours by the timesheets (getPostedHours): the Posted stage everywhere */
   timesheetPostedHours: number;
   hoursUnposted: number; // hoursSpent - hoursPosted (in timesheets but not posted)
@@ -84,15 +127,19 @@ export interface ProjectAnalytics {
   // Costs (internal - hideable) with breakdown by type
   budgetCost: number; // Total from Job Planning Lines totalCost (Budget lineType)
   budgetCostBreakdown: CostBreakdown; // By Resource/Item/G/L Account
-  actualCost: number; // Total from timeEntries totalCost (Job Ledger Entry)
+  actualCost: number; // Σ totalCost (LCY) of posted Usage Job Ledger Entries of every type (jobCostEntries; timeEntries before 1.28)
   actualCostBreakdown: CostBreakdown; // By Resource/Item/G/L Account
   unpostedCost: number; // Estimated: hoursUnposted × average cost rate
 
   // Revenue (customer-facing) with breakdown by type
   billablePrice: number; // Total from Job Planning Lines totalPrice (Billable lineType)
   billablePriceBreakdown: CostBreakdown; // By Resource/Item/G/L Account
-  invoicedPrice: number; // Total from timeEntries totalPrice (Job Ledger Entry)
+  invoicedPrice: number; // Σ price (project currency) of posted Usage Job Ledger Entries of every type (not Sale entries)
   invoicedPriceBreakdown: CostBreakdown; // By Resource/Item/G/L Account
+  invoicedPriceLCY: number; // The same in LCY, for the margin against actualCost (LCY)
+  // The posted entries couldn't be read (e.g. 401, 500), so actual cost, invoiced price and
+  // the margin are missing, not zero
+  costsIncomplete: boolean;
   unpostedBillable: number; // Estimated: hoursUnposted × average billable rate
 
   // Legacy - kept for backwards compatibility during transition
@@ -151,6 +198,70 @@ interface TeamBreakdownItem extends StatusHours {
     taskNo: string;
     description: string;
   })[];
+}
+
+/** Posted Job Ledger Entry totals for a project (see summarizePostedEntries) */
+export interface PostedEntryTotals {
+  // All from Usage entries only (never Sale entries: see summarizePostedEntries)
+  hoursPosted: number; // People's (and agents') Resource entries only: never AI, Item or G/L
+  actualCost: number; // LCY, every type
+  actualCostBreakdown: CostBreakdown;
+  invoicedPrice: number; // Project currency, every type: the price of the posted usage
+  invoicedPriceBreakdown: CostBreakdown;
+  invoicedPriceLCY: number; // LCY, every type: compared with actualCost for the margin
+}
+
+/**
+ * A Usage Job Ledger Entry: posted work (time sheets, journals, purchases), not a Sale entry
+ * (a posted sales invoice). Blank counts as Usage: Usage is the field's first value.
+ */
+export function isUsageEntry(entry: Pick<BCTimeEntry, 'entryType'>): boolean {
+  return !entry.entryType || entry.entryType === 'Usage';
+}
+
+/**
+ * Sum a project's posted Job Ledger Entries into hours, actual cost and invoiced price.
+ *
+ * Hours are only what's charged, so they come only from Resource entries that aren't AI.
+ * Costs and prices include every type: AI agents are resources with a unit price only, and
+ * their real costs (AI tokens, compute) are posted against an AI usage resource (a Machine,
+ * e.g. AI-USAGE, unit cost 1) whose quantity is currency units, not hours.
+ *
+ * Only Usage entries count. Posting a sales invoice for a project also writes Sale entries
+ * (the invoiced amounts, with negative quantity, cost and price): summed with the Usage they
+ * invoice, they'd cancel it out, taking hours, cost and price towards zero and making the
+ * margin wrong. So every figure here is posted work, i.e. the "work done" Timmie tracks,
+ * including the price (the price of the posted usage, as for Billable Price), not what's been
+ * invoiced. Both /jobCostEntries and /timeEntries return entryType, so this holds on the
+ * older-extension fallback too.
+ *
+ * allTypes: the entries came from /jobCostEntries, so `type` (and `resourceType`) tell them
+ * apart. False for /timeEntries (an extension before 1.28.0.0), which only has Resource
+ * entries; AI usage is then told apart by TIMMIE_AI_RESOURCES only.
+ */
+export function summarizePostedEntries(
+  allEntries: BCTimeEntry[],
+  { allTypes }: { allTypes: boolean }
+): PostedEntryTotals {
+  const entries = allEntries.filter(isUsageEntry);
+  const keyOf = (entry: BCTimeEntry) =>
+    breakdownKey(allTypes ? entry.type : 'Resource', entry.number, entry.resourceType);
+  const cost = sumBreakdown(entries, keyOf, (entry) => entry.totalCost);
+  const price = sumBreakdown(entries, keyOf, timeEntryPriceProjectCurrency);
+  let hoursPosted = 0;
+  let invoicedPriceLCY = 0;
+  for (const entry of entries) {
+    if (keyOf(entry) === 'resource') hoursPosted += entry.quantity;
+    invoicedPriceLCY += entry.totalPrice;
+  }
+  return {
+    hoursPosted,
+    actualCost: cost.total,
+    actualCostBreakdown: cost,
+    invoicedPrice: price.total,
+    invoicedPriceBreakdown: price,
+    invoicedPriceLCY,
+  };
 }
 
 // Local storage key for favorites (shared with projectService)
@@ -250,12 +361,7 @@ export const projectDetailsService = {
     { foreignCurrency = false }: { foreignCurrency?: boolean } = {}
   ): Promise<ProjectAnalytics> {
     // Helper to create empty cost breakdown
-    const emptyBreakdown = (): CostBreakdown => ({
-      resource: 0,
-      item: 0,
-      glAccount: 0,
-      total: 0,
-    });
+    const emptyBreakdown = emptyCostBreakdown;
 
     // Helper to create empty analytics
     const emptyAnalytics = (): ProjectAnalytics => ({
@@ -285,6 +391,8 @@ export const projectDetailsService = {
       billablePriceBreakdown: emptyBreakdown(),
       invoicedPrice: 0,
       invoicedPriceBreakdown: emptyBreakdown(),
+      invoicedPriceLCY: 0,
+      costsIncomplete: false,
       unpostedBillable: 0,
       totalHours: 0,
       billableHours: 0,
@@ -308,6 +416,8 @@ export const projectDetailsService = {
     // each is awaited, with its own error handling, where its result is used. The no-op
     // catches only stop a rejection being reported as unhandled before it's awaited.
     const resourcesPromise = bcClient.getResources();
+    // Which resources are AI usage (never hours), from the server's TIMMIE_AI_RESOURCES
+    const aiResourcesReady = loadAiResources();
     const timesheetsPromise = bcClient.getTimeSheetsFrom();
     const jobLinesPromise = bcClient.getTimeSheetLinesForJob(projectNumber);
     const jobDetailsPromise = bcClient.getTimeSheetDetailsForJob(projectNumber);
@@ -315,7 +425,15 @@ export const projectDetailsService = {
       bcClient.getJobPlanningLines(projectNumber),
       bcClient.getResourceUnitsOfMeasure(),
     ]);
-    const postedEntriesPromise = bcClient.getTimeEntries(projectNumber);
+    // Every Job Ledger Entry type from jobCostEntries; on an extension before 1.28.0.0 (404)
+    // the Resource-only timeEntries, as before
+    const postedEntriesPromise = bcClient
+      .getJobCostEntries(projectNumber)
+      .then(async (entries) =>
+        entries
+          ? { entries, allTypes: true }
+          : { entries: await bcClient.getTimeEntries(projectNumber), allTypes: false }
+      );
     for (const p of [
       resourcesPromise,
       timesheetsPromise,
@@ -369,6 +487,7 @@ export const projectDetailsService = {
 
     // Which hours count is shared with the Projects list, so the two show the same Time
     // Spent. Only people resources (as returned by getResources) count.
+    await aiResourcesReady;
     const timeRows = collectProjectTimeRows(
       jobLines,
       jobDetails,
@@ -498,9 +617,9 @@ export const projectDetailsService = {
     let hoursPerDay = 8; // Default, will be updated from BC if DAY unit is configured
     let billingMode: BillingMode = 'Not Set';
     let budgetCost = 0;
-    let budgetCostBreakdown: CostBreakdown = { resource: 0, item: 0, glAccount: 0, total: 0 };
+    let budgetCostBreakdown: CostBreakdown = emptyCostBreakdown();
     let billablePrice = 0;
-    let billablePriceBreakdown: CostBreakdown = { resource: 0, item: 0, glAccount: 0, total: 0 };
+    let billablePriceBreakdown: CostBreakdown = emptyCostBreakdown();
     // Map for unit price per task (from Job Planning Lines - fallback if Resource doesn't have unitPrice)
     const unitPriceByTask = new Map<string, number>();
     try {
@@ -527,7 +646,8 @@ export const projectDetailsService = {
       const resourceNosInProject = [
         ...new Set(
           planningLines
-            .filter((l: BCJobPlanningLine) => l.type === 'Resource')
+            // AI usage resources measure money, not time
+            .filter((l: BCJobPlanningLine) => breakdownKey(l.type, l.number) === 'resource')
             .map((l: BCJobPlanningLine) => l.number)
         ),
       ];
@@ -542,9 +662,11 @@ export const projectDetailsService = {
       // Hours Planned: shared helper — sums Resource Budget lines and converts
       // each quantity to hours via the per-resource UoM map.
       hoursPlanned = sumPlannedHours(planningLines, uomConversionMap);
+      // People's (and agents') time only: AI usage resources are a cost, never hours
       const resourceLines = planningLines.filter(
-        (line: BCJobPlanningLine) => line.type === 'Resource'
+        (line: BCJobPlanningLine) => breakdownKey(line.type, line.number) === 'resource'
       );
+      const planningKey = (line: BCJobPlanningLine) => breakdownKey(line.type, line.number);
 
       // Extract unit price per resource from planning lines as fallback
       // (only if Resource Card doesn't have unitPrice set)
@@ -567,18 +689,7 @@ export const projectDetailsService = {
         (sum: number, line: BCJobPlanningLine) => sum + planningLineCostLCY(line),
         0
       );
-      budgetCostBreakdown = {
-        resource: budgetLines
-          .filter((line: BCJobPlanningLine) => line.type === 'Resource')
-          .reduce((sum: number, line: BCJobPlanningLine) => sum + planningLineCostLCY(line), 0),
-        item: budgetLines
-          .filter((line: BCJobPlanningLine) => line.type === 'Item')
-          .reduce((sum: number, line: BCJobPlanningLine) => sum + planningLineCostLCY(line), 0),
-        glAccount: budgetLines
-          .filter((line: BCJobPlanningLine) => line.type === 'G/L Account')
-          .reduce((sum: number, line: BCJobPlanningLine) => sum + planningLineCostLCY(line), 0),
-        total: budgetCost,
-      };
+      budgetCostBreakdown = sumBreakdown(budgetLines, planningKey, planningLineCostLCY);
 
       // Billable Price: sum totalPrice (project currency) from ALL Billable lines with breakdown by type
       const billableLines = planningLines.filter((line: BCJobPlanningLine) =>
@@ -593,22 +704,11 @@ export const projectDetailsService = {
       // shared rule the Projects list uses too.
       estimateHours = sumEstimateHours(planningLines, uomConversionMap);
       for (const line of billableLines) {
-        if (line.type !== 'Resource') continue;
+        if (planningKey(line) !== 'resource') continue;
         const hours = convertToHours(line.number, line.quantity, uomConversionMap);
         addHours(estimateHoursByResource, line.number, hours);
       }
-      billablePriceBreakdown = {
-        resource: billableLines
-          .filter((line: BCJobPlanningLine) => line.type === 'Resource')
-          .reduce((sum: number, line: BCJobPlanningLine) => sum + line.totalPrice, 0),
-        item: billableLines
-          .filter((line: BCJobPlanningLine) => line.type === 'Item')
-          .reduce((sum: number, line: BCJobPlanningLine) => sum + line.totalPrice, 0),
-        glAccount: billableLines
-          .filter((line: BCJobPlanningLine) => line.type === 'G/L Account')
-          .reduce((sum: number, line: BCJobPlanningLine) => sum + line.totalPrice, 0),
-        total: billablePrice,
-      };
+      billablePriceBreakdown = sumBreakdown(billableLines, planningKey, (line) => line.totalPrice);
       // Billing mode from the same lines, by the rule the Projects list uses
       billingMode = getBillingModeFromLines(planningLines);
 
@@ -695,29 +795,28 @@ export const projectDetailsService = {
     const estimateByResource = toResourceHours(estimateHoursByResource);
     const futurePlannedByResource = toResourceHours(futurePlannedHoursByResource);
 
-    // Fetch actual cost (LCY) and invoiced price (project currency) from Time Entries (Job Ledger Entry)
-    // Note: Time entries are all resource-type (labor), so actual/invoiced breakdown is resource-only
-    let actualCost = 0;
-    let invoicedPrice = 0;
-    let hoursPosted = 0;
+    // Actual cost (LCY) and invoiced price (project currency) from the posted Job Ledger
+    // Entries of every type, so non-hour costs (e.g. AI services on G/L Account lines) count.
+    // Hours come only from Resource entries (see summarizePostedEntries).
+    let posted = summarizePostedEntries([], { allTypes: false });
+    let costsIncomplete = false;
     try {
-      const postedEntries = await postedEntriesPromise;
-      hoursPosted = postedEntries.reduce(
-        (sum: number, entry: BCTimeEntry) => sum + entry.quantity,
-        0
-      );
-      actualCost = postedEntries.reduce(
-        (sum: number, entry: BCTimeEntry) => sum + entry.totalCost,
-        0
-      );
-      // Invoiced Price in the project currency, like the Billable Price it's compared with
-      invoicedPrice = postedEntries.reduce(
-        (sum: number, entry: BCTimeEntry) => sum + timeEntryPriceProjectCurrency(entry),
-        0
-      );
-    } catch {
-      // If time entries can't be fetched, leave values as 0
+      const { entries, allTypes } = await postedEntriesPromise;
+      posted = summarizePostedEntries(entries, { allTypes });
+    } catch (error) {
+      // jobCostEntries failed for a reason other than not being there: show the costs as
+      // incomplete rather than Resource-only ones (from timeEntries) and a wrong margin
+      console.error('[Project analytics] Posted costs could not be loaded:', error);
+      costsIncomplete = true;
     }
+    const {
+      hoursPosted,
+      actualCost,
+      actualCostBreakdown,
+      invoicedPrice,
+      invoicedPriceBreakdown,
+      invoicedPriceLCY,
+    } = posted;
 
     // Breakdowns by task and by team member, each split by timesheet stage (matches the
     // Time Spent card). Timesheet lines stay Approved once posted, so a row's posted hours
@@ -843,9 +942,10 @@ export const projectDetailsService = {
     let unpostedBillable = 0;
     if (hoursUnposted > 0) {
       if (hoursPosted > 0) {
-        // Use average rates from posted entries
-        const avgCostRate = actualCost / hoursPosted;
-        const avgBillableRate = invoicedPrice / hoursPosted;
+        // Use average hourly rates from posted Resource entries (non-hour costs such as
+        // G/L Account lines aren't per hour, so they'd inflate the rate)
+        const avgCostRate = actualCostBreakdown.resource / hoursPosted;
+        const avgBillableRate = invoicedPriceBreakdown.resource / hoursPosted;
         unpostedCost = hoursUnposted * avgCostRate;
         unpostedBillable = hoursUnposted * avgBillableRate;
       } else if (hoursPlanned > 0 || estimateHours > 0) {
@@ -861,20 +961,6 @@ export const projectDetailsService = {
         unpostedBillable = hoursUnposted * (billablePriceBreakdown.resource / billableHours);
       }
     }
-
-    // Actual/Invoiced breakdowns - time entries are all resource-type (labor)
-    const actualCostBreakdown: CostBreakdown = {
-      resource: actualCost,
-      item: 0,
-      glAccount: 0,
-      total: actualCost,
-    };
-    const invoicedPriceBreakdown: CostBreakdown = {
-      resource: invoicedPrice,
-      item: 0,
-      glAccount: 0,
-      total: invoicedPrice,
-    };
 
     return {
       // Billing mode
@@ -908,6 +994,8 @@ export const projectDetailsService = {
       billablePriceBreakdown,
       invoicedPrice,
       invoicedPriceBreakdown,
+      invoicedPriceLCY,
+      costsIncomplete,
       unpostedBillable,
 
       // Legacy fields (aliases for backwards compatibility)
