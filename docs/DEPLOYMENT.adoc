@@ -264,12 +264,12 @@ admin one-liner.
 | Branch protection blocks the direct push for non-admins.
 
 | Push a `v*` tag to trigger production deploy
-| Repo write
-| Tags are not gated by branch protection — anyone with write access can push *any* `v*` tag and trigger the production deploy. There is no enforcement that the tagged commit is reachable from `main`; team convention is to tag merge commits on `main` only.
+| Repo admin or maintain
+| A tag ruleset lets only admins and maintainers create, move or delete `v*` tags, and the `production` environment accepts deploys only from `v*` tags. Nothing enforces that the tagged commit is reachable from `main`; team convention is to tag merge commits on `main` only.
 
 | Approve a production deploy at an environment gate
 | (not configured)
-| `deploy-production.yml` does not declare `environment: production` on its job, so adding required reviewers to the `production` Actions environment would not currently pause the workflow. To add an approval gate, set `environment: production` on the deploy job and configure required reviewers.
+| The deploy job runs in the `production` environment, so adding required reviewers there would pause each deploy until one approves.
 |===
 
 == Testing a PR

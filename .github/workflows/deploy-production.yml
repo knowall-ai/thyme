@@ -64,7 +64,7 @@ jobs:
           name: nextjs-app
           include-hidden-files: true
           path: .next/standalone
-          retention-days: 1
+          retention-days: 7
 
   # Only this job can get an OIDC token, and it runs no package code. The environment
   # records the deploy as a GitHub deployment and is what the federated credential trusts.
