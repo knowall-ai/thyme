@@ -4,10 +4,10 @@ import { bcClient } from '@/services/bc/bcClient';
 import { isOpenTimesheetReviewRequest, pickLatestReviews } from '@/utils';
 import { useCompanyStore } from './useCompanyStore';
 
-// How often timesheets waiting on Poppie are re-checked (she reviews every ~10 minutes)
+// How often timesheets waiting on the agent are re-checked (it reviews every ~10 minutes)
 export const REVIEW_REFRESH_INTERVAL_MS = 2 * 60 * 1000;
 // While someone's "look again" request is open, follow it every few seconds (as plan review
-// requests do), so Poppie's progress shows as she works
+// requests do), so the agent's progress shows as it works
 export const REVIEW_REQUEST_POLL_MS = 5 * 1000;
 // Window focus refreshes are skipped if the last one was this recent
 const FOCUS_REFRESH_MIN_GAP_MS = 30 * 1000;
@@ -15,7 +15,7 @@ const FOCUS_REFRESH_MIN_GAP_MS = 30 * 1000;
 const BATCH_SIZE = 15;
 
 export interface CachedTimesheetReview {
-  /** The newest review, or null when Poppie hasn't reviewed the timesheet */
+  /** The newest review, or null when the agent hasn't reviewed the timesheet */
   review: BCTimesheetReview | null;
   notes: BCTimesheetReviewLine[];
   fetchedAt: number;
@@ -43,8 +43,8 @@ interface TimesheetReviewStore {
    * it ended: Done fetches the fresh review, Failed stays to say why.
    */
   refreshRequests: (timeSheetNos: string[]) => Promise<void>;
-  /** Ask Poppie to look at a timesheet again now. Throws a message fit to show. */
-  requestReview: (timeSheetNo: string) => Promise<void>;
+  /** Ask the agent to look at a timesheet again now. Throws a message fit to show. */
+  requestReview: (timeSheetNo: string, agentName: string) => Promise<void>;
   reset: () => void;
 }
 
@@ -117,7 +117,7 @@ export const useTimesheetReviewStore = create<TimesheetReviewStore>((set, get) =
       });
       return done;
     } catch (error) {
-      if (!isStale()) console.warn('[Poppie] Failed to fetch timesheet review requests:', error);
+      if (!isStale()) console.warn('[Agent] Failed to fetch timesheet review requests:', error);
       return [];
     }
   }
@@ -178,7 +178,7 @@ export const useTimesheetReviewStore = create<TimesheetReviewStore>((set, get) =
       });
     } catch (error) {
       if (isStale()) return;
-      console.warn('[Poppie] Failed to fetch timesheet reviews:', error);
+      console.warn('[Agent] Failed to fetch timesheet reviews:', error);
       // Keep any cached review on screen; only mark the failure
       set((state) => {
         const nextFailed = { ...state.failed };
@@ -232,7 +232,7 @@ export const useTimesheetReviewStore = create<TimesheetReviewStore>((set, get) =
       if (done.length > 0) get().requestReviews(done, { force: true });
     },
 
-    requestReview: async (timeSheetNo) => {
+    requestReview: async (timeSheetNo, agentName) => {
       const startedIn = generation;
       const isCurrent = () => generation === startedIn;
       try {
@@ -246,8 +246,8 @@ export const useTimesheetReviewStore = create<TimesheetReviewStore>((set, get) =
         if (!/already (been requested|open)/i.test(message)) {
           throw new Error(
             /not allowed|permission/i.test(message)
-              ? "You can't ask Poppie to review this timesheet."
-              : "Couldn't ask Poppie to look again. Please try again."
+              ? `You can't ask ${agentName} to review this timesheet.`
+              : `Couldn't ask ${agentName} to look again. Please try again.`
           );
         }
         // Someone (maybe in another tab) already asked: follow their request instead
@@ -258,7 +258,7 @@ export const useTimesheetReviewStore = create<TimesheetReviewStore>((set, get) =
           set((state) => ({ requests: { ...state.requests, [timeSheetNo]: existing } }));
           return;
         }
-        throw new Error("Couldn't ask Poppie to look again. Please try again.");
+        throw new Error(`Couldn't ask ${agentName} to look again. Please try again.`);
       }
     },
 

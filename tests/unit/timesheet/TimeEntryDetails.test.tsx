@@ -166,7 +166,7 @@ describe('TimeEntryCell entry details', () => {
     expect(screen.queryByRole('tooltip')).toBeNull();
   });
 
-  it("shows Poppie's notes on the line, non-billable and Open status", () => {
+  it("shows Timmie's notes on the line, non-billable and Open status", () => {
     const reviewNotes: BCTimesheetReviewLine[] = [
       {
         id: 'n1',

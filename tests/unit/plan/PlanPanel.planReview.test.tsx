@@ -138,7 +138,7 @@ describe('PlanPanel plan reviews', () => {
     usePlanReviewStore.getState().reset();
   });
 
-  it("shows Poppie's verdict on the week and a dot on the day with a finding", async () => {
+  it("shows Timmie's verdict on the week and a dot on the day with a finding", async () => {
     reviewedHash = await samsWeekHash();
     render(<PlanPanel />);
 
@@ -146,7 +146,7 @@ describe('PlanPanel plan reviews', () => {
     expect(chip).toHaveTextContent('Worth a check');
     expect(chip).not.toHaveAccessibleName(/out of date/i);
     const marker = await screen.findByTestId('plan-review-day-marker');
-    expect(marker).toHaveAttribute('title', "Poppie: 7.17h isn't a quarter hour.");
+    expect(marker).toHaveAttribute('title', "Timmie: 7.17h isn't a quarter hour.");
   });
 
   it('shows the review as out of date when the plan no longer hashes the same', async () => {
@@ -163,7 +163,7 @@ describe('PlanPanel plan reviews', () => {
       () =>
         applyPlanReviewFinding.mockRejectedValue(
           new Error(
-            'BC API Error (400): {"error":{"message":"The plan changed since Poppie looked. Ask her to re-review."}}'
+            'BC API Error (400): {"error":{"message":"The plan changed since Timmie looked. Ask it to re-review."}}'
           )
         ),
     ],

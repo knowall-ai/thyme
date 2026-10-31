@@ -1,4 +1,5 @@
 'use client';
+import { useAgentName } from '@/hooks/useAgentSettingsStore';
 
 import { useId, useState } from 'react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
@@ -17,9 +18,9 @@ import {
   isOpenTimesheetReviewRequest,
   timesheetReviewRequestText,
 } from '@/utils';
-import { PoppieAvatar, SeverityIcon, Spinner, VERDICT_TONE_CLASSES } from './PoppieReviewBits';
+import { AgentAvatar, SeverityIcon, Spinner, VERDICT_TONE_CLASSES } from './AgentReviewBits';
 
-interface PoppieReviewPanelProps {
+interface AgentReviewPanelProps {
   result: TimesheetReviewResult;
   /** 'approver' on the Approvals page, 'submitter' on the person's own Time page */
   variant: 'approver' | 'submitter';
@@ -45,11 +46,11 @@ function formatReviewedAt(reviewedAt: string): string | null {
 }
 
 /**
- * "Poppie's recommendation": the AI reviewer's verdict on a submitted timesheet,
- * her summary and notes. Renders nothing when reviews aren't available (an older
+ * "The agent's recommendation": the AI reviewer's verdict on a submitted timesheet,
+ * its summary and notes. Renders nothing when reviews aren't available (an older
  * extension) or there's nothing to show.
  */
-export function PoppieReviewPanel({
+export function AgentReviewPanel({
   result,
   variant,
   inlineLineNos,
@@ -57,7 +58,9 @@ export function PoppieReviewPanel({
   onUseAsRejectionComment,
   collapsible = false,
   className,
-}: PoppieReviewPanelProps) {
+}: AgentReviewPanelProps) {
+  const agentName = useAgentName();
+
   const [collapsed, setCollapsed] = useState(false);
   const bodyId = useId();
   const { status, review, notes, verdict, submitted } = result;
@@ -68,7 +71,7 @@ export function PoppieReviewPanel({
 
   const shell = (children: React.ReactNode) => (
     <section
-      aria-label="Poppie's recommendation"
+      aria-label={`${agentName}'s recommendation`}
       className={cn('border-dark-700 bg-dark-850 rounded-lg border px-4 py-3', className)}
     >
       {children}
@@ -78,20 +81,20 @@ export function PoppieReviewPanel({
   if (status === 'loading' || status === 'error' || status === 'awaiting') {
     return shell(
       <div className="flex items-start gap-3">
-        <PoppieAvatar className={cn(status !== 'error' && 'animate-pulse')} />
+        <AgentAvatar className={cn(status !== 'error' && 'animate-pulse')} />
         <div className="text-sm">
           {status === 'loading' && (
-            <p className="text-dark-400">Checking for Poppie&apos;s review…</p>
+            <p className="text-dark-400">Checking for {agentName}&apos;s review…</p>
           )}
           {status === 'error' && (
-            <p className="text-dark-400">Couldn&apos;t load Poppie&apos;s review right now.</p>
+            <p className="text-dark-400">Couldn&apos;t load {agentName}&apos;s review right now.</p>
           )}
           {status === 'awaiting' && (
             <>
-              <p className="text-dark-200 font-medium">Awaiting Poppie&apos;s review…</p>
+              <p className="text-dark-200 font-medium">Awaiting {agentName}&apos;s review…</p>
               <p className="text-dark-400 text-xs">
                 {variant === 'submitter'
-                  ? 'Poppie checks submitted timesheets and usually reviews them within about 10 minutes.'
+                  ? `${agentName} checks submitted timesheets and usually reviews them within about 10 minutes.`
                   : 'Reviews usually arrive within about 10 minutes of a timesheet being submitted.'}
               </p>
             </>
@@ -118,8 +121,8 @@ export function PoppieReviewPanel({
     <>
       {/* Header: who, verdict, and the collapse toggle */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <PoppieAvatar reviewer={review.reviewer} />
-        <h3 className="text-sm font-semibold text-white">Poppie&apos;s recommendation</h3>
+        <AgentAvatar reviewer={review.reviewer} />
+        <h3 className="text-sm font-semibold text-white">{agentName}&apos;s recommendation</h3>
         <span
           className={cn(
             'rounded-full px-2 py-0.5 text-xs font-medium',
@@ -138,14 +141,14 @@ export function PoppieReviewPanel({
             Out of date
           </span>
         )}
-        <AskPoppieAgain result={result} />
+        <AskAgentAgain result={result} />
         {collapsible && (
           <button
             type="button"
             onClick={() => setCollapsed(!collapsed)}
             aria-expanded={!isCollapsed}
             aria-controls={bodyId}
-            aria-label={isCollapsed ? "Show Poppie's review" : "Hide Poppie's review"}
+            aria-label={isCollapsed ? `Show ${agentName}'s review` : `Hide ${agentName}'s review`}
             className="text-dark-400 hover:bg-dark-700 ml-auto rounded-md p-1 hover:text-white"
           >
             {isCollapsed ? (
@@ -162,10 +165,10 @@ export function PoppieReviewPanel({
           {outOfDate && (
             <p className="rounded-md bg-amber-500/10 px-2 py-1 text-xs text-amber-300">
               {submitted
-                ? 'This timesheet changed after Poppie reviewed it. Poppie will re-review the changes shortly.'
+                ? `This timesheet changed after ${agentName} reviewed it. ${agentName} will re-review the changes shortly.`
                 : result.canRequestReview
-                  ? 'This timesheet changed after Poppie reviewed it. Ask her to look again, or she will once it’s resubmitted.'
-                  : 'This timesheet changed after Poppie reviewed it. Poppie will take another look once it’s resubmitted.'}
+                  ? `This timesheet changed after ${agentName} reviewed it. Ask it to look again, or it will once it’s resubmitted.`
+                  : `This timesheet changed after ${agentName} reviewed it. ${agentName} will take another look once it’s resubmitted.`}
             </p>
           )}
 
@@ -199,7 +202,7 @@ export function PoppieReviewPanel({
 
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-dark-500 text-xs">
-              {`Reviewed by ${review.reviewer || 'Poppie'} (AI)${reviewedAgo ? ` ${reviewedAgo}` : ''}.`}
+              {`Reviewed by ${review.reviewer || agentName} (AI)${reviewedAgo ? ` ${reviewedAgo}` : ''}.`}
             </p>
             {showRejectAction && (
               <Button
@@ -221,15 +224,17 @@ export function PoppieReviewPanel({
 }
 
 /**
- * "Ask Poppie to look again", or while she's on it, how far she's got. A failed request says
+ * "Ask the agent to look again", or while it's on it, how far it's got. A failed request says
  * why and offers the button again. Hidden on extensions without review requests.
  */
-function AskPoppieAgain({ result }: { result: TimesheetReviewResult }) {
+function AskAgentAgain({ result }: { result: TimesheetReviewResult }) {
+  const agentName = useAgentName();
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { request, canRequestReview, requestReview } = result;
   const isOpen = !!request && isOpenTimesheetReviewRequest(request);
-  // Poppie's heartbeat: only worth reading while a request waits for her
+  // The agent's heartbeat: only worth reading while a request waits for it
   const presence = useAgentPresence(isOpen && request.status === 'Requested');
 
   if (!canRequestReview) return null;
@@ -239,7 +244,7 @@ function AskPoppieAgain({ result }: { result: TimesheetReviewResult }) {
     return (
       <p className="flex items-center gap-1.5 text-xs text-purple-300" role="status">
         <Spinner />
-        {timesheetReviewRequestText(request, agentOnline)}
+        {timesheetReviewRequestText(agentName, request, agentOnline)}
       </p>
     );
   }
@@ -250,7 +255,7 @@ function AskPoppieAgain({ result }: { result: TimesheetReviewResult }) {
     try {
       await requestReview();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't ask Poppie to look again.");
+      setError(err instanceof Error ? err.message : `Couldn't ask ${agentName} to look again.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -265,7 +270,7 @@ function AskPoppieAgain({ result }: { result: TimesheetReviewResult }) {
         onClick={ask}
         className="text-brand focus-visible:ring-brand rounded text-xs font-medium hover:underline focus:outline-none focus-visible:ring-2 disabled:opacity-50"
       >
-        {isSubmitting ? 'Asking…' : 'Ask Poppie to look again'}
+        {isSubmitting ? 'Asking…' : `Ask ${agentName} to look again`}
       </button>
       {error ? (
         <span className="basis-full pl-10 text-xs text-red-300" role="alert">
@@ -274,7 +279,7 @@ function AskPoppieAgain({ result }: { result: TimesheetReviewResult }) {
       ) : (
         failed && (
           <span className="basis-full pl-10 text-xs text-red-300" role="alert">
-            {request.errorMessage || "Poppie couldn't review this timesheet."}
+            {request.errorMessage || `${agentName} couldn't review this timesheet.`}
           </span>
         )
       )}

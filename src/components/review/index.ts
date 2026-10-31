@@ -1,9 +1,9 @@
-export { PoppieReviewPanel } from './PoppieReviewPanel';
+export { AgentReviewPanel } from './AgentReviewPanel';
 export {
-  PoppieAvatar,
-  PoppieLineNotes,
-  PoppieLineNotesPopover,
-  PoppieVerdictChip,
+  AgentAvatar,
+  AgentLineNotes,
+  AgentLineNotesPopover,
+  AgentVerdictChip,
   SeverityIcon,
   getSeverityStyle,
-} from './PoppieReviewBits';
+} from './AgentReviewBits';

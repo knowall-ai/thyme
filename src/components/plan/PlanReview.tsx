@@ -1,4 +1,5 @@
 'use client';
+import { useAgentName } from '@/hooks/useAgentSettingsStore';
 
 import {
   createContext,
@@ -29,11 +30,11 @@ import type {
 } from '@/types';
 import type { PlanReviewChangesState } from '@/hooks/usePlanReviewStore';
 import {
-  PoppieAvatar,
+  AgentAvatar,
   SeverityIcon,
   Spinner,
   VERDICT_TONE_CLASSES,
-} from '@/components/review/PoppieReviewBits';
+} from '@/components/review/AgentReviewBits';
 import {
   changesForLine,
   cn,
@@ -61,7 +62,7 @@ export interface PlanReviewContextValue {
   changes: Record<number, PlanReviewChangesState>;
   /** Load reviews' proposed changes once; `retry` tries failed ones again */
   loadChanges: (entryNos: number[], options?: { retry?: boolean }) => unknown;
-  /** Whether the signed-in user may ask Poppie to review this subject */
+  /** Whether the signed-in user may ask the agent to review this subject */
   canRequest: (subjectNo: string) => boolean;
   /** Whether the signed-in user may write this change's planning lines */
   canApply: (change: BCPlanReviewChange) => boolean;
@@ -95,7 +96,7 @@ export function PlanReviewProvider({
 }
 
 export const COMPANY_CHANGED_MESSAGE =
-  "The company changed while Poppie's change was being applied. Check that week's plan in the company you started in.";
+  "The company changed while the proposed change was being applied. Check that week's plan in the company you started in.";
 
 const SEVERITY_DOT_CLASS: Record<TimesheetReviewSeverity, string> = {
   Issue: 'bg-red-400',
@@ -105,7 +106,7 @@ const SEVERITY_DOT_CLASS: Record<TimesheetReviewSeverity, string> = {
 
 const dayLabel = (date: string) => format(parseISO(date), 'EEE d');
 
-/** Poppie's findings for a subject's day (worst first), from that week's review */
+/** The agent's findings for a subject's day (worst first), from that week's review */
 function findingsForDay(context: PlanReviewContextValue, subjectNo: string, date: string) {
   const weekStart = format(startOfWeek(parseISO(date), { weekStartsOn: 1 }), 'yyyy-MM-dd');
   const subject = context.weeks.get(weekStart)?.find((s) => s.subjectNo === subjectNo);
@@ -117,11 +118,13 @@ function findingsForDay(context: PlanReviewContextValue, subjectNo: string, date
 }
 
 /**
- * A tiny dot in the top-left of a subject's day cell when Poppie's review has findings for
+ * A tiny dot in the top-left of a subject's day cell when the agent's review has findings for
  * that day (the day-note marker sits top-right), coloured by the worst, with the notes as
  * its tooltip.
  */
 export function PlanReviewDayMarker({ subjectNo, date }: { subjectNo: string; date: string }) {
+  const agentName = useAgentName();
+
   const context = useContext(PlanReviewContext);
   if (!context) return null;
   const found = findingsForDay(context, subjectNo, date);
@@ -129,7 +132,7 @@ export function PlanReviewDayMarker({ subjectNo, date }: { subjectNo: string; da
   const severity = worstPlanReviewSeverity(found.lines) ?? 'Info';
   const outOfDate = found.subject.status === 'outOfDate';
   const notes = found.lines.map((line) => line.note || getPlanReviewCheckLabel(line.check));
-  const title = `Poppie${outOfDate ? ' (out of date)' : ''}: ${notes.join('\n')}`;
+  const title = `${agentName}${outOfDate ? ' (out of date)' : ''}: ${notes.join('\n')}`;
   return (
     <span
       role="img"
@@ -147,10 +150,10 @@ export function PlanReviewDayMarker({ subjectNo, date }: { subjectNo: string; da
 }
 
 /**
- * Poppie's verdict for a week across the subjects in view, in the week-number header: the
+ * The agent's verdict for a week across the subjects in view, in the week-number header: the
  * worst verdict and how many have it, dashed when any is out of date. A button that opens the
- * week's reviews. Weeks without a review show nothing, or a quiet "Ask Poppie" for people who
- * may ask her to review.
+ * week's reviews. Weeks without a review show nothing, or a quiet "Ask the agent" for people who
+ * may ask it to review.
  */
 export function PlanReviewWeekChip({
   weekStart,
@@ -159,6 +162,8 @@ export function PlanReviewWeekChip({
   weekStart: string;
   weekNumber: number;
 }) {
+  const agentName = useAgentName();
+
   const context = useContext(PlanReviewContext);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -181,14 +186,17 @@ export function PlanReviewWeekChip({
         <span className="truncate">{label}</span>
         {/* An icon rather than text, so the verdict fits the narrow week header */}
         {summary.outOfDate > 0 && (
-          <span title="Out of date: the plan changed since Poppie looked" className="shrink-0">
+          <span
+            title={`Out of date: the plan changed since ${agentName} looked`}
+            className="shrink-0"
+          >
             <ArrowPathIcon className="h-3 w-3 opacity-80" aria-hidden="true" />
           </span>
         )}
         {summary.awaiting > 0 && <Spinner />}
       </>
     );
-    ariaLabel = `Week ${weekNumber}, Poppie's review: ${label}${
+    ariaLabel = `Week ${weekNumber}, ${agentName}'s review: ${label}${
       summary.outOfDate > 0 ? `, ${summary.outOfDate} out of date` : ''
     }${summary.awaiting > 0 ? ', re-review requested' : ''}. Show details`;
   } else if (summary.awaiting > 0) {
@@ -200,11 +208,11 @@ export function PlanReviewWeekChip({
         <span className="truncate">{text}</span>
       </>
     );
-    ariaLabel = `Week ${weekNumber}: Poppie's review ${text.replace('…', '').toLowerCase()}. Show details`;
+    ariaLabel = `Week ${weekNumber}: ${agentName}'s review ${text.replace('…', '').toLowerCase()}. Show details`;
   } else if (canAsk) {
     toneClass = 'text-dark-500 hover:text-dark-200';
-    content = <span className="truncate">Ask Poppie</span>;
-    ariaLabel = `Week ${weekNumber}: not reviewed by Poppie. Ask her to review`;
+    content = <span className="truncate">Ask {agentName}</span>;
+    ariaLabel = `Week ${weekNumber}: not reviewed by ${agentName}. Ask it to review`;
   } else {
     return null;
   }
@@ -229,7 +237,7 @@ export function PlanReviewWeekChip({
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         aria-controls={isOpen ? popoverId : undefined}
-        title={ariaLabel.replace(/\. (Show details|Ask her to review)$/, '')}
+        title={ariaLabel.replace(/\. (Show details|Ask it to review)$/, '')}
         onClick={() => setIsOpen((open) => !open)}
       >
         {content}
@@ -278,6 +286,8 @@ function PlanReviewPopover({
   anchorRef,
   onClose,
 }: PlanReviewPopoverProps) {
+  const agentName = useAgentName();
+
   const popoverRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
   // A single subject opens straight to its findings
@@ -381,19 +391,19 @@ function PlanReviewPopover({
     >
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <PoppieAvatar
+          <AgentAvatar
             reviewer={sorted.find((s) => s.review)?.review?.reviewer}
             className="h-6 w-6"
           />
           <h3 id={titleId} className="truncate text-sm font-semibold text-white">
-            Poppie&apos;s review · Week {weekNumber}
+            {agentName}&apos;s review · Week {weekNumber}
             <span className="text-dark-400 ml-1 text-xs font-normal">from {weekEnd}</span>
           </h3>
         </div>
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close Poppie's review"
+          aria-label={`Close ${agentName}'s review`}
           className="text-dark-400 hover:text-dark-100 focus-visible:ring-brand rounded p-0.5 focus:outline-none focus-visible:ring-2"
         >
           <XMarkIcon className="h-4 w-4" />
@@ -431,6 +441,8 @@ function SubjectReview({
   isExpanded: boolean;
   onToggle: () => void;
 }) {
+  const agentName = useAgentName();
+
   const { review } = subject;
   const findingsId = useId();
   const lines = review ? sortPlanReviewLines(context.lines[review.entryNo] ?? []) : [];
@@ -470,7 +482,7 @@ function SubjectReview({
             {outOfDate && (
               <span
                 className="border-dark-500 text-dark-300 shrink-0 rounded-full border border-dashed px-1.5 py-0.5 text-[10px]"
-                title="The plan changed after Poppie's review"
+                title={`The plan changed after ${agentName}'s review`}
               >
                 Out of date
               </span>
@@ -486,7 +498,10 @@ function SubjectReview({
               {lines.length === 0 ? (
                 <p className="text-dark-500 text-xs italic">No findings.</p>
               ) : (
-                <ul className="space-y-1.5" aria-label={`Poppie's findings for ${subject.name}`}>
+                <ul
+                  className="space-y-1.5"
+                  aria-label={`${agentName}'s findings for ${subject.name}`}
+                >
                   {lines.map((line) => (
                     <Finding
                       key={`${line.reviewEntryNo}-${line.lineNo}`}
@@ -545,7 +560,7 @@ function Finding({
       setState({ kind: 'idle' });
       toast.success(changes.length === 1 ? 'Change applied' : 'Changes applied');
     } catch (error) {
-      // BC's own words, e.g. "The plan changed since Poppie looked. Ask her to re-review."
+      // BC's own words, e.g. "The plan changed since the agent looked. Ask it to re-review."
       setState({
         kind: 'idle',
         message: bcErrorText(error, "Couldn't apply the change. Please try again."),
@@ -646,6 +661,8 @@ function RequestReview({
   subject: PlanReviewSubjectWeek;
   context: PlanReviewContextValue;
 }) {
+  const agentName = useAgentName();
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { request } = subject;
@@ -670,7 +687,7 @@ function RequestReview({
     try {
       await context.onRequest(subject.subjectNo, subject.weekStart);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't ask Poppie to review.");
+      setError(err instanceof Error ? err.message : `Couldn't ask ${agentName} to review.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -680,7 +697,7 @@ function RequestReview({
     <div className="mt-1">
       {failed && (
         <p className="text-[11px] text-red-300">
-          {request.errorMessage || "Poppie couldn't review this plan."}
+          {request.errorMessage || `${agentName} couldn't review this plan.`}
         </p>
       )}
       {error && (
@@ -698,8 +715,8 @@ function RequestReview({
           {isSubmitting
             ? 'Asking…'
             : subject.review
-              ? 'Ask Poppie to re-review'
-              : 'Ask Poppie to review'}
+              ? `Ask ${agentName} to re-review`
+              : `Ask ${agentName} to review`}
         </button>
       )}
     </div>

@@ -1,4 +1,5 @@
 'use client';
+import { useAgentName } from '@/hooks/useAgentSettingsStore';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
@@ -1526,6 +1527,8 @@ export function PlanPanel({
   onFullscreenChange,
   onPlanChanged,
 }: PlanPanelProps = {}) {
+  const agentName = useAgentName();
+
   const { selectedCompany, companyVersion } = useCompanyStore();
   const { account } = useAuth();
   const userEmail = account?.username || '';
@@ -1980,7 +1983,7 @@ export function PlanPanel({
     }
   };
 
-  // Poppie's plan reviews: the Team view reviews people's weeks, the Projects view projects'
+  // The agent's plan reviews: the Team view reviews people's weeks, the Projects view projects'
   const reviewSubjectType: PlanReviewSubjectType = viewMode === 'team' ? 'Resource' : 'Project';
   const reviewWeekStarts = useMemo(
     () => headerWeekGroups.map((group) => format(group.weekStart, 'yyyy-MM-dd')),
@@ -2020,7 +2023,7 @@ export function PlanPanel({
   } = usePlanReviewStore();
 
   // Each reviewed subject-week's plan hash now, from the plan as loaded (before quarter-hour
-  // rounding), to tell whether Poppie's review still describes it
+  // rounding), to tell whether the agent's review still describes it
   const loadedWeeks = cache?.loadedWeeks;
   const [currentPlanHashes, setCurrentPlanHashes] = useState<Record<string, string>>({});
   useEffect(() => {
@@ -2142,7 +2145,8 @@ export function PlanPanel({
         const resource = findResource(resourceNo);
         return resource?.name || resource?.displayName || resourceNo;
       },
-      onRequest: (subjectNo, weekStart) => requestReview(reviewSubjectType, subjectNo, weekStart),
+      onRequest: (subjectNo, weekStart) =>
+        requestReview(reviewSubjectType, subjectNo, weekStart, agentName),
       manualReason: (change: BCPlanReviewChange) => {
         // The cell's lines as loaded (the grid shows lines with hours; Apply re-reads BC)
         const weekStart = format(
@@ -2171,6 +2175,7 @@ export function PlanPanel({
       },
     };
   }, [
+    agentName,
     reviewsAvailable,
     planResources,
     planProjects,
@@ -2323,7 +2328,7 @@ export function PlanPanel({
                       <span className="text-dark-300 text-xs font-medium">
                         {weekGroup.weekNumber}
                       </span>
-                      {/* Poppie's review of the week, at the right */}
+                      {/* The agent's review of the week, at the right */}
                       <span className="absolute right-1 flex max-w-[calc(50%-1rem)] justify-end">
                         <PlanReviewWeekChip
                           weekStart={format(weekGroup.weekStart, 'yyyy-MM-dd')}
@@ -2514,7 +2519,7 @@ export function PlanPanel({
             {planReviewContext && (
               <span className="text-dark-300 flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-400" aria-hidden="true" />
-                Poppie&apos;s finding (her review is by the week number)
+                {agentName}&apos;s finding (its review is by the week number)
               </span>
             )}
           </div>

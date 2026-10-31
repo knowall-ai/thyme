@@ -1,6 +1,7 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
+import { useAgentSettingsStore } from '@/hooks/useAgentSettingsStore';
 import { SignInExpired } from '@/components/layout/SignInExpired';
 import { NotApprovedPage } from './NotApprovedPage';
 import { useTenantAccess } from './useTenantAccess';
@@ -15,7 +16,7 @@ import { useTenantAccess } from './useTenantAccess';
 export function TenantGate({ children }: { children: ReactNode }) {
   const { status, tenantId, email, retry } = useTenantAccess();
 
-  if (status === 'approved') return <>{children}</>;
+  if (status === 'approved') return <AgentSettingsLoader>{children}</AgentSettingsLoader>;
 
   if (status === 'denied' || status === 'signed-out') {
     return <NotApprovedPage tenantId={tenantId} email={email} />;
@@ -33,4 +34,13 @@ export function TenantGate({ children }: { children: ReactNode }) {
       <span className="text-dark-400 ml-3 text-sm">Checking your organisation...</span>
     </div>
   );
+}
+
+/** Loads the organisation's agent settings once it's approved; renders its children at once */
+function AgentSettingsLoader({ children }: { children: ReactNode }) {
+  const load = useAgentSettingsStore((state) => state.load);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  return <>{children}</>;
 }

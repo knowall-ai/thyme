@@ -28,7 +28,7 @@ const normalise = (text: string | undefined) => (text || '').trim().toLowerCase(
 
 /**
  * A suggestion duplicates an entry already in the week when it's on the same date
- * with similar hours, and either targets the same project (and task, if Poppie
+ * with similar hours, and either targets the same project (and task, if the agent
  * named one) or carries the same description as the entry's notes. Accepted
  * suggestions whose status write-back failed are caught by this too.
  */
@@ -81,8 +81,8 @@ export function canQuickAdd(suggestion: BCTimeSuggestion, requireComments: boole
 }
 
 /**
- * Whether Poppie guessed the suggestion's project (from a customer's domain or a name match)
- * rather than taking it from a rule; her evidence says "Guessed project ..." in that case.
+ * Whether the agent guessed the suggestion's project (from a customer's domain or a name match)
+ * rather than taking it from a rule; its evidence says "Guessed project ..." in that case.
  * A guess should be checked by the person, so it never saves in one click.
  */
 export function isGuessedProject(suggestion: BCTimeSuggestion): boolean {
@@ -90,12 +90,12 @@ export function isGuessedProject(suggestion: BCTimeSuggestion): boolean {
 }
 
 /** Notes for the time entry a suggestion becomes, trimmed to BC's field length. */
-// Poppie appends the item refs she needs to recognise a suggestion again ("… | refs: github:…").
+// The agent appends the item refs it needs to recognise a suggestion again ("… | refs: github:…").
 const REFS_MARKER = ' | refs: ';
 // Evidence segments (one item, or one reason) are separated by "; " and never contain it.
 const SEGMENT_SEPARATOR = '; ';
 
-/** The evidence people read: everything before Poppie's machine refs. */
+/** The evidence people read: everything before the agent's machine refs. */
 export function readableEvidence(evidence: string | undefined): string {
   const text = evidence || '';
   const at = text.indexOf(REFS_MARKER);

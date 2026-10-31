@@ -111,9 +111,9 @@ describe('PlanReviewWeekChip', () => {
     expect(screen.queryByTestId('plan-review-week-chip')).not.toBeInTheDocument();
   });
 
-  it('offers "Ask Poppie" on an unreviewed week to someone who may change plans', () => {
+  it('offers "Ask Timmie" on an unreviewed week to someone who may change plans', () => {
     renderChip(context([subject({ review: null, status: 'none' })], { canRequest: () => true }));
-    expect(screen.getByTestId('plan-review-week-chip')).toHaveTextContent('Ask Poppie');
+    expect(screen.getByTestId('plan-review-week-chip')).toHaveTextContent('Ask Timmie');
   });
 
   it('shows the worst verdict with a count, in its colour', () => {
@@ -164,12 +164,12 @@ describe('PlanReview popover', () => {
     expect(dialog).toHaveTextContent('Thu 22 · PR00090 · Contoso Rollout · 7.17h → 7.25h');
   });
 
-  it('hides Apply change and Ask Poppie without permission to change plans', () => {
+  it('hides Apply change and Ask Timmie without permission to change plans', () => {
     renderChip(context([subject()]));
     openPopover();
     expect(screen.queryByRole('button', { name: 'Apply change' })).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: 'Ask Poppie to re-review' })
+      screen.queryByRole('button', { name: 'Ask Timmie to re-review' })
     ).not.toBeInTheDocument();
   });
 
@@ -179,7 +179,7 @@ describe('PlanReview popover', () => {
     );
     openPopover();
     expect(screen.getByRole('button', { name: 'Apply change' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Ask Poppie to re-review' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ask Timmie to re-review' })).toBeInTheDocument();
   });
 
   it('applies a finding through one call', async () => {
@@ -207,7 +207,7 @@ describe('PlanReview popover', () => {
   });
 
   it.each([
-    'The plan changed since Poppie looked. Ask her to re-review.',
+    'The plan changed since Timmie looked. Ask it to re-review.',
     "Edit this cell by hand: its planning line is Billable, part of the project's budget estimate.",
     "You don't have permission to change the plan.",
   ])("shows BC's refusal as it is: %s", async (message) => {
@@ -268,7 +268,7 @@ describe('PlanReview popover', () => {
     );
   });
 
-  it('asks Poppie to review an unreviewed subject, and shows a request in progress', async () => {
+  it('asks Timmie to review an unreviewed subject, and shows a request in progress', async () => {
     const value = context(
       [
         subject({ review: null, status: 'none' }),
@@ -288,7 +288,7 @@ describe('PlanReview popover', () => {
     renderChip(value);
     const dialog = openPopover();
     expect(within(dialog).getByText('Checking the calendar')).toBeInTheDocument();
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Ask Poppie to review' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ask Timmie to review' }));
     await waitFor(() => expect(value.onRequest).toHaveBeenCalledWith('R0010', WEEK));
   });
 
@@ -327,7 +327,7 @@ describe('PlanReviewDayMarker', () => {
     );
     const markers = screen.getAllByTestId('plan-review-day-marker');
     expect(markers).toHaveLength(1);
-    expect(markers[0]).toHaveAttribute('title', "Poppie: 7.17h isn't a quarter hour.");
+    expect(markers[0]).toHaveAttribute('title', "Timmie: 7.17h isn't a quarter hour.");
     expect(markers[0]).toHaveClass('bg-amber-400', 'left-0.5');
   });
 });

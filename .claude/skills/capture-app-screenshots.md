@@ -24,7 +24,7 @@ Sign in to Timmie in that browser and open the demo company before running the s
 
 ## Demo data only
 
-This repository is public. Capture from the Business Central demo company **CRONUS UK Ltd.** in a sandbox environment, populated with the projects, timesheets, plan allocations and Poppie reviews each shot needs. Never capture a real company's client names or monetary amounts. Open every image and check it before committing.
+This repository is public. Capture from the Business Central demo company **CRONUS UK Ltd.** in a sandbox environment, populated with the projects, timesheets, plan allocations and agent reviews each shot needs. Never capture a real company's client names or monetary amounts. Open every image and check it before committing.
 
 ## Screenshot Script
 
@@ -61,20 +61,20 @@ Screenshots are saved to `public/screenshots/` at 1280x720 pixels (AppSource req
 
 In carousel order (`src/components/landing/ScreenshotCarousel.tsx`). The README shows the six page shots.
 
-| Filename                 | Page                 | What it must show                                                                                           |
-| ------------------------ | -------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `timesheet.png`          | `/time`              | A filled-in week with each day's and the week's billable % against target                                   |
-| `poppie-suggestions.png` | `/time` (scrolled)   | Poppie's suggestions panel with a few suggestions grouped by day                                            |
-| `projects.png`           | `/projects/{number}` | Project page: estimate, spend to date, forecast with finish date, Spend vs Budget chart                     |
-| `team.png`               | `/team`              | Team table with hours by stage, timesheet completion and billable % against target                          |
-| `plan.png`               | `/plan`              | First person expanded to allocations by project and task; ideally a red and an amber day                    |
-| `plan-review.png`        | `/plan`              | Poppie's verdict chip in a week header, popover open on a finding with a proposed change                    |
-| `approvals.png`          | `/approvals`         | First submitted timesheet expanded: one row per entry with its day, daily hours, billable %, Poppie's notes |
-| `reports.png`            | `/reports`           | Period picker, client/project filters, Hours by Project split by stage                                      |
+| Filename                 | Page                 | What it must show                                                                                              |
+| ------------------------ | -------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `timesheet.png`          | `/time`              | A filled-in week with each day's and the week's billable % against target                                      |
+| `poppie-suggestions.png` | `/time` (scrolled)   | The agent's suggestions panel with a few suggestions grouped by day                                            |
+| `projects.png`           | `/projects/{number}` | Project page: estimate, spend to date, forecast with finish date, Spend vs Budget chart                        |
+| `team.png`               | `/team`              | Team table with hours by stage, timesheet completion and billable % against target                             |
+| `plan.png`               | `/plan`              | First person expanded to allocations by project and task; ideally a red and an amber day                       |
+| `plan-review.png`        | `/plan`              | The agent's verdict chip in a week header, popover open on a finding with a proposed change                    |
+| `approvals.png`          | `/approvals`         | First submitted timesheet expanded: one row per entry with its day, daily hours, billable %, the agent's notes |
+| `reports.png`            | `/reports`           | Period picker, client/project filters, Hours by Project split by stage                                         |
 
 `dashboard.png` is an older AppSource shot and isn't captured by the script.
 
-The script expands what each shot needs: the first person on the Plan (`button[aria-label="Expand"]`), the first timesheet on Approvals (`button[aria-label="Expand timesheet details"]`) and the first plan-review chip (`[data-testid="plan-review-week-chip"]`). Poppie's plan review only appears once the plan-review APIs are deployed and she has reviewed a week in view.
+The script expands what each shot needs: the first person on the Plan (`button[aria-label="Expand"]`), the first timesheet on Approvals (`button[aria-label="Expand timesheet details"]`) and the first plan-review chip (`[data-testid="plan-review-week-chip"]`). The agent's plan review only appears once the plan-review APIs are deployed and the agent has reviewed a week in view.
 
 ## Usage in App
 

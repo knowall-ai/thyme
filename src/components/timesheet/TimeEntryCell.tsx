@@ -191,7 +191,7 @@ function TimeEntryCard({
           'focus-visible:ring-timmie-500 focus-visible:ring-2 focus-visible:outline-none',
           !readOnly && 'hover:bg-dark-600/50',
           draggable && 'cursor-grab active:cursor-grabbing',
-          // Flag entries Poppie commented on
+          // Flag entries the agent commented on
           reviewSeverity === 'Issue' && 'ring-1 ring-red-400/70',
           reviewSeverity === 'Warning' && 'ring-1 ring-amber-400/70',
           reviewSeverity === 'Info' && 'ring-1 ring-blue-400/50'
@@ -235,7 +235,7 @@ interface TimeEntryCellProps {
   onEditEntry: (entry: TimeEntry) => void;
   onMoveEntry?: (entryId: string, newDate: string) => void;
   readOnly?: boolean;
-  /** Poppie's review notes by timesheet line number, to flag the entries they refer to */
+  /** The agent's review notes by timesheet line number, to flag the entries they refer to */
   reviewNotesByLine?: Map<number, BCTimesheetReviewLine[]>;
   /** The person's billable target; the day's billable % is coloured against it when set */
   billableTarget?: BillableTarget | null;

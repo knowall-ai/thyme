@@ -33,14 +33,14 @@ A modern time tracking web application that integrates with Microsoft Dynamics 3
 - **Approvals** - Review each submitted entry on its own row with its day, the daily hours and billable % against target, then approve or reject
 - **Reports** - Year to date, last year or a custom range, filtered by client and project, with a Team table and hours by project split by stage. Print it, or export to CSV with project and task names
 
-### Poppie, the AI assistant
+### Timmie, our AI agent
 
-Poppie works alongside you. She proposes; you decide.
+Timmie's AI agent works alongside you. It proposes; you decide. Already run your own agent? Set its name in Settings and Timmie works with that instead.
 
 - **Time suggestions** - Suggested entries from your calendar, GitHub and Azure DevOps activity, matched to the right project. Review each one before it's added, or request suggestions on demand
-- **Linked sources** - Link a project to its repos, DevOps projects, meeting keywords and attendee domains so Poppie matches that work to it
-- **Timesheet review** - For approvers, Poppie flags missing comments, short days, the billable mix and budget overruns, with notes against individual entries
-- **Plan review** - Poppie's verdict in each week's header on the Plan, checking billable targets, holidays and calendars, capacity, budget burn and quarter-hour rounding, looking closest at this week and next. If you can edit plans, apply a proposed change with one click
+- **Linked sources** - Link a project to its repos, DevOps projects, meeting keywords and attendee domains so the agent matches that work to it
+- **Timesheet review** - For approvers, the agent flags missing comments, short days, the billable mix and budget overruns, with notes against individual entries
+- **Plan review** - The agent's verdict in each week's header on the Plan, checking billable targets, holidays and calendars, capacity, budget burn and quarter-hour rounding, looking closest at this week and next. If you can edit plans, apply a proposed change with one click
 
 ### Platform
 
@@ -59,9 +59,9 @@ Poppie works alongside you. She proposes; you decide.
 |                       [![Team](public/screenshots/team.png)](public/screenshots/team.png)                       |                [![Plan](public/screenshots/plan.png)](public/screenshots/plan.png)                |
 |                         **Team** - Hours by stage, timesheet completion and billable %                          |                 **Plan** - Allocations by person, project and task, with capacity                 |
 |               [![Approvals](public/screenshots/approvals.png)](public/screenshots/approvals.png)                |           [![Reports](public/screenshots/reports.png)](public/screenshots/reports.png)            |
-|                         **Approvals** - Each entry on its own row, with Poppie's notes                          |                  **Reports** - Periods, filters, hours by project and CSV export                  |
-| [![Poppie's suggestions](public/screenshots/poppie-suggestions.png)](public/screenshots/poppie-suggestions.png) | [![Poppie's plan review](public/screenshots/plan-review.png)](public/screenshots/plan-review.png) |
-|            **Poppie's suggestions** - Time entries suggested from calendars, GitHub and Azure DevOps            |           **Plan review** - Poppie's verdict for each week, with changes you can apply            |
+|                        **Approvals** - Each entry on its own row, with the agent's notes                        |                  **Reports** - Periods, filters, hours by project and CSV export                  |
+| [![Timmie's suggestions](public/screenshots/poppie-suggestions.png)](public/screenshots/poppie-suggestions.png) | [![Timmie's plan review](public/screenshots/plan-review.png)](public/screenshots/plan-review.png) |
+|            **Timmie's suggestions** - Time entries suggested from calendars, GitHub and Azure DevOps            |          **Plan review** - The agent's verdict for each week, with changes you can apply          |
 
 ## Tech Stack
 

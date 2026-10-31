@@ -1,4 +1,5 @@
 'use client';
+import { useAgentName } from '@/hooks/useAgentSettingsStore';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
@@ -16,7 +17,7 @@ import { BC_EXTENSION_GITHUB_URL } from '@/utils/bcUrls';
 // BC Time Sheet Line Description field has a 100-character limit
 const MAX_NOTES_LENGTH = 100;
 
-// Values to start a new entry with, e.g. from one of Poppie's suggestions.
+// Values to start a new entry with, e.g. from one of the agent's suggestions.
 // `key` identifies the source so the form resets when a different one opens.
 export interface TimeEntryPrefill {
   key: string;
@@ -49,6 +50,8 @@ export function TimeEntryModal({
   prefill,
   onSaved,
 }: TimeEntryModalProps) {
+  const agentName = useAgentName();
+
   const { account } = useAuth();
   const userId = account?.localAccountId || '';
 
@@ -390,7 +393,7 @@ export function TimeEntryModal({
               jobTaskNo,
               useMonthlyBlock: false,
             });
-            toast.success(`Poppie will map ${link.label} to ${jobNo} from now on`);
+            toast.success(`${agentName} will map ${link.label} to ${jobNo} from now on`);
           } catch (error) {
             toast.error(`Entry saved, but the link wasn't: ${bcErrorText(error)}`);
           }

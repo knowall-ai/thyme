@@ -6,18 +6,22 @@ const ago = (ms: number) => new Date(now - ms).toISOString();
 
 describe('agentPresence', () => {
   it('is online while the newest heartbeat is under the threshold', () => {
-    expect(agentPresence([{ agentName: 'POPPIE', lastSeenAt: ago(60_000) }], now).state).toBe(
-      'online'
-    );
     expect(
-      agentPresence([{ agentName: 'POPPIE', lastSeenAt: ago(AGENT_OFFLINE_AFTER_MS - 1) }], now)
-        .state
+      agentPresence([{ agentName: 'POPPIE', lastSeenAt: ago(60_000) }], 'Poppie', now).state
+    ).toBe('online');
+    expect(
+      agentPresence(
+        [{ agentName: 'POPPIE', lastSeenAt: ago(AGENT_OFFLINE_AFTER_MS - 1) }],
+        'Poppie',
+        now
+      ).state
     ).toBe('online');
   });
 
   it('is offline once the newest heartbeat reaches the threshold', () => {
     const p = agentPresence(
       [{ agentName: 'POPPIE', lastSeenAt: ago(AGENT_OFFLINE_AFTER_MS) }],
+      'Poppie',
       now
     );
     expect(p.state).toBe('offline');
@@ -25,13 +29,14 @@ describe('agentPresence', () => {
   });
 
   it('is offline with no heartbeat at all, or only unreadable ones', () => {
-    expect(agentPresence([], now)).toEqual({ state: 'offline', lastSeenAt: null });
+    expect(agentPresence([], 'Poppie', now)).toEqual({ state: 'offline', lastSeenAt: null });
     expect(
-      agentPresence([{ agentName: 'POPPIE', lastSeenAt: '0001-01-01T00:00:00Z' }], now).lastSeenAt
+      agentPresence([{ agentName: 'POPPIE', lastSeenAt: '0001-01-01T00:00:00Z' }], 'Poppie', now)
+        .lastSeenAt
     ).toBeNull();
-    expect(agentPresence([{ agentName: 'POPPIE', lastSeenAt: 'nonsense' }], now).state).toBe(
-      'offline'
-    );
+    expect(
+      agentPresence([{ agentName: 'POPPIE', lastSeenAt: 'nonsense' }], 'Poppie', now).state
+    ).toBe('offline');
   });
 
   it('uses the newest of several heartbeats', () => {
@@ -40,6 +45,7 @@ describe('agentPresence', () => {
         { agentName: 'POPPIE', lastSeenAt: ago(3_600_000) },
         { agentName: 'poppie', lastSeenAt: ago(30_000) },
       ],
+      'Poppie',
       now
     );
     expect(p.state).toBe('online');
@@ -51,33 +57,62 @@ describe('agentPresence', () => {
         { agentName: 'CONTOSO BOT', lastSeenAt: ago(10_000) },
         { agentName: 'POPPIE', lastSeenAt: ago(3_600_000) },
       ],
+      'Poppie',
       now
     );
     expect(p.state).toBe('offline');
-    expect(agentPresence([{ agentName: 'CONTOSO BOT', lastSeenAt: ago(10_000) }], now)).toEqual({
-      state: 'offline',
-      lastSeenAt: null,
-    });
+  });
+
+  it('with fallbackToAnyAgent, uses any agent when none has the name', () => {
+    // An organisation that hasn't named its own agent yet: Timmie (the default) vs CONTOSO BOT
+    const bot = [{ agentName: 'CONTOSO BOT', lastSeenAt: ago(10_000) }];
+    expect(agentPresence(bot, 'Timmie', now, undefined, true).state).toBe('online');
+    expect(agentPresence(bot, 'Timmie', now).state).toBe('offline');
+    expect(
+      agentPresence(
+        [
+          { agentName: 'CONTOSO BOT', lastSeenAt: ago(3_600_000) },
+          { agentName: 'FABRIKAM BOT', lastSeenAt: ago(7_200_000) },
+        ],
+        'Timmie',
+        now,
+        undefined,
+        true
+      )
+    ).toEqual({ state: 'offline', lastSeenAt: new Date(now - 3_600_000) });
+    // A heartbeat with the name still wins over other agents'
+    expect(
+      agentPresence(
+        [
+          { agentName: 'CONTOSO BOT', lastSeenAt: ago(10_000) },
+          { agentName: 'TIMMIE', lastSeenAt: ago(3_600_000) },
+        ],
+        'Timmie',
+        now,
+        undefined,
+        true
+      ).state
+    ).toBe('offline');
   });
 
   it('treats a heartbeat ahead of this clock (skew) as now', () => {
-    expect(agentPresence([{ agentName: 'POPPIE', lastSeenAt: ago(-120_000) }], now).state).toBe(
-      'online'
-    );
+    expect(
+      agentPresence([{ agentName: 'POPPIE', lastSeenAt: ago(-120_000) }], 'Poppie', now).state
+    ).toBe('online');
   });
 
   it('honours a custom threshold', () => {
     expect(
-      agentPresence([{ agentName: 'POPPIE', lastSeenAt: ago(90_000) }], now, 60_000).state
+      agentPresence([{ agentName: 'POPPIE', lastSeenAt: ago(90_000) }], 'Poppie', now, 60_000).state
     ).toBe('offline');
   });
 });
 
 describe('offlineText', () => {
-  it('says when Poppie was last seen', () => {
-    expect(offlineText(new Date(now - 2 * 3_600_000), new Date(now))).toBe(
+  it('says when the agent was last seen', () => {
+    expect(offlineText('Poppie', new Date(now - 2 * 3_600_000), new Date(now))).toBe(
       'Poppie is offline (last seen about 2 hours ago)'
     );
-    expect(offlineText(null)).toBe('Poppie is offline (not seen yet)');
+    expect(offlineText('Poppie', null)).toBe('Poppie is offline (not seen yet)');
   });
 });

@@ -92,29 +92,29 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | "Resource Record Not Found" but BC extension check passes
 | The extension's `/resources` API endpoint may not exist. This happens when using an older extension version or when the extension isn't fully installed. Reinstall the latest Timmie BC Extension from https://github.com/knowall-ai/timmie-bc-extension
 
-| "Poppie's suggestions" panel doesn't appear under the week on the Time page
-| The panel only shows when the Timmie BC Extension has the `timeSuggestions` API; with an older extension it is hidden. Upgrade to the latest Timmie BC Extension from https://github.com/knowall-ai/timmie-bc-extension. If the panel shows but stays empty, Poppie hasn't written any suggestions for that person and week yet, or a suggestion matches an entry already in the week (those are hidden).
+| "Timmie's suggestions" panel doesn't appear under the week on the Time page
+| The panel only shows when the Timmie BC Extension has the `timeSuggestions` API; with an older extension it is hidden. Upgrade to the latest Timmie BC Extension from https://github.com/knowall-ai/timmie-bc-extension. If the panel shows but stays empty, the agent hasn't written any suggestions for that person and week yet, or a suggestion matches an entry already in the week (those are hidden).
 
-| Poppie's suggestions show but have no Add button
+| The agent's suggestions show but have no Add button
 | Suggestions can only be added to an open (or rejected) timesheet of your own. Reopen a submitted timesheet first; approved timesheets and teammates' timesheets are read-only, and the panel says why.
 
-| There's no *Request suggestions* button in Poppie's suggestions panel
-| The button needs Timmie BC Extension 1.18 or later (the `suggestionRequests` API); on older versions it's hidden. It also only shows for weeks that have started: always for past weeks, and for the current week while it has fewer than three suggestions (Poppie's midday and evening runs usually cover it). On someone else's timesheet you need to be their *Time Sheet Approver* on the Resource card, or a Timmie administrator (*Time Sheet Admin.* in User Setup, or the `THYME ADMIN` permission set).
+| There's no *Request suggestions* button in the agent's suggestions panel
+| The button needs Timmie BC Extension 1.18 or later (the `suggestionRequests` API); on older versions it's hidden. It also only shows for weeks that have started: always for past weeks, and for the current week while it has fewer than three suggestions (the agent's own runs through the day usually cover it). On someone else's timesheet you need to be their *Time Sheet Approver* on the Resource card, or a Timmie administrator (*Time Sheet Admin.* in User Setup, or the `THYME ADMIN` permission set).
 
-| *Request suggestions* is greyed out and the panel says "Poppie offline"
-| Timmie reads Poppie's heartbeat (Timmie BC Extension 1.18+). She refreshes it every minute from her `suggestion-requests` job, and after 5 minutes without one Timmie treats her as offline. Hover the button to see when she was last seen. Her VM is probably stopped, or the job isn't running. Ask an administrator to check the VM and `hermes cron list`. The button comes back by itself within a minute of her returning.
+| *Request suggestions* is greyed out and the panel says "Timmie offline" (or your own agent's name)
+| Timmie reads the agent's heartbeat (Timmie BC Extension 1.18+). The agent refreshes it every minute, and after 5 minutes without one Timmie treats it as offline. Hover the button to see when it was last seen. The agent's machine is probably stopped, or its job that handles requests isn't running: ask whoever runs your agent to check it. The button comes back by itself within a minute of the agent returning. Timmie looks for the heartbeat under the agent name in *Settings > AI Agent*. If it always says offline although the agent is running, check that name matches the one the agent writes its heartbeat under (case doesn't matter). While the organisation is still on Timmie's own agent, any agent's heartbeat counts.
 
-| Poppie doesn't suggest time for someone's GitHub pull requests or issues
-| Poppie needs to know their GitHub username. Set it on the Team page (the GitHub line under their name; administrators can set anyone's) or, for yourself, in *Settings > Connected accounts*. A profile link or `@username` works too. It's saved on the person's resource in the selected company, so set it in each company they log time in. Needs Timmie BC Extension 1.21+; with older versions the GitHub line and the *Connected accounts* section are hidden. Azure DevOps doesn't need setting up: Poppie uses the person's Microsoft 365 sign-in.
+| The agent doesn't suggest time for someone's GitHub pull requests or issues
+| The agent needs to know their GitHub username. Set it on the Team page (the GitHub line under their name; administrators can set anyone's) or, for yourself, in *Settings > Connected accounts*. A profile link or `@username` works too. It's saved on the person's resource in the selected company, so set it in each company they log time in. Needs Timmie BC Extension 1.21+; with older versions the GitHub line and the *Connected accounts* section are hidden. Azure DevOps doesn't need setting up: the agent uses the person's Microsoft 365 sign-in.
 
 | "You are not allowed to change the GitHub username of resource ..."
 | You can change your own GitHub username (the resource whose *Time Sheet Owner User ID* on the BC Resource card is you) and, as a Timmie administrator (*Time Sheet Admin.* in User Setup, or the `THYME ADMIN` permission set), anyone's. If it's your own and you still see this, ask an administrator to set you as the time sheet owner of your resource.
 
-| A suggestion request stays on "Queued" or says "Poppie seems to be offline"
-| Poppie checks for requests every minute, so a request waiting longer than a few minutes means her VM or its `suggestion-requests` job isn't running. The request stays queued and runs when she's back; you don't need to ask again. If it never starts, ask an administrator to check Poppie's `suggestion-requests` cron job. A request that started but stopped updating is marked failed after 30 minutes, so you can ask again.
+| A suggestion request stays on "Queued" or says "Timmie seems to be offline" (or your own agent's name)
+| The agent checks for requests every minute, so a request waiting longer than a few minutes means the agent, or its job that handles requests, isn't running. The request stays queued and runs when the agent is back; you don't need to ask again. If it never starts, ask whoever runs your agent to check that job. A request that started but stopped updating is marked failed after 30 minutes, so you can ask again.
 
-| Poppie finished a request for a teammate but no suggestions appear
-| Suggestions are only visible to the person they're for and to Timmie administrators, because they can include meeting subjects and other activity the person hasn't logged yet. As their approver you can ask Poppie to check their week, and Timmie tells you how many she found. They see the suggestions on their own timesheet.
+| The agent finished a request for a teammate but no suggestions appear
+| Suggestions are only visible to the person they're for and to Timmie administrators, because they can include meeting subjects and other activity the person hasn't logged yet. As their approver you can ask the agent to check their week, and Timmie tells you how many it found. They see the suggestions on their own timesheet.
 
 | The Projects list's hours, budget or % used don't match the project page
 | Upgrade to the latest Timmie version. Earlier versions measured the list against the Plan (Budget lines) rather than the Estimate (the quoted time on Billable lines) and only counted timesheets from the last six months, so the figures differed. The list now works them out exactly as the project page does, and its bar shows the time by stage (Posted, Approved, Submitted, Unsubmitted). Hover over the bar to see the hours in each stage.
@@ -125,14 +125,14 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | *Linked sources* shows the links but no *Add link*, edit or remove buttons
 | Only a Timmie administrator (*Time Sheet Admin.* in User Setup, or the `THYME ADMIN` permission set) or the project's manager can change them. The manager is the project's *Project Manager* user, or the person whose resource is its *Person Responsible* (their *Time Sheet Owner User ID* on the Resource card). Ask one of them, or edit the links in Business Central on the Project Card (*Thyme Linked Sources*), where the same rule applies.
 
-| Poppie keeps suggesting time from a repo, DevOps project or meeting without a project ("Choose project")
-| Link it to the project: on the project page, *Linked sources* → *Add link* (GitHub repo, DevOps project or repo, meeting keyword or attendee domain), optionally with the task. Or, when you add the suggestion, pick the project and task and tick *Always map this to the chosen project and task* (shown to administrators and the project's manager). Poppie uses the link from her next run. A DevOps repo link wins over a link to its DevOps project.
+| The agent keeps suggesting time from a repo, DevOps project or meeting without a project ("Choose project")
+| Link it to the project: on the project page, *Linked sources* → *Add link* (GitHub repo, DevOps project or repo, meeting keyword or attendee domain), optionally with the task. Or, when you add the suggestion, pick the project and task and tick *Always map this to the chosen project and task* (shown to administrators and the project's manager). The agent uses the link from its next run. A DevOps repo link wins over a link to its DevOps project.
 
 | Adding a linked source fails with "… is already linked to project …"
-| The same type and value can be linked to a project only once (case-insensitive). Edit the existing link instead. The same value on two projects is allowed, but then Poppie can't tell which project the time is for and asks you to choose.
+| The same type and value can be linked to a project only once (case-insensitive). Edit the existing link instead. The same value on two projects is allowed, but then the agent can't tell which project the time is for and asks you to choose.
 
 | A link marked *Learned* appeared on a project
-| Poppie adds these when people chose that project for her unmapped suggestions and the time was approved. Edit it to make it yours, or remove it; she won't add a link you removed again.
+| The agent adds these when people chose that project for its unmapped suggestions and the time was approved. Edit it to make it yours, or remove it; the agent won't add a link you removed again.
 
 | "No Approval Access" on Timesheet Approvals page
 | To approve timesheets, configure the approver in Business Central: (1) *Make user a Time Sheet Admin:* Search for "User Setup" → find your user (or create a new entry) → check the "Time Sheet Admin" checkbox. This allows the user to approve any timesheet. (2) *Or link approver to specific resources:* Search for "Resources" → open each Resource Card for employees you manage → set "Time Sheet Approver User ID" to your BC user ID. This allows you to approve only timesheets for those specific resources.
@@ -170,17 +170,17 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Reports: timesheet completion, capacity and billable targets disappear after picking a client or project, or a project is listed under "Internal" or "Unknown client"
 | By design: with a client or project filter, Reports shows only the time on that client or project, and completion, capacity and targets cover all of each person's time, so comparing them with one client's hours would be misleading. Choose *Clear filters* to see them again. A project's client is its *Sell-to Customer* in BC (the end client, when the work comes through a partner who is the *Bill-to Customer*), or its *Bill-to Customer* if it has no Sell-to or the Timmie BC Extension is older than 1.27.0.1; internal projects (see "Internal time shows as billable" above) are grouped under *Internal*. *Unknown client* means Timmie couldn't load that project from BC (see "Billable figures may be too high" above).
 
-| "Poppie's recommendation" never appears on the Approvals or Time page
-| The panel only shows when the Timmie BC Extension has the `timesheetReviews` and `timesheetReviewLines` API pages; on an older extension Timmie hides it (the browser console shows "timesheetReviews endpoint not found"). Update the extension in BC. If the panel says "Awaiting Poppie's review…" for more than about 10 minutes, check that Poppie's review job is running and can reach the company: Timmie only reads reviews, it doesn't create them.
+| "Timmie's recommendation" (or your own agent's name) never appears on the Approvals or Time page
+| The panel only shows when the Timmie BC Extension has the `timesheetReviews` and `timesheetReviewLines` API pages; on an older extension Timmie hides it (the browser console shows "timesheetReviews endpoint not found"). Update the extension in BC. If the panel says "Awaiting Timmie's review…" for more than about 10 minutes, check that the agent's review job is running and can reach the company: Timmie only reads reviews, it doesn't create them.
 
-| Poppie's review says "Out of date"
-| The timesheet's lines or daily hours were changed after Poppie reviewed it (Timmie compares their latest modified time with the review's version stamp). Once the timesheet is submitted again, Poppie re-reviews it on her next pass and the panel updates by itself; no action is needed. To have her look sooner, click *Ask Poppie to look again* in the panel.
+| The agent's review says "Out of date"
+| The timesheet's lines or daily hours were changed after the agent reviewed it (Timmie compares their latest modified time with the review's version stamp). Once the timesheet is submitted again, the agent re-reviews it on its next pass and the panel updates by itself; no action is needed. To have it look sooner, click *Ask Timmie to look again* in the panel.
 
-| There's no *Ask Poppie to look again* button in "Poppie's recommendation"
-| The button needs the Timmie BC Extension release with the `timesheetReviewRequests` API; on an older extension Timmie hides it. Update the extension in Business Central. It only shows once Poppie has reviewed the timesheet, and only to the timesheet's owner and its approvers (on the Time page and on the Approvals card). If clicking it says "You can't ask Poppie to review this timesheet.", BC didn't accept you as the owner or an approver.
+| There's no *Ask Timmie to look again* button in "Timmie's recommendation"
+| The button needs the Timmie BC Extension release with the `timesheetReviewRequests` API; on an older extension Timmie hides it. Update the extension in Business Central. It only shows once the agent has reviewed the timesheet, and only to the timesheet's owner and its approvers (on the Time page and on the Approvals card). If clicking it says "You can't ask Timmie to review this timesheet.", BC didn't accept you as the owner or an approver.
 
-| *Ask Poppie to look again* stays on "Queued" or says "Poppie will pick this up when she's back online"
-| Poppie picks review requests up on her 10-minute round, so "Queued" for up to 10 minutes is normal. "Back online" means her heartbeat is more than 5 minutes old: her VM or its jobs aren't running. The request stays queued and runs when she's back; you don't need to ask again. If it never starts, ask an administrator to check Poppie's VM and its review cron job. If the request fails, the panel shows her reason and offers the button again.
+| *Ask Timmie to look again* stays on "Queued" or says "Timmie will pick this up when it's back online"
+| The agent picks review requests up on its 10-minute round, so "Queued" for up to 10 minutes is normal. "Back online" means its heartbeat is more than 5 minutes old: the agent or its jobs aren't running. The request stays queued and runs when the agent is back; you don't need to ask again. If it never starts, ask whoever runs your agent to check its review job. If the request fails, the panel shows the agent's reason and offers the button again.
 
 | A link opens with "You don't have access to that company in Business Central"
 | Timmie URLs include the environment and company (`/production/{companyId}/projects/...`), and the link points at a company your account can't see. This happens when the company is in an environment you don't have (e.g. a Sandbox), or your BC user hasn't been given access to that company. (1) Ask your Business Central administrator to give your user access to the company in that environment, then sign out of Timmie and back in. (2) Or click *Go to …* to open the same page in your current company instead.
@@ -206,17 +206,17 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | A task is missing from a project's Planned dialog
 | The dialog lists every *Posting* task on the project. Heading and total tasks can't hold plan lines, so they're left out. If a Posting task is missing, check its Job Task Type in Business Central, then close and reopen the dialog to reload.
 
-| Poppie's plan review doesn't show on the Plan (no chip by the week number, no "Ask Poppie")
-| Plan reviews need the plan-review release of the Timmie BC Extension (the `planReviews`, `planReviewLines`, `planReviewChanges` and `planReviewRequests` APIs). On an older extension Timmie hides them silently. Update the extension in Business Central. The "Ask Poppie" button and *Apply change* also need permission to change planning lines (`canEditPlan` on the projects and resources APIs).
+| The agent's plan review doesn't show on the Plan (no chip by the week number, no "Ask Timmie")
+| Plan reviews need the plan-review release of the Timmie BC Extension (the `planReviews`, `planReviewLines`, `planReviewChanges` and `planReviewRequests` APIs). On an older extension Timmie hides them silently. Update the extension in Business Central. The "Ask Timmie" button and *Apply change* also need permission to change planning lines (`canEditPlan` on the projects and resources APIs).
 
-| *Apply change* says "The plan changed since Poppie looked. Ask her to re-review."
-| Business Central applies a finding's changes in one go, and only if every cell still holds the hours Poppie saw. Someone changed one of them since, so nothing was written. Click *Ask Poppie to re-review* in the week's review; she'll look at the plan as it is now.
+| *Apply change* says the plan changed since the agent looked and asks for a re-review
+| Business Central applies a finding's changes in one go, and only if every cell still holds the hours the agent saw. Someone changed one of them since, so nothing was written. Click *Ask Timmie to re-review* in the week's review; the agent will look at the plan as it is now. (The message itself comes from Business Central, so it may name your agent differently.)
 
-| Poppie's finding says "Edit this cell by hand"
+| The agent's finding says "Edit this cell by hand"
 | Apply only changes a planning-line cell that is empty or has a single Budget line. A Billable or "Both Budget and Billable" line is part of the project's budget estimate, and a cell with several lines would have to be merged, so make that change yourself in the Plan's edit dialog or in Business Central.
 
 | *Apply change* says "Update the Timmie BC Extension to apply changes"
-| This environment's Timmie BC Extension doesn't have the plan-review apply action yet. Update the extension in Business Central; until then, make Poppie's changes by hand.
+| This environment's Timmie BC Extension doesn't have the plan-review apply action yet. Update the extension in Business Central; until then, make the agent's changes by hand.
 
 
 | Yellow banner: "Business Central isn't accepting requests from browsers right now" (or "is rejecting some requests" / "isn't responding"), and pages are empty
@@ -224,6 +224,18 @@ Common issues and their solutions. Add new entries as problems are discovered an
 
 | Settings > "Allow Timmie to read licences" shows Microsoft's "Need admin approval", or the Team page has no licence tags or Licences button
 | The licence view needs the delegated Microsoft Graph permission `Directory.Read.All`, which only an administrator can grant. Ask a Global Administrator (or Privileged Role Administrator) to sign in to Timmie and click *Allow Timmie to read licences* in Settings, and accept the consent prompt. Even once granted, the tags and the Licences button only show for people with one of these Microsoft Entra roles: Global Administrator, Global Reader, License Administrator, User Administrator, Billing Administrator or Dynamics 365 Administrator (held directly or through a group). Prices are estimates (UK list prices, GBP a month ex VAT, annual term), kept with their sources in `src/config/licencePrices.json`: update that file to change them.
+| Timmie calls the AI agent "Timmie" ("Ask Timmie to look again"), but your organisation runs its own agent under another name
+| Timmie shows the agent name set in *Settings > AI Agent*, and it's Timmie's own agent until someone changes it. A Timmie administrator (the `Timmie.Admin` app role) chooses *Your own agent* and enters the name the agent signs its reviews with, then *Save*. Everyone sees the new name the next time they load Timmie.
+
+| *Settings > AI Agent* says "Only Timmie administrators (the `Timmie.Admin` role) can change this" for an administrator
+| The setting needs the `Timmie.Admin` app role on Timmie's enterprise application in *your* organisation's Microsoft Entra ID, not a Business Central permission. In the Entra admin centre → *Enterprise applications* → Timmie → *Users and groups* → *Add user/group*, choose the person (or a group) and the *Timmie administrator* role. They then sign out of Timmie and back in, so their ID token carries the role.
+
+| *Settings > AI Agent* says the server has no settings storage, or saving says "This Timmie server has no settings storage, so it can't save this."
+| The server has no `ORG_SETTINGS_TABLE_ENDPOINT`, so it can't keep organisation settings, and everyone gets Timmie's agent. Whoever runs Timmie sets it up as in the Deployment Guide (_Organisation settings_): an Azure Table, the App Service's managed identity with *Storage Table Data Contributor* on it, and the app setting.
+
+| Saving the AI agent says "Settings are unavailable right now (503)"
+| The server can't reach its settings table. Check that the App Service's system-assigned managed identity is on and has *Storage Table Data Contributor* on the storage account, that the `OrgSettings` table exists, and that `ORG_SETTINGS_TABLE_ENDPOINT` is the account's table endpoint (`https://<account>.table.core.windows.net`, no table name). The App Service log shows "Organisation settings store failed" with the cause. Don't set `AZURE_CLIENT_ID` on the App Service: the Azure SDK would take it as a user-assigned identity and fail to sign in.
+
 | Storage unit tests read `undefined` after writing a value
 | `tests/unit/setup.ts` replaces `localStorage` with no-op Vitest mocks. For tests that need real storage semantics, use jsdom's `sessionStorage` (as in `legacyStorage.test.ts`) or provide a stateful Storage test double.
 

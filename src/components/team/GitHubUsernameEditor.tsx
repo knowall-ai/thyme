@@ -1,4 +1,5 @@
 'use client';
+import { useAgentName } from '@/hooks/useAgentSettingsStore';
 
 import { useEffect, useId, useState } from 'react';
 import toast from 'react-hot-toast';
@@ -24,7 +25,7 @@ export interface GitHubUsernameEditorProps {
 }
 
 /**
- * Set or clear one person's GitHub username, so Poppie can suggest time for their pull
+ * Set or clear one person's GitHub username, so the agent can suggest time for their pull
  * requests and issues. Saves to their BC resource; BC decides whether the user may (an
  * administrator for anyone, a person for their own).
  */
@@ -37,6 +38,8 @@ export function GitHubUsernameEditor({
   isCurrentUser = false,
   onSaved,
 }: GitHubUsernameEditorProps) {
+  const agentName = useAgentName();
+
   const inputId = useId();
   const [value, setValue] = useState(current);
   const [error, setError] = useState<string | null>(null);
@@ -94,7 +97,7 @@ export function GitHubUsernameEditor({
             value={value}
             onChange={setValue}
             disabled={isSaving}
-            hint={`So Poppie can suggest time for ${isCurrentUser ? 'your' : 'their'} pull requests and issues. Leave blank to remove it. Azure DevOps uses ${isCurrentUser ? 'your' : 'their'} Microsoft 365 sign-in.`}
+            hint={`So ${agentName} can suggest time for ${isCurrentUser ? 'your' : 'their'} pull requests and issues. Leave blank to remove it. Azure DevOps uses ${isCurrentUser ? 'your' : 'their'} Microsoft 365 sign-in.`}
           />
         </div>
 

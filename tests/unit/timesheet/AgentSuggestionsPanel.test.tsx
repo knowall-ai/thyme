@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import { PoppieSuggestionsPanel } from '@/components/timesheet/PoppieSuggestionsPanel';
+import { AgentSuggestionsPanel } from '@/components/timesheet/AgentSuggestionsPanel';
 import type { BCTimeSuggestion, Project } from '@/types';
 
 const addEntry = vi.fn();
@@ -69,7 +69,7 @@ const projects = [
 
 const renderPanel = (canEdit = true) =>
   render(
-    <PoppieSuggestionsPanel
+    <AgentSuggestionsPanel
       resourceNo="R0010"
       weekStart={new Date('2026-10-05')}
       entries={[]}
@@ -81,7 +81,7 @@ const renderPanel = (canEdit = true) =>
 
 const row = (text: string) => screen.getByText(text).closest('li') as HTMLElement;
 
-describe('PoppieSuggestionsPanel Add and Edit', () => {
+describe('AgentSuggestionsPanel Add and Edit', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     addEntry.mockResolvedValue({ id: 'e1', bcTimeSheetNo: 'TS001', bcTimeSheetLineId: 'x' });
@@ -181,7 +181,7 @@ describe('PoppieSuggestionsPanel Add and Edit', () => {
       },
     ] as unknown as Project[];
     render(
-      <PoppieSuggestionsPanel
+      <AgentSuggestionsPanel
         resourceNo="R0010"
         weekStart={new Date('2026-10-05')}
         entries={[]}

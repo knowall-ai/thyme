@@ -136,10 +136,10 @@ describe('usePlanReviewStore', () => {
       errorMessage: '',
     });
     await usePlanReviewStore.getState().load(scope);
-    await usePlanReviewStore.getState().requestReview('Resource', 'R0010', '2026-10-19');
+    await usePlanReviewStore.getState().requestReview('Resource', 'R0010', '2026-10-19', 'Timmie');
     expect(usePlanReviewStore.getState().requests[KEY].status).toBe('Requested');
 
-    // Poppie finished: no longer open, and it failed
+    // the agent finished: no longer open, and it failed
     bc.getPlanReviewRequests.mockResolvedValue([]);
     bc.getPlanReviewRequest.mockResolvedValue({
       id: 'q1',
@@ -174,7 +174,7 @@ describe('usePlanReviewStore', () => {
         errorMessage: '',
       };
     });
-    await usePlanReviewStore.getState().requestReview('Resource', 'R0010', '2026-10-19');
+    await usePlanReviewStore.getState().requestReview('Resource', 'R0010', '2026-10-19', 'Timmie');
     expect(usePlanReviewStore.getState().requests[KEY]).toBeUndefined();
   });
 
@@ -191,10 +191,10 @@ describe('usePlanReviewStore', () => {
       errorMessage: '',
     });
     await usePlanReviewStore.getState().load(scope);
-    await usePlanReviewStore.getState().requestReview('Resource', 'R0010', '2026-10-19');
+    await usePlanReviewStore.getState().requestReview('Resource', 'R0010', '2026-10-19', 'Timmie');
 
     // The full refresh reads reviews first (none yet); then the request turns out to be done,
-    // and Poppie's review has landed in between
+    // and the agent's review has landed in between
     const newReview = {
       id: 'r1',
       entryNo: 7,
@@ -257,7 +257,7 @@ describe('usePlanReviewStore', () => {
       progress: '',
       errorMessage: '',
     });
-    await usePlanReviewStore.getState().requestReview('Resource', 'R0010', '2026-10-19');
+    await usePlanReviewStore.getState().requestReview('Resource', 'R0010', '2026-10-19', 'Timmie');
 
     // The refresh's answer predates the request: it mustn't drop it
     answerRequests([]);
@@ -269,8 +269,8 @@ describe('usePlanReviewStore', () => {
     bc.createPlanReviewRequest.mockRejectedValue(new Error('BC API Error (403): not allowed'));
     bc.getPlanReviewRequests.mockResolvedValue([]);
     await expect(
-      usePlanReviewStore.getState().requestReview('Resource', 'R0010', '2026-10-19')
-    ).rejects.toThrow("You can't ask Poppie to review this plan.");
+      usePlanReviewStore.getState().requestReview('Resource', 'R0010', '2026-10-19', 'Timmie')
+    ).rejects.toThrow("You can't ask Timmie to review this plan.");
   });
 
   describe('applyFinding', () => {

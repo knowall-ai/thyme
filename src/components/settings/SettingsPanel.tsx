@@ -6,6 +6,7 @@ import { Card } from '@/components/ui';
 import { CompanyBillableTargetSettings } from '@/components/targets';
 import { ConnectedAccountsSettings } from './ConnectedAccountsSettings';
 import { LicenceAccessSettings } from './LicenceAccessSettings';
+import { AgentSettings } from './AgentSettings';
 import { bcClient } from '@/services/bc/bcClient';
 import { useAuth, useProfilePhoto } from '@/services/auth';
 import { useCompanyStore, useSettingsStore } from '@/hooks';
@@ -129,7 +130,7 @@ export function SettingsPanel() {
         </div>
       </Card>
 
-      {/* The user's own GitHub username, for Poppie (Timmie BC Extension 1.21+) */}
+      {/* The user's own GitHub username, for the agent (Timmie BC Extension 1.21+) */}
       <ConnectedAccountsSettings />
 
       {/* Company Information */}
@@ -269,6 +270,8 @@ export function SettingsPanel() {
 
       {/* Company default billable target (hidden on older Timmie BC Extensions) */}
       <CompanyBillableTargetSettings />
+
+      <AgentSettings />
 
       <LicenceAccessSettings />
 

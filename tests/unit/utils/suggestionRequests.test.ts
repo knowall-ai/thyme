@@ -68,40 +68,55 @@ describe('isOpenRequest', () => {
 describe('requestProgressText', () => {
   const now = Date.parse('2026-10-08T14:00:00Z');
 
-  it('shows what Poppie is checking while she runs', () => {
-    expect(
-      requestProgressText({ status: 'Running', progress: 'Checking calendar for Tue 6 Oct' }, now)
-    ).toBe('Checking calendar for Tue 6 Oct');
-    expect(requestProgressText({ status: 'Running', progress: '' }, now)).toBe('Starting…');
-  });
-
-  it("says a queued request waits for Poppie when her heartbeat says she's offline", () => {
+  it('shows what Timmie is checking while it runs', () => {
     expect(
       requestProgressText(
+        'Timmie',
+        { status: 'Running', progress: 'Checking calendar for Tue 6 Oct' },
+        now
+      )
+    ).toBe('Checking calendar for Tue 6 Oct');
+    expect(requestProgressText('Timmie', { status: 'Running', progress: '' }, now)).toBe(
+      'Starting…'
+    );
+  });
+
+  it("says a queued request waits for Timmie when its heartbeat says it's offline", () => {
+    expect(
+      requestProgressText(
+        'Timmie',
         { status: 'Requested', progress: '', requestedAt: new Date(now).toISOString() },
         now,
         false
       )
-    ).toBe("Queued: Poppie will pick this up when she's back online.");
+    ).toBe("Queued: Timmie will pick this up when it's back online.");
     expect(
-      requestProgressText({ status: 'Running', progress: 'Checking GitHub' }, now, false)
+      requestProgressText('Timmie', { status: 'Running', progress: 'Checking GitHub' }, now, false)
     ).toBe('Checking GitHub');
   });
 
-  it('says she will start within a minute, or that she seems offline after a while', () => {
+  it('says it will start within a minute, or that it seems offline after a while', () => {
     const justNow = new Date(now - 10_000).toISOString();
     const longAgo = new Date(now - QUEUED_SLOW_AFTER_MS - 1).toISOString();
     expect(
-      requestProgressText({ status: 'Requested', progress: '', requestedAt: justNow }, now)
-    ).toBe('Queued: Poppie will start within a minute.');
+      requestProgressText(
+        'Timmie',
+        { status: 'Requested', progress: '', requestedAt: justNow },
+        now
+      )
+    ).toBe('Queued: Timmie will start within a minute.');
     expect(
-      requestProgressText({ status: 'Requested', progress: '', requestedAt: longAgo }, now)
+      requestProgressText(
+        'Timmie',
+        { status: 'Requested', progress: '', requestedAt: longAgo },
+        now
+      )
     ).toMatch(/offline/);
   });
 });
 
 describe('requestDoneText', () => {
-  it("uses Poppie's summary", () => {
+  it("uses Timmie's summary", () => {
     expect(
       requestDoneText(
         { progress: '3 new suggestions and 1 updated.', createdCount: 3, updatedCount: 1 },

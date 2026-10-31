@@ -21,6 +21,8 @@
     "check": "bun run format:check && bun run lint && bun run typecheck && bun run build"
   },
   "dependencies": {
+    "@azure/data-tables": "^13.3.2",
+    "@azure/identity": "^4.14.0",
     "@azure/msal-browser": "^4.27.0",
     "@azure/msal-react": "^3.0.23",
     "@heroicons/react": "^2.1.1",

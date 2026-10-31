@@ -7,13 +7,13 @@ import type {
 } from '@/types';
 
 /**
- * Where a timesheet's review stands, as shown in Poppie's panel.
+ * Where a timesheet's review stands, as shown in the agent's panel.
  * - unavailable: the review endpoints don't exist (extension too old) - hide the panel
  * - loading: first fetch still in flight
  * - error: the fetch failed and nothing is cached
- * - awaiting: submitted, but Poppie hasn't reviewed it yet
+ * - awaiting: submitted, but the agent hasn't reviewed it yet
  * - none: not submitted and never reviewed - nothing to show
- * - outOfDate: the timesheet changed after Poppie's review
+ * - outOfDate: the timesheet changed after the agent's review
  * - current: the review matches the timesheet as it is now
  */
 export type TimesheetReviewStatus =
@@ -62,7 +62,7 @@ function toTime(value: string | undefined | null): number | null {
 
 /**
  * The timesheet's version stamp: the latest lastModifiedDateTime across its lines and
- * details, the same value Poppie records on a review. Null when nothing has a timestamp.
+ * details, the same value the agent records on a review. Null when nothing has a timestamp.
  */
 export function computeVersionStamp(
   ...sources: Array<ReadonlyArray<{ lastModifiedDateTime?: string }> | undefined>
@@ -91,7 +91,7 @@ export function latestStamp(a: string | null | undefined, b: string | null | und
 }
 
 /**
- * A review is out of date when the timesheet has changed since the version Poppie saw.
+ * A review is out of date when the timesheet has changed since the version the agent saw.
  * Stamps are compared as instants (epoch ms), never as strings: '…33.35Z' is .350 and
  * sorts after '…33.353Z' as text. Unknown timestamps count as unchanged, so a missing
  * value never hides a review.
@@ -124,7 +124,7 @@ export function pickLatestReviews(reviews: BCTimesheetReview[]): Record<string, 
   return latest;
 }
 
-/** Notes sorted most severe first, then in Poppie's order. */
+/** Notes sorted most severe first, then in the agent's order. */
 export function sortNotes(notes: BCTimesheetReviewLine[]): BCTimesheetReviewLine[] {
   return [...notes].sort(
     (a, b) => severityRank(a.severity) - severityRank(b.severity) || a.lineNo - b.lineNo
@@ -176,7 +176,7 @@ export function getReviewStatus({
 
 /**
  * Whether a timesheet in this state should keep being re-checked: it's waiting on
- * Poppie's first review or on a re-review of changes that have been resubmitted,
+ * the agent's first review or on a re-review of changes that have been resubmitted,
  * or its first fetch failed and should be retried.
  */
 export function needsReviewRefresh(status: TimesheetReviewStatus, submitted: boolean): boolean {
@@ -184,7 +184,7 @@ export function needsReviewRefresh(status: TimesheetReviewStatus, submitted: boo
 }
 
 /**
- * A rejection comment built from Poppie's review: the summary, then the Issue and
+ * A rejection comment built from the agent's review: the summary, then the Issue and
  * Warning notes (most severe first). Info notes are left out - they aren't reasons to reject.
  */
 export function buildRejectionComment(
@@ -205,7 +205,7 @@ export function buildRejectionComment(
 }
 
 // ============================================
-// Requests: asking Poppie to look again
+// Requests: asking the agent to look again
 // ============================================
 
 const REQUEST_STATUSES: readonly BCTimesheetReviewRequest['status'][] = [
@@ -233,7 +233,7 @@ export function normalizeTimesheetReviewRequest(
   };
 }
 
-/** Requested or Running: Poppie hasn't finished it yet */
+/** Requested or Running: the agent hasn't finished it yet */
 export function isOpenTimesheetReviewRequest(
   request: Pick<BCTimesheetReviewRequest, 'status'>
 ): boolean {
@@ -241,15 +241,16 @@ export function isOpenTimesheetReviewRequest(
 }
 
 /**
- * A request's state in a few words: Poppie's progress while she works, else that it's queued
- * (she picks requests up on her 10-minute round, or when she's back online).
+ * A request's state in a few words: the agent's progress while it works, else that it's queued
+ * (it picks requests up on its 10-minute round, or when it's back online).
  */
 export function timesheetReviewRequestText(
+  agentName: string,
   request: Pick<BCTimesheetReviewRequest, 'status' | 'progress'>,
-  // From Poppie's heartbeat; undefined when the extension doesn't have one
+  // From the agent's heartbeat; undefined when the extension doesn't have one
   agentOnline?: boolean
 ): string {
   if (request.status === 'Running') return request.progress || 'Reviewing…';
-  if (agentOnline === false) return "Queued: Poppie will pick this up when she's back online.";
-  return 'Queued: Poppie will look within 10 minutes.';
+  if (agentOnline === false) return `Queued: ${agentName} will pick this up when it's back online.`;
+  return `Queued: ${agentName} will look within 10 minutes.`;
 }

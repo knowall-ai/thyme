@@ -52,7 +52,7 @@ export interface BCResource {
   weeklyCapacityHours?: number; // only meaningful when weeklyCapacitySet; 0 = listed, not counted
   weeklyCapacitySet?: boolean; // false = hours per day x 5
   flexibleWorkingDays?: boolean; // works the weekly capacity on any days
-  // Whether the signed-in user may ask Poppie for suggestions for this resource (Timmie BC
+  // Whether the signed-in user may ask the agent for suggestions for this resource (Timmie BC
   // Extension 1.18+; undefined on older versions)
   canRequestSuggestions?: boolean;
   // The person's GitHub login, '' when not set (Timmie BC Extension 1.21+; undefined on older
@@ -313,7 +313,7 @@ export interface BCTimeSheetDetail {
   '@odata.etag'?: string;
 }
 
-// Time Suggestion - a time entry Poppie (the AI agent) proposes from calendars,
+// Time Suggestion - a time entry the AI agent proposes from calendars,
 // GitHub and Azure DevOps activity. Requires the Timmie BC Extension timeSuggestions API.
 export type TimeSuggestionSource = 'Calendar' | 'GitHub' | 'DevOps' | 'Other';
 export type TimeSuggestionConfidence = 'High' | 'Medium' | 'Low';
@@ -325,7 +325,7 @@ export interface BCTimeSuggestion {
   resourceNo: string;
   date: string; // ISO date format YYYY-MM-DD
   quantity: number; // hours
-  jobNo: string; // empty when Poppie couldn't work out the project
+  jobNo: string; // empty when the agent couldn't work out the project
   jobTaskNo: string;
   description: string;
   source: TimeSuggestionSource;
@@ -350,9 +350,9 @@ export interface BCTimeSuggestionUpdate {
   actionedAt?: string;
 }
 
-// A request for Poppie to generate time suggestions for a resource's week now (Timmie BC
-// Extension 1.18+ suggestionRequests API). Poppie claims it within a minute, updates
-// `progress` as she checks each source, then marks it Done or Failed.
+// A request for the agent to generate time suggestions for a resource's week now (Timmie BC
+// Extension 1.18+ suggestionRequests API). the agent claims it within a minute, updates
+// `progress` as it checks each source, then marks it Done or Failed.
 export type SuggestionRequestStatus = 'Requested' | 'Running' | 'Done' | 'Failed';
 
 export interface BCSuggestionRequest {
@@ -362,7 +362,7 @@ export interface BCSuggestionRequest {
   fromDate: string; // YYYY-MM-DD
   toDate: string; // YYYY-MM-DD
   status: SuggestionRequestStatus;
-  progress: string; // what Poppie is doing now; a summary once Done
+  progress: string; // what the agent is doing now; a summary once Done
   createdCount: number;
   updatedCount: number;
   errorMessage: string;
@@ -375,7 +375,7 @@ export interface BCSuggestionRequest {
 
 // A project's linked source (Timmie BC Extension 1.20+ projectSourceLinks API): work in this
 // GitHub repo / DevOps project or repo, or a meeting with this keyword / attendee domain, is
-// time on the project. Poppie uses them to map her time suggestions.
+// time on the project. The agent uses them to map its time suggestions.
 export type ProjectSourceLinkType =
   | 'GitHubRepo'
   | 'DevOpsProject'
@@ -404,9 +404,9 @@ export interface BCProjectSourceLink {
   lineNo: number;
   type: ProjectSourceLinkType;
   value: string; // normalised by BC: owner/repo, org/project, org/project/repo, keyword, domain
-  jobTaskNo: string; // '' = Poppie picks the task
+  jobTaskNo: string; // '' = the agent picks the task
   useMonthlyBlock: boolean;
-  learned: boolean; // added by Poppie from approved time
+  learned: boolean; // added by the agent from approved time
   createdBy?: string;
   createdAt?: string;
   lastModifiedDateTime?: string;
@@ -443,7 +443,7 @@ export interface BCDayNoteInput {
   noProjectWork: boolean;
 }
 
-// When an AI agent (Poppie) was last seen (Timmie BC Extension 1.18+ agentHeartbeats API).
+// When the AI agent was last seen (Timmie BC Extension 1.18+ agentHeartbeats API).
 // lastSeenAt is stamped by BC on every poll the agent makes.
 export interface BCAgentHeartbeat {
   id: string;
@@ -453,8 +453,8 @@ export interface BCAgentHeartbeat {
   version?: string;
 }
 
-// Poppie's timesheet reviews - requires the Timmie BC Extension review tables.
-// Poppie (an AI agent) reviews submitted timesheets and writes one review per version.
+// The agent's timesheet reviews - requires the Timmie BC Extension review tables.
+// The AI agent reviews submitted timesheets and writes one review per version.
 export type TimesheetReviewVerdict = 'Approve' | 'Check' | 'Query';
 export type TimesheetReviewSeverity = 'Info' | 'Warning' | 'Issue';
 
@@ -483,7 +483,7 @@ export interface BCTimesheetReviewLine {
 
 export type TimesheetReviewRequestStatus = 'Requested' | 'Running' | 'Done' | 'Failed';
 
-/** Someone asking Poppie to (re-)review a timesheet now (timesheetReviewRequests API) */
+/** Someone asking the agent to (re-)review a timesheet now (timesheetReviewRequests API) */
 export interface BCTimesheetReviewRequest {
   id: string;
   entryNo: number;
@@ -497,10 +497,10 @@ export interface BCTimesheetReviewRequest {
   finishedAt?: string;
 }
 
-// Poppie's plan reviews (Timmie BC Extension planReviews, planReviewLines, planReviewChanges and
-// planReviewRequests APIs). Poppie reviews the Plan one subject-week at a time - a person's
+// The agent's plan reviews (Timmie BC Extension planReviews, planReviewLines, planReviewChanges and
+// planReviewRequests APIs). the agent reviews the Plan one subject-week at a time - a person's
 // week (Resource) or a project's week (Project) - and stamps each review with the planHash of
-// the plan she saw, so Timmie can tell when it's out of date.
+// the plan it saw, so Timmie can tell when it's out of date.
 export type PlanReviewSubjectType = 'Resource' | 'Project';
 
 export type PlanReviewCheck =
@@ -552,13 +552,13 @@ export interface BCPlanReviewChange {
   jobTaskNo: string;
   resourceNo: string;
   planningDate: string; // YYYY-MM-DD
-  currentHours: number; // the cell's hours when Poppie looked
+  currentHours: number; // the cell's hours when the agent looked
   proposedHours: number; // quarter hours; 0 = remove the cell's planning line(s)
 }
 
 export type PlanReviewRequestStatus = 'Requested' | 'Running' | 'Done' | 'Failed';
 
-/** Someone asking Poppie to (re-)review a subject-week now */
+/** Someone asking the agent to (re-)review a subject-week now */
 export interface BCPlanReviewRequest {
   id: string;
   entryNo: number;

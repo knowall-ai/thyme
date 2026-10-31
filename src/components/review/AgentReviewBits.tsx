@@ -1,4 +1,5 @@
 'use client';
+import { useAgentName } from '@/hooks/useAgentSettingsStore';
 
 import {
   useCallback,
@@ -45,14 +46,16 @@ export function getSeverityStyle(severity: string) {
  * The AI reviewer's avatar: their Microsoft 365 profile photo when the reviewer name resolves to
  * exactly one directory user, otherwise their initial in a circle.
  */
-export function PoppieAvatar({
+export function AgentAvatar({
   reviewer,
   className,
 }: {
   reviewer?: string | null;
   className?: string;
 }) {
-  const name = reviewer?.trim() || 'Poppie';
+  const agentName = useAgentName();
+
+  const name = reviewer?.trim() || agentName;
   const photoUrl = useReviewerPhoto(reviewer);
   const shape = 'inline-flex h-7 w-7 shrink-0 rounded-full';
 
@@ -75,7 +78,7 @@ export function PoppieAvatar({
   );
 }
 
-/** A small spinner in the text colour, for "Poppie is on it" lines */
+/** A small spinner in the text colour, for "the agent is on it" lines */
 export function Spinner() {
   return (
     <span
@@ -97,17 +100,22 @@ export function SeverityIcon({ severity, className }: { severity: string; classN
   );
 }
 
-/** Poppie's notes for one timesheet line, shown next to that line */
-export function PoppieLineNotes({
+/** The agent's notes for one timesheet line, shown next to that line */
+export function AgentLineNotes({
   notes,
   className,
 }: {
   notes: BCTimesheetReviewLine[] | undefined;
   className?: string;
 }) {
+  const agentName = useAgentName();
+
   if (!notes || notes.length === 0) return null;
   return (
-    <ul className={cn('mt-1 space-y-0.5', className)} aria-label="Poppie's notes on this line">
+    <ul
+      className={cn('mt-1 space-y-0.5', className)}
+      aria-label={`${agentName}'s notes on this line`}
+    >
       {notes.map((note) => (
         <li key={note.id} className="text-dark-300 flex items-start gap-1.5 text-xs">
           <SeverityIcon severity={note.severity} className="mt-px h-3.5 w-3.5" />
@@ -121,10 +129,10 @@ export function PoppieLineNotes({
 const SEVERITY_RANK: Record<TimesheetReviewSeverity, number> = { Issue: 2, Warning: 1, Info: 0 };
 
 /**
- * Poppie's notes for one timesheet line as a compact icon, marked with the most serious note's
+ * The agent's notes for one timesheet line as a compact icon, marked with the most serious note's
  * severity, that opens the notes in a popover on hover, focus or click (for touch).
  */
-export function PoppieLineNotesPopover({
+export function AgentLineNotesPopover({
   notes,
   reviewer,
   className,
@@ -133,6 +141,8 @@ export function PoppieLineNotesPopover({
   reviewer?: string | null;
   className?: string;
 }) {
+  const agentName = useAgentName();
+
   // Hover or focus peeks at the notes and a click pins them open. Clicking a pinned popover or
   // pressing Escape dismisses it until the pointer leaves or focus moves on.
   const [isHovered, setIsHovered] = useState(false);
@@ -205,7 +215,7 @@ export function PoppieLineNotesPopover({
   const worst = notes.reduce((a, b) =>
     (SEVERITY_RANK[b.severity] ?? 0) > (SEVERITY_RANK[a.severity] ?? 0) ? b : a
   );
-  const name = reviewer?.trim() || 'Poppie';
+  const name = reviewer?.trim() || agentName;
 
   return (
     <span className={cn('inline-flex', className)}>
@@ -246,10 +256,10 @@ export function PoppieLineNotesPopover({
           onBlur={handleBlur}
         >
           <p className="mb-2 flex items-center gap-2 text-xs font-medium text-white">
-            <PoppieAvatar reviewer={reviewer} className="h-5 w-5 text-[9px]" />
+            <AgentAvatar reviewer={reviewer} className="h-5 w-5 text-[9px]" />
             {name}&apos;s {notes.length === 1 ? 'note' : 'notes'}
           </p>
-          <PoppieLineNotes notes={notes} className="mt-0 space-y-1.5" />
+          <AgentLineNotes notes={notes} className="mt-0 space-y-1.5" />
         </FloatingPopover>
       )}
     </span>
@@ -330,7 +340,9 @@ function FloatingPopover({
  * A compact verdict chip for a card header, so the recommendation shows without
  * expanding the card. Renders nothing until there's a review.
  */
-export function PoppieVerdictChip({ result }: { result: TimesheetReviewResult }) {
+export function AgentVerdictChip({ result }: { result: TimesheetReviewResult }) {
+  const agentName = useAgentName();
+
   const { status, verdict } = result;
   if (!verdict || (status !== 'current' && status !== 'outOfDate')) return null;
   const outOfDate = status === 'outOfDate';
@@ -343,11 +355,11 @@ export function PoppieVerdictChip({ result }: { result: TimesheetReviewResult })
       )}
       title={
         outOfDate
-          ? `Poppie: ${verdict.label} (out of date - the timesheet changed after her review)`
-          : `Poppie: ${verdict.label}`
+          ? `${agentName}: ${verdict.label} (out of date - the timesheet changed after its review)`
+          : `${agentName}: ${verdict.label}`
       }
     >
-      <PoppieAvatar reviewer={result.review?.reviewer} className="h-4 w-4 text-[9px]" />
+      <AgentAvatar reviewer={result.review?.reviewer} className="h-4 w-4 text-[9px]" />
       {verdict.label}
     </span>
   );
