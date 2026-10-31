@@ -169,9 +169,12 @@ Two workflows run on GitHub Actions:
 * `.github/workflows/ci.yml` runs format, lint, type check, unit tests and a build on every PR.
 * `.github/workflows/deploy-production.yml` deploys to the `timmie-knowall` App Service when a `v*` tag is pushed (see <<Release Workflow>>). Pushing to `main` doesn't deploy.
 
-The deploy uses these repository secrets:
+A build job tests and builds without any Azure access. A separate deploy job, in the `production` environment, signs in to Azure with GitHub's OIDC token, so no Azure password is stored. The deploy app registration has a federated credential for `repo:knowall-ai/timmie:environment:production` and *Website Contributor* on `timmie-knowall` only. Its IDs are variables on the `production` environment:
 
-* `AZURE_CREDENTIALS`: the deploy service principal, with Contributor on `timmie-knowall` only
+* `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and `AZURE_SUBSCRIPTION_ID`
+
+The deploy also uses these repository secrets:
+
 * `AZURE_WEBAPP_NAME`: `timmie-knowall`
 * `NEXT_PUBLIC_AZURE_CLIENT_ID`, `NEXT_PUBLIC_AZURE_TENANT_ID` and `NEXT_PUBLIC_AZURE_REDIRECT_URI`, which are baked in at build time
 
