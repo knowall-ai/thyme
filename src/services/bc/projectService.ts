@@ -256,7 +256,7 @@ export const projectService = {
     const figures = new Map<string, ProjectFigures>();
     if (projects.length === 0) return figures;
 
-    // Which resources are AI usage (never hours), from the server's THYME_AI_RESOURCES
+    // Which resources are AI usage (never hours), from the server's TIMMIE_AI_RESOURCES
     const aiResourcesReady = loadAiResources();
     const [resources, timesheets, jobLines, jobDetails, planningLines, uoms] = await Promise.all([
       bcClient.getResources(),

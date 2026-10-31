@@ -541,7 +541,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
       // Use cached UOM map or fetch fresh (hoisted so cache save can access it)
       let uomConversionMap: UOMConversionMap = cache?.uomConversionMap ?? new Map();
-      // Which resources are AI usage (THYME_AI_RESOURCES), before any line is counted as hours
+      // Which resources are AI usage (TIMMIE_AI_RESOURCES), before any line is counted as hours
       const aiResourcesReady = loadAiResources();
       if (uomConversionMap.size === 0) {
         const resourceUnitsOfMeasure = await bcClient.getResourceUnitsOfMeasure();

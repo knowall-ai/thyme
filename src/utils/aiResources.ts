@@ -4,18 +4,18 @@
 // units, unit cost 1, unit price 0, non-chargeable. So a posted Resource entry is AI, not
 // hours, when its resource is a Machine (resourceType, /jobCostEntries only) or one of the
 // configured AI resources. Planning lines and timesheets have no resource type, so they're
-// matched by the configured AI resources (THYME_AI_RESOURCES) only.
+// matched by the configured AI resources (TIMMIE_AI_RESOURCES) only.
 
-/** The default AI usage resource, when THYME_AI_RESOURCES isn't set */
+/** The default AI usage resource, when TIMMIE_AI_RESOURCES isn't set */
 export const DEFAULT_AI_RESOURCES = 'AI-USAGE';
 
-// THYME_AI_RESOURCES as the server has it, loaded at runtime from /api/config (see
+// TIMMIE_AI_RESOURCES as the server has it, loaded at runtime from /api/config (see
 // loadAiResources), so changing the setting needs no rebuild. Undefined until loaded.
 let runtimeAiResources: string | undefined;
 let loading: Promise<void> | null = null;
 
 /**
- * Load THYME_AI_RESOURCES from the server once per page load; later calls reuse it. Hours are
+ * Load TIMMIE_AI_RESOURCES from the server once per page load; later calls reuse it. Hours are
  * worked out after this resolves. If it can't be loaded, the default (AI-USAGE) applies.
  */
 export function loadAiResources(fetcher: typeof fetch = fetch): Promise<void> {
@@ -34,18 +34,18 @@ export function loadAiResources(fetcher: typeof fetch = fetch): Promise<void> {
   return loading;
 }
 
-/** Set (or with undefined, clear) the runtime THYME_AI_RESOURCES; for tests */
+/** Set (or with undefined, clear) the runtime TIMMIE_AI_RESOURCES; for tests */
 export function setAiResources(value: string | undefined): void {
   runtimeAiResources = value;
   loading = value === undefined ? null : Promise.resolve();
 }
 
 /**
- * The configured AI resource numbers: THYME_AI_RESOURCES, comma-separated (default
+ * The configured AI resource numbers: TIMMIE_AI_RESOURCES, comma-separated (default
  * AI-USAGE), upper case as BC stores Code fields
  */
 export function getAiResourceNos(
-  configured: string | undefined = runtimeAiResources ?? process.env.THYME_AI_RESOURCES
+  configured: string | undefined = runtimeAiResources ?? process.env.TIMMIE_AI_RESOURCES
 ): ReadonlySet<string> {
   const nos = (configured ?? '')
     .split(',')

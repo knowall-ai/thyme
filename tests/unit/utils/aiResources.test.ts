@@ -12,7 +12,7 @@ import {
 } from '@/utils';
 
 describe('AI usage resources', () => {
-  it('defaults to AI-USAGE, and reads a comma-separated THYME_AI_RESOURCES', () => {
+  it('defaults to AI-USAGE, and reads a comma-separated TIMMIE_AI_RESOURCES', () => {
     expect([...getAiResourceNos(undefined)]).toEqual(['AI-USAGE']);
     expect([...getAiResourceNos('')]).toEqual(['AI-USAGE']);
     expect([...getAiResourceNos('   ')]).toEqual(['AI-USAGE']);
@@ -78,18 +78,18 @@ describe('hours never include AI usage resources', () => {
   });
 });
 
-describe('THYME_AI_RESOURCES at runtime', () => {
+describe('TIMMIE_AI_RESOURCES at runtime', () => {
   afterEach(() => {
     setAiResources(undefined);
     vi.unstubAllEnvs();
   });
 
   it('is served by /api/config from the server environment, read on each request', async () => {
-    vi.stubEnv('THYME_AI_RESOURCES', 'AI-USAGE,GPU-HOURS');
+    vi.stubEnv('TIMMIE_AI_RESOURCES', 'AI-USAGE,GPU-HOURS');
     await expect((await getConfig()).json()).resolves.toEqual({
       aiResources: 'AI-USAGE,GPU-HOURS',
     });
-    vi.stubEnv('THYME_AI_RESOURCES', 'TOKENS');
+    vi.stubEnv('TIMMIE_AI_RESOURCES', 'TOKENS');
     await expect((await getConfig()).json()).resolves.toEqual({ aiResources: 'TOKENS' });
   });
 

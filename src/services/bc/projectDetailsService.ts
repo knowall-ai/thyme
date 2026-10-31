@@ -41,7 +41,7 @@ const PROJECT_COLORS = [
 ];
 
 // Breakdown by line type: Resource (people's and agents' time), AI (AI usage resources:
-// Machine resources or THYME_AI_RESOURCES), Item and G/L Account
+// Machine resources or TIMMIE_AI_RESOURCES), Item and G/L Account
 export interface CostBreakdown {
   resource: number;
   ai: number;
@@ -60,7 +60,7 @@ const emptyCostBreakdown = (): CostBreakdown => ({
 
 /**
  * Which breakdown line a ledger entry or planning line belongs to. A Resource that's AI usage
- * (a Machine resource, or one of THYME_AI_RESOURCES) is AI, not Resource: it's a cost, not hours.
+ * (a Machine resource, or one of TIMMIE_AI_RESOURCES) is AI, not Resource: it's a cost, not hours.
  */
 export function breakdownKey(
   type: string | undefined,
@@ -237,7 +237,7 @@ export function isUsageEntry(entry: Pick<BCTimeEntry, 'entryType'>): boolean {
  *
  * allTypes: the entries came from /jobCostEntries, so `type` (and `resourceType`) tell them
  * apart. False for /timeEntries (an extension before 1.28.0.0), which only has Resource
- * entries; AI usage is then told apart by THYME_AI_RESOURCES only.
+ * entries; AI usage is then told apart by TIMMIE_AI_RESOURCES only.
  */
 export function summarizePostedEntries(
   allEntries: BCTimeEntry[],
@@ -416,7 +416,7 @@ export const projectDetailsService = {
     // each is awaited, with its own error handling, where its result is used. The no-op
     // catches only stop a rejection being reported as unhandled before it's awaited.
     const resourcesPromise = bcClient.getResources();
-    // Which resources are AI usage (never hours), from the server's THYME_AI_RESOURCES
+    // Which resources are AI usage (never hours), from the server's TIMMIE_AI_RESOURCES
     const aiResourcesReady = loadAiResources();
     const timesheetsPromise = bcClient.getTimeSheetsFrom();
     const jobLinesPromise = bcClient.getTimeSheetLinesForJob(projectNumber);

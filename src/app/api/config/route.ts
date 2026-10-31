@@ -8,7 +8,7 @@
 export async function GET(): Promise<Response> {
   return Response.json(
     // AI usage resources (comma-separated): their entries are AI cost, never hours
-    { aiResources: process.env.THYME_AI_RESOURCES ?? '' },
+    { aiResources: process.env.TIMMIE_AI_RESOURCES ?? '' },
     { headers: { 'cache-control': 'no-store' } }
   );
 }
