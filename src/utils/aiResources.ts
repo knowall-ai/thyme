@@ -57,7 +57,7 @@ export function getAiResourceNos(
 
 /**
  * Whether a resource is AI usage, not someone's time: a Machine resource (resourceType from
- * /jobCostEntries, Thyme BC Extension 1.28.0.0+) or one of the configured AI resources
+ * /jobCostEntries, Timmie BC Extension 1.28.0.0+) or one of the configured AI resources
  */
 export function isAiResource(
   resourceNo: string | undefined,

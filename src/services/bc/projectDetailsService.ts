@@ -230,7 +230,7 @@ export function isUsageEntry(entry: Pick<BCTimeEntry, 'entryType'>): boolean {
  * Only Usage entries count. Posting a sales invoice for a project also writes Sale entries
  * (the invoiced amounts, with negative quantity, cost and price): summed with the Usage they
  * invoice, they'd cancel it out, taking hours, cost and price towards zero and making the
- * margin wrong. So every figure here is posted work, i.e. the "work done" Thyme tracks,
+ * margin wrong. So every figure here is posted work, i.e. the "work done" Timmie tracks,
  * including the price (the price of the posted usage, as for Billable Price), not what's been
  * invoiced. Both /jobCostEntries and /timeEntries return entryType, so this holds on the
  * older-extension fallback too.

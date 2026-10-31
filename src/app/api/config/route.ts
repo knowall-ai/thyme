@@ -1,6 +1,6 @@
 /**
  * Runtime settings the browser needs, read from the server's environment on each request so
- * they can be changed (e.g. an App Service application setting) without rebuilding Thyme.
+ * they can be changed (e.g. an App Service application setting) without rebuilding Timmie.
  *
  * Unauthenticated and without secrets: only BC resource numbers.
  */

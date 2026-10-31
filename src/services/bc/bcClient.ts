@@ -1213,7 +1213,7 @@ class BusinessCentralClient {
   /**
    * A project's Job Ledger Entries of every type (Resource, Item and G/L Account), for its
    * real cost and price: non-hour costs such as AI services are posted as G/L Account lines,
-   * which /timeEntries (Resource only) doesn't return. Requires Thyme BC Extension 1.28.0.0+.
+   * which /timeEntries (Resource only) doesn't return. Requires Timmie BC Extension 1.28.0.0+.
    *
    * Returns null when the endpoint isn't there (an older extension: 404), remembered for this
    * company until the extension cache is reset, so the caller falls back to getTimeEntries, as

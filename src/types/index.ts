@@ -254,13 +254,13 @@ export interface BCTimeEntry {
   type?: string;
   number?: string; // The resource, item or G/L account number
   // The resource's type, "Person" or "Machine" (e.g. AI usage), on Resource entries from
-  // /jobCostEntries (Thyme BC Extension 1.28.0.0+); blank on other entries, undefined before
+  // /jobCostEntries (Timmie BC Extension 1.28.0.0+); blank on other entries, undefined before
   resourceType?: string;
   entryType?: string; // "Usage" or "Sale"
 }
 
 /**
- * A project's Job Ledger Entry of any type, from /jobCostEntries (Thyme BC Extension
+ * A project's Job Ledger Entry of any type, from /jobCostEntries (Timmie BC Extension
  * 1.28.0.0+): the same fields as /timeEntries, which only has Resource entries
  */
 export type BCJobCostEntry = BCTimeEntry;
