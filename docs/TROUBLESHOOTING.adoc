@@ -140,6 +140,36 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | The pricing page's enquiry form says "The enquiry form is unavailable right now"
 | The server has no mail settings. Set `CONTACT_MAIL_TENANT_ID`, `CONTACT_MAIL_CLIENT_ID` and `CONTACT_MAIL_CLIENT_SECRET` in the App Service settings (see _Enquiry form_ in DEPLOYMENT.adoc) and apply. If it says "Could not send your message" instead, Graph refused the email: check the app still has *Mail.Send* for the sending mailbox and that its secret hasn't expired; the App Service log shows the Graph status code.
 
+| *Ask Timmie* says "Ask Timmie isn't set up on this site yet", with *Talk to Timmie* and *Chat with Timmie* greyed out
+| The server has no (valid) settings for the public helper. In production, check `PUBLIC_TIMMIE_SECRET` first: missing, shorter than 32 characters or a placeholder disables the helper, and the App Service log has a `{"evt":"public_timmie","kind":"config","ok":false,...}` line saying why. Then set `PUBLIC_LIVE_ENDPOINT` and `PUBLIC_LIVE_DEPLOYMENT` (voice) and `PUBLIC_AZURE_OPENAI_ENDPOINT` and `PUBLIC_TIMMIE_CHAT_DEPLOYMENT` (chat) to the helper's own Azure OpenAI resource, and make sure the App Service's managed identity has *Cognitive Services OpenAI User* on it (or set the `*_API_KEY` fallbacks). See _Ask Timmie_ in DEPLOYMENT.adoc and PUBLIC_ASSISTANT.adoc. An endpoint that isn't an Azure OpenAI host over HTTPS is ignored; the OpenAI API is never used. The status is cached for a minute, so reload after that.
+
+| *Ask Timmie* says "Voice isn't set up on this site yet" (or "Chat isn't set up…") but the other mode works
+| Only one of them is configured. For voice set `PUBLIC_LIVE_ENDPOINT` and `PUBLIC_LIVE_DEPLOYMENT` (the gpt-live-1 deployment); for chat, `PUBLIC_AZURE_OPENAI_ENDPOINT` and `PUBLIC_TIMMIE_CHAT_DEPLOYMENT`. Both on the public helper's resource. Apply, and reload after a minute.
+
+| *Talk to Timmie* says "Timmie needs your microphone for a call"
+| The browser blocked the microphone. Click the camera/microphone icon in the address bar (or the site settings), allow the microphone for this site and try again, or chat by text instead. "No microphone found" means the device has none connected. If the browser never asks, check the site's `Permissions-Policy` header allows `microphone=(self)` (set in `next.config.js`).
+
+| *Talk to Timmie* says "Timmie could not pick up", or the call connects but there's no sound
+| The server couldn't start the GPT-Live call. Check `PUBLIC_LIVE_DEPLOYMENT` names the gpt-live-1 deployment on the resource in `PUBLIC_LIVE_ENDPOINT`, that the App Service's managed identity has *Cognitive Services OpenAI User* on it (or the fallback key is valid), and that the deployment has quota; the App Service log has a `{"evt":"public_timmie","kind":"voice","ok":false,"status":…}` line with Azure's status code. A call that starts and then ends at once logs `voice-end` with its reason (for example `sideband-lost` or `no-start`). No sound: check the device's output volume and that the tab isn't muted (and the bubble's toggle says *Voice on*); a network that blocks WebRTC (UDP) may also stop the audio, so try another network.
+
+| *Talk to Timmie* says "You already have a call with Timmie open"
+| Only one call per visitor (IP address) at a time. End the other call (tap Timmie in that tab, or close it); the server also ends a call within about 20 seconds of its audio stopping.
+
+| *Ask Timmie* says "Timmie is on other calls" or "Timmie is very busy right now"
+| A limit was reached: 5 voice calls at once, or the day's global cap (100 calls, 3,000 chat messages). It clears by itself; to raise it, set `PUBLIC_TIMMIE_VOICE_MAX_CONCURRENT`, `PUBLIC_TIMMIE_VOICE_DAILY_CAP` or `PUBLIC_TIMMIE_CHAT_DAILY_CAP`. "Timmie needs a short break" is the per-visitor limit; wait a minute.
+
+| Timmie's greeting bubble appears but he doesn't speak, or he never greets again
+| Browsers block sound until you interact with the page: click or tap anywhere (the bubble says so) and he speaks. Check the bubble's toggle says *Voice on*, not *Muted* (the setting is remembered in the browser). He greets once per browser session and not again after you dismiss or mute him; to see it again, open a new private window or clear the site's session storage. He doesn't greet at all while Ask Timmie isn't set up, and until the greeting clips have been recorded (see PUBLIC_ASSISTANT.adoc) the greeting is text only, with no sound.
+
+| The *Ask Timmie* button doesn't appear
+| It only shows to signed-out visitors on the landing, pricing, help and legal pages, never inside the app. If it's missing there too, check `PUBLIC_TIMMIE_ENABLED` isn't `false` (the kill switch) and that `/api/public/status` answers.
+
+| *Ask Timmie* says "Verification failed" or keeps asking to verify
+| The bot-check pass lasts 10 minutes, is tied to your IP address and browser, and covers 20 messages (or 2 calls); a VPN or mobile network that changes address invalidates it. The widget fetches a new one by itself; if it keeps failing, close and reopen the panel.
+
+| A chat with Timmie says "This conversation can't be continued" or "has expired"
+| Each of Timmie's replies is signed for its place in that one conversation, for an hour. An old tab, or a history changed in the browser, is refused. Start a new conversation with the *New conversation* button. With Cloudflare Turnstile configured, both `PUBLIC_TURNSTILE_SITE_KEY` and `PUBLIC_TURNSTILE_SECRET` must be right and the Turnstile widget must list the site's hostname.
+
 | Azure managed SSL certificate fails with "A record must point to..."
 | Azure App Service managed certificates require a proper A record for root domains, not a CNAME or ALIAS. Configure DNS with an A record for `@` pointing to the App Service IP shown in the error message. CNAME records are technically not allowed on root domains by DNS standards. The `www` subdomain can use a CNAME pointing to your App Service hostname.
 

@@ -116,6 +116,11 @@ CONTACT_MAIL_TENANT_ID=<knowall-tenant-id>
 CONTACT_MAIL_CLIENT_ID=<mail-app-client-id>
 CONTACT_MAIL_CLIENT_SECRET=<mail-app-secret>
 FRONT_DOOR_ID=<front-door-profile-id>
+PUBLIC_TIMMIE_SECRET=<32+-random-characters>
+PUBLIC_LIVE_ENDPOINT=https://ka-timmie-public-swc.openai.azure.com
+PUBLIC_LIVE_DEPLOYMENT=gpt-live-1
+PUBLIC_AZURE_OPENAI_ENDPOINT=https://ka-timmie-public-swc.openai.azure.com
+PUBLIC_TIMMIE_CHAT_DEPLOYMENT=<chat-deployment>
 ----
 
 === Approved organisations (`APPROVED_TENANT_IDS`)
@@ -161,6 +166,37 @@ Without the first three, the form says it's unavailable and asks visitors to ema
 The App Service only accepts traffic from Timmie's Azure Front Door profile: an access restriction allows the `AzureFrontDoor.Backend` service tag *with* an `X-Azure-FDID` header equal to our profile's ID, and denies everything else, so the `azurewebsites.net` address returns 403. The service tag alone isn't enough, because every Front Door customer shares it.
 
 Set `FRONT_DOOR_ID` to the same ID (Front Door profile → *Overview* → *Front Door ID*, or `az afd profile show --query frontDoorId`). Server routes that rate-limit by visitor (`/api/contact`) then trust Front Door's `X-Azure-SocketIP` only on requests carrying that ID, as a second line of defence if the access restriction is ever loosened. Without it, the socket IP is trusted whenever present.
+
+=== Ask Timmie, the public helper (`PUBLIC_*`)
+
+The *Ask Timmie* avatar on the signed-out public pages lets visitors talk to Timmie by voice (GPT-Live) or chat by text about the product. It runs on its *own* Azure OpenAI resource (suggested: `ka-timmie-public-swc` in Sweden Central, where gpt-live-1 2026-09-10 is offered; East US 2 also has it) and only ever on Azure, never the OpenAI API. These are server-side settings read at request time (`PUBLIC_` means "for the public helper"; only `NEXT_PUBLIC_*` reaches the browser), so no rebuild is needed. Anything missing fails closed: the avatar still shows, with voice and text disabled and the reason.
+
+*Credentials*: turn on the App Service's system-assigned managed identity and give it *Cognitive Services OpenAI User* on the public resource only. The helper uses it first (`https://cognitiveservices.azure.com/.default`); the `*_API_KEY` settings are fallbacks, ideally left unset with local auth disabled on the resource.
+
+See link:PUBLIC_ASSISTANT.adoc[PUBLIC_ASSISTANT.adoc] for the design, threat model, limits and the step-by-step Azure set-up (resource, the three deployments, the role assignment, recording the greetings).
+
+[cols="1,3"]
+|===
+| Setting | Value
+
+| `PUBLIC_TIMMIE_SECRET` | *Required in production*: 32+ random characters (`openssl rand -base64 48`) that sign the bot-check passes and Timmie's replies. Missing or a placeholder disables the helper, with a logged reason
+| `PUBLIC_LIVE_ENDPOINT` | Voice: the public resource, `https://<resource>.openai.azure.com` (GPT-Live is served on its unversioned `/openai/v1` surface)
+| `PUBLIC_LIVE_DEPLOYMENT` | Voice: the gpt-live-1 deployment, e.g. `gpt-live-1`
+| `PUBLIC_LIVE_API_KEY` | Optional fallback key for voice (a Key Vault reference)
+| `PUBLIC_TIMMIE_VOICE` | Optional. GPT-Live voice; defaults to `vesper`
+| `PUBLIC_AZURE_OPENAI_ENDPOINT` | Text chat: the same public resource
+| `PUBLIC_TIMMIE_CHAT_DEPLOYMENT` | Text chat: its chat deployment (a small GPT-5-family or later reasoning model). Unset: chat is off
+| `PUBLIC_AZURE_OPENAI_API_KEY` | Optional fallback key for chat (a Key Vault reference)
+| `PUBLIC_FRONT_DOOR_ID` (or the shared `FRONT_DOOR_ID`) | Behind Azure Front Door: its profile id. Then `X-Azure-SocketIP` is the visitor's address, and requests without this `X-Azure-FDID` get 403. *Also add an App Service access restriction* allowing only the `AzureFrontDoor.Backend` service tag with this `x-azure-fdid` (the id is not secret). Without the setting, the last `X-Forwarded-For` entry is used
+| `PUBLIC_TURNSTILE_SITE_KEY`, `PUBLIC_TURNSTILE_SECRET` | Optional. Cloudflare Turnstile instead of the built-in proof-of-work check (both needed)
+| `PUBLIC_TIMMIE_ENABLED` | Optional. `false` is the kill switch: no avatar, every `/api/public/*` route answers 503
+| `PUBLIC_TIMMIE_ALLOWED_ORIGINS` | Optional. Extra site origins (comma-separated), e.g. a staging slot
+| `PUBLIC_TIMMIE_POW_BITS`, `PUBLIC_TIMMIE_VOICE_POW_BITS`, `PUBLIC_TIMMIE_CHAT_DAILY_CAP`, `PUBLIC_TIMMIE_VOICE_DAILY_CAP`, `PUBLIC_TIMMIE_VOICE_MAX_CONCURRENT` | Optional tuning: proof-of-work difficulty (16 for chat, 18 for voice) and the global caps (3,000 chats and 100 calls a day, 5 calls at once; always one call per IP)
+|===
+
+Ask Timmie's limits and live calls are held in memory, so run the app on *one* instance (as today); scaling out needs a shared store first.
+
+The recorded greetings are made once, offline, with `scripts/generate-timmie-greetings.ts` against the resource's `gpt-4o-mini-tts` deployment (see PUBLIC_ASSISTANT.adoc). Until then the greeting shows as text only.
 
 == CI/CD Pipeline (GitHub Actions)
 

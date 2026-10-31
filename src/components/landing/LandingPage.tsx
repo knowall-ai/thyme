@@ -18,6 +18,7 @@ import Image from 'next/image';
 import { Header, PublicFooter } from '@/components/layout';
 import { QuoteDisplay } from '@/components/ui';
 import { ScreenshotCarousel } from './ScreenshotCarousel';
+import { AskTimmie } from './AskTimmie';
 import { NotApprovedPage } from '@/components/access/NotApprovedPage';
 import { SignInExpired } from '@/components/layout/SignInExpired';
 import { useTenantAccess } from '@/components/access/useTenantAccess';
@@ -343,6 +344,9 @@ export function LandingPage() {
 
       {/* Footer */}
       <PublicFooter />
+
+      {/* Ask Timmie, for signed-out visitors */}
+      <AskTimmie />
     </div>
   );
 }

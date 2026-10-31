@@ -17,7 +17,9 @@ const securityHeaders = [
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   {
     key: 'Permissions-Policy',
-    value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()',
+    // microphone=(self): Ask Timmie's voice calls on the public pages. Our own origin only,
+    // never an embedded frame, and the browser still asks the visitor first.
+    value: 'camera=(), microphone=(self), geolocation=(), payment=(), usb=(), browsing-topics=()',
   },
   // SAMEORIGIN rather than DENY: MSAL's silent sign-in loads Timmie's own origin in a
   // hidden iframe. Nothing else (Teams, Business Central) embeds Timmie.

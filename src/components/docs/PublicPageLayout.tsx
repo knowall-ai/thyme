@@ -1,6 +1,7 @@
 'use client';
 
 import { Header, PublicFooter } from '@/components/layout';
+import { AskTimmie } from '@/components/landing/AskTimmie';
 
 interface PublicPageLayoutProps {
   children: React.ReactNode;
@@ -23,6 +24,9 @@ export function PublicPageLayout({ children }: PublicPageLayoutProps) {
 
       {/* Footer */}
       <PublicFooter />
+
+      {/* Ask Timmie, for signed-out visitors */}
+      <AskTimmie />
     </div>
   );
 }
