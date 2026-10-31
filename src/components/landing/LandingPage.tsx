@@ -11,6 +11,7 @@ import {
   ArrowRightIcon,
   ArrowTrendingUpIcon,
   BoltIcon,
+  PlayCircleIcon,
   SparklesIcon,
   UserGroupIcon,
 } from '@heroicons/react/24/outline';
@@ -21,6 +22,8 @@ import { ScreenshotCarousel } from './ScreenshotCarousel';
 import { NotApprovedPage } from '@/components/access/NotApprovedPage';
 import { SignInExpired } from '@/components/layout/SignInExpired';
 import { useTenantAccess } from '@/components/access/useTenantAccess';
+import { DemoBanner } from '@/components/demo/DemoBanner';
+import { startDemo } from '@/services/demo/demoMode';
 
 // Ordered for the three-column grid: each AI agent card sits beside the feature it supports
 const features = [
@@ -154,6 +157,12 @@ export function LandingPage() {
     }
   };
 
+  const handleTryDemo = () => {
+    if (!startDemo()) {
+      toast.error('The demo needs browser storage, which this browser is blocking.');
+    }
+  };
+
   // Signed in from an organisation that isn't approved: say so, rather than "Get Started"
   if (tenantAccess.status === 'denied') {
     return <NotApprovedPage tenantId={tenantAccess.tenantId} email={tenantAccess.email} />;
@@ -176,6 +185,8 @@ export function LandingPage() {
       {/* Background effects */}
       <div className="bg-grid-pattern bg-grid pointer-events-none fixed inset-0 opacity-20" />
       <div className="bg-gradient-radial from-brand/5 pointer-events-none fixed inset-0 via-transparent to-transparent" />
+
+      <DemoBanner />
 
       {/* Header */}
       <Header />
@@ -235,6 +246,13 @@ export function LandingPage() {
               >
                 Get Started
                 <ArrowRightIcon className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+              </button>
+              <button
+                onClick={handleTryDemo}
+                className="border-knowall-green/50 text-knowall-green hover:bg-knowall-green/10 flex items-center justify-center gap-2 rounded-xl border px-8 py-4 font-semibold transition-colors"
+              >
+                <PlayCircleIcon className="h-5 w-5" />
+                Try the demo
               </button>
               <a
                 href="https://knowall.ai"

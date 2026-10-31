@@ -1,6 +1,7 @@
 import { migrateLegacyStorageKey } from '@/utils/legacyStorage';
+import { appStorage } from '@/services/demo/demoStorage';
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import type { TimerState } from '@/types';
 
 const TIMER_STORAGE_KEY = 'timmie-timer-storage';
@@ -84,6 +85,8 @@ export const useTimerStore = create<TimerStore>()(
     }),
     {
       name: TIMER_STORAGE_KEY,
+      // In the demo, this tab's sessionStorage: never a real session's settings
+      storage: createJSONStorage(() => appStorage()),
     }
   )
 );

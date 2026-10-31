@@ -1,6 +1,7 @@
 import { migrateLegacyStorageKey } from '@/utils/legacyStorage';
+import { appStorage } from '@/services/demo/demoStorage';
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import type { UserSettings } from '@/types';
 
 const SETTINGS_STORAGE_KEY = 'timmie-settings-storage';
@@ -36,6 +37,8 @@ export const useSettingsStore = create<SettingsStore>()(
     }),
     {
       name: SETTINGS_STORAGE_KEY,
+      // In the demo, this tab's sessionStorage: never a real session's settings
+      storage: createJSONStorage(() => appStorage()),
     }
   )
 );

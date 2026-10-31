@@ -1,5 +1,6 @@
 import { migrateLegacyStorageKey } from '@/utils/legacyStorage';
 import { bcClient } from './bcClient';
+import { appStorage } from '../demo/demoStorage';
 import type { Project, Task, BCJobPlanningLine, BCTimeEntry } from '@/types';
 import { getProjectCustomer, getProjectCustomerName } from '@/utils/projectCustomer';
 import {
@@ -160,7 +161,7 @@ migrateLegacyStorageKey('thyme_favorite_projects', FAVORITES_KEY);
 
 function getFavorites(): string[] {
   if (typeof window === 'undefined') return [];
-  const stored = localStorage.getItem(FAVORITES_KEY);
+  const stored = appStorage().getItem(FAVORITES_KEY);
   return stored ? JSON.parse(stored) : [];
 }
 

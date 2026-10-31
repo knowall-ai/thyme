@@ -2,6 +2,9 @@ import { migrateLegacyStorageKey } from '@/utils/legacyStorage';
 import { getBCAccessToken } from '../auth';
 import { isReauthRequiredError } from '../auth/reauthErrors';
 import { ExtensionNotInstalledError } from './timeEntryService';
+import { DEMO_COMPANY_ID, DEMO_ENVIRONMENT, isDemoMode } from '../demo/demoMode';
+import { demoBcFetch } from '../demo/demoBcServer';
+import { appStorage } from '../demo/demoStorage';
 import type {
   BCCompany,
   BCEnvironmentType,
@@ -102,6 +105,8 @@ async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): P
  *   caller cancelled isn't.
  */
 async function bcFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  // In the demo the sample data answers, in the browser: nothing goes to Business Central
+  if (isDemoMode()) return demoBcFetch(input, init);
   for (let attempt = 0; ; attempt++) {
     let response: Response;
     try {
@@ -253,12 +258,15 @@ class BusinessCentralClient {
 
   private loadStoredSelection(): { companyId: string; environment: BCEnvironmentType } {
     if (typeof window !== 'undefined') {
-      const storedCompany = localStorage.getItem(COMPANY_STORAGE_KEY);
-      const storedEnv = localStorage.getItem(ENVIRONMENT_STORAGE_KEY) as BCEnvironmentType | null;
+      const storage = appStorage();
+      const storedCompany = storage.getItem(COMPANY_STORAGE_KEY);
+      const storedEnv = storage.getItem(ENVIRONMENT_STORAGE_KEY) as BCEnvironmentType | null;
       if (storedCompany && storedEnv) {
         return { companyId: storedCompany, environment: storedEnv };
       }
     }
+    // The demo starts in its own company, never the configured real one
+    if (isDemoMode()) return { companyId: DEMO_COMPANY_ID, environment: DEMO_ENVIRONMENT };
     return { companyId: BC_DEFAULT_COMPANY_ID, environment: BC_DEFAULT_ENVIRONMENT };
   }
 
@@ -314,8 +322,8 @@ class BusinessCentralClient {
       this._companyId = companyId;
       this._environment = environment;
       if (typeof window !== 'undefined') {
-        localStorage.setItem(COMPANY_STORAGE_KEY, companyId);
-        localStorage.setItem(ENVIRONMENT_STORAGE_KEY, environment);
+        appStorage().setItem(COMPANY_STORAGE_KEY, companyId);
+        appStorage().setItem(ENVIRONMENT_STORAGE_KEY, environment);
       }
       // Reset extension cache when company/environment changes
       this._extensionInstalled = null;

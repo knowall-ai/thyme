@@ -11,6 +11,7 @@
  */
 
 import { msalInstance, initializeMsal } from './msalInstance';
+import { isDemoMode } from '../demo/demoMode';
 import {
   LICENCE_ADMIN_ROLE_TEMPLATE_IDS,
   type LicensedUser,
@@ -25,6 +26,8 @@ const MAX_PAGES = 20;
 
 /** The directory token, or null when it isn't granted (or there's no account) */
 export async function getLicenceToken(): Promise<string | null> {
+  // The demo has no directory to read
+  if (isDemoMode()) return null;
   try {
     await initializeMsal();
     const account = msalInstance.getActiveAccount();
@@ -42,6 +45,7 @@ export async function getLicenceToken(): Promise<string | null> {
  * to this page. Someone who isn't an admin sees Microsoft's "Need admin approval".
  */
 export async function requestLicenceConsent(): Promise<void> {
+  if (isDemoMode()) throw new Error('Not available in the demo');
   await initializeMsal();
   const account = msalInstance.getActiveAccount() ?? undefined;
   await msalInstance.acquireTokenRedirect({

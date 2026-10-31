@@ -1,6 +1,7 @@
 'use client';
 
 import { migrateLegacyStorageKey } from '@/utils/legacyStorage';
+import { appStorage } from '@/services/demo/demoStorage';
 import { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
@@ -12,12 +13,12 @@ export function TeamsBotBanner() {
   const [isDismissed, setIsDismissed] = useState(true);
 
   useEffect(() => {
-    const dismissed = localStorage.getItem(DISMISSED_KEY);
+    const dismissed = appStorage().getItem(DISMISSED_KEY);
     setIsDismissed(dismissed === 'true');
   }, []);
 
   const handleDismiss = () => {
-    localStorage.setItem(DISMISSED_KEY, 'true');
+    appStorage().setItem(DISMISSED_KEY, 'true');
     setIsDismissed(true);
   };
 

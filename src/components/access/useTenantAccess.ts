@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth, useReauthStore } from '@/services/auth';
 import { checkTenantApproved } from '@/services/auth/tenantAccessService';
 import { KNOWALL_TENANT_ID, getAccountTenantId } from '@/utils/tenantAccess';
+import { useIsDemoMode } from '@/services/demo/useIsDemoMode';
 
 /** 'reauth': the check failed because Entra needs the user to sign in again */
 export type TenantAccessStatus =
@@ -39,12 +40,14 @@ export function resetTenantAccessCache(): void {
  */
 export function useTenantAccess() {
   const { account, isAuthenticated } = useAuth();
+  // The demo's fictional organisation needs no approval (and no call to Timmie's server)
+  const isDemo = useIsDemoMode();
   const tid = getAccountTenantId(account);
   // The server's answer, for the tenant it was asked about
   const [check, setCheck] = useState<{ tid: string; status: TenantAccessStatus } | null>(null);
   const [attempt, setAttempt] = useState(0);
 
-  const needsServer = isAuthenticated && !!tid && tid !== KNOWALL_TENANT_ID;
+  const needsServer = !isDemo && isAuthenticated && !!tid && tid !== KNOWALL_TENANT_ID;
 
   useEffect(() => {
     if (!needsServer || !tid) return;
@@ -69,15 +72,17 @@ export function useTenantAccess() {
   // Set when a token needs an interactive sign-in that couldn't start by itself
   const reauthRequired = useReauthStore((state) => state.status === 'manual');
 
-  const checked: TenantAccessStatus = !isAuthenticated
-    ? 'signed-out'
-    : !tid
-      ? 'denied'
-      : tid === KNOWALL_TENANT_ID
-        ? 'approved'
-        : check?.tid === tid
-          ? check.status
-          : 'checking';
+  const checked: TenantAccessStatus = isDemo
+    ? 'approved'
+    : !isAuthenticated
+      ? 'signed-out'
+      : !tid
+        ? 'denied'
+        : tid === KNOWALL_TENANT_ID
+          ? 'approved'
+          : check?.tid === tid
+            ? check.status
+            : 'checking';
   // Retrying can't fix a sign-in that has expired; signing in again can
   const status = checked === 'error' && reauthRequired ? 'reauth' : checked;
 

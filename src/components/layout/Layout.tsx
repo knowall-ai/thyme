@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Header } from './Header';
 import { SignInExpiredBanner } from './SignInExpiredBanner';
 import { BcHealthBanner } from './BcHealthBanner';
+import { DemoBanner } from '@/components/demo/DemoBanner';
 
 interface LayoutProps {
   children: ReactNode;
@@ -21,6 +22,7 @@ export function Layout({ children, hideSignInBanner = false }: LayoutProps) {
       <div className="bg-grid-pattern bg-grid pointer-events-none fixed inset-0 opacity-10" />
 
       <div className="relative z-10 flex flex-1 flex-col">
+        <DemoBanner />
         <Header />
         {!hideSignInBanner && <SignInExpiredBanner />}
         <BcHealthBanner />
