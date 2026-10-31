@@ -44,12 +44,12 @@ function tablesToDisclosures(html: string): string {
 
       const summary = doc.createElement('summary');
       summary.className =
-        'hover:bg-dark-800/60 group-open:hover:bg-transparent flex cursor-pointer list-none items-start justify-between gap-4 px-5 py-4 font-medium text-white transition-colors group-open:text-knowall-green [&::-webkit-details-marker]:hidden';
+        'hover:bg-dark-800/60 group-open:hover:bg-transparent flex cursor-pointer list-none items-start justify-between gap-4 px-5 py-4 font-medium text-white transition-colors group-open:text-brand [&::-webkit-details-marker]:hidden';
       summary.innerHTML = `<span>${question.querySelector('p')?.innerHTML ?? question.innerHTML}</span>${CHEVRON}`;
 
       const body = doc.createElement('div');
       body.className =
-        'text-dark-300 border-dark-700/70 mx-5 space-y-3 border-t pt-4 pb-6 leading-relaxed [&_a]:text-knowall-green [&_a:hover]:underline [&_code]:bg-dark-950/70 [&_code]:text-knowall-green [&_code]:rounded [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-sm [&_code]:break-words [&_strong]:text-white';
+        'text-dark-300 border-dark-700/70 mx-5 space-y-3 border-t pt-4 pb-6 leading-relaxed [&_a]:text-brand [&_a:hover]:underline [&_code]:bg-dark-950/70 [&_code]:text-brand [&_code]:rounded [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-sm [&_code]:break-words [&_strong]:text-white';
       body.innerHTML = answer.innerHTML;
 
       details.append(summary, body);
