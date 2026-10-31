@@ -1,84 +1,61 @@
 = Timmie Troubleshooting Guide
 
-Common issues and their solutions. Add new entries as problems are discovered and resolved.
+// Maintainers: add each new entry to the table in the section it belongs to.
+// Keep the two-column Problem | Solution format; the help page shows each row as an expandable question.
+
+Solutions to common problems with Timmie. Click a problem to see how to fix it.
+
+== Signing in and access
 
 |===
 | Problem | Solution
 
-| Auth redirect fails with "AADSTS50011" error
-| Verify redirect URI in Azure App Registration matches `NEXT_PUBLIC_AZURE_REDIRECT_URI` exactly (including trailing slash if present)
-
-| BC API returns 401 Unauthorized
-| Check that BC API permissions are granted admin consent in Azure; verify token hasn't expired
-
-| Every page shows "Couldn't load your Business Central companies" (e.g. "Couldn't load companies from Business Central (sandbox, production)"), "Try again" doesn't help, the avatar shows initials, and the console says "Silent token acquisition failed"
-| Your Microsoft sign-in has expired or needs re-verification (Edge may show a "Verify it's you" badge); Business Central itself is fine. Upgrade to the latest Timmie version: it now detects this and sends you to Microsoft to sign in again, then brings you back to the same page. If that already happened in the last few minutes (to avoid a sign-in loop), or Timmie is open in a popup or frame, it shows "Your sign-in has expired" with a *Sign in again* button instead. On older versions, sign out and sign in again. If signing in keeps coming back to the same message, check Conditional Access / MFA requirements for the user in Entra ID.
+| Every page says "Couldn't load your Business Central companies"
+| You may also see "Couldn't load companies from Business Central (sandbox, production)", "Try again" doesn't help, the avatar shows initials, and the browser console says "Silent token acquisition failed". Your Microsoft sign-in has expired or needs re-verification (Edge may show a "Verify it's you" badge); Business Central itself is fine. Upgrade to the latest Timmie version: it now detects this and sends you to Microsoft to sign in again, then brings you back to the same page. If that already happened in the last few minutes (to avoid a sign-in loop), or Timmie is open in a popup or frame, it shows "Your sign-in has expired" with a *Sign in again* button instead. On older versions, sign out and sign in again. If signing in keeps coming back to the same message, check Conditional Access / MFA requirements for the user in Entra ID.
 
 | After signing in, Timmie shows "Your organisation isn't set up on Timmie yet"
 | Only organisations KnowAll has approved can use Timmie. The page shows the organisation's tenant ID: add it to the `APPROVED_TENANT_IDS` App Service setting (comma-separated GUIDs) and apply, then reload. "Tenant ID: Unknown" means the sign-in had no tenant (`tid` claim), which is never allowed: sign out and in again with a work account. See _Approved organisations_ in DEPLOYMENT.adoc.
 
-| BC API returns 403 Forbidden
-| User needs appropriate Business Central license and permissions assigned
+| Business Central returns 401 Unauthorized
+| Check that the Business Central API permissions have admin consent in Entra ID, then sign out and in again in case your token had expired.
 
-| Projects dropdown is empty
-| Verify `NEXT_PUBLIC_BC_COMPANY_ID` and `NEXT_PUBLIC_BC_ENVIRONMENT` are set (must have `NEXT_PUBLIC_` prefix for client-side access); check that `/projects` endpoint returns data (not `/jobs`)
+| Business Central returns 403 Forbidden
+| Your user needs a Business Central licence and the permissions for what you were doing. Ask your Business Central administrator to assign them.
 
-| Team page shows no employees, or a person is missing from Team/Reports
-| Timmie lists resources that are a Person, not blocked, use time sheets and have a Time Sheet Owner User ID set on the Resource Card in BC. Open the person's Resource Card and check *Type* = Person, *Blocked* is off, *Use Time Sheet* is on and *Time Sheet Owner User ID* is filled in. Placeholder role resources used only for estimates (no Time Sheet Owner) are deliberately left out.
+| A link opens with "You don't have access to that company in Business Central"
+| Timmie URLs include the environment and company (`/production/{companyId}/projects/...`), and the link points at a company your account can't see. This happens when the company is in an environment you don't have (e.g. a Sandbox), or your BC user hasn't been given access to that company. (1) Ask your Business Central administrator to give your user access to the company in that environment, then sign out of Timmie and back in. (2) Or click *Go to …* to open the same page in your current company instead.
 
-| Team tab shows 0 hours for everyone during summer time
-| Upgrade to the latest Timmie version. Earlier versions looked up each person's timesheet with the week start converted to UTC, which in timezones ahead of UTC (e.g. UK summer time, BST) is the previous day (Sunday), so no timesheet matched and every person showed 0 hours. The same fix stops a custom date range on the Approvals page being stored one day early.
+| A shared Timmie link shows "This page could not be found"
+| The URL must be `/{environment}/{companyId}/{page}`, where the environment is `production` or `sandbox` and the company ID is the BC company GUID (e.g. `/production/00000000-0000-0000-0000-000000000001/plan`). A truncated or hand-edited link won't match; copy the link again from the browser's address bar. Old links without a company (e.g. `/projects/PR00100`) still work and open in your current company.
 
-| Team page shows no billable targets (no "/ 75% default target" next to Billable %, no "Billable vs target" card), and Settings has no Billable Target section
-| Billable targets need a Timmie BC Extension version with billable targets (the `billableTargetPercent` / `billableTargetSet` fields on the resources API and the `thymeSetup` API). Install the latest extension in the BC environment; older versions keep working, just without targets.
+|===
 
-| "You don't have permission in Business Central to change billable targets" when saving a target
-| Business Central refused the change (403). Billable targets are saved to the Resource (per person) and Thyme Setup (company default) in BC, so the user needs permission to modify those records; ask a BC administrator to assign it, or to change the target for you.
+== Business Central and the Timmie BC Extension
 
-| Team page "Timesheet completion" is below 100% for someone who worked a full week
-| Timesheet completion is hours logged ÷ capacity. Check their timesheet for missing days, and that their capacity is right: it is the person's own *Weekly Capacity* when set (Timmie BC Extension 1.19+), otherwise the hours per day on their resource units of measure in BC (e.g. a DAY unit of 7.5 hours) x 5, falling back to 40 hours a week.
+|===
+| Problem | Solution
 
-| A part-timer's capacity on the Team page is too high (e.g. 37.5h a week for someone who works two days)
-| Capacity defaults to hours per day x 5. On the Team page, click the pencil next to their capacity and enter their hours a week (e.g. 15). Tick *Flexible working days* if they work those hours on any days rather than fixed weekdays. Needs Timmie BC Extension 1.19+ and permission to modify Resources in BC; the pencil only shows when the extension supports it.
-
-| A person is greyed out on the Team page with completion "–"
-| Their weekly capacity is set to 0, which means "listed but not counted" (used for AI agents and anyone who shouldn't count). They're left out of Team Capacity, Timesheet completion and the billable target. To count them again, click the pencil next to their capacity and tick *Use default*, or enter their real hours.
-
-| Timer state lost on refresh
-| Check browser allows localStorage; timer state persists in localStorage
-
-| "missing required error components" on page load
-| Clear `.next` folder and restart dev server: `rm -rf .next && npm run dev`
-
-| Sign-in popup blocked
-| App now uses redirect flow; if still seeing popups, clear cache and rebuild
-
-| Logout doesn't work
-| Verify `postLogoutRedirectUri` is set to `/` in AuthProvider; check for console errors
-
-| TypeScript build errors after changes
-| Run `npm run build` to see full errors; check that new types are exported from `src/types/index.ts`
-
-| Tailwind classes not applying
-| Ensure file is in `content` array in `tailwind.config.js`; avoid dynamic class string interpolation
-
-| vitest/vite version conflict
-| `vitest.config.ts` should be excluded in `tsconfig.json` exclude array
-
-| Dev server on wrong port
-| Ports 3000/3001 may be in use; check console output for actual port (e.g., 3002)
-
-| BC API returns 404 on endpoint
-| Verify the endpoint exists in BC API v2.0; some entities use different names (e.g., `projects` not `jobs`)
-
-| Production auth fails with "AADSTS900144: client_id missing"
-| `NEXT_PUBLIC_*` env vars are baked in at build time in Next.js, not runtime. Add them as GitHub secrets and include in the build step of `deploy-production.yml` workflow. Azure App Service settings alone won't work for client-side variables.
-
-| "No Timesheet Available" message shown
-| A timesheet must be created in BC before users can enter time for a week. Contact your timesheet manager to create timesheets for you. See Issue #61 for manager timesheet creation feature.
+| Yellow banner: "Business Central isn't accepting requests from browsers right now"
+| The banner may instead say Business Central "is rejecting some requests" or "isn't responding", and pages are empty. Business Central's API is failing, which Timmie confirms from its own server (`/api/health/bc`, which sends the same CORS preflight a browser does). It has been seen rejecting every browser's preflight (401 on `OPTIONS`, for every website), which blocks all browser calls to it. Nothing needs fixing in Timmie: the banner clears itself (it checks every minute) once Microsoft fixes it. Admins can check Health > Service health in the Microsoft 365 admin center. To check by hand: `curl -s -o /dev/null -w "%{http_code}" -X OPTIONS -H "Origin: https://gettimm.ie" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: authorization" https://api.businesscentral.dynamics.com/v2.0/production/api/v2.0/companies` (200 is healthy).
 
 | "Timmie BC Extension is not installed" error
 | The Timesheet API requires the Timmie BC Extension to be installed. Install from https://github.com/knowall-ai/timmie-bc-extension
+
+| "Could not find your resource record" error
+| Your user account must have a matching Resource record in BC with a valid email address. Contact your BC administrator.
+
+| "Resource Record Not Found" but BC extension check passes
+| The extension's `/resources` API endpoint may not exist. This happens when using an older extension version or when the extension isn't fully installed. Reinstall the latest Timmie BC Extension from https://github.com/knowall-ai/timmie-bc-extension
+
+|===
+
+== Timesheets and time entry
+
+|===
+| Problem | Solution
+
+| "No Timesheet Available" message shown
+| A timesheet must exist in Business Central before you can enter time for a week. Click *Create timesheet* to create it (shown when Timmie can find your resource), or *Email request to manager* to ask someone who can. You can also create it yourself in Business Central: open your Resource, click *Create Time Sheets...*, set the starting date to the week and *No. of Periods* to 1.
 
 | Timesheet shows as read-only
 | Timesheets become read-only once submitted for approval. If rejected, click "Reopen for Editing" to make changes.
@@ -86,11 +63,18 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | Time entries not saving
 | Ensure you have an Open or Rejected timesheet for the week. Submitted and Approved timesheets cannot be edited.
 
-| "Could not find your resource record" error
-| Your user account must have a matching Resource record in BC with a valid email address. Contact your BC administrator.
+| Hours and days display incorrectly (e.g., 12h shows as 12d instead of 1.5d)
+| Resources with Base Unit of Measure = DAY need an HOUR unit configured for conversion. In BC: (1) Open the Resource card (2) Go to Related → Resource → Units of Measure (3) The DAY row must stay at Qty per Unit of Measure = 1 (base unit, cannot change) (4) Add a new row for HOUR with Qty per Unit of Measure = 0.125 (for 8-hour days) or 0.133 (for 7.5-hour days). This tells BC that 1 HOUR = 0.125 DAYs. Timmie reads these conversion factors from the `/resourceUnitsOfMeasure` API (requires BC Extension v1.7.0+).
 
-| "Resource Record Not Found" but BC extension check passes
-| The extension's `/resources` API endpoint may not exist. This happens when using an older extension version or when the extension isn't fully installed. Reinstall the latest Timmie BC Extension from https://github.com/knowall-ai/timmie-bc-extension
+| Timer state lost on refresh
+| The running timer is kept in your browser's local storage. Check that your browser allows site data for Timmie and that you aren't in a private window, which clears it when closed.
+
+|===
+
+== Poppie's time suggestions
+
+|===
+| Problem | Solution
 
 | "Poppie's suggestions" panel doesn't appear under the week on the Time page
 | The panel only shows when the Timmie BC Extension has the `timeSuggestions` API; with an older extension it is hidden. Upgrade to the latest Timmie BC Extension from https://github.com/knowall-ai/timmie-bc-extension. If the panel shows but stays empty, Poppie hasn't written any suggestions for that person and week yet, or a suggestion matches an entry already in the week (those are hidden).
@@ -104,20 +88,92 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | *Request suggestions* is greyed out and the panel says "Poppie offline"
 | Timmie reads Poppie's heartbeat (Timmie BC Extension 1.18+). She refreshes it every minute from her `suggestion-requests` job, and after 5 minutes without one Timmie treats her as offline. Hover the button to see when she was last seen. Her VM is probably stopped, or the job isn't running. Ask an administrator to check the VM and `hermes cron list`. The button comes back by itself within a minute of her returning.
 
-| Poppie doesn't suggest time for someone's GitHub pull requests or issues
-| Poppie needs to know their GitHub username. Set it on the Team page (the GitHub line under their name; administrators can set anyone's) or, for yourself, in *Settings > Connected accounts*. A profile link or `@username` works too. It's saved on the person's resource in the selected company, so set it in each company they log time in. Needs Timmie BC Extension 1.21+; with older versions the GitHub line and the *Connected accounts* section are hidden. Azure DevOps doesn't need setting up: Poppie uses the person's Microsoft 365 sign-in.
-
-| "You are not allowed to change the GitHub username of resource ..."
-| You can change your own GitHub username (the resource whose *Time Sheet Owner User ID* on the BC Resource card is you) and, as a Timmie administrator (*Time Sheet Admin.* in User Setup, or the `THYME ADMIN` permission set), anyone's. If it's your own and you still see this, ask an administrator to set you as the time sheet owner of your resource.
-
 | A suggestion request stays on "Queued" or says "Poppie seems to be offline"
 | Poppie checks for requests every minute, so a request waiting longer than a few minutes means her VM or its `suggestion-requests` job isn't running. The request stays queued and runs when she's back; you don't need to ask again. If it never starts, ask an administrator to check Poppie's `suggestion-requests` cron job. A request that started but stopped updating is marked failed after 30 minutes, so you can ask again.
 
 | Poppie finished a request for a teammate but no suggestions appear
 | Suggestions are only visible to the person they're for and to Timmie administrators, because they can include meeting subjects and other activity the person hasn't logged yet. As their approver you can ask Poppie to check their week, and Timmie tells you how many she found. They see the suggestions on their own timesheet.
 
+| Poppie doesn't suggest time for someone's GitHub pull requests or issues
+| Poppie needs to know their GitHub username. Set it on the Team page (the GitHub line under their name; administrators can set anyone's) or, for yourself, in *Settings > Connected accounts*. A profile link or `@username` works too. It's saved on the person's resource in the selected company, so set it in each company they log time in. Needs Timmie BC Extension 1.21+; with older versions the GitHub line and the *Connected accounts* section are hidden. Azure DevOps doesn't need setting up: Poppie uses the person's Microsoft 365 sign-in.
+
+| "You are not allowed to change the GitHub username of resource ..."
+| You can change your own GitHub username (the resource whose *Time Sheet Owner User ID* on the BC Resource card is you) and, as a Timmie administrator (*Time Sheet Admin.* in User Setup, or the `THYME ADMIN` permission set), anyone's. If it's your own and you still see this, ask an administrator to set you as the time sheet owner of your resource.
+
+|===
+
+== Approvals and Poppie's timesheet review
+
+|===
+| Problem | Solution
+
+| "No Approval Access" on Timesheet Approvals page
+| To approve timesheets, configure the approver in Business Central: (1) *Make user a Time Sheet Admin:* Search for "User Setup" → find your user (or create a new entry) → check the "Time Sheet Admin" checkbox. This allows the user to approve any timesheet. (2) *Or link approver to specific resources:* Search for "Resources" → open each Resource Card for employees you manage → set "Time Sheet Approver User ID" to your BC user ID. This allows you to approve only timesheets for those specific resources.
+
+| "Poppie's recommendation" never appears on the Approvals or Time page
+| The panel only shows when the Timmie BC Extension has the `timesheetReviews` and `timesheetReviewLines` API pages; on an older extension Timmie hides it (the browser console shows "timesheetReviews endpoint not found"). Update the extension in BC. If the panel says "Awaiting Poppie's review…" for more than about 10 minutes, check that Poppie's review job is running and can reach the company: Timmie only reads reviews, it doesn't create them.
+
+| Poppie's review says "Out of date"
+| The timesheet's lines or daily hours were changed after Poppie reviewed it (Timmie compares their latest modified time with the review's version stamp). Once the timesheet is submitted again, Poppie re-reviews it on her next pass and the panel updates by itself; no action is needed. To have her look sooner, click *Ask Poppie to look again* in the panel.
+
+| There's no *Ask Poppie to look again* button in "Poppie's recommendation"
+| The button needs the Timmie BC Extension release with the `timesheetReviewRequests` API; on an older extension Timmie hides it. Update the extension in Business Central. It only shows once Poppie has reviewed the timesheet, and only to the timesheet's owner and its approvers (on the Time page and on the Approvals card). If clicking it says "You can't ask Poppie to review this timesheet.", BC didn't accept you as the owner or an approver.
+
+| *Ask Poppie to look again* stays on "Queued" or says "Poppie will pick this up when she's back online"
+| Poppie picks review requests up on her 10-minute round, so "Queued" for up to 10 minutes is normal. "Back online" means her heartbeat is more than 5 minutes old: her VM or its jobs aren't running. The request stays queued and runs when she's back; you don't need to ask again. If it never starts, ask an administrator to check Poppie's VM and its review cron job. If the request fails, the panel shows her reason and offers the button again.
+
+|===
+
+== Team, capacity and billable targets
+
+|===
+| Problem | Solution
+
+| Team page shows no employees, or a person is missing from Team/Reports
+| Timmie lists resources that are a Person, not blocked, use time sheets and have a Time Sheet Owner User ID set on the Resource Card in BC. Open the person's Resource Card and check *Type* = Person, *Blocked* is off, *Use Time Sheet* is on and *Time Sheet Owner User ID* is filled in. Placeholder role resources used only for estimates (no Time Sheet Owner) are deliberately left out.
+
+| Team tab shows 0 hours for everyone during summer time
+| Upgrade to the latest Timmie version. Earlier versions looked up each person's timesheet with the week start converted to UTC, which in timezones ahead of UTC (e.g. UK summer time, BST) is the previous day (Sunday), so no timesheet matched and every person showed 0 hours. The same fix stops a custom date range on the Approvals page being stored one day early.
+
+| The Team page shows no billable targets
+| There's no "/ 75% default target" next to Billable %, no "Billable vs target" card, and Settings has no Billable Target section. Billable targets need a Timmie BC Extension version with billable targets (the `billableTargetPercent` / `billableTargetSet` fields on the resources API and the `thymeSetup` API). Install the latest extension in the BC environment; older versions keep working, just without targets.
+
+| "You don't have permission in Business Central to change billable targets" when saving a target
+| Business Central refused the change (403). Billable targets are saved to the Resource (per person) and Thyme Setup (company default) in BC, so the user needs permission to modify those records; ask a BC administrator to assign it, or to change the target for you.
+
+| Team page "Timesheet completion" is below 100% for someone who worked a full week
+| Timesheet completion is hours logged ÷ capacity. Check their timesheet for missing days, and that their capacity is right: it is the person's own *Weekly Capacity* when set (Timmie BC Extension 1.19+), otherwise the hours per day on their resource units of measure in BC (e.g. a DAY unit of 7.5 hours) x 5, falling back to 40 hours a week.
+
+| A part-timer's capacity on the Team page is too high (e.g. 37.5h a week for someone who works two days)
+| Capacity defaults to hours per day x 5. On the Team page, click the pencil next to their capacity and enter their hours a week (e.g. 15). Tick *Flexible working days* if they work those hours on any days rather than fixed weekdays. Needs Timmie BC Extension 1.19+ and permission to modify Resources in BC; the pencil only shows when the extension supports it.
+
+| A person is greyed out on the Team page with completion "–"
+| Their weekly capacity is set to 0, which means "listed but not counted" (used for AI agents and anyone who shouldn't count). They're left out of Team Capacity, Timesheet completion and the billable target. To count them again, click the pencil next to their capacity and tick *Use default*, or enter their real hours.
+
+| Licences: "Need admin approval", or no licence tags on the Team page
+| Settings > *Allow Timmie to read licences* shows Microsoft's "Need admin approval", or the Team page has no licence tags or Licences button. The licence view needs the delegated Microsoft Graph permission `Directory.Read.All`, which only an administrator can grant. Ask a Global Administrator (or Privileged Role Administrator) to sign in to Timmie and click *Allow Timmie to read licences* in Settings, and accept the consent prompt. Even once granted, the tags and the Licences button only show for people with one of these Microsoft Entra roles: Global Administrator, Global Reader, License Administrator, User Administrator, Billing Administrator or Dynamics 365 Administrator (held directly or through a group). Prices are estimates (UK list prices, GBP a month ex VAT, annual term), kept with their sources in `src/config/licencePrices.json`: update that file to change them.
+
+|===
+
+== Projects and linked sources
+
+|===
+| Problem | Solution
+
 | The Projects list's hours, budget or % used don't match the project page
 | Upgrade to the latest Timmie version. Earlier versions measured the list against the Plan (Budget lines) rather than the Estimate (the quoted time on Billable lines) and only counted timesheets from the last six months, so the figures differed. The list now works them out exactly as the project page does, and its bar shows the time by stage (Posted, Approved, Submitted, Unsubmitted). Hover over the bar to see the hours in each stage.
+
+| "You don't have permission to rename projects in Business Central" when renaming a project
+| Renaming saves the project's Description to the BC Job, so your BC user needs Modify permission on the Job table. Ask your BC administrator to assign a permission set that allows editing projects (e.g. one that includes `JOBS-ALL` or a custom set with Modify on TableData Job), then try again. The name stays as it was until the save succeeds.
+
+| "You don't have permission to create projects in Business Central" when creating a project from the Projects page
+| *New project* creates a BC Job, so your BC user needs Insert permission on the Job table. Ask your BC administrator to assign a permission set that allows creating projects (e.g. one that includes `JOBS-ALL` or a custom set with Insert on TableData Job), then try again. Nothing is created until the save succeeds.
+
+| Creating a project fails with an error about the number series
+| BC numbers new projects from the *Project Nos.* series on *Projects Setup*. In BC, open *Projects Setup*, make sure *Project Nos.* is set and that its number series has *Default Nos.* turned on and numbers left, then try again.
+
+| A project in another currency (e.g. EUR) shows the company currency (e.g. £)
+| This shows on Billable Price, Invoiced Price or the Spend vs Budget chart. Timmie shows customer prices in the project's *Currency Code* (from the BC Project card) and internal costs (Budget Cost, Actual Cost) in the company's currency. It reads the project currency from Timmie BC Extension 1.14.0.0 or later; with an older extension every amount is labelled with the company currency, as before. Use 1.14.0.1 or later: on 1.14.0.0, planning lines created through the API (e.g. from Timmie's Plan) on a project in another currency are priced in the company currency but labelled with the project's, so recreate any such lines after updating. Update the extension in BC, then reload the project. If the project should be in the company currency, clear *Currency Code* on the Project card.
 
 | There's no *Linked sources* card on the project page
 | The card needs Timmie BC Extension 1.20 or later (the `projectSourceLinks` API); on older versions it's hidden. Upgrade the extension from https://github.com/knowall-ai/timmie-bc-extension.
@@ -134,71 +190,24 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | A link marked *Learned* appeared on a project
 | Poppie adds these when people chose that project for her unmapped suggestions and the time was approved. Edit it to make it yours, or remove it; she won't add a link you removed again.
 
-| "No Approval Access" on Timesheet Approvals page
-| To approve timesheets, configure the approver in Business Central: (1) *Make user a Time Sheet Admin:* Search for "User Setup" → find your user (or create a new entry) → check the "Time Sheet Admin" checkbox. This allows the user to approve any timesheet. (2) *Or link approver to specific resources:* Search for "Resources" → open each Resource Card for employees you manage → set "Time Sheet Approver User ID" to your BC user ID. This allows you to approve only timesheets for those specific resources.
+|===
 
-| The pricing page's enquiry form says "The enquiry form is unavailable right now"
-| The server has no mail settings. Set `CONTACT_MAIL_TENANT_ID`, `CONTACT_MAIL_CLIENT_ID` and `CONTACT_MAIL_CLIENT_SECRET` in the App Service settings (see _Enquiry form_ in DEPLOYMENT.adoc) and apply. If it says "Could not send your message" instead, Graph refused the email: check the app still has *Mail.Send* for the sending mailbox and that its secret hasn't expired; the App Service log shows the Graph status code.
+== Plan
 
-| Azure managed SSL certificate fails with "A record must point to..."
-| Azure App Service managed certificates require a proper A record for root domains, not a CNAME or ALIAS. Configure DNS with an A record for `@` pointing to the App Service IP shown in the error message. CNAME records are technically not allowed on root domains by DNS standards. The `www` subdomain can use a CNAME pointing to your App Service hostname.
-
-| Hours and days display incorrectly (e.g., 12h shows as 12d instead of 1.5d)
-| Resources with Base Unit of Measure = DAY need an HOUR unit configured for conversion. In BC: (1) Open the Resource card (2) Go to Related → Resource → Units of Measure (3) The DAY row must stay at Qty per Unit of Measure = 1 (base unit, cannot change) (4) Add a new row for HOUR with Qty per Unit of Measure = 0.125 (for 8-hour days) or 0.133 (for 7.5-hour days). This tells BC that 1 HOUR = 0.125 DAYs. Timmie reads these conversion factors from the `/resourceUnitsOfMeasure` API (requires BC Extension v1.7.0+).
-
-| "You don't have permission to rename projects in Business Central" when renaming a project
-| Renaming saves the project's Description to the BC Job, so your BC user needs Modify permission on the Job table. Ask your BC administrator to assign a permission set that allows editing projects (e.g. one that includes `JOBS-ALL` or a custom set with Modify on TableData Job), then try again. The name stays as it was until the save succeeds.
-
-| "You don't have permission to create projects in Business Central" when creating a project from the Projects page
-| *New project* creates a BC Job, so your BC user needs Insert permission on the Job table. Ask your BC administrator to assign a permission set that allows creating projects (e.g. one that includes `JOBS-ALL` or a custom set with Insert on TableData Job), then try again. Nothing is created until the save succeeds.
-
-| Creating a project fails with an error about the number series
-| BC numbers new projects from the *Project Nos.* series on *Projects Setup*. In BC, open *Projects Setup*, make sure *Project Nos.* is set and that its number series has *Default Nos.* turned on and numbers left, then try again.
-
-| A project priced in another currency (e.g. EUR) shows the company currency (e.g. £) on Billable Price, Invoiced Price or the Spend vs Budget chart
-| Timmie shows customer prices in the project's *Currency Code* (from the BC Project card) and internal costs (Budget Cost, Actual Cost) in the company's currency. It reads the project currency from Timmie BC Extension 1.14.0.0 or later; with an older extension every amount is labelled with the company currency, as before. Use 1.14.0.1 or later: on 1.14.0.0, planning lines created through the API (e.g. from Timmie's Plan) on a project in another currency are priced in the company currency but labelled with the project's, so recreate any such lines after updating. Update the extension in BC, then reload the project. If the project should be in the company currency, clear *Currency Code* on the Project card.
-
-| Internal time shows as billable in Reports (or a customer project's time shows as non-billable)
-| Timmie counts time as billable only if its project isn't internal and the timesheet line isn't marked not chargeable. A project is internal when it has no Bill-to Customer, its Bill-to Customer's name contains the whole word "Internal" (e.g. "Contoso - Internal"; "Contoso International" doesn't count), or its Bill-to Customer has the company's own name (e.g. "CRONUS UK Ltd." in the CRONUS UK Ltd. company; case, punctuation and spacing are ignored). In BC, open the Project card and check *Bill-to Customer No.*: give internal projects an internal customer - named "... - Internal" or exactly like the company - (or leave it empty), and make sure customer projects are billed to the real customer. A customer named e.g. "Internal Audit Ltd" would also be treated as internal, so rename it or bill the project to another customer. Lines with *Chargeable* unticked on the timesheet are never billable.
-
-| "Billable figures may be too high" warning on the Team page or Reports
-| Timmie couldn't load the projects from Business Central along with the hours, so it can't tell which time is on internal projects and counts it all as billable (unless the timesheet line is marked not chargeable). Refresh the page. If it keeps happening, check the user can open the Projects page in Timmie, and that the projects API in Business Central is reachable (e.g. no permission or throttling errors in the browser console).
-
-| Reports (All Resources) shows more hours than the Team page for the same week, e.g. one person's time counted several times
-| Fixed in Timmie: older versions looked up each resource's time sheet through its *Time Sheet Owner User ID*, so when one user owns the time sheets of several resources (e.g. AI agents whose time sheets a colleague looks after), that user's own time sheet was counted once per resource. Team and Reports now use the same calculation, matching time sheets to people by resource number. Reload Timmie to get the fix. If the two pages still differ, check that both are showing the same week (Reports' *This Month* covers the whole month).
-
-| Reports: timesheet completion, capacity and billable targets disappear after picking a client or project, or a project is listed under "Internal" or "Unknown client"
-| By design: with a client or project filter, Reports shows only the time on that client or project, and completion, capacity and targets cover all of each person's time, so comparing them with one client's hours would be misleading. Choose *Clear filters* to see them again. A project's client is its *Sell-to Customer* in BC (the end client, when the work comes through a partner who is the *Bill-to Customer*), or its *Bill-to Customer* if it has no Sell-to or the Timmie BC Extension is older than 1.27.0.1; internal projects (see "Internal time shows as billable" above) are grouped under *Internal*. *Unknown client* means Timmie couldn't load that project from BC (see "Billable figures may be too high" above).
-
-| "Poppie's recommendation" never appears on the Approvals or Time page
-| The panel only shows when the Timmie BC Extension has the `timesheetReviews` and `timesheetReviewLines` API pages; on an older extension Timmie hides it (the browser console shows "timesheetReviews endpoint not found"). Update the extension in BC. If the panel says "Awaiting Poppie's review…" for more than about 10 minutes, check that Poppie's review job is running and can reach the company: Timmie only reads reviews, it doesn't create them.
-
-| Poppie's review says "Out of date"
-| The timesheet's lines or daily hours were changed after Poppie reviewed it (Timmie compares their latest modified time with the review's version stamp). Once the timesheet is submitted again, Poppie re-reviews it on her next pass and the panel updates by itself; no action is needed. To have her look sooner, click *Ask Poppie to look again* in the panel.
-
-| There's no *Ask Poppie to look again* button in "Poppie's recommendation"
-| The button needs the Timmie BC Extension release with the `timesheetReviewRequests` API; on an older extension Timmie hides it. Update the extension in Business Central. It only shows once Poppie has reviewed the timesheet, and only to the timesheet's owner and its approvers (on the Time page and on the Approvals card). If clicking it says "You can't ask Poppie to review this timesheet.", BC didn't accept you as the owner or an approver.
-
-| *Ask Poppie to look again* stays on "Queued" or says "Poppie will pick this up when she's back online"
-| Poppie picks review requests up on her 10-minute round, so "Queued" for up to 10 minutes is normal. "Back online" means her heartbeat is more than 5 minutes old: her VM or its jobs aren't running. The request stays queued and runs when she's back; you don't need to ask again. If it never starts, ask an administrator to check Poppie's VM and its review cron job. If the request fails, the panel shows her reason and offers the button again.
-
-| A link opens with "You don't have access to that company in Business Central"
-| Timmie URLs include the environment and company (`/production/{companyId}/projects/...`), and the link points at a company your account can't see. This happens when the company is in an environment you don't have (e.g. a Sandbox), or your BC user hasn't been given access to that company. (1) Ask your Business Central administrator to give your user access to the company in that environment, then sign out of Timmie and back in. (2) Or click *Go to …* to open the same page in your current company instead.
-
-| A shared Timmie link shows "This page could not be found"
-| The URL must be `/{environment}/{companyId}/{page}`, where the environment is `production` or `sandbox` and the company ID is the BC company GUID (e.g. `/production/00000000-0000-0000-0000-000000000001/plan`). A truncated or hand-edited link won't match; copy the link again from the browser's address bar. Old links without a company (e.g. `/projects/PR00100`) still work and open in your current company.
+|===
+| Problem | Solution
 
 | A Plan cell has a red outline
 | The person is over-allocated that day across *all* projects, not just the one shown. Hover the cell for the total planned hours, how many projects they span, the person's daily capacity and a per-project breakdown. Capacity is the person's hours per day from their units of measure in Business Central (e.g. 7.5h), or 8h when none is set; see the DAY/HOUR unit-of-measure entry above to set it. People with their own weekly capacity (e.g. 15h for two days a week) are also flagged from the day their week so far goes over it. Move or reduce some of that day's allocations to clear the outline.
 
+| A Plan cell has a red outline on a hatched day, though the hours are within the person's day
+| The day has a *No project work* note (for everyone, or that person), e.g. an off-site, so any hours planned on it count as over capacity. Hover the cell for the note. Move the allocation to another day, or edit the note in the date's popover and untick *No project work* if the day is available after all.
+
 | Day notes don't appear on the Plan, or clicking a date does nothing
 | Day notes need Timmie BC Extension 1.22.0.0 or later (the `dayNotes` API); with older versions they're hidden and the dates in the Plan header aren't clickable. Upgrade the extension from https://github.com/knowall-ai/timmie-bc-extension, then reload the Plan.
 
-| The day notes popover has no *Add note*, edit or delete buttons, or saving a note says "You don't have permission to change day notes."
-| Only people who can write planning lines (Job Planning Line) in Business Central, Timmie administrators and the AI agent can change day notes; everyone else sees them read-only. Ask a BC administrator to give the user permission to modify Job Planning Lines (or the `THYME ADMIN` permission set). Timmie reads this from `canEditPlan` on the projects and resources APIs, so reload the Plan after the permission changes.
-
-| A Plan cell has a red outline on a hatched day, though the hours are within the person's day
-| The day has a *No project work* note (for everyone, or that person), e.g. an off-site, so any hours planned on it count as over capacity. Hover the cell for the note. Move the allocation to another day, or edit the note in the date's popover and untick *No project work* if the day is available after all.
+| Can't add, edit or delete day notes
+| The day notes popover has no *Add note*, edit or delete buttons, or saving a note says "You don't have permission to change day notes." Only people who can write planning lines (Job Planning Line) in Business Central, Timmie administrators and the AI agent can change day notes; everyone else sees them read-only. Ask a BC administrator to give the user permission to modify Job Planning Lines (or the `THYME ADMIN` permission set). Timmie reads this from `canEditPlan` on the projects and resources APIs, so reload the Plan after the permission changes.
 
 | Saving a day note says "This note changed since you opened it — reload to see the latest."
 | Someone else changed or deleted the note while you were editing it. Click *Reload* to see the latest version, then make your change again.
@@ -218,12 +227,70 @@ Common issues and their solutions. Add new entries as problems are discovered an
 | *Apply change* says "Update the Timmie BC Extension to apply changes"
 | This environment's Timmie BC Extension doesn't have the plan-review apply action yet. Update the extension in Business Central; until then, make Poppie's changes by hand.
 
+|===
 
-| Yellow banner: "Business Central isn't accepting requests from browsers right now" (or "is rejecting some requests" / "isn't responding"), and pages are empty
-| Business Central's API is failing, which Timmie confirms from its own server (`/api/health/bc`, which sends the same CORS preflight a browser does). It has been seen rejecting every browser's preflight (401 on `OPTIONS`, for every website), which blocks all browser calls to it. Nothing needs fixing in Timmie: the banner clears itself (it checks every minute) once Microsoft fixes it. Admins can check Health > Service health in the Microsoft 365 admin center. To check by hand: `curl -s -o /dev/null -w "%{http_code}" -X OPTIONS -H "Origin: https://gettimm.ie" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: authorization" https://api.businesscentral.dynamics.com/v2.0/production/api/v2.0/companies` (200 is healthy).
+== Reports and billable figures
 
-| Settings > "Allow Timmie to read licences" shows Microsoft's "Need admin approval", or the Team page has no licence tags or Licences button
-| The licence view needs the delegated Microsoft Graph permission `Directory.Read.All`, which only an administrator can grant. Ask a Global Administrator (or Privileged Role Administrator) to sign in to Timmie and click *Allow Timmie to read licences* in Settings, and accept the consent prompt. Even once granted, the tags and the Licences button only show for people with one of these Microsoft Entra roles: Global Administrator, Global Reader, License Administrator, User Administrator, Billing Administrator or Dynamics 365 Administrator (held directly or through a group). Prices are estimates (UK list prices, GBP a month ex VAT, annual term), kept with their sources in `src/config/licencePrices.json`: update that file to change them.
+|===
+| Problem | Solution
+
+| Internal time shows as billable in Reports (or a customer project's time shows as non-billable)
+| Timmie counts time as billable only if its project isn't internal and the timesheet line isn't marked not chargeable. A project is internal when it has no Bill-to Customer, its Bill-to Customer's name contains the whole word "Internal" (e.g. "Contoso - Internal"; "Contoso International" doesn't count), or its Bill-to Customer has the company's own name (e.g. "CRONUS UK Ltd." in the CRONUS UK Ltd. company; case, punctuation and spacing are ignored). In BC, open the Project card and check *Bill-to Customer No.*: give internal projects an internal customer - named "... - Internal" or exactly like the company - (or leave it empty), and make sure customer projects are billed to the real customer. A customer named e.g. "Internal Audit Ltd" would also be treated as internal, so rename it or bill the project to another customer. Lines with *Chargeable* unticked on the timesheet are never billable.
+
+| "Billable figures may be too high" warning on the Team page or Reports
+| Timmie couldn't load the projects from Business Central along with the hours, so it can't tell which time is on internal projects and counts it all as billable (unless the timesheet line is marked not chargeable). Refresh the page. If it keeps happening, check the user can open the Projects page in Timmie, and that the projects API in Business Central is reachable (e.g. no permission or throttling errors in the browser console).
+
+| Reports (All Resources) shows more hours than the Team page for the same week, e.g. one person's time counted several times
+| Fixed in Timmie: older versions looked up each resource's time sheet through its *Time Sheet Owner User ID*, so when one user owns the time sheets of several resources (e.g. AI agents whose time sheets a colleague looks after), that user's own time sheet was counted once per resource. Team and Reports now use the same calculation, matching time sheets to people by resource number. Reload Timmie to get the fix. If the two pages still differ, check that both are showing the same week (Reports' *This Month* covers the whole month).
+
+| Reports: completion, capacity and targets disappear after filtering by client or project
+| Or a project is listed under "Internal" or "Unknown client". By design: with a client or project filter, Reports shows only the time on that client or project, and completion, capacity and targets cover all of each person's time, so comparing them with one client's hours would be misleading. Choose *Clear filters* to see them again. A project's client is its *Sell-to Customer* in BC (the end client, when the work comes through a partner who is the *Bill-to Customer*), or its *Bill-to Customer* if it has no Sell-to or the Timmie BC Extension is older than 1.27.0.1; internal projects (see "Internal time shows as billable" above) are grouped under *Internal*. *Unknown client* means Timmie couldn't load that project from BC (see "Billable figures may be too high" above).
+
+|===
+
+== Developers and self-hosting
+
+For people running their own Timmie or working on its code.
+
+|===
+| Problem | Solution
+
+| Auth redirect fails with "AADSTS50011" error
+| Verify redirect URI in Azure App Registration matches `NEXT_PUBLIC_AZURE_REDIRECT_URI` exactly (including trailing slash if present)
+
+| Production auth fails with "AADSTS900144: client_id missing"
+| `NEXT_PUBLIC_*` env vars are baked in at build time in Next.js, not runtime. Add them as GitHub secrets and include in the build step of `deploy-production.yml` workflow. Azure App Service settings alone won't work for client-side variables.
+
+| Projects dropdown is empty in a local build
+| Verify `NEXT_PUBLIC_BC_COMPANY_ID` and `NEXT_PUBLIC_BC_ENVIRONMENT` are set (must have `NEXT_PUBLIC_` prefix for client-side access); check that `/projects` endpoint returns data (not `/jobs`)
+
+| Business Central returns 404 on an endpoint
+| Verify the endpoint exists in BC API v2.0; some entities use different names (e.g., `projects` not `jobs`)
+
+| Logout doesn't work
+| Check that `postLogoutRedirectUri` in `src/services/auth/msalConfig.ts` points at the app's origin, and look for errors in the browser console.
+
+| The pricing page's enquiry form says "The enquiry form is unavailable right now"
+| The server has no mail settings. Set `CONTACT_MAIL_TENANT_ID`, `CONTACT_MAIL_CLIENT_ID` and `CONTACT_MAIL_CLIENT_SECRET` in the App Service settings (see _Enquiry form_ in DEPLOYMENT.adoc) and apply. If it says "Could not send your message" instead, Graph refused the email: check the app still has *Mail.Send* for the sending mailbox and that its secret hasn't expired; the App Service log shows the Graph status code.
+
+| Azure managed SSL certificate fails with "A record must point to..."
+| Azure App Service managed certificates require a proper A record for root domains, not a CNAME or ALIAS. Configure DNS with an A record for `@` pointing to the App Service IP shown in the error message. CNAME records are technically not allowed on root domains by DNS standards. The `www` subdomain can use a CNAME pointing to your App Service hostname.
+
+| "missing required error components" on page load
+| Clear the `.next` folder and restart the dev server: `rm -rf .next && bun run dev`. This also fixes most errors after switching branches.
+
+| TypeScript build errors after changes
+| Run `bun run typecheck` (or `bun run build`) to see the full errors, and check that new types are exported from `src/types/index.ts`.
+
+| Tailwind classes not applying
+| Tailwind 4 finds classes by scanning the source, so it can't see class names built from string interpolation (e.g. `` `text-${colour}-500` ``). Write each class name out in full.
+
+| vitest/vite version conflict
+| `vitest.config.ts` should be excluded in `tsconfig.json` exclude array
+
+| Dev server on wrong port
+| `bun run dev` uses port 3101. If that port is in use, stop the other process or check the console output for the port Next.js picked instead. Sign-in only works on registered redirect URIs (3000 and 3101 locally).
+
 | Storage unit tests read `undefined` after writing a value
 | `tests/unit/setup.ts` replaces `localStorage` with no-op Vitest mocks. For tests that need real storage semantics, use jsdom's `sessionStorage` (as in `legacyStorage.test.ts`) or provide a stateful Storage test double.
 

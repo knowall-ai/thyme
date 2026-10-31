@@ -86,7 +86,7 @@ export default async function HelpPage() {
 
       {/* Troubleshooting section */}
       <section id="troubleshooting" className="scroll-mt-24">
-        <AsciidocContent content={troubleshootingContent} />
+        <AsciidocContent content={troubleshootingContent} collapsibleTables />
       </section>
     </PublicPageLayout>
   );
